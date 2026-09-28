@@ -1,0 +1,106 @@
+import { useState } from "react";
+import { Search, Hammer } from "lucide-react";
+import { getHeroes } from "@/services/heroes";
+import { getBuildForHero } from "@/services/items";
+import { useAsync } from "@/hooks/useAsync";
+import { Skeleton } from "@/components/layout/Skeleton";
+import { ErrorState } from "@/components/layout/ErrorState";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BuildItemRow } from "@/features/build/BuildItemRow";
+import type { HeroSummary } from "@/types/hero";
+
+const PHASE_LABEL = { early: "ช่วงต้นเกม", core: "ไอเทมหลัก", situational: "ตามสถานการณ์" } as const;
+
+export function ItemBuild() {
+  const heroesQ = useAsync(() => getHeroes(), []);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<HeroSummary | null>(null);
+  const buildQ = useAsync(() => (selected ? getBuildForHero(selected) : Promise.resolve(null)), [selected?.slug]);
+
+  const heroes = heroesQ.status === "success" ? heroesQ.data : [];
+  const filtered = heroes.filter((h) => query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="font-display text-xl font-semibold">Item Build</h1>
+        <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่เพื่อดูบิลด์แนะนำพร้อมเหตุผล</p>
+      </div>
+
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5">
+        <Search className="h-4 w-4 shrink-0 text-text-faint" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาฮีโร่..." className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint" />
+      </div>
+
+      {heroesQ.status === "loading" && (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
+        </div>
+      )}
+      {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
+      {heroesQ.status === "success" && (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {filtered.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => setSelected(h)}
+              className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center ${selected?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"}`}
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">{h.name.slice(0, 2).toUpperCase()}</div>
+              <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="space-y-4 border-t border-border pt-4">
+          <div className="flex items-center gap-2">
+            <Hammer className="h-4 w-4 text-accent" />
+            <h2 className="font-display text-base font-semibold">บิลด์แนะนำ: {selected.nameTh}</h2>
+          </div>
+
+          {buildQ.status === "loading" && <Skeleton className="h-40" />}
+          {buildQ.status === "error" && <ErrorState message={buildQ.message} />}
+          {buildQ.status === "success" && buildQ.data && (
+            <>
+              {buildQ.data.source === "heuristic" && (
+                <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
+                  * บิลด์นี้สร้างจากกฎเกณฑ์ตาม Role (Heuristic) ยังไม่ใช่บิลด์ที่เขียนเฉพาะฮีโร่นี้
+                </p>
+              )}
+              {(["early", "core", "situational"] as const).map((phase) => {
+                const items = buildQ.data!.items.filter((i) => i.phase === phase);
+                if (items.length === 0) return null;
+                return (
+                  <div key={phase}>
+                    <p className="mb-2 text-xs font-medium text-text-faint">{PHASE_LABEL[phase]}</p>
+                    <div className="space-y-2">
+                      {items.map((i) => <BuildItemRow key={i.itemSlug} entry={i} />)}
+                    </div>
+                  </div>
+                );
+              })}
+              <Card>
+                <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {buildQ.data.arcana.map((a) => (
+                    <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
+                      <p className="font-display text-sm font-medium">{a.name}</p>
+                      <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {!selected && heroesQ.status === "success" && (
+        <EmptyState icon={Hammer} title="ยังไม่ได้เลือกฮีโร่" description="เลือกฮีโร่ด้านบนเพื่อดูบิลด์แนะนำ" />
+      )}
+    </div>
+  );
+}
