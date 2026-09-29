@@ -9,7 +9,23 @@ export function StatBarRow({ hero, metric, maxValue }: { hero: HeroSummary; metr
       className="flex items-center gap-3 rounded-lg border border-border bg-bg-surface p-2.5 hover:border-accent/40"
     >
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
-        {hero.name.slice(0, 2).toUpperCase()}
+        {hero.icon ? (
+    <img
+      src={hero.icon}
+      alt={hero.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
+
+  <span className={`text-2xl font-display text-text-faint ${hero.icon ? "hidden" : ""}`}>
+    {hero.name.slice(0, 2).toUpperCase()}
+  </span>
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between gap-2">
