@@ -24,7 +24,23 @@ export function HeroCard({ hero }: { hero: HeroSummary }) {
         </div>
         <FavoriteButton heroSlug={hero.slug} className="absolute right-1.5 top-1.5" />
         <div className="flex h-full items-center justify-center text-2xl font-display text-text-faint">
-          {hero.name.slice(0, 2).toUpperCase()}
+          {hero.icon ? (
+    <img
+      src={hero.icon}
+      alt={hero.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
+
+  <span className={`text-2xl font-display text-text-faint ${hero.icon ? "hidden" : ""}`}>
+    {hero.name.slice(0, 2).toUpperCase()}
+  </span>
         </div>
       </div>
       <div className="space-y-1 p-2.5">
