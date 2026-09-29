@@ -1,17 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogIn, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
 
 export function Login() {
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, isConfigured } = useAuth();
+  const { user, signInWithEmail, signUpWithEmail, signInWithGoogle, isConfigured } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // ล็อกอินอยู่แล้ว (เช่นกลับมาจาก Google) ให้ไปหน้าโปรไฟล์เลย
+  useEffect(() => {
+    if (user) navigate("/profile", { replace: true });
+  }, [user, navigate]);
 
   if (!isConfigured) {
     return (
@@ -35,6 +40,17 @@ export function Login() {
     setBusy(false);
     if (error) setError(error);
     else navigate("/profile");
+  }
+
+  async function handleGoogle() {
+    setError(null);
+    setBusy(true);
+    const { error } = await signInWithGoogle();
+    // สำเร็จ: เบราว์เซอร์จะถูก redirect ไป Google เอง
+    if (error) {
+      setError(error);
+      setBusy(false);
+    }
   }
 
   return (
@@ -70,11 +86,17 @@ export function Login() {
         </button>
       </form>
 
-      <button onClick={signInWithGoogle} className="w-full rounded-lg border border-border py-2.5 text-sm text-text-muted hover:text-text">
+      <button
+        type="button"
+        onClick={handleGoogle}
+        disabled={busy}
+        className="w-full rounded-lg border border-border py-2.5 text-sm text-text-muted hover:text-text disabled:opacity-60"
+      >
         เข้าสู่ระบบด้วย Google
       </button>
 
       <button
+        type="button"
         onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
         className="w-full text-center text-sm text-text-faint hover:text-text"
       >
