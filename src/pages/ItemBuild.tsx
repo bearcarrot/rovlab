@@ -47,7 +47,25 @@ export function ItemBuild() {
               onClick={() => setSelected(h)}
               className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center ${selected?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"}`}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">{h.name.slice(0, 2).toUpperCase()}</div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
+                {h.icon ? (
+    <img
+      src={h.icon}
+      alt={h.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
+
+  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+    {h.name.slice(0, 2).toUpperCase()}
+  </span>
+              </div>
               <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
             </button>
           ))}
