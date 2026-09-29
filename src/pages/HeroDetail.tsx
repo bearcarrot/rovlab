@@ -49,7 +49,23 @@ export function HeroDetail() {
     <div className="space-y-5 pb-4">
       <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint">
-          {h.name.slice(0, 2).toUpperCase()}
+          {h.icon ? (
+    <img
+      src={h.icon}
+      alt={h.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
+
+  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+    {h.name.slice(0, 2).toUpperCase()}
+  </span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
