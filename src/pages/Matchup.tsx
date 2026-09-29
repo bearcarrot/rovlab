@@ -23,7 +23,25 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
               value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
             )}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">{h.name.slice(0, 2).toUpperCase()}</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
+              {h.icon ? (
+    <img
+      src={h.icon}
+      alt={h.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
+
+  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+    {h.name.slice(0, 2).toUpperCase()}
+  </span>
+            </div>
             <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
           </button>
         ))}
