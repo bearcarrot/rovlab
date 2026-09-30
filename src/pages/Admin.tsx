@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { AlertCircle, Check, ChevronDown, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +25,7 @@ type Cfg = {
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: { col: string; table: string; sel: string; order?: string; label: (r: Row) => string };
 };
+type Toast = { text: string; kind: "ok" | "err" } | null;
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
@@ -216,8 +218,44 @@ const CFG: Record<string, Cfg> = {
   },
 };
 
-const inp =
-  "w-full min-w-[80px] rounded-md border border-border bg-bg-surface px-2 py-1 text-sm outline-none focus:border-accent";
+// ---------- UI primitives ----------
+
+// ช่องกรอกทุกชนิดสูงเท่ากัน (h-11) และใช้ text-base บนมือถือเพื่อไม่ให้ iOS ซูมเอง
+const ctl =
+  "block w-full rounded-lg border border-border bg-bg-raised px-3 text-base text-text outline-none transition " +
+  "placeholder:text-text-faint focus:border-accent focus:ring-1 focus:ring-accent sm:text-sm";
+const inp = `${ctl} h-11`;
+const area = `${ctl} min-h-[96px] resize-y py-2.5 leading-relaxed`;
+
+const BTN_BASE =
+  "inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-medium " +
+  "transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none " +
+  "focus-visible:ring-2 focus-visible:ring-accent/60";
+const BTN_VARIANT = {
+  primary: "bg-accent text-accent-fg hover:brightness-110",
+  secondary: "border border-border bg-bg-raised text-text hover:border-text-faint",
+  danger: "border border-loss/40 bg-loss/10 text-loss hover:bg-loss/20",
+  dangerSolid: "bg-loss text-white hover:brightness-110",
+} as const;
+
+function Btn({
+  variant = "secondary",
+  className = "",
+  ...p
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof typeof BTN_VARIANT }) {
+  return <button type="button" {...p} className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${className}`} />;
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+// ---------- helpers ----------
 
 const toArr = (v: unknown): string[] =>
   Array.isArray(v)
@@ -229,6 +267,18 @@ const toArr = (v: unknown): string[] =>
 const norm = (c: Col, v: unknown) => (c.type === "arr" ? toArr(v).join("|") : String(v ?? ""));
 const clean = (c: Col, v: unknown) =>
   c.type === "arr" ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
+
+const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
+  if (v == null || v === "") return "";
+  if (c.type && REF_TYPES.includes(c.type)) return refs[c.type]?.find((o) => o.id === v)?.label ?? "";
+  if (Array.isArray(v)) return v.join(", ");
+  return String(v);
+};
+// หัวข้อ + คำอธิบายย่อของแถว (ตอนพับการ์ด)
+const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) => {
+  const parts = cfg.cols.map((c) => show(c, row[c.k], refs)).filter(Boolean);
+  return { title: parts[0] ?? "(ว่าง)", sub: parts.slice(1, 3).join(" · ") };
+};
 
 // onCommit: เรียกเมื่อแก้เสร็จ (select = ทันทีที่เลือก, input = ตอนคลิกออก/กด Enter) ใช้บันทึกลง DB อัตโนมัติ
 function Cell({
@@ -253,7 +303,7 @@ function Cell({
       <select className={inp} value={v ?? c.opts?.[0] ?? ""} onChange={(e) => change(e.target.value)}>
         {c.opts?.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {o || "— ไม่ระบุ —"}
           </option>
         ))}
       </select>
@@ -272,8 +322,8 @@ function Cell({
   if (c.type === "area")
     return (
       <textarea
-        className={inp + " min-w-[200px]"}
-        rows={2}
+        className={area}
+        rows={3}
         value={v ?? ""}
         onChange={(e) => onChange(e.target.value)}
         onBlur={(e) => onCommit?.(e.target.value)}
@@ -283,6 +333,7 @@ function Cell({
     <input
       className={inp}
       type={c.type === "num" ? "number" : c.type === "date" ? "date" : "text"}
+      inputMode={c.type === "num" ? "decimal" : undefined}
       step={c.type === "num" ? "any" : undefined}
       placeholder={c.type === "arr" ? "คั่นด้วย ," : undefined}
       value={Array.isArray(v) ? v.join(", ") : (v ?? "")}
@@ -301,10 +352,22 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   const [opts, setOpts] = useState<Row[]>([]);
   const [fv, setFv] = useState("");
   const [q, setQ] = useState("");
-  const [msg, setMsg] = useState("");
+  const [toast, setToast] = useState<Toast>(null);
   const [draft, setDraft] = useState<Row>(blank);
+  const [showAdd, setShowAdd] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
   const orig = useRef<Record<string, Row>>({});
+
+  const ok = (text: string) => setToast({ text, kind: "ok" });
+  const err = (text: string) => setToast({ text, kind: "err" });
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.kind === "err" ? 6000 : 2200);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     if (!cfg.filter) return;
@@ -323,12 +386,11 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
     if (cfg.search && q) r = r.ilike(cfg.search, `%${q}%`);
     if (cfg.order) r = r.order(cfg.order, { ascending: cfg.asc ?? true });
     const { data, error } = await r;
-    if (error) setMsg(error.message);
+    if (error) err(error.message);
     else {
       const list = data as Row[];
       orig.current = Object.fromEntries(list.map((x) => [x.id, { ...x }]));
       setRows(list);
-      setMsg(`${list.length} แถว · แก้แล้วบันทึกลงฐานข้อมูลอัตโนมัติ`);
     }
   }, [cfg, fv, q]);
 
@@ -346,18 +408,21 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
     if (cfg.table === "heroes") body.updated_at = new Date().toISOString();
     const { error } = await db.from(cfg.table).update(body).eq("id", row.id);
     if (error) {
-      setMsg(`บันทึกไม่สำเร็จ (${c.k}): ${error.message}`);
+      err(`บันทึกไม่สำเร็จ (${c.k}): ${error.message}`);
     } else {
       orig.current[row.id] = { ...orig.current[row.id], [c.k]: val };
-      setMsg(`บันทึก ${c.k} แล้ว ✓`);
+      ok(`บันทึก ${c.label ?? c.k} แล้ว`);
     }
   }
 
   async function remove(row: Row) {
-    if (!window.confirm("ลบแถวนี้?")) return;
     const { error } = await db.from(cfg.table).delete().eq("id", row.id);
-    if (error) setMsg(error.message);
-    else void load();
+    setConfirmId(null);
+    if (error) err(error.message);
+    else {
+      ok("ลบแล้ว");
+      void load();
+    }
   }
 
   async function add() {
@@ -365,82 +430,150 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
     for (const c of cfg.cols) body[c.k] = clean(c, draft[c.k]);
     if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
-    if (error) setMsg(error.message);
+    if (error) err(error.message);
     else {
       setDraft(blank());
-      setMsg("เพิ่มแล้ว ✓");
+      setShowAdd(false);
+      ok("เพิ่มแล้ว");
       void load();
     }
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {cfg.filter && (
-          <select className={inp + " !w-auto"} value={fv} onChange={(e) => setFv(e.target.value)}>
-            {opts.map((o) => (
-              <option key={o.id} value={o.id}>
-                {cfg.filter!.label(o)}
-              </option>
-            ))}
-          </select>
-        )}
-        {cfg.search && (
-          <input className={inp + " !w-56"} placeholder="ค้นหาชื่อ..." value={q} onChange={(e) => setQ(e.target.value)} />
-        )}
-      </div>
-
-      {cfg.add && (
-        <div className="flex flex-wrap items-start gap-2 rounded-lg border border-dashed border-border p-2">
-          {cfg.cols.map((c) => (
-            <div key={c.k} className="w-40">
-              <p className="pb-0.5 text-xs text-text-faint">{c.label ?? c.k}</p>
-              <Cell c={c} v={draft[c.k]} refs={refs} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
-            </div>
-          ))}
-          <button onClick={add} className="mt-4 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
-            + เพิ่ม
-          </button>
+    <div className="space-y-4 pb-24">
+      {/* ตัวกรอง / ค้นหา: มือถือเรียงลง เดสก์ท็อปเรียงข้าง */}
+      {(cfg.filter || cfg.search) && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {cfg.filter && (
+            <select className={`${inp} sm:w-auto sm:min-w-[18rem]`} value={fv} onChange={(e) => setFv(e.target.value)}>
+              {opts.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {cfg.filter!.label(o)}
+                </option>
+              ))}
+            </select>
+          )}
+          {cfg.search && (
+            <input
+              className={`${inp} sm:w-64`}
+              type="search"
+              placeholder="ค้นหาชื่อ..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          )}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-text-muted">
+      {/* เพิ่มรายการ */}
+      {cfg.add &&
+        (showAdd ? (
+          <section className="space-y-4 rounded-card border border-accent/40 bg-bg-surface p-4 shadow-card">
+            <h2 className="font-display text-base font-semibold">เพิ่ม{cfg.label}</h2>
+            <div className="space-y-3">
               {cfg.cols.map((c) => (
-                <th key={c.k} className="px-2 py-2 font-medium">
-                  {c.label ?? c.k}
-                </th>
+                <Field key={c.k} label={c.label ?? c.k}>
+                  <Cell c={c} v={draft[c.k]} refs={refs} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
+                </Field>
               ))}
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={row.id} className="border-t border-border align-top">
-                {cfg.cols.map((c) => (
-                  <td key={c.k} className="px-2 py-1">
-                    <Cell
-                      c={c}
-                      v={row[c.k]}
-                      refs={refs}
-                      onChange={(v) => edit(i, c.k, v)}
-                      onCommit={(v) => void commit(row, c, v)}
-                    />
-                  </td>
-                ))}
-                <td className="whitespace-nowrap px-2 py-1">
-                  <button onClick={() => remove(row)} className="text-loss">
-                    ลบ
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Btn onClick={() => setShowAdd(false)}>ยกเลิก</Btn>
+              <Btn variant="primary" onClick={add}>
+                <Plus className="h-4 w-4" /> บันทึก
+              </Btn>
+            </div>
+          </section>
+        ) : (
+          <Btn variant="primary" className="w-full sm:w-auto" onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4" /> เพิ่ม{cfg.label}
+          </Btn>
+        ))}
+
+      <p className="text-xs text-text-muted">{rows.length} รายการ · แก้ไขแล้วบันทึกอัตโนมัติ</p>
+
+      {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข */}
+      <div className="space-y-2">
+        {rows.length === 0 && (
+          <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
+            ยังไม่มีข้อมูล
+          </p>
+        )}
+        {rows.map((row, i) => {
+          const open = openId === row.id;
+          const { title, sub } = summary(cfg, row, refs);
+          return (
+            <article key={row.id} className="overflow-hidden rounded-card border border-border bg-bg-surface shadow-card">
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => {
+                  setOpenId(open ? null : row.id);
+                  setConfirmId(null);
+                }}
+                className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg-raised"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{title}</span>
+                  {sub && <span className="block truncate text-xs text-text-muted">{sub}</span>}
+                </span>
+                <ChevronDown className={`h-5 w-5 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+              </button>
+
+              {open && (
+                <div className="space-y-4 border-t border-border p-4">
+                  <div className="space-y-3">
+                    {cfg.cols.map((c) => (
+                      <Field key={c.k} label={c.label ?? c.k}>
+                        <Cell
+                          c={c}
+                          v={row[c.k]}
+                          refs={refs}
+                          onChange={(v) => edit(i, c.k, v)}
+                          onCommit={(v) => void commit(row, c, v)}
+                        />
+                      </Field>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-border pt-4">
+                    {confirmId === row.id ? (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                        <span className="text-sm text-text-muted sm:mr-auto">ลบรายการนี้ถาวร?</span>
+                        <Btn onClick={() => setConfirmId(null)}>
+                          <X className="h-4 w-4" /> ยกเลิก
+                        </Btn>
+                        <Btn variant="dangerSolid" onClick={() => void remove(row)}>
+                          <Trash2 className="h-4 w-4" /> ยืนยันลบ
+                        </Btn>
+                      </div>
+                    ) : (
+                      <Btn variant="danger" className="w-full sm:w-auto" onClick={() => setConfirmId(row.id)}>
+                        <Trash2 className="h-4 w-4" /> ลบรายการ
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
-      <p className="text-sm text-text-muted">{msg}</p>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          role="status"
+          className={`fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-card sm:inset-x-auto sm:right-6 sm:w-96 ${
+            toast.kind === "ok"
+              ? "border-win/40 bg-bg-raised text-win"
+              : "border-loss/50 bg-bg-raised text-loss"
+          }`}
+        >
+          {toast.kind === "ok" ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+          <span className="min-w-0 break-words">{toast.text}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,19 +614,28 @@ export function Admin() {
   return (
     <div className="space-y-4">
       <h1 className="font-display text-xl font-semibold">RoVLab Admin</h1>
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(CFG).map(([k, c]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`rounded-lg border px-3 py-1.5 text-sm ${
-              k === tab ? "border-accent bg-accent text-accent-fg" : "border-border text-text-muted"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+
+      {/* แท็บ: มือถือเลื่อนแนวนอน เดสก์ท็อปขึ้นบรรทัดใหม่ */}
+      <nav aria-label="ตาราง" className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max gap-2 md:w-auto md:flex-wrap">
+          {Object.entries(CFG).map(([k, c]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              aria-current={k === tab ? "page" : undefined}
+              className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-sm transition ${
+                k === tab
+                  ? "border-accent bg-accent font-medium text-accent-fg"
+                  : "border-border bg-bg-surface text-text-muted hover:border-text-faint hover:text-text"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <Editor key={tab} cfg={CFG[tab]} refs={refs} />
     </div>
   );
