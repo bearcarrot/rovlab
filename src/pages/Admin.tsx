@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -90,11 +90,29 @@ const inp =
 const get = (o: Row, path: string) => path.split(".").reduce<any>((a, b) => a?.[b], o);
 const clean = (c: Col, v: unknown) => (v === "" || v == null ? null : c.type === "num" ? Number(v) : v);
 
-function Cell({ c, v, onChange }: { c: Col; v: any; onChange: (v: string) => void }) {
+// onCommit: เรียกเมื่อแก้เสร็จ (select = ทันทีที่เลือก, input = ตอนกดออกจากช่อง) ใช้เพื่อบันทึกลง DB อัตโนมัติ
+function Cell({
+  c,
+  v,
+  onChange,
+  onCommit,
+}: {
+  c: Col;
+  v: any;
+  onChange: (v: string) => void;
+  onCommit?: (v: string) => void;
+}) {
   if (c.type === "ro") return <span className="whitespace-nowrap">{v ?? ""}</span>;
   if (c.type === "sel")
     return (
-      <select className={inp} value={v ?? c.opts?.[0]} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className={inp}
+        value={v ?? c.opts?.[0]}
+        onChange={(e) => {
+          onChange(e.target.value);
+          onCommit?.(e.target.value);
+        }}
+      >
         {c.opts?.map((o) => (
           <option key={o}>{o}</option>
         ))}
@@ -107,6 +125,10 @@ function Cell({ c, v, onChange }: { c: Col; v: any; onChange: (v: string) => voi
       step={c.type === "num" ? "any" : undefined}
       value={v ?? ""}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => onCommit?.(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
     />
   );
 }
@@ -120,6 +142,8 @@ function Editor({ cfg }: { cfg: Cfg }) {
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState("");
   const [draft, setDraft] = useState<Row>(blank);
+  // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
+  const orig = useRef<Record<string, Row>>({});
 
   useEffect(() => {
     if (!cfg.filter) return;
@@ -140,8 +164,10 @@ function Editor({ cfg }: { cfg: Cfg }) {
     const { data, error } = await r;
     if (error) setMsg(error.message);
     else {
-      setRows(data as Row[]);
-      setMsg(`${(data as Row[]).length} แถว`);
+      const list = data as Row[];
+      orig.current = Object.fromEntries(list.map((x) => [x.id, { ...x }]));
+      setRows(list);
+      setMsg(`${list.length} แถว · แก้แล้วบันทึกลงฐานข้อมูลอัตโนมัติ`);
     }
   }, [cfg, fv, q]);
 
@@ -152,12 +178,19 @@ function Editor({ cfg }: { cfg: Cfg }) {
   const edit = (i: number, k: string, v: string) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
 
-  async function save(row: Row) {
-    const body: Row = {};
-    for (const c of editable) body[c.k] = clean(c, row[c.k]);
+  async function commit(row: Row, c: Col, v: string) {
+    const before = orig.current[row.id]?.[c.k];
+    if (String(before ?? "") === v) return; // ไม่มีอะไรเปลี่ยน
+    const val = clean(c, v);
+    const body: Row = { [c.k]: val };
     if (cfg.table === "heroes") body.updated_at = new Date().toISOString();
     const { error } = await db.from(cfg.table).update(body).eq("id", row.id);
-    setMsg(error ? error.message : "บันทึกแล้ว ✓");
+    if (error) {
+      setMsg(`บันทึกไม่สำเร็จ (${c.k}): ${error.message}`);
+    } else {
+      orig.current[row.id] = { ...orig.current[row.id], [c.k]: val };
+      setMsg(`บันทึก ${c.k} แล้ว ✓`);
+    }
   }
 
   async function remove(row: Row) {
@@ -226,13 +259,15 @@ function Editor({ cfg }: { cfg: Cfg }) {
               <tr key={row.id} className="border-t border-border">
                 {cfg.cols.map((c) => (
                   <td key={c.k} className="px-2 py-1">
-                    <Cell c={c} v={get(row, c.k)} onChange={(v) => edit(i, c.k, v)} />
+                    <Cell
+                      c={c}
+                      v={get(row, c.k)}
+                      onChange={(v) => edit(i, c.k, v)}
+                      onCommit={(v) => void commit(row, c, v)}
+                    />
                   </td>
                 ))}
                 <td className="whitespace-nowrap px-2 py-1">
-                  <button onClick={() => save(row)} className="mr-2 rounded-md bg-accent px-2 py-1 text-accent-fg">
-                    บันทึก
-                  </button>
                   <button onClick={() => remove(row)} className="text-loss">
                     ลบ
                   </button>
