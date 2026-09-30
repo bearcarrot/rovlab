@@ -12,8 +12,16 @@ import { HeroIcon } from "@/components/HeroIcon";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
+import type { ArcanaColor } from "@/types/item";
 
 const PHASE_LABEL = { early: "ช่วงต้นเกม", core: "ไอเทมหลัก", situational: "ตามสถานการณ์" } as const;
+
+// สีของรูน (ใช้ inline style เพื่อไม่ผูกกับ palette ของ Tailwind)
+const ARCANA_COLOR: Record<ArcanaColor, { hex: string; label: string }> = {
+  red: { hex: "#ef4444", label: "แดง" },
+  purple: { hex: "#a855f7", label: "ม่วง" },
+  green: { hex: "#22c55e", label: "เขียว" },
+};
 
 export function ItemBuild() {
   const heroesQ = useAsync(() => getHeroes(), []);
