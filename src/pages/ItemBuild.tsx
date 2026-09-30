@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Search, Hammer } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getBuildForHero } from "@/services/items";
+import { getArcana, findArcana, getBuildForHero } from "@/services/items";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AskCoach } from "@/components/AskCoach";
+import { HeroIcon } from "@/components/HeroIcon";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
@@ -16,6 +17,7 @@ const PHASE_LABEL = { early: "ช่วงต้นเกม", core: "ไอเ�
 
 export function ItemBuild() {
   const heroesQ = useAsync(() => getHeroes(), []);
+  const arcanaQ = useAsync(() => getArcana(), []);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<HeroSummary | null>(null);
   const filters = useHeroFilters();
@@ -113,12 +115,20 @@ export function ItemBuild() {
               <Card>
                 <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {buildQ.data.arcana.map((a) => (
-                    <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
-                      <p className="font-display text-sm font-medium">{a.name}</p>
-                      <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
-                    </div>
-                  ))}
+                  {buildQ.data.arcana.map((a) => {
+                    // Icon + stat line come from the real `arcana` table; a miss falls back to initials.
+                    const meta = arcanaQ.status === "success" ? findArcana(arcanaQ.data, a.name) : undefined;
+                    return (
+                      <div key={a.name} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
+                        <HeroIcon icon={meta?.icon} name={a.name} className="bg-bg" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display text-sm font-medium">{a.name}</p>
+                          {meta?.description && <p className="text-xs text-text-faint">{meta.description}</p>}
+                          <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
               <AskCoach
