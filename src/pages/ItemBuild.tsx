@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AskCoach } from "@/components/AskCoach";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
 import type { HeroSummary } from "@/types/hero";
 
@@ -111,6 +112,12 @@ export function ItemBuild() {
                   ))}
                 </CardContent>
               </Card>
+              <AskCoach
+                resetKey={selected.slug}
+                label="ถามโค้ช AI: เลือกไอเทมยังไง"
+                prompt={`อธิบายว่าทำไมบิลด์นี้เหมาะกับ ${selected.nameTh} และควรสลับไอเทมตามสถานการณ์อย่างไร ไม่เกิน 4 ประโยค`}
+                context={{ hero: selected.nameTh, source: buildQ.data.source, items: buildQ.data.items, arcana: buildQ.data.arcana }}
+              />
             </>
           )}
         </div>

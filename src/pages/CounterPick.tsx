@@ -5,6 +5,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { AskCoach } from "@/components/AskCoach";
 import { CounterList } from "@/features/heroes/CounterList";
 import { MOCK_HERO_DETAILS } from "@/data/heroes.mock";
 import { cn } from "@/lib/utils";
@@ -96,6 +97,14 @@ export function CounterPick() {
               icon={GitCompareArrows}
               title="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้"
               description="ทีมงานกำลังเพิ่มข้อมูลเชิงลึกสำหรับฮีโร่ทุกตัว"
+            />
+          )}
+          {selectedDetail && selectedDetail.counteredBy.length > 0 && (
+            <AskCoach
+              resetKey={selected}
+              label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"
+              prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นสวนและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
+              context={{ enemy: selectedHero.nameTh, counteredBy: selectedDetail.counteredBy }}
             />
           )}
         </div>
