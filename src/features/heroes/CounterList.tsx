@@ -10,6 +10,8 @@ const STRENGTH_LABEL: Record<CounterEntry["strength"], string> = {
   situational: "ใช้ได้เฉพาะสถานการณ์",
 };
 
+const STRENGTH_ORDER: Record<CounterEntry["strength"], number> = { best: 0, good: 1, situational: 2 };
+
 type Props = {
   entries: CounterEntry[];
   emptyText: string;
@@ -21,9 +23,13 @@ export function CounterList({ entries, emptyText, icons }: Props) {
   if (entries.length === 0) {
     return <p className="text-sm text-text-faint">{emptyText}</p>;
   }
+  // เรียงจากสวนได้ดีที่สุด → ใช้ได้เฉพาะสถานการณ์ (sort แบบ stable คงลำดับเดิมในกลุ่มเดียวกัน)
+  const sorted = [...entries].sort(
+    (a, b) => (STRENGTH_ORDER[a.strength] ?? 3) - (STRENGTH_ORDER[b.strength] ?? 3)
+  );
   return (
     <div className="space-y-2.5">
-      {entries.map((c) => {
+      {sorted.map((c) => {
         const mock = MOCK_HEROES.find((h) => h.slug === c.heroSlug);
         const nameTh = c.heroNameTh ?? mock?.nameTh;
         if (!nameTh) return null;
