@@ -43,6 +43,13 @@ const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   order: "name",
   label: heroName,
 });
+// ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์)
+const buildFilter: NonNullable<Cfg["filter"]> = {
+  col: "build_id",
+  table: "item_builds",
+  sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
+  label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
+};
 
 const CFG: Record<string, Cfg> = {
   heroes: {
@@ -136,7 +143,12 @@ const CFG: Record<string, Cfg> = {
     table: "arcana",
     order: "name",
     add: true,
-    cols: [{ k: "name" }, { k: "icon_url", label: "ไอคอน", type: "img" }, { k: "description", type: "area" }],
+    cols: [
+      { k: "name" },
+      { k: "color", label: "สี", type: "sel", opts: ["", "red", "purple", "green"] },
+      { k: "icon_url", label: "ไอคอน", type: "img" },
+      { k: "description", type: "area" },
+    ],
   },
   builds: {
     label: "บิลด์",
@@ -146,7 +158,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "patch_id", label: "แพตช์", type: "patch" },
       { k: "source", type: "sel", opts: SOURCES },
-      { k: "arcana_id", label: "ชุดรูน", type: "arcana" },
+      { k: "arcana_id", label: "รูนชุดเดียว (แบบเดิม)", type: "arcana" },
     ],
   },
   buildItems: {
@@ -154,15 +166,23 @@ const CFG: Record<string, Cfg> = {
     table: "item_build_items",
     order: "sort_order",
     add: true,
-    filter: {
-      col: "build_id",
-      table: "item_builds",
-      sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
-      label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source} · ${r.arcana?.name ?? "ไม่มีรูน"}`,
-    },
+    filter: buildFilter,
     cols: [
       { k: "item_id", label: "ไอเทม", type: "item" },
       { k: "phase", type: "sel", opts: ["early", "core", "situational"] },
+      { k: "reason", type: "area" },
+      { k: "sort_order", type: "num" },
+    ],
+  },
+  buildArcana: {
+    label: "รูนในบิลด์",
+    table: "item_build_arcana",
+    order: "sort_order",
+    add: true,
+    filter: buildFilter,
+    cols: [
+      { k: "arcana_id", label: "รูน", type: "arcana" },
+      { k: "quantity", label: "จำนวน (x)", type: "num" },
       { k: "reason", type: "area" },
       { k: "sort_order", type: "num" },
     ],
@@ -421,8 +441,12 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   }
 
   async function add() {
+    // ข้ามช่องที่ว่าง เพื่อให้ค่า default ของ DB ทำงาน (เช่น quantity = 10)
     const body: Row = {};
-    for (const c of cfg.cols) body[c.k] = clean(c, draft[c.k]);
+    for (const c of cfg.cols) {
+      const val = clean(c, draft[c.k]);
+      if (val !== null) body[c.k] = val;
+    }
     if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
     if (error) setMsg(error.message);
@@ -532,7 +556,7 @@ export function Admin() {
     void Promise.all([
       opt("heroes", "id,name,name_th", "name", true, heroName),
       opt("items", "id,name,name_th", "name", true, heroName),
-      opt("arcana", "id,name", "name", true, (r) => r.name),
+      opt("arcana", "id,name,color", "name", true, (r) => (r.color ? `${r.name} (${r.color})` : r.name)),
       opt("patches", "id,code", "released_at", false, (r) => r.code),
     ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));
   }, [isAdmin]);
