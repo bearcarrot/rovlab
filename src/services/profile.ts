@@ -1,17 +1,38 @@
-import { supabase } from "@/lib/supabase";
-import type { Profile } from "@/types/profile";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { functionErrorMessage } from "@/lib/functionError";
+import { PROFILE_LIMITS } from "@/types/profile";
+import type { Profile, PublicProfile } from "@/types/profile";
+
+type ProfileRow = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  preferred_roles: string[] | null;
+  preferred_heroes: string[] | null;
+  bio: string | null;
+  game_name: string | null;
+  contact: string | null;
+  created_at?: string;
+};
+
+function toProfile(row: ProfileRow): Profile {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    preferredRoles: row.preferred_roles ?? [],
+    preferredHeroes: row.preferred_heroes ?? [],
+    bio: row.bio,
+    gameName: row.game_name,
+    contact: row.contact,
+  };
+}
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
   if (error) throw error;
   if (!data) return null;
-  return {
-    id: data.id,
-    displayName: data.display_name,
-    avatarUrl: data.avatar_url,
-    preferredRoles: data.preferred_roles ?? [],
-    preferredHeroes: [], // preferred_heroes is stored as hero UUIDs server-side; resolved separately once heroes are seeded
-  };
+  return toProfile(data as ProfileRow);
 }
 
 export async function updateDisplayName(userId: string, displayName: string) {
@@ -22,4 +43,62 @@ export async function updateDisplayName(userId: string, displayName: string) {
 export async function updatePreferredRoles(userId: string, roles: string[]) {
   const { error } = await supabase.from("profiles").update({ preferred_roles: roles }).eq("id", userId);
   if (error) throw error;
+}
+
+export interface ProfileEdit {
+  displayName: string;
+  bio: string;
+  gameName: string;
+  contact: string;
+  preferredRoles: string[];
+  preferredHeroes: string[]; // hero ids
+}
+
+// avatar_url is intentionally not editable here: it can only be changed through the moderated `avatar` Edge Function.
+export async function updateProfile(userId: string, edit: ProfileEdit): Promise<void> {
+  const displayName = edit.displayName.trim();
+  if (displayName.length < PROFILE_LIMITS.displayNameMin || displayName.length > PROFILE_LIMITS.displayNameMax) {
+    throw new Error(`ชื่อที่แสดงต้องยาว ${PROFILE_LIMITS.displayNameMin}–${PROFILE_LIMITS.displayNameMax} ตัวอักษร`);
+  }
+  if (edit.bio.trim().length > PROFILE_LIMITS.bio) throw new Error(`แนะนำตัวได้ไม่เกิน ${PROFILE_LIMITS.bio} ตัวอักษร`);
+  if (edit.gameName.trim().length > PROFILE_LIMITS.gameName) throw new Error(`ชื่อในเกมได้ไม่เกิน ${PROFILE_LIMITS.gameName} ตัวอักษร`);
+  if (edit.contact.trim().length > PROFILE_LIMITS.contact) throw new Error(`ช่องทางติดต่อได้ไม่เกิน ${PROFILE_LIMITS.contact} ตัวอักษร`);
+  const heroes = Array.from(new Set(edit.preferredHeroes));
+  if (heroes.length > PROFILE_LIMITS.favoriteHeroes) throw new Error(`เลือกฮีโร่ที่ถนัดได้สูงสุด ${PROFILE_LIMITS.favoriteHeroes} ตัว`);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      display_name: displayName,
+      bio: edit.bio.trim() || null,
+      game_name: edit.gameName.trim() || null,
+      contact: edit.contact.trim() || null,
+      preferred_roles: edit.preferredRoles,
+      preferred_heroes: heroes,
+    })
+    .eq("id", userId);
+  if (error) throw new Error(error.message);
+}
+
+// Uploads a (client-resized) JPEG as base64. The Edge Function moderates it before storing; rejected images throw.
+export async function uploadAvatar(base64: string): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke("avatar", { body: { action: "upload", image: base64 } });
+  if (error) throw new Error(await functionErrorMessage(error, "อัปโหลดรูปไม่สำเร็จ"));
+  return (data?.avatarUrl as string | null) ?? null;
+}
+
+export async function removeAvatar(): Promise<void> {
+  const { error } = await supabase.functions.invoke("avatar", { body: { action: "remove" } });
+  if (error) throw new Error(await functionErrorMessage(error, "ลบรูปไม่สำเร็จ"));
+}
+
+// Public view of any user's profile (RPC: profiles RLS only lets you read your own row).
+// gameName / contact come back null unless the caller is signed in.
+export async function getPublicProfile(id: string): Promise<PublicProfile | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc("get_public_profile", { p_id: id });
+  if (error) throw new Error(error.message);
+  const row = ((data ?? []) as ProfileRow[])[0];
+  if (!row) return null;
+  return { ...toProfile(row), createdAt: row.created_at ?? "" };
 }
