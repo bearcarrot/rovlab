@@ -2,32 +2,41 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { supabase } from "@/lib/supabase";
 
 // ใช้ client แบบ untyped เพราะตารางถูกกำหนดแบบ config ด้านล่าง
 const db: any = supabase;
 
 type Row = Record<string, any>;
-type Col = { k: string; label?: string; type?: "text" | "num" | "date" | "sel" | "ro"; opts?: string[] };
+// text | num | date | sel(เลือกจาก opts) | hero(เลือกฮีโร่) | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,)
+type Col = { k: string; label?: string; type?: "text" | "num" | "date" | "sel" | "hero" | "area" | "arr"; opts?: string[] };
 type Cfg = {
   label: string;
   table: string;
-  sel: string;
   order?: string;
   asc?: boolean;
   add?: boolean;
   search?: string;
   cols: Col[];
-  filter?: { col: string; table: string; sel: string; label: (r: Row) => string };
+  // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
+  filter?: { col: string; table: string; sel: string; order?: string; label: (r: Row) => string };
 };
 
 const TIERS = ["S+", "S", "A", "B", "C"];
+const SOURCES = ["curated", "heuristic"];
+const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
+  col,
+  table: "heroes",
+  sel: "id,name,name_th",
+  order: "name",
+  label: (r) => r.name_th || r.name,
+});
 
 const CFG: Record<string, Cfg> = {
   heroes: {
     label: "ฮีโร่",
     table: "heroes",
-    sel: "*",
     order: "name",
     add: true,
     search: "name",
@@ -39,15 +48,85 @@ const CFG: Record<string, Cfg> = {
       { k: "lane", type: "sel", opts: ["slayer", "jungle", "mid", "abyssal", "support"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
       { k: "icon_url" },
-      { k: "description" },
+      { k: "description", type: "area" },
+      { k: "strengths", type: "arr" },
+      { k: "weaknesses", type: "arr" },
     ],
+  },
+  abilities: {
+    label: "สกิล",
+    table: "hero_abilities",
+    order: "sort_order",
+    add: true,
+    filter: heroFilter("hero_id"),
+    cols: [{ k: "slot" }, { k: "name" }, { k: "description", type: "area" }, { k: "sort_order", type: "num" }],
+  },
+  counters: {
+    label: "เคาน์เตอร์",
+    table: "hero_counters",
+    add: true,
+    filter: heroFilter("hero_id"),
+    cols: [
+      { k: "counter_hero_id", label: "ฮีโร่ที่ชนะทาง", type: "hero" },
+      { k: "strength", type: "sel", opts: ["best", "good", "situational"] },
+      { k: "reason", type: "area" },
+      { k: "lane_tip", type: "area" },
+    ],
+  },
+  synergies: {
+    label: "ซินเนอร์จี้",
+    table: "hero_synergies",
+    add: true,
+    filter: heroFilter("hero_id"),
+    cols: [{ k: "partner_hero_id", label: "คู่หู", type: "hero" }, { k: "reason", type: "area" }],
+  },
+  matchups: {
+    label: "Matchup",
+    table: "matchups",
+    add: true,
+    filter: heroFilter("hero_a_id"),
+    cols: [
+      { k: "hero_b_id", label: "กับฮีโร่", type: "hero" },
+      { k: "lane" },
+      { k: "difficulty", type: "sel", opts: ["ง่าย", "ปานกลาง", "ยาก"] },
+      { k: "early", type: "area" },
+      { k: "mid", type: "area" },
+      { k: "late", type: "area" },
+      { k: "win_condition", type: "area" },
+      { k: "tips", type: "area" },
+      { k: "source", type: "sel", opts: SOURCES },
+    ],
+  },
+  items: {
+    label: "ไอเทม",
+    table: "items",
+    order: "name",
+    add: true,
+    search: "name",
+    cols: [
+      { k: "slug" },
+      { k: "name" },
+      { k: "name_th" },
+      { k: "cost", type: "num" },
+      { k: "stats", type: "arr" },
+      { k: "passive", type: "area" },
+      { k: "role_tags", type: "arr" },
+      { k: "icon_url" },
+    ],
+  },
+  arcana: {
+    label: "รูน",
+    table: "arcana",
+    order: "name",
+    add: true,
+    cols: [{ k: "name" }, { k: "description", type: "area" }],
   },
   stats: {
     label: "สถิติ",
     table: "hero_stats",
-    sel: "*,heroes(name_th)",
+    add: true,
     cols: [
-      { k: "heroes.name_th", label: "ฮีโร่", type: "ro" },
+      { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "rank_tier" },
       { k: "win_rate", type: "num" },
       { k: "pick_rate", type: "num" },
@@ -60,11 +139,11 @@ const CFG: Record<string, Cfg> = {
   tiers: {
     label: "Tier List",
     table: "tier_list_entries",
-    sel: "*,heroes(name_th)",
+    add: true,
     cols: [
-      { k: "heroes.name_th", label: "ฮีโร่", type: "ro" },
+      { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "tier", type: "sel", opts: TIERS },
-      { k: "reason" },
+      { k: "reason", type: "area" },
     ],
     filter: {
       col: "tier_list_id",
@@ -76,54 +155,104 @@ const CFG: Record<string, Cfg> = {
   patches: {
     label: "แพตช์",
     table: "patches",
-    sel: "*",
     order: "released_at",
     asc: false,
     add: true,
-    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes" }],
+    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes", type: "area" }],
+  },
+  guides: {
+    label: "คู่มือ",
+    table: "guides",
+    order: "created_at",
+    asc: false,
+    add: true,
+    cols: [
+      { k: "slug" },
+      { k: "title" },
+      { k: "cover_url" },
+      { k: "difficulty", type: "sel", opts: ["", "easy", "medium", "hard"] },
+      { k: "reading_minutes", type: "num" },
+      { k: "content", type: "area" },
+    ],
+  },
+  guideCats: {
+    label: "หมวดคู่มือ",
+    table: "guide_categories",
+    add: true,
+    cols: [{ k: "slug" }, { k: "name_th" }],
   },
 };
 
 const inp =
   "w-full min-w-[80px] rounded-md border border-border bg-bg-surface px-2 py-1 text-sm outline-none focus:border-accent";
 
-const get = (o: Row, path: string) => path.split(".").reduce<any>((a, b) => a?.[b], o);
-const clean = (c: Col, v: unknown) => (v === "" || v == null ? null : c.type === "num" ? Number(v) : v);
+const toArr = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.map(String)
+    : String(v ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+const norm = (c: Col, v: unknown) => (c.type === "arr" ? toArr(v).join("|") : String(v ?? ""));
+const clean = (c: Col, v: unknown) =>
+  c.type === "arr" ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
 
-// onCommit: เรียกเมื่อแก้เสร็จ (select = ทันทีที่เลือก, input = ตอนกดออกจากช่อง) ใช้เพื่อบันทึกลง DB อัตโนมัติ
+// onCommit: เรียกเมื่อแก้เสร็จ (select = ทันทีที่เลือก, input = ตอนคลิกออก/กด Enter) ใช้บันทึกลง DB อัตโนมัติ
 function Cell({
   c,
   v,
+  heroes,
   onChange,
   onCommit,
 }: {
   c: Col;
   v: any;
+  heroes: Row[];
   onChange: (v: string) => void;
   onCommit?: (v: string) => void;
 }) {
-  if (c.type === "ro") return <span className="whitespace-nowrap">{v ?? ""}</span>;
+  const change = (val: string) => {
+    onChange(val);
+    onCommit?.(val);
+  };
   if (c.type === "sel")
     return (
-      <select
-        className={inp}
-        value={v ?? c.opts?.[0]}
-        onChange={(e) => {
-          onChange(e.target.value);
-          onCommit?.(e.target.value);
-        }}
-      >
+      <select className={inp} value={v ?? c.opts?.[0] ?? ""} onChange={(e) => change(e.target.value)}>
         {c.opts?.map((o) => (
-          <option key={o}>{o}</option>
+          <option key={o} value={o}>
+            {o}
+          </option>
         ))}
       </select>
+    );
+  if (c.type === "hero")
+    return (
+      <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
+        <option value="">— เลือกฮีโร่ —</option>
+        {heroes.map((h) => (
+          <option key={h.id} value={h.id}>
+            {h.name_th || h.name}
+          </option>
+        ))}
+      </select>
+    );
+  if (c.type === "area")
+    return (
+      <textarea
+        className={inp + " min-w-[200px]"}
+        rows={2}
+        value={v ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => onCommit?.(e.target.value)}
+      />
     );
   return (
     <input
       className={inp}
       type={c.type === "num" ? "number" : c.type === "date" ? "date" : "text"}
       step={c.type === "num" ? "any" : undefined}
-      value={v ?? ""}
+      placeholder={c.type === "arr" ? "คั่นด้วย ," : undefined}
+      value={Array.isArray(v) ? v.join(", ") : (v ?? "")}
       onChange={(e) => onChange(e.target.value)}
       onBlur={(e) => onCommit?.(e.target.value)}
       onKeyDown={(e) => {
@@ -133,9 +262,8 @@ function Cell({
   );
 }
 
-function Editor({ cfg }: { cfg: Cfg }) {
-  const editable = cfg.cols.filter((c) => c.type !== "ro");
-  const blank = () => Object.fromEntries(editable.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
+function Editor({ cfg, heroes }: { cfg: Cfg; heroes: Row[] }) {
+  const blank = () => Object.fromEntries(cfg.cols.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
   const [rows, setRows] = useState<Row[]>([]);
   const [opts, setOpts] = useState<Row[]>([]);
   const [fv, setFv] = useState("");
@@ -147,17 +275,17 @@ function Editor({ cfg }: { cfg: Cfg }) {
 
   useEffect(() => {
     if (!cfg.filter) return;
-    db.from(cfg.filter.table)
-      .select(cfg.filter.sel)
-      .then(({ data }: { data: Row[] | null }) => {
-        setOpts(data ?? []);
-        setFv(data?.[0]?.id ?? "");
-      });
+    let r = db.from(cfg.filter.table).select(cfg.filter.sel);
+    if (cfg.filter.order) r = r.order(cfg.filter.order);
+    r.then(({ data }: { data: Row[] | null }) => {
+      setOpts(data ?? []);
+      setFv(data?.[0]?.id ?? "");
+    });
   }, [cfg]);
 
   const load = useCallback(async () => {
     if (cfg.filter && !fv) return;
-    let r = db.from(cfg.table).select(cfg.sel);
+    let r = db.from(cfg.table).select("*");
     if (cfg.filter) r = r.eq(cfg.filter.col, fv);
     if (cfg.search && q) r = r.ilike(cfg.search, `%${q}%`);
     if (cfg.order) r = r.order(cfg.order, { ascending: cfg.asc ?? true });
@@ -179,8 +307,7 @@ function Editor({ cfg }: { cfg: Cfg }) {
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
 
   async function commit(row: Row, c: Col, v: string) {
-    const before = orig.current[row.id]?.[c.k];
-    if (String(before ?? "") === v) return; // ไม่มีอะไรเปลี่ยน
+    if (norm(c, orig.current[row.id]?.[c.k]) === norm(c, v)) return; // ไม่มีอะไรเปลี่ยน
     const val = clean(c, v);
     const body: Row = { [c.k]: val };
     if (cfg.table === "heroes") body.updated_at = new Date().toISOString();
@@ -202,7 +329,8 @@ function Editor({ cfg }: { cfg: Cfg }) {
 
   async function add() {
     const body: Row = {};
-    for (const c of editable) body[c.k] = clean(c, draft[c.k]);
+    for (const c of cfg.cols) body[c.k] = clean(c, draft[c.k]);
+    if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
     if (error) setMsg(error.message);
     else {
@@ -230,13 +358,14 @@ function Editor({ cfg }: { cfg: Cfg }) {
       </div>
 
       {cfg.add && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2">
-          {editable.map((c) => (
-            <div key={c.k} className="w-36">
-              <Cell c={c} v={draft[c.k]} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
+        <div className="flex flex-wrap items-start gap-2 rounded-lg border border-dashed border-border p-2">
+          {cfg.cols.map((c) => (
+            <div key={c.k} className="w-40">
+              <p className="pb-0.5 text-xs text-text-faint">{c.label ?? c.k}</p>
+              <Cell c={c} v={draft[c.k]} heroes={heroes} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
             </div>
           ))}
-          <button onClick={add} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
+          <button onClick={add} className="mt-4 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
             + เพิ่ม
           </button>
         </div>
@@ -256,12 +385,13 @@ function Editor({ cfg }: { cfg: Cfg }) {
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={row.id} className="border-t border-border">
+              <tr key={row.id} className="border-t border-border align-top">
                 {cfg.cols.map((c) => (
                   <td key={c.k} className="px-2 py-1">
                     <Cell
                       c={c}
-                      v={get(row, c.k)}
+                      v={row[c.k]}
+                      heroes={heroes}
                       onChange={(v) => edit(i, c.k, v)}
                       onCommit={(v) => void commit(row, c, v)}
                     />
@@ -284,32 +414,26 @@ function Editor({ cfg }: { cfg: Cfg }) {
 
 export function Admin() {
   const { user, loading } = useAuth();
-  const [ok, setOk] = useState<boolean | null>(null);
-  const [err, setErr] = useState("");
+  const { isAdmin, checking, error } = useIsAdmin();
   const [tab, setTab] = useState("heroes");
+  const [heroes, setHeroes] = useState<Row[]>([]);
 
   useEffect(() => {
-    if (!user) return;
-    db.rpc("is_admin").then(({ data, error }: { data: boolean | null; error: { message: string } | null }) => {
-      if (error) setErr(error.message);
-      setOk(Boolean(data));
-    });
-  }, [user]);
+    if (!isAdmin) return;
+    db.from("heroes")
+      .select("id,name,name_th")
+      .order("name")
+      .then(({ data }: { data: Row[] | null }) => setHeroes(data ?? []));
+  }, [isAdmin]);
 
-  if (loading) return <p className="text-text-muted">กำลังโหลด...</p>;
+  if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
   if (!user)
     return (
       <p>
         ต้อง <Link to="/login" className="text-accent underline">เข้าสู่ระบบ</Link> ก่อน แล้วกลับมาที่ /admin
       </p>
     );
-  if (ok === null) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
-  if (!ok)
-    return (
-      <p className="text-loss">
-        บัญชีนี้ไม่มีสิทธิ์แอดมิน {err && `(${err})`}
-      </p>
-    );
+  if (!isAdmin) return <p className="text-loss">บัญชีนี้ไม่มีสิทธิ์แอดมิน {error && `(${error})`}</p>;
 
   return (
     <div className="space-y-4">
@@ -327,7 +451,7 @@ export function Admin() {
           </button>
         ))}
       </div>
-      <Editor key={tab} cfg={CFG[tab]} />
+      <Editor key={tab} cfg={CFG[tab]} heroes={heroes} />
     </div>
   );
 }

@@ -1,8 +1,23 @@
 import { NavLink } from "react-router-dom";
-import { X, Swords, BarChart3, GitCompareArrows, Users, Hammer, BookOpen, Heart, LayoutDashboard } from "lucide-react";
+import {
+  X,
+  Swords,
+  BarChart3,
+  GitCompareArrows,
+  Users,
+  Hammer,
+  BookOpen,
+  Heart,
+  LayoutDashboard,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/features/auth/useIsAdmin";
 
-const ALL_ITEMS = [
+type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
+
+const ALL_ITEMS: NavItem[] = [
   { to: "/", label: "แดชบอร์ด", icon: LayoutDashboard, end: true },
   { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: Swords },
   { to: "/tier-list", label: "Tier List", icon: BarChart3 },
@@ -15,7 +30,12 @@ const ALL_ITEMS = [
   { to: "/favorites", label: "รายการโปรด", icon: Heart },
 ];
 
+const ADMIN_ITEM: NavItem = { to: "/admin", label: "แอดมิน", icon: ShieldCheck };
+
 export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { isAdmin } = useIsAdmin();
+  const items = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
+
   return (
     <div
       className={cn(
@@ -48,7 +68,7 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
           </button>
         </div>
         <nav className="space-y-0.5 px-3 pb-6">
-          {ALL_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {items.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

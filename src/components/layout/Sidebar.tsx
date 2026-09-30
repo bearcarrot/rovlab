@@ -1,8 +1,23 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Swords, Users, GitCompareArrows, Hammer, BarChart3, BookOpen, Heart } from "lucide-react";
+import {
+  LayoutDashboard,
+  Swords,
+  Users,
+  GitCompareArrows,
+  Hammer,
+  BarChart3,
+  BookOpen,
+  Heart,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/features/auth/useIsAdmin";
 
-const NAV_GROUPS = [
+type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
+type NavGroup = { label: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: "หลัก",
     items: [{ to: "/", label: "แดชบอร์ด", icon: LayoutDashboard, end: true }],
@@ -36,7 +51,15 @@ const NAV_GROUPS = [
   },
 ];
 
+const ADMIN_ITEM: NavItem = { to: "/admin", label: "แอดมิน", icon: ShieldCheck };
+
 export function Sidebar() {
+  const { isAdmin } = useIsAdmin();
+  // แอดมินเห็นเมนูแอดมินอยู่ใต้รายการโปรด
+  const groups = NAV_GROUPS.map((g) =>
+    isAdmin && g.label === "เรียนรู้" ? { ...g, items: [...g.items, ADMIN_ITEM] } : g
+  );
+
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-bg-surface lg:flex lg:flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
@@ -44,7 +67,7 @@ export function Sidebar() {
         <span className="font-display text-lg font-semibold tracking-tight">RovLab</span>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.label}>
             <p className="px-2 pb-1.5 text-xs font-medium text-text-faint">{group.label}</p>
             <ul className="space-y-0.5">

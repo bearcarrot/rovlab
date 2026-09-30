@@ -1,0 +1,32 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@/features/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
+
+// เช็กว่าผู้ใช้ที่ล็อกอินอยู่เป็นแอดมินหรือไม่ (RPC is_admin ใน Supabase)
+// สิทธิ์จริงควบคุมที่ RLS ของ DB หน้านี้ใช้แค่ซ่อน/แสดงเมนู
+export function useIsAdmin() {
+  const { user } = useAuth();
+  const uid = user?.id ?? null;
+  const [state, setState] = useState<{ uid: string | null; ok: boolean; err: string }>({
+    uid: null,
+    ok: false,
+    err: "",
+  });
+
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    void supabase.rpc("is_admin").then(({ data, error }) => {
+      if (alive) setState({ uid, ok: Boolean(data), err: error?.message ?? "" });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [uid]);
+
+  return {
+    isAdmin: uid !== null && state.uid === uid && state.ok,
+    checking: uid !== null && state.uid !== uid,
+    error: state.err,
+  };
+}
