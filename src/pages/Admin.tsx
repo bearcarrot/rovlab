@@ -462,7 +462,8 @@ export function Admin() {
         .then(({ data }: { data: Row[] | null }) => (data ?? []).map((r) => ({ id: r.id as string, label: label(r) })));
     void Promise.all([
       opt("heroes", "id,name,name_th", "name", true, heroName),
-      opt("items", "id,name,name_th", "name", true, heroName),
+      // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
+      opt("items", "id,name", "name", true, (r) => r.name ?? "?"),
       opt("arcana", "id,name", "name", true, (r) => r.name),
       opt("patches", "id,code", "released_at", false, (r) => r.code),
     ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));
