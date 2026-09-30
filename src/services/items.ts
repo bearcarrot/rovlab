@@ -1,5 +1,5 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { HeroBuild, ItemSummary } from "@/types/item";
+import type { ArcanaSummary, HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
@@ -55,6 +55,34 @@ export function getItems(): Promise<ItemSummary[]> {
     });
   }
   return itemsPromise;
+}
+
+type DbArcanaRow = { id: string; name: string; description: string | null; icon_url: string | null };
+
+async function fetchArcana(): Promise<ArcanaSummary[]> {
+  const { data, error } = await supabase.from("arcana").select("id, name, description, icon_url").order("name", { ascending: true });
+  if (error || !data) throw new Error(error?.message ?? "โหลดรายการ Arcana ไม่สำเร็จ");
+  return (data as DbArcanaRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
+}
+
+let arcanaPromise: Promise<ArcanaSummary[]> | null = null;
+
+// All arcana (30 rows, with icons). Offline/mock mode has none — the UI falls back to initials.
+export function getArcana(): Promise<ArcanaSummary[]> {
+  if (!isSupabaseConfigured) return Promise.resolve([]);
+  if (!arcanaPromise) {
+    arcanaPromise = fetchArcana().catch((e) => {
+      arcanaPromise = null; // allow retry after a failure
+      throw e;
+    });
+  }
+  return arcanaPromise;
+}
+
+// Build entries are written like "Sage x10" (set name + count); match on the set name only.
+export function findArcana(list: ArcanaSummary[], buildName: string): ArcanaSummary | undefined {
+  const base = buildName.replace(/\s*[x×]\s*\d+\s*$/i, "").trim().toLowerCase();
+  return list.find((a) => a.name.toLowerCase() === base);
 }
 
 // Fallback build path based on role heuristic — used until a hand-authored
