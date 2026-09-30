@@ -10,6 +10,7 @@ import { ItemBuild } from "@/pages/ItemBuild";
 import { Matchup } from "@/pages/Matchup";
 import { Favorites } from "@/pages/Favorites";
 import { Profile } from "@/pages/Profile";
+import { PlayerProfile } from "@/pages/PlayerProfile";
 import { Login } from "@/pages/Login";
 import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="learn/:slug" element={<GuideDetail />} />
         <Route path="favorites" element={<Favorites />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="players/:id" element={<PlayerProfile />} />
         <Route path="login" element={<Login />} />
         <Route path="admin" element={<Admin />} />
       </Route>

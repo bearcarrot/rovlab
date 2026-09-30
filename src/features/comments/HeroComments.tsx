@@ -6,6 +6,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { UserAvatar } from "@/components/UserAvatar";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { addHeroComment, COMMENT_MAX_LENGTH, deleteHeroComment, listHeroComments } from "@/services/comments";
 
@@ -13,27 +14,6 @@ function formatWhen(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
-}
-
-function Avatar({ name, url }: { name: string; url: string | null }) {
-  const [failed, setFailed] = useState(false);
-  const showImg = !!url && url.startsWith("https://") && !failed;
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised font-display text-xs text-text-faint">
-      {showImg ? (
-        <img
-          src={url!}
-          alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <span>{(Array.from(name)[0] ?? "?").toUpperCase()}</span>
-      )}
-    </div>
-  );
 }
 
 export function HeroComments({ heroSlug }: { heroSlug: string }) {
@@ -101,7 +81,7 @@ export function HeroComments({ heroSlug }: { heroSlug: string }) {
             <button
               onClick={submit}
               disabled={busy || text.trim().length === 0}
-              className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-bg disabled:opacity-50"
+              className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-accent-fg disabled:opacity-50"
             >
               {busy ? "กำลังส่ง..." : "ส่งความคิดเห็น"}
             </button>
@@ -126,13 +106,15 @@ export function HeroComments({ heroSlug }: { heroSlug: string }) {
             const mine = user?.id === c.userId;
             return (
               <li key={c.id} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
-                <Avatar name={c.authorName} url={c.avatarUrl} />
+                <Link to={`/players/${c.userId}`} className="shrink-0" aria-label={`ดูโปรไฟล์ ${c.authorName}`}>
+                  <UserAvatar name={c.authorName} url={c.avatarUrl} />
+                </Link>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate font-display text-sm font-medium">
+                    <Link to={`/players/${c.userId}`} className="min-w-0 truncate font-display text-sm font-medium hover:text-accent">
                       {c.authorName}
                       {mine && <span className="ml-1.5 text-[11px] font-normal text-accent">(คุณ)</span>}
-                    </p>
+                    </Link>
                     <span className="shrink-0 text-[11px] text-text-faint">{formatWhen(c.createdAt)}</span>
                     {mine && (
                       <button
