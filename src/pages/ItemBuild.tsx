@@ -11,8 +11,16 @@ import { AskCoach } from "@/components/AskCoach";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
+import type { ArcanaColor } from "@/types/item";
 
 const PHASE_LABEL = { early: "ช่วงต้นเกม", core: "ไอเทมหลัก", situational: "ตามสถานการณ์" } as const;
+
+// สีของรูน (ใช้ inline style เพื่อไม่ผูกกับ palette ของ Tailwind)
+const ARCANA_COLOR: Record<ArcanaColor, { hex: string; label: string }> = {
+  red: { hex: "#ef4444", label: "แดง" },
+  purple: { hex: "#a855f7", label: "ม่วง" },
+  green: { hex: "#22c55e", label: "เขียว" },
+};
 
 export function ItemBuild() {
   const heroesQ = useAsync(() => getHeroes(), []);
@@ -114,26 +122,42 @@ export function ItemBuild() {
                 <Card>
                   <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
                   <CardContent className="space-y-2">
-                    {buildQ.data.arcana.map((a) => (
-                      <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
-                        <div className="flex items-center gap-2">
-                          {a.icon ? (
-                            <img
-                              src={a.icon}
-                              alt={a.name}
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                              className="h-9 w-9 shrink-0 rounded-md object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : null}
-                          <p className="font-display text-sm font-medium">{a.name}</p>
+                    {buildQ.data.arcana.map((a) => {
+                      const c = a.color ? ARCANA_COLOR[a.color] : undefined;
+                      return (
+                        <div
+                          key={a.name}
+                          className="rounded-lg border bg-bg-raised p-3"
+                          style={{ borderColor: c ? `${c.hex}66` : undefined, borderLeftWidth: c ? 4 : undefined, borderLeftColor: c?.hex }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {a.icon ? (
+                              <img
+                                src={a.icon}
+                                alt={a.name}
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                className="h-9 w-9 shrink-0 rounded-md object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : null}
+                            <p className="font-display text-sm font-medium">{a.name}</p>
+                            {a.quantity ? (
+                              <span
+                                className="rounded-md px-1.5 py-0.5 text-xs font-semibold text-white"
+                                style={{ backgroundColor: c?.hex ?? "#64748b" }}
+                              >
+                                x{a.quantity}
+                              </span>
+                            ) : null}
+                            {c && <span className="ml-auto text-[11px]" style={{ color: c.hex }}>{c.label}</span>}
+                          </div>
+                          {a.reason && <p className="mt-1 text-sm text-text-muted">{a.reason}</p>}
                         </div>
-                        {a.reason && <p className="mt-1 text-sm text-text-muted">{a.reason}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
               )}

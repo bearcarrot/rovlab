@@ -1,5 +1,5 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { HeroBuild, ItemSummary } from "@/types/item";
+import type { ArcanaColor, BuildArcanaEntry, HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
@@ -85,12 +85,16 @@ function genericBuildFor(hero: HeroSummary): HeroBuild {
   return { heroSlug: hero.slug, patch: MOCK_PATCH, source: "heuristic", items, arcana: [{ name: "Sage x10", reason: "ตัวเลือกกลาง ๆ ที่เข้าได้กับเกือบทุกฮีโร่ระหว่างรอข้อมูลเฉพาะตัว" }] };
 }
 
-// บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + arcana)
+const COLOR_ORDER: Record<ArcanaColor, number> = { red: 0, purple: 1, green: 2 };
+
+// บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_arcana)
 // เลือกอันที่เป็น curated ก่อน แล้วเอาแพตช์ใหม่สุด; ถ้าไม่มีหรือดึงไม่สำเร็จ คืน null เพื่อใช้ fallback เดิม
 async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
   const { data, error } = await supabase
     .from("item_builds")
-    .select("source, patches(code, released_at), arcana(name, description, icon_url), item_build_items(phase, reason, sort_order, items(slug))")
+    .select(
+      "source, patches(code, released_at), arcana(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_arcana(quantity, reason, sort_order, arcana(name, description, icon_url, color))"
+    )
     .eq("hero_id", hero.id);
   if (error || !data) return null;
 
@@ -110,11 +114,26 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
     .map((i) => ({ itemSlug: i.items.slug as string, reason: i.reason as string, phase: i.phase as HeroBuild["items"][number]["phase"] }));
   if (items.length === 0) return null;
 
-  const arcana: HeroBuild["arcana"] = r.arcana
-    ? [{ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined }]
+  // รูนหลายตัว (มีสี + จำนวน) จาก item_build_arcana; ถ้าไม่มีใช้รูนชุดเดียวแบบเดิมจาก item_builds.arcana_id
+  const multi: BuildArcanaEntry[] = [...(r.item_build_arcana ?? [])]
+    .filter((a) => a.arcana?.name)
+    .sort(
+      (a, b) =>
+        (COLOR_ORDER[a.arcana.color as ArcanaColor] ?? 9) - (COLOR_ORDER[b.arcana.color as ArcanaColor] ?? 9) ||
+        (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    )
+    .map((a) => ({
+      name: a.arcana.name as string,
+      reason: (a.reason ?? a.arcana.description ?? "") as string,
+      icon: a.arcana.icon_url ?? undefined,
+      color: (a.arcana.color ?? undefined) as ArcanaColor | undefined,
+      quantity: a.quantity as number,
+    }));
+  const legacy: BuildArcanaEntry[] = r.arcana
+    ? [{ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined, color: r.arcana.color ?? undefined }]
     : [];
 
-  return { heroSlug: hero.slug, items, arcana, patch: r.patches?.code ?? "N/A", source: r.source };
+  return { heroSlug: hero.slug, items, arcana: multi.length > 0 ? multi : legacy, patch: r.patches?.code ?? "N/A", source: r.source };
 }
 
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
