@@ -1,20 +1,30 @@
 import type { BuildItemEntry } from "@/types/item";
-import { MOCK_ITEMS } from "@/data/items.mock";
+import { getItems } from "@/services/items";
+import { useAsync } from "@/hooks/useAsync";
+import { HeroIcon } from "@/components/HeroIcon";
+import { Skeleton } from "@/components/layout/Skeleton";
+
+// Some DB rows keep long skill descriptions inside `stats`; only show short stat lines here.
+const MAX_STAT_LENGTH = 40;
 
 export function BuildItemRow({ entry }: { entry: BuildItemEntry }) {
-  const item = MOCK_ITEMS.find((i) => i.slug === entry.itemSlug);
-  if (!item) return null;
+  const itemsQ = useAsync(() => getItems(), []);
+
+  if (itemsQ.status === "loading") return <Skeleton className="h-[72px] rounded-lg" />;
+
+  const item = itemsQ.status === "success" ? itemsQ.data.find((i) => i.slug === entry.itemSlug) : undefined;
+  const title = item?.nameTh ?? entry.itemSlug;
+  const stats = (item?.stats ?? []).filter((s) => s.length <= MAX_STAT_LENGTH);
+
   return (
     <div className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-bg font-display text-[10px] text-text-faint">
-        {item.name.slice(0, 2).toUpperCase()}
-      </div>
+      <HeroIcon icon={item?.icon} name={title} className="bg-bg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate font-display text-sm font-medium">{item.nameTh}</p>
-          <span className="shrink-0 text-xs text-text-faint">{item.cost.toLocaleString()}g</span>
+          <p className="truncate font-display text-sm font-medium">{title}</p>
+          {item && <span className="shrink-0 text-xs text-text-faint">{item.cost.toLocaleString()}g</span>}
         </div>
-        <p className="text-xs text-text-faint">{item.stats.join(" · ")}</p>
+        {stats.length > 0 && <p className="text-xs text-text-faint">{stats.join(" · ")}</p>}
         <p className="mt-1 text-sm text-text-muted">{entry.reason}</p>
       </div>
     </div>
