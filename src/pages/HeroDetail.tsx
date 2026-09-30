@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { AskCoach } from "@/components/AskCoach";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
+import { HeroComments } from "@/features/comments/HeroComments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { ROLE_OPTIONS, LANE_OPTIONS } from "@/features/heroes/HeroFilters";
@@ -193,7 +194,7 @@ export function HeroDetail() {
           <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-text-faint" /><CardTitle>ความคิดเห็นชุมชน</CardTitle></div>
         </CardHeader>
         <CardContent>
-          <EmptyState icon={MessageCircle} title="ต้องล็อกอินก่อน" description="ระบบคอมเมนต์จะเปิดใช้งานพร้อมกับ Auth ในขั้นถัดไป" />
+          <HeroComments heroSlug={h.slug} />
         </CardContent>
       </Card>
     </div>
