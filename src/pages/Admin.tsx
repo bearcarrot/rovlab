@@ -9,8 +9,10 @@ import { supabase } from "@/lib/supabase";
 const db: any = supabase;
 
 type Row = Record<string, any>;
-// text | num | date | sel(เลือกจาก opts) | hero(เลือกฮีโร่) | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,)
-type Col = { k: string; label?: string; type?: "text" | "num" | "date" | "sel" | "hero" | "area" | "arr"; opts?: string[] };
+type RefType = "hero" | "item" | "arcana" | "patch";
+type RefOpt = { id: string; label: string };
+// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น) | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,)
+type Col = { k: string; label?: string; type?: "text" | "num" | "date" | "sel" | "area" | "arr" | RefType; opts?: string[] };
 type Cfg = {
   label: string;
   table: string;
@@ -19,18 +21,20 @@ type Cfg = {
   add?: boolean;
   search?: string;
   cols: Col[];
-  // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
+  // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: { col: string; table: string; sel: string; order?: string; label: (r: Row) => string };
 };
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
+const REF_TYPES: string[] = ["hero", "item", "arcana", "patch"];
+const heroName = (r?: Row) => r?.name_th || r?.name || "?";
 const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   col,
   table: "heroes",
   sel: "id,name,name_th",
   order: "name",
-  label: (r) => r.name_th || r.name,
+  label: heroName,
 });
 
 const CFG: Record<string, Cfg> = {
@@ -121,6 +125,35 @@ const CFG: Record<string, Cfg> = {
     add: true,
     cols: [{ k: "name" }, { k: "description", type: "area" }],
   },
+  builds: {
+    label: "บิลด์",
+    table: "item_builds",
+    add: true,
+    filter: heroFilter("hero_id"),
+    cols: [
+      { k: "patch_id", label: "แพตช์", type: "patch" },
+      { k: "source", type: "sel", opts: SOURCES },
+      { k: "arcana_id", label: "ชุดรูน", type: "arcana" },
+    ],
+  },
+  buildItems: {
+    label: "ไอเทมในบิลด์",
+    table: "item_build_items",
+    order: "sort_order",
+    add: true,
+    filter: {
+      col: "build_id",
+      table: "item_builds",
+      sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
+      label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source} · ${r.arcana?.name ?? "ไม่มีรูน"}`,
+    },
+    cols: [
+      { k: "item_id", label: "ไอเทม", type: "item" },
+      { k: "phase", type: "sel", opts: ["early", "core", "situational"] },
+      { k: "reason", type: "area" },
+      { k: "sort_order", type: "num" },
+    ],
+  },
   stats: {
     label: "สถิติ",
     table: "hero_stats",
@@ -201,13 +234,13 @@ const clean = (c: Col, v: unknown) =>
 function Cell({
   c,
   v,
-  heroes,
+  refs,
   onChange,
   onCommit,
 }: {
   c: Col;
   v: any;
-  heroes: Row[];
+  refs: Record<string, RefOpt[]>;
   onChange: (v: string) => void;
   onCommit?: (v: string) => void;
 }) {
@@ -225,13 +258,13 @@ function Cell({
         ))}
       </select>
     );
-  if (c.type === "hero")
+  if (c.type && REF_TYPES.includes(c.type))
     return (
       <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
-        <option value="">— เลือกฮีโร่ —</option>
-        {heroes.map((h) => (
-          <option key={h.id} value={h.id}>
-            {h.name_th || h.name}
+        <option value="">— เลือก —</option>
+        {(refs[c.type] ?? []).map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -262,7 +295,7 @@ function Cell({
   );
 }
 
-function Editor({ cfg, heroes }: { cfg: Cfg; heroes: Row[] }) {
+function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   const blank = () => Object.fromEntries(cfg.cols.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
   const [rows, setRows] = useState<Row[]>([]);
   const [opts, setOpts] = useState<Row[]>([]);
@@ -362,7 +395,7 @@ function Editor({ cfg, heroes }: { cfg: Cfg; heroes: Row[] }) {
           {cfg.cols.map((c) => (
             <div key={c.k} className="w-40">
               <p className="pb-0.5 text-xs text-text-faint">{c.label ?? c.k}</p>
-              <Cell c={c} v={draft[c.k]} heroes={heroes} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
+              <Cell c={c} v={draft[c.k]} refs={refs} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
             </div>
           ))}
           <button onClick={add} className="mt-4 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
@@ -391,7 +424,7 @@ function Editor({ cfg, heroes }: { cfg: Cfg; heroes: Row[] }) {
                     <Cell
                       c={c}
                       v={row[c.k]}
-                      heroes={heroes}
+                      refs={refs}
                       onChange={(v) => edit(i, c.k, v)}
                       onCommit={(v) => void commit(row, c, v)}
                     />
@@ -416,14 +449,23 @@ export function Admin() {
   const { user, loading } = useAuth();
   const { isAdmin, checking, error } = useIsAdmin();
   const [tab, setTab] = useState("heroes");
-  const [heroes, setHeroes] = useState<Row[]>([]);
+  const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
 
+  // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์)
   useEffect(() => {
     if (!isAdmin) return;
-    db.from("heroes")
-      .select("id,name,name_th")
-      .order("name")
-      .then(({ data }: { data: Row[] | null }) => setHeroes(data ?? []));
+    const opt = (table: string, sel: string, order: string, asc: boolean, label: (r: Row) => string) =>
+      db
+        .from(table)
+        .select(sel)
+        .order(order, { ascending: asc })
+        .then(({ data }: { data: Row[] | null }) => (data ?? []).map((r) => ({ id: r.id as string, label: label(r) })));
+    void Promise.all([
+      opt("heroes", "id,name,name_th", "name", true, heroName),
+      opt("items", "id,name,name_th", "name", true, heroName),
+      opt("arcana", "id,name", "name", true, (r) => r.name),
+      opt("patches", "id,code", "released_at", false, (r) => r.code),
+    ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));
   }, [isAdmin]);
 
   if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
@@ -451,7 +493,7 @@ export function Admin() {
           </button>
         ))}
       </div>
-      <Editor key={tab} cfg={CFG[tab]} heroes={heroes} />
+      <Editor key={tab} cfg={CFG[tab]} refs={refs} />
     </div>
   );
 }
