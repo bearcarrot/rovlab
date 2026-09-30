@@ -14,6 +14,7 @@ import { Login } from "@/pages/Login";
 import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
 import { GuideDetail } from "@/pages/GuideDetail";
+import { Admin } from "@/pages/Admin";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="favorites" element={<Favorites />} />
         <Route path="profile" element={<Profile />} />
         <Route path="login" element={<Login />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>
   );
