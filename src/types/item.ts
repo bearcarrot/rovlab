@@ -9,6 +9,14 @@ export interface ItemSummary {
   icon: string;
 }
 
+// Row of the `arcana` table (rune/arcana with its real in-game icon).
+export interface ArcanaSummary {
+  id: string;
+  name: string;
+  description: string; // short stat line, e.g. "พลังเวท +5.3"
+  icon: string;
+}
+
 export interface BuildItemEntry {
   itemSlug: string;
   reason: string;

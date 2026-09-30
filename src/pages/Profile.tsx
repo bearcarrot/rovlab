@@ -1,21 +1,276 @@
-import { useState } from "react";
-import { LogOut, LogIn, UserRound } from "lucide-react";
+import { useRef, useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
+import { ImagePlus, LogIn, LogOut, Trash2, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
-import { getProfile, updatePreferredRoles } from "@/services/profile";
+import { getHeroes } from "@/services/heroes";
+import { getProfile, removeAvatar, updateProfile, uploadAvatar } from "@/services/profile";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { UserAvatar } from "@/components/UserAvatar";
+import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
 import { ROLE_OPTIONS } from "@/features/heroes/HeroFilters";
+import { fileToAvatarBase64 } from "@/lib/image";
 import { cn } from "@/lib/utils";
-import type { HeroRole } from "@/types/hero";
+import { PROFILE_LIMITS } from "@/types/profile";
+import type { Profile as ProfileData } from "@/types/profile";
+import type { HeroSummary } from "@/types/hero";
+
+type Msg = { type: "ok" | "error"; text: string } | null;
+
+const INPUT_CLASS =
+  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none placeholder:text-text-faint focus:border-accent/60";
+
+function Field({ label, hint, counter, children }: { label: string; hint?: string; counter?: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <label className="text-sm font-medium">{label}</label>
+        {counter && <span className="text-[11px] text-text-faint">{counter}</span>}
+      </div>
+      {children}
+      {hint && <p className="text-[11px] text-text-faint">{hint}</p>}
+    </div>
+  );
+}
+
+function MsgLine({ msg }: { msg: Msg }) {
+  if (!msg) return null;
+  return <p className={cn("text-xs", msg.type === "ok" ? "text-win" : "text-red-400")}>{msg.text}</p>;
+}
+
+function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes: HeroSummary[]; email: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [displayName, setDisplayName] = useState(profile.displayName ?? "");
+  const [savedName, setSavedName] = useState(profile.displayName ?? "");
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [gameName, setGameName] = useState(profile.gameName ?? "");
+  const [contact, setContact] = useState(profile.contact ?? "");
+  const [roles, setRoles] = useState<string[]>(profile.preferredRoles);
+  const [heroIds, setHeroIds] = useState<string[]>(
+    profile.preferredHeroes.filter((id) => heroes.some((h) => h.id === id))
+  );
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatarUrl);
+
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<Msg>(null);
+  const [avatarBusy, setAvatarBusy] = useState<"upload" | "remove" | null>(null);
+  const [avatarMsg, setAvatarMsg] = useState<Msg>(null);
+
+  const emailPrefix = (email.split("@")[0] ?? "").toLowerCase();
+  const nameFromEmail = emailPrefix !== "" && savedName.trim().toLowerCase() === emailPrefix;
+  const shownName = savedName.trim() || "ผู้เล่น";
+
+  function toggleRole(role: string) {
+    setRoles((cur) => (cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role]));
+  }
+
+  async function save() {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      await updateProfile(profile.id, {
+        displayName,
+        bio,
+        gameName,
+        contact,
+        preferredRoles: roles,
+        preferredHeroes: heroIds,
+      });
+      setSavedName(displayName.trim());
+      setSaveMsg({ type: "ok", text: "บันทึกแล้ว" });
+    } catch (e) {
+      setSaveMsg({ type: "error", text: e instanceof Error ? e.message : "บันทึกไม่สำเร็จ" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow picking the same file again
+    if (!file) return;
+    setAvatarBusy("upload");
+    setAvatarMsg(null);
+    try {
+      const b64 = await fileToAvatarBase64(file);
+      const url = await uploadAvatar(b64);
+      setAvatarUrl(url);
+      setAvatarMsg({ type: "ok", text: "อัปโหลดรูปเรียบร้อย" });
+    } catch (err) {
+      setAvatarMsg({ type: "error", text: err instanceof Error ? err.message : "อัปโหลดรูปไม่สำเร็จ" });
+    } finally {
+      setAvatarBusy(null);
+    }
+  }
+
+  async function onRemoveAvatar() {
+    setAvatarBusy("remove");
+    setAvatarMsg(null);
+    try {
+      await removeAvatar();
+      setAvatarUrl(null);
+      setAvatarMsg({ type: "ok", text: "ลบรูปแล้ว" });
+    } catch (err) {
+      setAvatarMsg({ type: "error", text: err instanceof Error ? err.message : "ลบรูปไม่สำเร็จ" });
+    } finally {
+      setAvatarBusy(null);
+    }
+  }
+
+  const nameTooShort = displayName.trim().length < PROFILE_LIMITS.displayNameMin;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-4">
+        <UserAvatar name={shownName} url={avatarUrl} className="h-20 w-20 text-2xl" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div>
+            <p className="truncate font-display text-lg font-semibold">{shownName}</p>
+            <p className="truncate text-xs text-text-faint">{email}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={avatarBusy !== null}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50"
+            >
+              <ImagePlus className="h-3.5 w-3.5" />
+              {avatarBusy === "upload" ? "กำลังตรวจสอบรูป..." : "เปลี่ยนรูป"}
+            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={onRemoveAvatar}
+                disabled={avatarBusy !== null}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-loss hover:bg-bg-raised disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                ลบรูป
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <MsgLine msg={avatarMsg} />
+        <p className="text-[11px] text-text-faint">
+          รูปจะถูกตรวจสอบอัตโนมัติก่อนแสดง ไม่รับรูปโป๊ รุนแรง หรือไม่เหมาะสม (ระบบตรวจด้วย AI อาจผิดพลาดได้)
+        </p>
+      </div>
+
+      <Link to={`/players/${profile.id}`} className="block text-sm text-accent">
+        ดูโปรไฟล์สาธารณะของฉัน →
+      </Link>
+
+      <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4">
+        {nameFromEmail && (
+          <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
+            ชื่อที่แสดงตอนนี้มาจากอีเมลของคุณ และจะปรากฏในความคิดเห็นและโปรไฟล์สาธารณะ แนะนำให้เปลี่ยนเป็นชื่อเล่นหรือชื่อในเกม
+          </p>
+        )}
+        <Field
+          label="ชื่อที่แสดง"
+          counter={`${displayName.trim().length}/${PROFILE_LIMITS.displayNameMax}`}
+          hint="แสดงในความคิดเห็นและโปรไฟล์สาธารณะ"
+        >
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            maxLength={PROFILE_LIMITS.displayNameMax}
+            placeholder="เช่น ชื่อเล่น หรือชื่อในเกม"
+            className={INPUT_CLASS}
+          />
+        </Field>
+        <Field label="แนะนำตัว" counter={`${bio.length}/${PROFILE_LIMITS.bio}`}>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={PROFILE_LIMITS.bio}
+            rows={3}
+            placeholder="เช่น เล่นช่วงกลางคืน ชอบเล่นสายซัพพอร์ต หาเพื่อนเล่นแรงค์"
+            className={cn(INPUT_CLASS, "resize-none")}
+          />
+        </Field>
+        <Field label="ชื่อในเกม (RoV)" counter={`${gameName.length}/${PROFILE_LIMITS.gameName}`}>
+          <input
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
+            maxLength={PROFILE_LIMITS.gameName}
+            className={INPUT_CLASS}
+          />
+        </Field>
+        <Field
+          label="ช่องทางติดต่อ (ชวนเล่น)"
+          counter={`${contact.length}/${PROFILE_LIMITS.contact}`}
+          hint="เช่น LINE / Discord / Facebook — แสดงเฉพาะผู้ที่ล็อกอินเท่านั้น ใส่เฉพาะช่องทางที่สะดวกให้คนอื่นเห็น"
+        >
+          <input
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            maxLength={PROFILE_LIMITS.contact}
+            className={INPUT_CLASS}
+          />
+        </Field>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">Role ที่ถนัด</p>
+          <div className="flex flex-wrap gap-2">
+            {ROLE_OPTIONS.map((r) => {
+              const active = roles.includes(r.value);
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => toggleRole(r.value)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium",
+                    active ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted"
+                  )}
+                >
+                  {r.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">
+            ฮีโร่ที่ถนัด <span className="text-xs font-normal text-text-faint">({heroIds.length}/{PROFILE_LIMITS.favoriteHeroes})</span>
+          </p>
+          <FavoriteHeroesPicker value={heroIds} onChange={setHeroIds} heroes={heroes} max={PROFILE_LIMITS.favoriteHeroes} />
+        </div>
+
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || nameTooShort}
+            className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-accent-fg disabled:opacity-50"
+          >
+            {saving ? "กำลังบันทึก..." : "บันทึกโปรไฟล์"}
+          </button>
+          {nameTooShort && (
+            <p className="text-xs text-text-faint">ชื่อที่แสดงต้องยาวอย่างน้อย {PROFILE_LIMITS.displayNameMin} ตัวอักษร</p>
+          )}
+          <MsgLine msg={saveMsg} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Profile() {
   const { user, isConfigured, signOut } = useAuth();
   const navigate = useNavigate();
   const profileQ = useAsync(() => (user ? getProfile(user.id) : Promise.resolve(null)), [user?.id]);
-  const [savingRoles, setSavingRoles] = useState<HeroRole[]>([]);
+  const heroesQ = useAsync(() => getHeroes(), []);
 
   if (!isConfigured) {
     return (
@@ -36,49 +291,13 @@ export function Profile() {
     );
   }
 
-  async function toggleRole(role: HeroRole) {
-    if (!user || profileQ.status !== "success" || !profileQ.data) return;
-    const current = savingRoles.length ? savingRoles : (profileQ.data.preferredRoles as HeroRole[]);
-    const next = current.includes(role) ? current.filter((r) => r !== role) : [...current, role];
-    setSavingRoles(next);
-    await updatePreferredRoles(user.id, next);
-  }
-
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-bg-raised">
-          <UserRound className="h-6 w-6 text-text-faint" />
-        </div>
-        <div>
-          <p className="font-display text-lg font-semibold">{user.email}</p>
-          <p className="text-xs text-text-faint">สมาชิก RovLab</p>
-        </div>
-      </div>
-
-      {profileQ.status === "loading" && <Skeleton className="h-24" />}
+      {(profileQ.status === "loading" || heroesQ.status === "loading") && <Skeleton className="h-48" />}
       {profileQ.status === "error" && <ErrorState message={profileQ.message} onRetry={profileQ.refetch} />}
-      {profileQ.status === "success" && (
-        <div>
-          <p className="mb-2 text-sm font-medium">Role ที่ถนัด</p>
-          <div className="flex flex-wrap gap-2">
-            {ROLE_OPTIONS.map((r) => {
-              const active = (savingRoles.length ? savingRoles : profileQ.data?.preferredRoles ?? []).includes(r.value);
-              return (
-                <button
-                  key={r.value}
-                  onClick={() => toggleRole(r.value)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium",
-                    active ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted"
-                  )}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
+      {profileQ.status === "success" && heroesQ.status === "success" && profileQ.data && (
+        <ProfileForm key={profileQ.data.id} profile={profileQ.data} heroes={heroesQ.data} email={user.email ?? ""} />
       )}
 
       <button
