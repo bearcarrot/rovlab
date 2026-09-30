@@ -13,7 +13,9 @@ export function BuildItemRow({ entry }: { entry: BuildItemEntry }) {
   if (itemsQ.status === "loading") return <Skeleton className="h-[72px] rounded-lg" />;
 
   const item = itemsQ.status === "success" ? itemsQ.data.find((i) => i.slug === entry.itemSlug) : undefined;
-  const title = item?.nameTh ?? entry.itemSlug;
+  // Item names are shown in English (matches the official site and in-game item names);
+  // `name_th` in the DB is machine-translated and inconsistent.
+  const title = item?.name ?? entry.itemSlug;
   const stats = (item?.stats ?? []).filter((s) => s.length <= MAX_STAT_LENGTH);
 
   return (

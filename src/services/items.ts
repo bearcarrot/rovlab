@@ -152,22 +152,13 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
     )
     .map((a) => ({
       name: a.arcana.name as string,
-      reason: (a.reason ?? "") as string,
-      description: a.arcana.description ?? undefined,
+      reason: (a.reason ?? a.arcana.description ?? "") as string,
       icon: a.arcana.icon_url ?? undefined,
       color: (a.arcana.color ?? undefined) as ArcanaColor | undefined,
       quantity: a.quantity as number,
     }));
   const legacy: BuildArcanaEntry[] = r.arcana
-    ? [
-        {
-          name: r.arcana.name,
-          reason: "",
-          description: r.arcana.description ?? undefined,
-          icon: r.arcana.icon_url ?? undefined,
-          color: r.arcana.color ?? undefined,
-        },
-      ]
+    ? [{ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined, color: r.arcana.color ?? undefined }]
     : [];
 
   return { heroSlug: hero.slug, items, arcana: multi.length > 0 ? multi : legacy, patch: r.patches?.code ?? "N/A", source: r.source };

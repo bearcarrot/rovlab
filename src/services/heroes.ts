@@ -127,13 +127,18 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);
 
   const [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
-    supabase.from("hero_abilities").select("slot, name, description").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
+    supabase.from("hero_abilities").select("slot, name, description, icon_url").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
     supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
     supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name_th, icon_url)").eq("counter_hero_id", heroRow.id),
     supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
   ]);
 
-  const abilities: HeroAbility[] = (abilitiesRes.data ?? []).map((a: any) => ({ slot: a.slot, name: a.name, description: a.description }));
+  const abilities: HeroAbility[] = (abilitiesRes.data ?? []).map((a: any) => ({
+    slot: a.slot,
+    name: a.name,
+    description: a.description,
+    icon: a.icon_url ?? undefined,
+  }));
 
   const counteredBy: CounterEntry[] = (counteredByRes.data ?? [])
     .map((c: any) => ({
