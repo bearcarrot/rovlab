@@ -32,6 +32,7 @@ export interface HeroAbility {
   slot: string;
   name: string;
   description: string;
+  icon?: string; // icon_url from hero_abilities (set via /admin)
 }
 
 export interface CounterEntry {
