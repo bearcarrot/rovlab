@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sparkles, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HeroIcon } from "@/components/HeroIcon";
 import { askCoach } from "@/services/ai";
 import type { recommendPicks } from "./analyzeTeam";
 
@@ -44,7 +45,10 @@ export function RecommendedPickCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{rec.hero.nameTh}</CardTitle>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
+          <CardTitle>{rec.hero.nameTh}</CardTitle>
+        </div>
         <div className="flex shrink-0">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />

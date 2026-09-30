@@ -21,6 +21,12 @@ export function CounterPick() {
     return heroes.data.filter((h) => h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()));
   }, [heroes, query]);
 
+  // slug → icon URL จากรายชื่อฮีโร่ที่โหลดแล้ว ใช้แสดงไอคอนในรายการตัวสวน
+  const iconBySlug = useMemo<Record<string, string>>(() => {
+    if (heroes.status !== "success") return {};
+    return Object.fromEntries(heroes.data.map((h) => [h.slug, h.icon]));
+  }, [heroes]);
+
   const selectedDetail = selected ? MOCK_HERO_DETAILS[selected] : null;
   const selectedHero = selected ? heroes.status === "success" ? heroes.data.find((h) => h.slug === selected) : undefined : undefined;
 
@@ -91,7 +97,7 @@ export function CounterPick() {
             <h2 className="font-display text-base font-semibold">ตัวสวน {selectedHero.nameTh}</h2>
           </div>
           {selectedDetail && selectedDetail.counteredBy.length > 0 ? (
-            <CounterList entries={selectedDetail.counteredBy} emptyText="" />
+            <CounterList entries={selectedDetail.counteredBy} emptyText="" icons={iconBySlug} />
           ) : (
             <EmptyState
               icon={GitCompareArrows}

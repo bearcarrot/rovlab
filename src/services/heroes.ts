@@ -116,9 +116,9 @@ export async function getHeroBySlug(slug: string): Promise<HeroDetail | null> {
 
   const [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
     supabase.from("hero_abilities").select("slot, name, description").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
-    supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name_th)").eq("hero_id", heroRow.id),
-    supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name_th)").eq("counter_hero_id", heroRow.id),
-    supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name_th)").eq("hero_id", heroRow.id),
+    supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
+    supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name_th, icon_url)").eq("counter_hero_id", heroRow.id),
+    supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
   ]);
 
   const abilities: HeroAbility[] = (abilitiesRes.data ?? []).map((a: any) => ({ slot: a.slot, name: a.name, description: a.description }));
@@ -126,6 +126,7 @@ export async function getHeroBySlug(slug: string): Promise<HeroDetail | null> {
   const counteredBy: CounterEntry[] = (counteredByRes.data ?? []).map((c: any) => ({
     heroSlug: c.counter_hero?.slug ?? "",
     heroNameTh: c.counter_hero?.name_th,
+    heroIcon: c.counter_hero?.icon_url ?? undefined,
     strength: c.strength,
     reason: c.reason,
     laneTip: c.lane_tip ?? "",
@@ -134,6 +135,7 @@ export async function getHeroBySlug(slug: string): Promise<HeroDetail | null> {
   const countersAgainst: CounterEntry[] = (countersAgainstRes.data ?? []).map((c: any) => ({
     heroSlug: c.hero?.slug ?? "",
     heroNameTh: c.hero?.name_th,
+    heroIcon: c.hero?.icon_url ?? undefined,
     strength: c.strength,
     reason: c.reason,
     laneTip: c.lane_tip ?? "",
@@ -142,6 +144,7 @@ export async function getHeroBySlug(slug: string): Promise<HeroDetail | null> {
   const synergies: SynergyEntry[] = (synergiesRes.data ?? []).map((s: any) => ({
     heroSlug: s.partner?.slug ?? "",
     heroNameTh: s.partner?.name_th,
+    heroIcon: s.partner?.icon_url ?? undefined,
     reason: s.reason,
   }));
 
