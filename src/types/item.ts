@@ -18,7 +18,7 @@ export interface BuildItemEntry {
 export interface HeroBuild {
   heroSlug: string;
   items: BuildItemEntry[];
-  arcana: { name: string; reason: string }[];
+  arcana: { name: string; reason: string; icon?: string }[];
   patch: string;
   source: "curated" | "heuristic";
 }

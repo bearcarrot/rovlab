@@ -85,7 +85,42 @@ function genericBuildFor(hero: HeroSummary): HeroBuild {
   return { heroSlug: hero.slug, patch: MOCK_PATCH, source: "heuristic", items, arcana: [{ name: "Sage x10", reason: "ตัวเลือกกลาง ๆ ที่เข้าได้กับเกือบทุกฮีโร่ระหว่างรอข้อมูลเฉพาะตัว" }] };
 }
 
+// บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + arcana)
+// เลือกอันที่เป็น curated ก่อน แล้วเอาแพตช์ใหม่สุด; ถ้าไม่มีหรือดึงไม่สำเร็จ คืน null เพื่อใช้ fallback เดิม
+async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
+  const { data, error } = await supabase
+    .from("item_builds")
+    .select("source, patches(code, released_at), arcana(name, description, icon_url), item_build_items(phase, reason, sort_order, items(slug))")
+    .eq("hero_id", hero.id);
+  if (error || !data) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (data as any[]).filter((r) => (r.item_build_items ?? []).length > 0);
+  if (rows.length === 0) return null;
+  rows.sort(
+    (a, b) =>
+      (a.source === "curated" ? 0 : 1) - (b.source === "curated" ? 0 : 1) ||
+      String(b.patches?.released_at ?? "").localeCompare(String(a.patches?.released_at ?? ""))
+  );
+  const r = rows[0];
+
+  const items: HeroBuild["items"] = [...r.item_build_items]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .filter((i) => i.items?.slug)
+    .map((i) => ({ itemSlug: i.items.slug as string, reason: i.reason as string, phase: i.phase as HeroBuild["items"][number]["phase"] }));
+  if (items.length === 0) return null;
+
+  const arcana: HeroBuild["arcana"] = r.arcana
+    ? [{ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined }]
+    : [];
+
+  return { heroSlug: hero.slug, items, arcana, patch: r.patches?.code ?? "N/A", source: r.source };
+}
+
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
-  // TODO(supabase): supabase.from("item_builds")... joined with item_build_items
+  if (isSupabaseConfigured) {
+    const db = await fetchDbBuild(hero);
+    if (db) return db;
+  }
   return delay(MOCK_BUILDS[hero.slug] ?? genericBuildFor(hero));
 }
