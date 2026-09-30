@@ -9,6 +9,7 @@ import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import { analyzeTeam, recommendPicks } from "@/features/draft/analyzeTeam";
+import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function DraftAssistant() {
   const [enemyTeam, setEnemyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [active, setActive] = useState<Slot | null>({ team: "mine", index: 0 });
   const [query, setQuery] = useState("");
+  const filters = useHeroFilters();
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
@@ -36,7 +38,10 @@ export function DraftAssistant() {
     [...myTeam, ...enemyTeam].filter((h): h is HeroSummary => h !== null).map((h) => h.slug)
   );
   const filteredPool = heroes.filter(
-    (h) => !pickedElsewhere.has(h.slug) && (query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()))
+    (h) =>
+      !pickedElsewhere.has(h.slug) &&
+      filters.match(h) &&
+      (query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()))
   );
 
   function assign(hero: HeroSummary) {
@@ -95,9 +100,13 @@ export function DraftAssistant() {
               className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
             />
           </div>
+          <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
           {heroesQ.status === "loading" && <Skeleton className="h-24" />}
           {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
-          {heroesQ.status === "success" && (
+          {heroesQ.status === "success" && filteredPool.length === 0 && (
+            <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+          )}
+          {heroesQ.status === "success" && filteredPool.length > 0 && (
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-8">
               {filteredPool.map((h) => (
                 <button

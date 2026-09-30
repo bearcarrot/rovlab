@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AskCoach } from "@/components/AskCoach";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
+import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 
 const PHASE_LABEL = { early: "ช่วงต้นเกม", core: "ไอเทมหลัก", situational: "ตามสถานการณ์" } as const;
@@ -17,10 +18,13 @@ export function ItemBuild() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<HeroSummary | null>(null);
+  const filters = useHeroFilters();
   const buildQ = useAsync(() => (selected ? getBuildForHero(selected) : Promise.resolve(null)), [selected?.slug]);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
-  const filtered = heroes.filter((h) => query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()));
+  const filtered = heroes.filter(
+    (h) => filters.match(h) && (query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()))
+  );
 
   return (
     <div className="space-y-4">
@@ -34,13 +38,18 @@ export function ItemBuild() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาฮีโร่..." className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint" />
       </div>
 
+      <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+
       {heroesQ.status === "loading" && (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
         </div>
       )}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
-      {heroesQ.status === "success" && (
+      {heroesQ.status === "success" && filtered.length === 0 && (
+        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+      )}
+      {heroesQ.status === "success" && filtered.length > 0 && (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {filtered.map((h) => (
             <button

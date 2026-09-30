@@ -1,28 +1,40 @@
 import { useMemo, useState } from "react";
 import { GitCompareArrows, Search } from "lucide-react";
-import { getHeroes } from "@/services/heroes";
+import { getHeroBySlug, getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { CounterList } from "@/features/heroes/CounterList";
-import { MOCK_HERO_DETAILS } from "@/data/heroes.mock";
+import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { cn } from "@/lib/utils";
 
 export function CounterPick() {
   const heroes = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const filters = useHeroFilters();
+
+  // ข้อมูลตัวสวนจริงจาก Supabase (hero_counters) ผ่าน getHeroBySlug — ไม่ใช้ mock แล้ว
+  const detailQ = useAsync(() => (selected ? getHeroBySlug(selected) : Promise.resolve(null)), [selected]);
 
   const filtered = useMemo(() => {
     if (heroes.status !== "success") return [];
-    if (query.trim() === "") return heroes.data;
-    return heroes.data.filter((h) => h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()));
-  }, [heroes, query]);
+    const q = query.trim();
+    return heroes.data.filter(
+      (h) => filters.match(h) && (q === "" || h.nameTh.includes(q) || h.name.toLowerCase().includes(q.toLowerCase()))
+    );
+  }, [heroes, query, filters.match]);
 
-  const selectedDetail = selected ? MOCK_HERO_DETAILS[selected] : null;
+  // slug → icon URL จากรายชื่อฮีโร่ที่โหลดแล้ว ใช้เป็น fallback แสดงไอคอนในรายการตัวสวน
+  const iconBySlug = useMemo<Record<string, string>>(() => {
+    if (heroes.status !== "success") return {};
+    return Object.fromEntries(heroes.data.map((h) => [h.slug, h.icon]));
+  }, [heroes]);
+
   const selectedHero = selected ? heroes.status === "success" ? heroes.data.find((h) => h.slug === selected) : undefined : undefined;
+  const counters = detailQ.status === "success" && detailQ.data ? detailQ.data.counteredBy : [];
 
   return (
     <div className="space-y-4">
@@ -41,6 +53,8 @@ export function CounterPick() {
         />
       </div>
 
+      <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+
       {heroes.status === "loading" && (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
@@ -48,7 +62,10 @@ export function CounterPick() {
       )}
       {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
 
-      {heroes.status === "success" && (
+      {heroes.status === "success" && filtered.length === 0 && (
+        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+      )}
+      {heroes.status === "success" && filtered.length > 0 && (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {filtered.map((h) => (
             <button
@@ -90,21 +107,25 @@ export function CounterPick() {
             <GitCompareArrows className="h-4 w-4 text-accent" />
             <h2 className="font-display text-base font-semibold">ตัวสวน {selectedHero.nameTh}</h2>
           </div>
-          {selectedDetail && selectedDetail.counteredBy.length > 0 ? (
-            <CounterList entries={selectedDetail.counteredBy} emptyText="" />
-          ) : (
+
+          {detailQ.status === "loading" && <Skeleton className="h-40" />}
+          {detailQ.status === "error" && <ErrorState message={detailQ.message} onRetry={detailQ.refetch} />}
+          {detailQ.status === "success" && counters.length > 0 && (
+            <>
+              <CounterList entries={counters} emptyText="" icons={iconBySlug} />
+              <AskCoach
+                resetKey={selected}
+                label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"
+                prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นสวนและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
+                context={{ enemy: selectedHero.nameTh, counteredBy: counters }}
+              />
+            </>
+          )}
+          {detailQ.status === "success" && counters.length === 0 && (
             <EmptyState
               icon={GitCompareArrows}
               title="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้"
               description="ทีมงานกำลังเพิ่มข้อมูลเชิงลึกสำหรับฮีโร่ทุกตัว"
-            />
-          )}
-          {selectedDetail && selectedDetail.counteredBy.length > 0 && (
-            <AskCoach
-              resetKey={selected}
-              label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"
-              prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นสวนและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
-              context={{ enemy: selectedHero.nameTh, counteredBy: selectedDetail.counteredBy }}
             />
           )}
         </div>

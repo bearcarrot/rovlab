@@ -7,25 +7,36 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
+import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
 function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
+  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอสแซสซินศัตรู" ได้
+  const filters = useHeroFilters();
+  const list = heroes.filter((h) => h.slug !== exclude && filters.match(h));
   return (
-    <div>
-      <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
-      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7">
-        {heroes.filter((h) => h.slug !== exclude).map((h) => (
-          <button
-            key={h.id}
-            onClick={() => onChange(h)}
-            className={cn(
-              "flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center",
-              value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
-            )}
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
-              {h.icon ? (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-text-faint">
+        {label}
+        {value && <span className="ml-2 text-accent">เลือกอยู่: {value.nameTh}</span>}
+      </p>
+      <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+      {list.length === 0 ? (
+        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+      ) : (
+        <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7">
+          {list.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => onChange(h)}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center",
+                value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
+              )}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
+                {h.icon ? (
     <img
       src={h.icon}
       alt={h.nameTh}
@@ -42,11 +53,12 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
   <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
     {h.name.slice(0, 2).toUpperCase()}
   </span>
-            </div>
-            <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
-          </button>
-        ))}
-      </div>
+              </div>
+              <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -68,7 +80,7 @@ export function Matchup() {
       {heroesQ.status === "loading" && <Skeleton className="h-48" />}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
       {heroesQ.status === "success" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <HeroPicker label="ฮีโร่ของคุณ" heroes={heroes} value={a} onChange={setA} exclude={b?.slug} />
           <HeroPicker label="ฮีโร่ศัตรู" heroes={heroes} value={b} onChange={setB} exclude={a?.slug} />
         </div>
