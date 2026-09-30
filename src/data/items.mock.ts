@@ -1,6 +1,8 @@
 import type { HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "./heroes.mock";
 
+// Offline fallback only (used when Supabase env vars are missing). The live app
+// reads the `items` table; build slugs below refer to rows in that table.
 export const MOCK_ITEMS: ItemSummary[] = [
   { id: "i1", slug: "sword-of-eternity", name: "Sword of Eternity", nameTh: "ดาบนิรันดร์", cost: 2050, stats: ["+65 พลังโจมตี", "+15% คริติคอล"], passive: "Passive: โจมตีคริติคอลเพิ่มดาเมจตามเลือดที่ขาดของศัตรู", icon: "" },
   { id: "i2", slug: "sages-blade", name: "Sage's Blade", nameTh: "ดาบปราชญ์", cost: 2010, stats: ["+65 พลังโจมตี", "+250 พลังชีวิต"], passive: "Passive: โจมตีพื้นฐานเผาผลาญเลือดศัตรูตามเปอร์เซ็นต์", icon: "" },
@@ -19,10 +21,10 @@ export const MOCK_BUILDS: Record<string, HeroBuild> = {
     patch: MOCK_PATCH,
     source: "curated",
     items: [
-      { itemSlug: "faith-boots", reason: "ลดคูลดาวน์ช่วยให้ยิงกระสุนสะสมพลังได้ถี่ขึ้น", phase: "early" },
-      { itemSlug: "sword-of-eternity", reason: "คริติคอลช่วยเพิ่มดาเมจปลายเกมเมื่อค่าพลังสะสมเต็ม", phase: "core" },
-      { itemSlug: "bewitching-bow", reason: "เจาะเกราะช่วยให้ดาเมจยังทะลุแม้ศัตรูซื้อเกราะ", phase: "core" },
-      { itemSlug: "shield-of-the-lost-temple", reason: "ซื้อเมื่อโดนไดฟ์บ่อย เพิ่มความอึดตอนยืนยิง", phase: "situational" },
+      { itemSlug: "giay-thuat-si", reason: "ลดคูลดาวน์ช่วยให้ยิงกระสุนสะสมพลังได้ถี่ขึ้น", phase: "early" },
+      { itemSlug: "thanh-kiem", reason: "คริติคอลช่วยเพิ่มดาเมจปลายเกมเมื่อค่าพลังสะสมเต็ม", phase: "core" },
+      { itemSlug: "thuong-xuyen-pha", reason: "เจาะเกราะช่วยให้ดาเมจยังทะลุแม้ศัตรูซื้อเกราะ", phase: "core" },
+      { itemSlug: "khien-that-truyen", reason: "ซื้อเมื่อโดนไดฟ์บ่อย เพิ่มความอึดตอนยืนยิง", phase: "situational" },
     ],
     arcana: [{ name: "Sage x10", reason: "ลดคูลดาวน์และเพิ่มมานา ช่วยให้ใช้สกิลถี่ขึ้นตั้งแต่ต้นเกม" }],
   },

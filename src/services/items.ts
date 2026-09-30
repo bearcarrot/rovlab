@@ -1,32 +1,86 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { HeroBuild } from "@/types/item";
+import type { HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
   return new Promise((r) => setTimeout(() => r(v), SIMULATED_LATENCY));
 }
 
-export async function getItems() {
-  // TODO(supabase): supabase.from("items").select(...)
-  return delay(MOCK_ITEMS);
+type DbItemRow = {
+  id: string;
+  slug: string;
+  name: string;
+  name_th: string;
+  cost: number;
+  stats: string[] | null;
+  passive: string | null;
+  icon_url: string | null;
+};
+
+function toItem(row: DbItemRow): ItemSummary {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    nameTh: row.name_th,
+    cost: row.cost,
+    stats: row.stats ?? [],
+    passive: row.passive ?? "",
+    icon: row.icon_url ?? "",
+  };
 }
 
+async function fetchItems(): Promise<ItemSummary[]> {
+  const { data, error } = await supabase
+    .from("items")
+    .select("id, slug, name, name_th, cost, stats, passive, icon_url")
+    .order("cost", { ascending: false });
+  if (error || !data) throw new Error(error?.message ?? "โหลดรายการไอเทมไม่สำเร็จ");
+  return (data as DbItemRow[]).map(toItem);
+}
+
+// Items are the same for every build row on the page, so fetch once and share.
+let itemsPromise: Promise<ItemSummary[]> | null = null;
+
+export function getItems(): Promise<ItemSummary[]> {
+  if (!isSupabaseConfigured) return delay(MOCK_ITEMS);
+  if (!itemsPromise) {
+    itemsPromise = fetchItems().catch((e) => {
+      itemsPromise = null; // allow retry after a failure
+      throw e;
+    });
+  }
+  return itemsPromise;
+}
+
+// Fallback build path based on role heuristic — used until a hand-authored
+// build exists for this hero. Slugs are real rows in the Supabase `items` table.
+const GENERIC_PICKS = {
+  magic: {
+    boots: { slug: "giay-thuat-si", reason: "ลดคูลดาวน์และเพิ่มความเร็วเคลื่อนที่ ช่วยให้ใช้สกิลได้ถี่ขึ้น" },
+    core: { slug: "sach-thanh", reason: "เพิ่มพลังโจมตีเวทสูงและลดคูลดาวน์ เป็นแกนหลักของดาเมจ" },
+  },
+  physical: {
+    boots: { slug: "giay-du-muc", reason: "เพิ่มความเร็วโจมตีและความเร็วเคลื่อนที่ เหมาะกับสายโจมตีพื้นฐาน" },
+    core: { slug: "nanh-fenrir", reason: "เพิ่มพลังโจมตีสูงเป็นแกนหลักของดาเมจ" },
+  },
+} as const;
+
 function genericBuildFor(hero: HeroSummary): HeroBuild {
-  // Fallback build path based on role heuristic — used until a hand-authored
-  // build exists for this hero. Kept honest by only using generic reasoning.
   const tag = ROLE_TAGS[hero.role];
-  const damageItem = tag.damage === "magic" ? "book-of-eternity" : "sword-of-eternity";
+  const pick = tag.damage === "magic" ? GENERIC_PICKS.magic : GENERIC_PICKS.physical;
   const items: HeroBuild["items"] = [
-    { itemSlug: "faith-boots", reason: "รองเท้าพื้นฐานเพิ่มความเร็วเคลื่อนที่และลดคูลดาวน์", phase: "early" },
-    { itemSlug: damageItem, reason: tag.damage === "magic" ? "เพิ่มพลังเวทเป็นแกนหลักของดาเมจ" : "เพิ่มพลังโจมตีเป็นแกนหลักของดาเมจ", phase: "core" },
+    { itemSlug: pick.boots.slug, reason: pick.boots.reason, phase: "early" },
+    { itemSlug: pick.core.slug, reason: pick.core.reason, phase: "core" },
   ];
   if (tag.frontline >= 2) {
-    items.push({ itemSlug: "shield-of-the-lost-temple", reason: "เพิ่มความอึดให้ยืนแนวหน้าได้นานขึ้น", phase: "core" });
+    items.push({ itemSlug: "khien-that-truyen", reason: "เพิ่มเกราะและพลังชีวิตให้ยืนแนวหน้าได้นานขึ้น", phase: "core" });
   } else {
-    items.push({ itemSlug: "black-warrior-cape", reason: "ซื้อเมื่อฝั่งศัตรูมีดาเมจเวทสูง เพื่อลดความเสี่ยงโดนล้ม", phase: "situational" });
+    items.push({ itemSlug: "giap-gaia", reason: "ซื้อเมื่อฝั่งศัตรูมีดาเมจเวทสูง เพิ่มต้านทานเวทและพลังชีวิตเพื่อลดความเสี่ยงโดนล้ม", phase: "situational" });
   }
   return { heroSlug: hero.slug, patch: MOCK_PATCH, source: "heuristic", items, arcana: [{ name: "Sage x10", reason: "ตัวเลือกกลาง ๆ ที่เข้าได้กับเกือบทุกฮีโร่ระหว่างรอข้อมูลเฉพาะตัว" }] };
 }
