@@ -8,13 +8,14 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroLane, HeroRole, Tier } from "@/types/hero";
-import { MOCK_PATCH } from "@/data/heroes.mock";
 
 const TIER_ORDER: Tier[] = ["S+", "S", "A", "B", "C"];
 
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
+  const rank = useRank();
   const [role, setRole] = useState<HeroRole | null>(null);
   const [lane, setLane] = useState<HeroLane | null>(null);
 
@@ -31,12 +32,13 @@ export function TierList() {
   }, [heroes, role, lane]);
 
   const totalShown = grouped ? [...grouped.values()].reduce((n, l) => n + l.length, 0) : 0;
+  const patchLabel = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-xl font-semibold">Tier List</h1>
-        <span className="text-xs text-text-faint">Patch {MOCK_PATCH} · Diamond+</span>
+        <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
       </div>
 
       <div className="space-y-2">
@@ -54,7 +56,7 @@ export function TierList() {
         <EmptyState
           icon={BarChart3}
           title={heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
-          description={heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "Tier List จะแสดงผลเมื่อมีการเติมสถิติฮีโร่แล้ว"}
+          description={heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
       {grouped && totalShown > 0 && (

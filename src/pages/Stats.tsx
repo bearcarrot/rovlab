@@ -8,8 +8,8 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { cn } from "@/lib/utils";
+import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroLane } from "@/types/hero";
-import { MOCK_PATCH } from "@/data/heroes.mock";
 
 type Metric = "winRate" | "pickRate" | "banRate";
 
@@ -21,6 +21,7 @@ const METRIC_LABEL: Record<Metric, string> = {
 
 export function Stats() {
   const heroesQ = useAsync(() => getHeroes(), []);
+  const rank = useRank();
   const [metric, setMetric] = useState<Metric>("winRate");
   const [lane, setLane] = useState<HeroLane | null>(null);
 
@@ -31,12 +32,13 @@ export function Stats() {
   }, [heroesQ, lane, metric]);
 
   const maxValue = sorted.length > 0 ? sorted[0].stat[metric] : 0;
+  const patchLabel = heroesQ.status === "success" ? heroesQ.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-xl font-semibold">สถิติ</h1>
-        <span className="text-xs text-text-faint">Patch {MOCK_PATCH} · Diamond+</span>
+        <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -66,7 +68,7 @@ export function Stats() {
         <EmptyState
           icon={BarChart3}
           title={heroesQ.data.some((h) => h.stat.hasStats) ? "ไม่พบข้อมูลในหมวดนี้" : "ยังไม่มีข้อมูลสถิติ"}
-          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Lane" : "หน้านี้จะมีข้อมูลเมื่อเติมสถิติฮีโร่แล้ว"}
+          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
       {heroesQ.status === "success" && sorted.length > 0 && (
@@ -78,7 +80,7 @@ export function Stats() {
       )}
 
       <p className="pt-1 text-center text-[11px] text-text-faint">
-        * แสดงเฉพาะฮีโร่ที่มีข้อมูลสถิติแล้ว ฮีโร่ที่เหลือจะขึ้นเมื่อ Admin เติมข้อมูลครบ
+        * แสดงเฉพาะฮีโร่ที่มีข้อมูลสถิติในช่วงแรงก์ที่เลือก
       </p>
     </div>
   );

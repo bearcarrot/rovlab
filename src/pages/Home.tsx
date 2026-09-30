@@ -8,7 +8,7 @@ import { InsightCard } from "@/features/dashboard/InsightCard";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { MOCK_PATCH } from "@/data/heroes.mock";
+import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroSummary } from "@/types/hero";
 
 const QUICK_ACTIONS = [
@@ -21,8 +21,10 @@ const QUICK_ACTIONS = [
 export function Home() {
   const heroes = useAsync(() => getHeroes(), []);
   const insights = useAsync(() => getDashboardInsights(), []);
+  const rank = useRank();
 
   const withStats = heroes.status === "success" ? heroes.data.filter((h) => h.stat.hasStats) : [];
+  const patchLabel = withStats[0]?.stat.patch ?? "—";
   const topWinRate = [...withStats].sort((a, b) => b.stat.winRate - a.stat.winRate).slice(0, 6);
   const mostBanned = [...withStats].sort((a, b) => b.stat.banRate - a.stat.banRate).slice(0, 6);
 
@@ -30,8 +32,8 @@ export function Home() {
     <div className="space-y-6">
       <div className="flex items-center justify-between rounded-card border border-border bg-bg-surface px-4 py-3">
         <div>
-          <p className="text-xs text-text-faint">เมต้าตอนนี้</p>
-          <p className="font-display text-sm font-medium">Patch {MOCK_PATCH}</p>
+          <p className="text-xs text-text-faint">เมต้าตอนนี้ · {RANK_LABEL[rank]}</p>
+          <p className="font-display text-sm font-medium">Patch {patchLabel}</p>
         </div>
         <Swords className="h-5 w-5 text-accent" strokeWidth={2} />
       </div>
