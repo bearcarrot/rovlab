@@ -15,10 +15,17 @@ export interface BuildItemEntry {
   phase: "early" | "core" | "situational";
 }
 
+export interface BuildArcanaEntry {
+  name: string;
+  /** คำอธิบายหรือค่าสเตตัสของรูน (จาก arcana.description) */
+  reason: string;
+  icon?: string;
+}
+
 export interface HeroBuild {
   heroSlug: string;
   items: BuildItemEntry[];
-  arcana: { name: string; reason: string }[];
+  arcana: BuildArcanaEntry[];
   patch: string;
   source: "curated" | "heuristic";
 }

@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AskCoach } from "@/components/AskCoach";
+import { HeroIcon } from "@/components/HeroIcon";
 import { BuildItemRow } from "@/features/build/BuildItemRow";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
@@ -95,7 +96,7 @@ export function ItemBuild() {
             <>
               {buildQ.data.source === "heuristic" && (
                 <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-                  * บิลด์นี้สร้างจากกฎเกณฑ์ตาม Role (Heuristic) ยังไม่ใช่บิลด์ที่เขียนเฉพาะฮีโร่นี้
+                  * ไอเทมชุดนี้สร้างจากกฎเกณฑ์ตาม Role (Heuristic) ยังไม่ใช่บิลด์ที่เขียนเฉพาะฮีโร่นี้
                 </p>
               )}
               {(["early", "core", "situational"] as const).map((phase) => {
@@ -113,10 +114,16 @@ export function ItemBuild() {
               <Card>
                 <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
+                  {buildQ.data.arcana.length === 0 && (
+                    <p className="text-sm text-text-faint">ยังไม่มีข้อมูลรูนสำหรับฮีโร่นี้</p>
+                  )}
                   {buildQ.data.arcana.map((a) => (
-                    <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
-                      <p className="font-display text-sm font-medium">{a.name}</p>
-                      <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
+                    <div key={a.name} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
+                      <HeroIcon icon={a.icon} name={a.name} className="bg-bg" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-sm font-medium">{a.name}</p>
+                        {a.reason && <p className="mt-1 text-sm text-text-muted">{a.reason}</p>}
+                      </div>
                     </div>
                   ))}
                 </CardContent>
