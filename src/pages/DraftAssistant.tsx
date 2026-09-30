@@ -4,6 +4,7 @@ import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { AskCoach } from "@/components/AskCoach";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
@@ -23,6 +24,13 @@ export function DraftAssistant() {
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
   const recs = useMemo(() => (heroes.length ? recommendPicks(myTeam, heroes) : []), [myTeam, heroes]);
+  const draftCtx = useMemo(
+    () => ({
+      mine: myTeam.map((h) => h?.nameTh ?? null),
+      enemy: enemyTeam.map((h) => h?.nameTh ?? null),
+    }),
+    [myTeam, enemyTeam]
+  );
 
   const pickedElsewhere = new Set(
     [...myTeam, ...enemyTeam].filter((h): h is HeroSummary => h !== null).map((h) => h.slug)
@@ -131,6 +139,16 @@ export function DraftAssistant() {
         <div className="rounded-card border border-border bg-bg-surface p-4">
           <TeamMeters analysis={analysis} />
         </div>
+        {analysis.filledSlots > 0 && (
+          <div className="mt-2">
+            <AskCoach
+              resetKey={JSON.stringify(draftCtx)}
+              label="ถามโค้ช AI: ประเมินดราฟต์"
+              prompt="ประเมินคอมโพสิชันทีมของผู้เล่นเทียบกับทีมศัตรู บอกจุดแข็ง จุดที่ขาด และแผนเล่นสั้นๆ ไม่เกิน 5 ประโยค"
+              context={{ ...draftCtx, analysis }}
+            />
+          </div>
+        )}
       </section>
 
       <section>
@@ -148,6 +166,7 @@ export function DraftAssistant() {
               <RecommendedPickCard
                 key={r.hero.id}
                 rec={r}
+                draft={draftCtx}
                 onPick={() => {
                   const idx = myTeam.findIndex((h) => h === null);
                   if (idx >= 0) {

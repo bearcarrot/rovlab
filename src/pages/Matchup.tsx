@@ -6,6 +6,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { AskCoach } from "@/components/AskCoach";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,12 @@ export function Matchup() {
                 <div><p className="font-medium text-text">เงื่อนไขชนะ</p><p className="text-text-muted">{matchupQ.data.winCondition}</p></div>
                 <div><p className="font-medium text-text">เคล็ดลับ</p><p className="text-text-muted">{matchupQ.data.tips}</p></div>
               </div>
+              <AskCoach
+                resetKey={`${a.slug}-${b.slug}`}
+                label="ถามโค้ช AI: แผนเล่นคู่นี้"
+                prompt={`ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค`}
+                context={{ me: a.nameTh, enemy: b.nameTh, matchup: matchupQ.data }}
+              />
             </div>
           )}
         </div>

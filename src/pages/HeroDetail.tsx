@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { AskCoach } from "@/components/AskCoach";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
@@ -136,6 +137,24 @@ export function HeroDetail() {
           </Card>
         </div>
       )}
+
+      <AskCoach
+        resetKey={h.slug}
+        label="ถามโค้ช AI: เล่นตัวนี้ยังไง"
+        prompt={`สรุปวิธีเล่น ${h.nameTh} ให้ผู้เล่นมือใหม่ถึงกลาง ไม่เกิน 4 ประโยค`}
+        context={{
+          hero: h.nameTh,
+          role: roleLabel,
+          lane: laneLabel,
+          difficulty: DIFFICULTY_LABEL[h.difficulty],
+          stats: h.stat.hasStats
+            ? { winRate: h.stat.winRate, pickRate: h.stat.pickRate, banRate: h.stat.banRate, tier: h.stat.tier }
+            : null,
+          strengths: h.strengths,
+          weaknesses: h.weaknesses,
+          abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name, description: a.description })),
+        }}
+      />
 
       <Card>
         <CardHeader><CardTitle>ใครสวน {h.nameTh} ได้</CardTitle></CardHeader>
