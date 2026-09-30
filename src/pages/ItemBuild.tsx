@@ -110,17 +110,33 @@ export function ItemBuild() {
                   </div>
                 );
               })}
-              <Card>
-                <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {buildQ.data.arcana.map((a) => (
-                    <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
-                      <p className="font-display text-sm font-medium">{a.name}</p>
-                      <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              {buildQ.data.arcana.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {buildQ.data.arcana.map((a) => (
+                      <div key={a.name} className="rounded-lg border border-border bg-bg-raised p-3">
+                        <div className="flex items-center gap-2">
+                          {a.icon ? (
+                            <img
+                              src={a.icon}
+                              alt={a.name}
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                              className="h-9 w-9 shrink-0 rounded-md object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : null}
+                          <p className="font-display text-sm font-medium">{a.name}</p>
+                        </div>
+                        {a.reason && <p className="mt-1 text-sm text-text-muted">{a.reason}</p>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
               <AskCoach
                 resetKey={selected.slug}
                 label="ถามโค้ช AI: เลือกไอเทมยังไง"
