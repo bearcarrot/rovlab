@@ -1,10 +1,13 @@
 import { Menu, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useMyAvatar } from "@/features/profile/useMyAvatar";
 import { RankToggle } from "@/components/layout/RankToggle";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
   const { user } = useAuth();
+  const avatarUrl = useMyAvatar();
 
   return (
     <header
@@ -26,10 +29,11 @@ export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
 
       <Link
         to={user ? "/profile" : "/login"}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-raised text-text-muted hover:text-text"
+        className="shrink-0 rounded-full text-text-muted hover:text-text"
         aria-label="โปรไฟล์"
       >
-        <User className="h-4 w-4" />
+        {/* photo when the user has one; otherwise the original user icon */}
+        <UserAvatar name="โปรไฟล์" url={avatarUrl} fallback={<User className="h-4 w-4" />} className="h-9 w-9 text-text-muted" />
       </Link>
     </header>
   );

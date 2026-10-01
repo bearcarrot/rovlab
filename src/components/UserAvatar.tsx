@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function UserAvatar({ name, url, className }: { name: string; url?: string | null; className?: string }) {
+// `fallback` replaces the default initial-letter placeholder (e.g. a generic user icon).
+export function UserAvatar({
+  name,
+  url,
+  className,
+  fallback,
+}: {
+  name: string;
+  url?: string | null;
+  className?: string;
+  fallback?: ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -26,7 +38,7 @@ export function UserAvatar({ name, url, className }: { name: string; url?: strin
           onError={() => setFailed(true)}
         />
       ) : (
-        <span>{(Array.from(name)[0] ?? "?").toUpperCase()}</span>
+        (fallback ?? <span>{(Array.from(name)[0] ?? "?").toUpperCase()}</span>)
       )}
     </div>
   );
