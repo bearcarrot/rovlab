@@ -120,25 +120,44 @@ export function ItemBuild() {
                   </div>
                 );
               })}
-              <Card>
-                <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {buildQ.data.arcana.map((a) => {
-                    // Icon + stat line come from the real `arcana` table; a miss falls back to initials.
-                    const meta = arcanaQ.status === "success" ? findArcana(arcanaQ.data, a.name) : undefined;
-                    return (
-                      <div key={a.name} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
-                        <HeroIcon icon={meta?.icon} name={a.name} className="bg-bg" />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display text-sm font-medium">{a.name}</p>
-                          {meta?.description && <p className="text-xs text-text-faint">{meta.description}</p>}
-                          <p className="mt-1 text-sm text-text-muted">{a.reason}</p>
+              {buildQ.data.arcana.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle>Arcana แนะนำ</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {buildQ.data.arcana.map((a) => {
+                      // Icon + stat line come from the real `arcana` table; a miss falls back to initials.
+                      const meta = arcanaQ.status === "success" ? findArcana(arcanaQ.data, a.name) : undefined;
+                      const c = a.color ? ARCANA_COLOR[a.color] : undefined;
+                      const desc = a.description ?? meta?.description;
+                      return (
+                        <div
+                          key={a.name}
+                          className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3"
+                          style={{ borderColor: c ? `${c.hex}66` : undefined, borderLeftWidth: c ? 4 : undefined, borderLeftColor: c?.hex }}
+                        >
+                          <HeroIcon icon={a.icon ?? meta?.icon} name={a.name} className="bg-bg" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-display text-sm font-medium">{a.name}</p>
+                              {a.quantity ? (
+                                <span
+                                  className="rounded-md px-1.5 py-0.5 text-xs font-semibold text-white"
+                                  style={{ backgroundColor: c?.hex ?? "#64748b" }}
+                                >
+                                  x{a.quantity}
+                                </span>
+                              ) : null}
+                              {c && <span className="ml-auto text-[11px]" style={{ color: c.hex }}>{c.label}</span>}
+                            </div>
+                            {desc && <p className="text-xs text-text-faint">{desc}</p>}
+                            {a.reason && <p className="mt-1 text-sm text-text-muted">{a.reason}</p>}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              )}
               <AskCoach
                 resetKey={selected.slug}
                 label="ถามโค้ช AI: เลือกไอเทมยังไง"

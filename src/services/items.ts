@@ -1,5 +1,5 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { ArcanaSummary, HeroBuild, ItemSummary } from "@/types/item";
+import type { ArcanaColor, ArcanaSummary, BuildArcanaEntry, HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
