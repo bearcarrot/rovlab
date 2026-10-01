@@ -85,6 +85,7 @@ const SYNERGY_POINTS = 1.5;
 const TIER_POINTS: Record<Tier, number> = { "S+": 2.5, S: 2, A: 1, B: 0.5, C: 0 };
 const MIN_MATCHES = 100; // ต่ำกว่านี้ถือว่า Win Rate ยังไม่น่าเชื่อถือ
 const LEVEL_TH: Record<CounterStrength, string> = { best: "ดีที่สุด", good: "ดี", situational: "บางสถานการณ์" };
+const DEFAULT_LIMIT = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
@@ -106,10 +107,11 @@ function indexRelations(rel?: DraftRelations) {
   return { counterOf, exposure, synergy };
 }
 
+// ctx.limit: จำนวนที่คืนสูงสุด (ค่าเริ่มต้น 5) — ส่งค่ามากๆ เพื่อเอารายการทั้งหมดไปกรองตามแท็ก (คอมโบ/ชนะทาง)
 export function recommendPicks(
   currentTeam: (HeroSummary | null)[],
   pool: HeroSummary[],
-  ctx: { enemyTeam?: (HeroSummary | null)[]; relations?: DraftRelations } = {}
+  ctx: { enemyTeam?: (HeroSummary | null)[]; relations?: DraftRelations; limit?: number } = {}
 ): Recommendation[] {
   const enemyTeam = ctx.enemyTeam ?? [];
   const mine = filled(currentTeam);
@@ -221,5 +223,5 @@ export function recommendPicks(
 
   return scored
     .sort((a, b) => b.score - a.score || b.hero.stat.winRate - a.hero.stat.winRate)
-    .slice(0, 5);
+    .slice(0, ctx.limit ?? DEFAULT_LIMIT);
 }
