@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { functionErrorMessage } from "@/lib/functionError";
+import { setMyAvatar } from "@/lib/myAvatarStore";
 import { PROFILE_LIMITS } from "@/types/profile";
 import type { Profile, PublicProfile } from "@/types/profile";
 
@@ -84,12 +85,15 @@ export async function updateProfile(userId: string, edit: ProfileEdit): Promise<
 export async function uploadAvatar(base64: string): Promise<string | null> {
   const { data, error } = await supabase.functions.invoke("avatar", { body: { action: "upload", image: base64 } });
   if (error) throw new Error(await functionErrorMessage(error, "อัปโหลดรูปไม่สำเร็จ"));
-  return (data?.avatarUrl as string | null) ?? null;
+  const url = (data?.avatarUrl as string | null) ?? null;
+  setMyAvatar(url); // keep the header photo in sync
+  return url;
 }
 
 export async function removeAvatar(): Promise<void> {
   const { error } = await supabase.functions.invoke("avatar", { body: { action: "remove" } });
   if (error) throw new Error(await functionErrorMessage(error, "ลบรูปไม่สำเร็จ"));
+  setMyAvatar(null);
 }
 
 // Public view of any user's profile (RPC: profiles RLS only lets you read your own row).
