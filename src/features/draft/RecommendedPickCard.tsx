@@ -14,11 +14,12 @@ const TAG_LABEL: Record<RecommendTag, string> = {
 export function RecommendedPickCard({
   rec,
   onPick,
-  draft,
+  coachContext,
 }: {
   rec: Recommendation;
   onPick: () => void;
-  draft?: unknown; // ทีมเรา/ศัตรูที่เลือกแล้ว (ไม่ใส่ก็ได้)
+  // สร้าง context ให้ Coach AI (มีสกิลจริงของฮีโร่ที่เกี่ยวข้อง) — ดู coachContext.ts
+  coachContext?: (rec: Recommendation) => unknown;
 }) {
   const [advice, setAdvice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,19 +34,24 @@ export function RecommendedPickCard({
     setError("");
     try {
       const text = await askCoach(
-        `อธิบายสั้นๆ ไม่เกิน 4 ประโยค ว่าทำไมควรเลือก ${rec.hero.nameTh} ในดราฟต์นี้ ` +
-          `ถ้ามีคอมโบ (combos) หรือชนะทาง (counters) ให้อธิบายว่ากลไกทำงานยังไงโดยใช้ข้อความ reason/laneTip ในข้อมูลที่ให้ ` +
-          `(ถ้า reason ว่างให้บอกว่าในระบบยังไม่มีรายละเอียดกลไก ห้ามเดา) แล้วบอกจุดที่ต้องระวัง`,
-        {
-          hero: rec.hero.nameTh,
-          tier: rec.hero.stat.tier,
-          risk: rec.risk,
-          reasons: rec.reasons,
-          warnings: rec.warnings,
-          combos: rec.details.combos, // [{ partner, reason }]
-          counters: rec.details.counters, // [{ enemy, direction, level, reason, laneTip }]
-          draft,
-        },
+        `ตอบเป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ เรื่องการเลือก ${rec.hero.nameTh} ในดราฟต์นี้: ` +
+          `1) ควรใช้สกิลไหนก่อน/หลัง และใช้ตอนไหน (อ้างชื่อสกิลจริงจาก heroes[].skills) ` +
+          `2) ถ้ามี combos: อธิบายว่าสกิลของสองตัวเสริมกันยังไง (ใช้ข้อความ reason ถ้ามี และสกิลจริงประกอบ) ` +
+          `3) ถ้ามี counters: direction=wins ให้บอกว่าศัตรูมีสกิลไหนที่ต้องหลบหรือตัดจังหวะ และเราใช้สกิลไหนสู้; ` +
+          `direction=loses ให้บอกวิธีลดความเสียเปรียบ ` +
+          `4) จุดที่ต้องระวัง ` +
+          `ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลสกิลไม่พอให้บอกตรงๆ`,
+        coachContext
+          ? coachContext(rec)
+          : {
+              hero: rec.hero.nameTh,
+              tier: rec.hero.stat.tier,
+              risk: rec.risk,
+              reasons: rec.reasons,
+              warnings: rec.warnings,
+              combos: rec.details.combos,
+              counters: rec.details.counters,
+            },
       );
       setAdvice(text);
     } catch (e) {
@@ -98,7 +104,7 @@ export function RecommendedPickCard({
             ))}
             {missingCombos.map((c) => (
               <p key={c.partner} className="text-text-faint">
-                {rec.hero.nameTh} + {c.partner}: ยังไม่มีคำอธิบายกลไกในระบบ
+                {rec.hero.nameTh} + {c.partner}: ยังไม่มีคำอธิบายกลไกในระบบ (ถามโค้ช AI ให้วิเคราะห์จากสกิลได้)
               </p>
             ))}
           </div>
