@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { AlertTriangle, Sparkles, Star } from "lucide-react";
+import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
+import { CoachIcon } from "@/components/CoachIcon";
 import { askCoach } from "@/services/ai";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
@@ -124,10 +125,11 @@ export function RecommendedPickCard({
           <button
             onClick={ask}
             disabled={busy}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border py-1.5 text-sm text-text hover:bg-bg-raised disabled:opacity-50"
+            aria-busy={busy}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border py-1.5 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            {busy ? "กำลังคิด..." : advice ? "ถามใหม่" : "ถามโค้ช AI"}
+            <CoachIcon busy={busy} className="h-3.5 w-3.5" />
+            <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : "ถามโค้ช AI"}</span>
           </button>
           <button
             onClick={onPick}

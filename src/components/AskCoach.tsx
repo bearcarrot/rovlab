@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
+import { CoachIcon } from "@/components/CoachIcon";
 
 type Props = {
   prompt: string;
@@ -56,10 +57,11 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
       <button
         onClick={ask}
         disabled={busy}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface py-2 text-sm text-text hover:bg-bg-raised disabled:opacity-50"
+        aria-busy={busy}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface py-2 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
       >
-        <Sparkles className="h-4 w-4 text-accent" />
-        {busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}
+        <CoachIcon busy={busy} className="h-4 w-4" />
+        <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}</span>
       </button>
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
