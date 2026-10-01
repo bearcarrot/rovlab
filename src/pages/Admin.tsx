@@ -12,8 +12,14 @@ const db: any = supabase;
 type Row = Record<string, any>;
 type RefType = "hero" | "item" | "arcana" | "patch";
 type RefOpt = { id: string; label: string };
-// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น) | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,)
-type Col = { k: string; label?: string; type?: "text" | "num" | "date" | "sel" | "area" | "arr" | RefType; opts?: string[] };
+// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
+// | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
+type Col = {
+  k: string;
+  label?: string;
+  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | RefType;
+  opts?: string[];
+};
 type Cfg = {
   label: string;
   table: string;
@@ -30,6 +36,7 @@ type Toast = { text: string; kind: "ok" | "err" } | null;
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
 const REF_TYPES: string[] = ["hero", "item", "arcana", "patch"];
+const BUCKET = "hero-icons";
 const heroName = (r?: Row) => r?.name_th || r?.name || "?";
 const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   col,
@@ -38,6 +45,13 @@ const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   order: "name",
   label: heroName,
 });
+// ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์)
+const buildFilter: NonNullable<Cfg["filter"]> = {
+  col: "build_id",
+  table: "item_builds",
+  sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
+  label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
+};
 
 const CFG: Record<string, Cfg> = {
   heroes: {
@@ -53,7 +67,7 @@ const CFG: Record<string, Cfg> = {
       { k: "role", type: "sel", opts: ["assassin", "fighter", "mage", "marksman", "support", "tank"] },
       { k: "lane", type: "sel", opts: ["slayer", "jungle", "mid", "abyssal", "support"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
-      { k: "icon_url" },
+      { k: "icon_url", label: "ไอคอน", type: "img" },
       { k: "description", type: "area" },
       { k: "strengths", type: "arr" },
       { k: "weaknesses", type: "arr" },
@@ -65,7 +79,13 @@ const CFG: Record<string, Cfg> = {
     order: "sort_order",
     add: true,
     filter: heroFilter("hero_id"),
-    cols: [{ k: "slot" }, { k: "name" }, { k: "description", type: "area" }, { k: "sort_order", type: "num" }],
+    cols: [
+      { k: "slot" },
+      { k: "name" },
+      { k: "icon_url", label: "ไอคอน", type: "img" },
+      { k: "description", type: "area" },
+      { k: "sort_order", type: "num" },
+    ],
   },
   counters: {
     label: "เคาน์เตอร์",
@@ -117,7 +137,7 @@ const CFG: Record<string, Cfg> = {
       { k: "stats", type: "arr" },
       { k: "passive", type: "area" },
       { k: "role_tags", type: "arr" },
-      { k: "icon_url" },
+      { k: "icon_url", label: "ไอคอน", type: "img" },
     ],
   },
   arcana: {
@@ -125,7 +145,12 @@ const CFG: Record<string, Cfg> = {
     table: "arcana",
     order: "name",
     add: true,
-    cols: [{ k: "name" }, { k: "description", type: "area" }],
+    cols: [
+      { k: "name" },
+      { k: "color", label: "สี", type: "sel", opts: ["", "red", "purple", "green"] },
+      { k: "icon_url", label: "ไอคอน", type: "img" },
+      { k: "description", type: "area" },
+    ],
   },
   builds: {
     label: "บิลด์",
@@ -135,7 +160,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "patch_id", label: "แพตช์", type: "patch" },
       { k: "source", type: "sel", opts: SOURCES },
-      { k: "arcana_id", label: "ชุดรูน", type: "arcana" },
+      { k: "arcana_id", label: "รูนชุดเดียว (แบบเดิม)", type: "arcana" },
     ],
   },
   buildItems: {
@@ -143,15 +168,23 @@ const CFG: Record<string, Cfg> = {
     table: "item_build_items",
     order: "sort_order",
     add: true,
-    filter: {
-      col: "build_id",
-      table: "item_builds",
-      sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
-      label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source} · ${r.arcana?.name ?? "ไม่มีรูน"}`,
-    },
+    filter: buildFilter,
     cols: [
       { k: "item_id", label: "ไอเทม", type: "item" },
       { k: "phase", type: "sel", opts: ["early", "core", "situational"] },
+      { k: "reason", type: "area" },
+      { k: "sort_order", type: "num" },
+    ],
+  },
+  buildArcana: {
+    label: "รูนในบิลด์",
+    table: "item_build_arcana",
+    order: "sort_order",
+    add: true,
+    filter: buildFilter,
+    cols: [
+      { k: "arcana_id", label: "รูน", type: "arcana" },
+      { k: "quantity", label: "จำนวน (x)", type: "num" },
       { k: "reason", type: "area" },
       { k: "sort_order", type: "num" },
     ],
@@ -204,7 +237,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "slug" },
       { k: "title" },
-      { k: "cover_url" },
+      { k: "cover_url", label: "รูปปก", type: "img" },
       { k: "difficulty", type: "sel", opts: ["", "easy", "medium", "hard"] },
       { k: "reading_minutes", type: "num" },
       { k: "content", type: "area" },
@@ -268,31 +301,31 @@ const norm = (c: Col, v: unknown) => (c.type === "arr" ? toArr(v).join("|") : St
 const clean = (c: Col, v: unknown) =>
   c.type === "arr" ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
 
-const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
-  if (v == null || v === "") return "";
-  if (c.type && REF_TYPES.includes(c.type)) return refs[c.type]?.find((o) => o.id === v)?.label ?? "";
-  if (Array.isArray(v)) return v.join(", ");
-  return String(v);
-};
-// หัวข้อ + คำอธิบายย่อของแถว (ตอนพับการ์ด)
-const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) => {
-  const parts = cfg.cols.map((c) => show(c, row[c.k], refs)).filter(Boolean);
-  return { title: parts[0] ?? "(ว่าง)", sub: parts.slice(1, 3).join(" · ") };
-};
+// อัปโหลดรูปเข้า Supabase Storage (bucket hero-icons, แยกโฟลเดอร์ตามชื่อตาราง) แล้วคืน public URL
+async function uploadImage(file: File, folder: string): Promise<string> {
+  const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
-// onCommit: เรียกเมื่อแก้เสร็จ (select = ทันทีที่เลือก, input = ตอนคลิกออก/กด Enter) ใช้บันทึกลง DB อัตโนมัติ
+// onCommit: เรียกเมื่อแก้เสร็จ (select/อัปโหลด = ทันที, input = ตอนคลิกออก/กด Enter) ใช้บันทึกลง DB อัตโนมัติ
 function Cell({
   c,
   v,
   refs,
+  folder,
   onChange,
   onCommit,
+  onError,
 }: {
   c: Col;
   v: any;
   refs: Record<string, RefOpt[]>;
+  folder: string;
   onChange: (v: string) => void;
   onCommit?: (v: string) => void;
+  onError: (m: string) => void;
 }) {
   const change = (val: string) => {
     onChange(val);
@@ -318,6 +351,41 @@ function Cell({
           </option>
         ))}
       </select>
+    );
+  if (c.type === "img")
+    return (
+      <div className="flex min-w-[220px] items-center gap-1">
+        {v ? <img src={v} alt="" className="h-8 w-8 shrink-0 rounded object-cover" /> : null}
+        <input
+          className={inp}
+          placeholder="วาง URL หรือกดอัปโหลด"
+          value={v ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onCommit?.(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+        />
+        <label className="cursor-pointer whitespace-nowrap rounded-md border border-border px-2 py-1 text-xs">
+          อัปโหลด
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={async (e) => {
+              const input = e.target;
+              const f = input.files?.[0];
+              if (!f) return;
+              try {
+                change(await uploadImage(f, folder));
+              } catch (err) {
+                onError(`อัปโหลดไม่สำเร็จ: ${(err as Error).message}`);
+              }
+              input.value = "";
+            }}
+          />
+        </label>
+      </div>
     );
   if (c.type === "area")
     return (
@@ -426,8 +494,12 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   }
 
   async function add() {
+    // ข้ามช่องที่ว่าง เพื่อให้ค่า default ของ DB ทำงาน (เช่น quantity = 10)
     const body: Row = {};
-    for (const c of cfg.cols) body[c.k] = clean(c, draft[c.k]);
+    for (const c of cfg.cols) {
+      const val = clean(c, draft[c.k]);
+      if (val !== null) body[c.k] = val;
+    }
     if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
     if (error) err(error.message);
@@ -440,28 +512,40 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   }
 
   return (
-    <div className="space-y-4 pb-24">
-      {/* ตัวกรอง / ค้นหา: มือถือเรียงลง เดสก์ท็อปเรียงข้าง */}
-      {(cfg.filter || cfg.search) && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {cfg.filter && (
-            <select className={`${inp} sm:w-auto sm:min-w-[18rem]`} value={fv} onChange={(e) => setFv(e.target.value)}>
-              {opts.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {cfg.filter!.label(o)}
-                </option>
-              ))}
-            </select>
-          )}
-          {cfg.search && (
-            <input
-              className={`${inp} sm:w-64`}
-              type="search"
-              placeholder="ค้นหาชื่อ..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          )}
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {cfg.filter && (
+          <select className={inp + " !w-auto"} value={fv} onChange={(e) => setFv(e.target.value)}>
+            {opts.map((o) => (
+              <option key={o.id} value={o.id}>
+                {cfg.filter!.label(o)}
+              </option>
+            ))}
+          </select>
+        )}
+        {cfg.search && (
+          <input className={inp + " !w-56"} placeholder="ค้นหาชื่อ..." value={q} onChange={(e) => setQ(e.target.value)} />
+        )}
+      </div>
+
+      {cfg.add && (
+        <div className="flex flex-wrap items-start gap-2 rounded-lg border border-dashed border-border p-2">
+          {cfg.cols.map((c) => (
+            <div key={c.k} className={c.type === "img" ? "w-64" : "w-40"}>
+              <p className="pb-0.5 text-xs text-text-faint">{c.label ?? c.k}</p>
+              <Cell
+                c={c}
+                v={draft[c.k]}
+                refs={refs}
+                folder={cfg.table}
+                onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))}
+                onError={setMsg}
+              />
+            </div>
+          ))}
+          <button onClick={add} className="mt-4 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
+            + เพิ่ม
+          </button>
         </div>
       )}
 
@@ -476,88 +560,34 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
                   <Cell c={c} v={draft[c.k]} refs={refs} onChange={(v) => setDraft((d) => ({ ...d, [c.k]: v }))} />
                 </Field>
               ))}
-            </div>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Btn onClick={() => setShowAdd(false)}>ยกเลิก</Btn>
-              <Btn variant="primary" onClick={add}>
-                <Plus className="h-4 w-4" /> บันทึก
-              </Btn>
-            </div>
-          </section>
-        ) : (
-          <Btn variant="primary" className="w-full sm:w-auto" onClick={() => setShowAdd(true)}>
-            <Plus className="h-4 w-4" /> เพิ่ม{cfg.label}
-          </Btn>
-        ))}
-
-      <p className="text-xs text-text-muted">{rows.length} รายการ · แก้ไขแล้วบันทึกอัตโนมัติ</p>
-
-      {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข */}
-      <div className="space-y-2">
-        {rows.length === 0 && (
-          <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
-            ยังไม่มีข้อมูล
-          </p>
-        )}
-        {rows.map((row, i) => {
-          const open = openId === row.id;
-          const { title, sub } = summary(cfg, row, refs);
-          return (
-            <article key={row.id} className="overflow-hidden rounded-card border border-border bg-bg-surface shadow-card">
-              <button
-                type="button"
-                aria-expanded={open}
-                onClick={() => {
-                  setOpenId(open ? null : row.id);
-                  setConfirmId(null);
-                }}
-                className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg-raised"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{title}</span>
-                  {sub && <span className="block truncate text-xs text-text-muted">{sub}</span>}
-                </span>
-                <ChevronDown className={`h-5 w-5 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
-              </button>
-
-              {open && (
-                <div className="space-y-4 border-t border-border p-4">
-                  <div className="space-y-3">
-                    {cfg.cols.map((c) => (
-                      <Field key={c.k} label={c.label ?? c.k}>
-                        <Cell
-                          c={c}
-                          v={row[c.k]}
-                          refs={refs}
-                          onChange={(v) => edit(i, c.k, v)}
-                          onCommit={(v) => void commit(row, c, v)}
-                        />
-                      </Field>
-                    ))}
-                  </div>
-
-                  <div className="border-t border-border pt-4">
-                    {confirmId === row.id ? (
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                        <span className="text-sm text-text-muted sm:mr-auto">ลบรายการนี้ถาวร?</span>
-                        <Btn onClick={() => setConfirmId(null)}>
-                          <X className="h-4 w-4" /> ยกเลิก
-                        </Btn>
-                        <Btn variant="dangerSolid" onClick={() => void remove(row)}>
-                          <Trash2 className="h-4 w-4" /> ยืนยันลบ
-                        </Btn>
-                      </div>
-                    ) : (
-                      <Btn variant="danger" className="w-full sm:w-auto" onClick={() => setConfirmId(row.id)}>
-                        <Trash2 className="h-4 w-4" /> ลบรายการ
-                      </Btn>
-                    )}
-                  </div>
-                </div>
-              )}
-            </article>
-          );
-        })}
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.id} className="border-t border-border align-top">
+                {cfg.cols.map((c) => (
+                  <td key={c.k} className="px-2 py-1">
+                    <Cell
+                      c={c}
+                      v={row[c.k]}
+                      refs={refs}
+                      folder={cfg.table}
+                      onChange={(v) => edit(i, c.k, v)}
+                      onCommit={(v) => void commit(row, c, v)}
+                      onError={setMsg}
+                    />
+                  </td>
+                ))}
+                <td className="whitespace-nowrap px-2 py-1">
+                  <button onClick={() => remove(row)} className="text-loss">
+                    ลบ
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Toast */}

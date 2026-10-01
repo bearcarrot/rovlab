@@ -104,6 +104,18 @@ export function HeroDetail() {
             {h.abilities.map((a) => (
               <div key={a.slot + a.name} className="rounded-lg border border-border bg-bg-raised p-3">
                 <div className="flex items-center gap-2">
+                  {a.icon ? (
+                    <img
+                      src={a.icon}
+                      alt={a.name}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      className="h-9 w-9 shrink-0 rounded-md object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
                   <Badge className="uppercase">{a.slot}</Badge>
                   <p className="font-display text-sm font-medium">{a.name}</p>
                 </div>
