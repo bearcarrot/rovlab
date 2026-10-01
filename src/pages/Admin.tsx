@@ -45,11 +45,11 @@ const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   order: "name",
   label: heroName,
 });
-// ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์)
+// ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์) — รูนอยู่ในตาราง item_build_arcana ไม่ผูกกับตัวบิลด์แล้ว
 const buildFilter: NonNullable<Cfg["filter"]> = {
   col: "build_id",
   table: "item_builds",
-  sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
+  sel: "id,source,heroes(name,name_th),patches(code)",
   label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
 };
 
@@ -160,7 +160,6 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "patch_id", label: "แพตช์", type: "patch" },
       { k: "source", type: "sel", opts: SOURCES },
-      { k: "arcana_id", label: "รูนชุดเดียว (แบบเดิม)", type: "arcana" },
     ],
   },
   buildItems: {
