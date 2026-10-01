@@ -15,6 +15,7 @@ export const MOCK_ITEMS: ItemSummary[] = [
 
 // Hand-authored build reasoning for the one hero we have full detail for (Florentino).
 // Every other hero falls back to a generic role-based build in services/items.ts.
+// Arcana are left empty on purpose: rune pages come from the DB (item_build_arcana) only.
 export const MOCK_BUILDS: Record<string, HeroBuild> = {
   florentino: {
     heroSlug: "florentino",
@@ -26,6 +27,6 @@ export const MOCK_BUILDS: Record<string, HeroBuild> = {
       { itemSlug: "thuong-xuyen-pha", reason: "เจาะเกราะช่วยให้ดาเมจยังทะลุแม้ศัตรูซื้อเกราะ", phase: "core" },
       { itemSlug: "khien-that-truyen", reason: "ซื้อเมื่อโดนไดฟ์บ่อย เพิ่มความอึดตอนยืนยิง", phase: "situational" },
     ],
-    arcana: [{ name: "Sage x10", reason: "ลดคูลดาวน์และเพิ่มมานา ช่วยให้ใช้สกิลถี่ขึ้นตั้งแต่ต้นเกม" }],
+    arcana: [],
   },
 };

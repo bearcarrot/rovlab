@@ -1,5 +1,5 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { BuildArcanaEntry, BuildItemEntry, HeroBuild, ItemSummary } from "@/types/item";
+import type { ArcanaColor, BuildArcanaEntry, BuildItemEntry, HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
@@ -89,31 +89,47 @@ function genericBuildFor(hero: HeroSummary): HeroBuild {
 
 type DbBuildRow = {
   source: string | null;
-  arcana: { name: string; description: string | null; icon_url: string | null } | null;
   item_build_items: {
     phase: string;
     reason: string | null;
     sort_order: number | null;
     item: { slug: string } | null;
   }[];
+  item_build_arcana: {
+    quantity: number;
+    reason: string | null;
+    sort_order: number | null;
+    arcana: { name: string; description: string | null; icon_url: string | null; color: string | null } | null;
+  }[];
 };
 
 const PHASES = ["early", "core", "situational"] as const;
+const COLORS: readonly string[] = ["red", "purple", "green"];
 
-// item_builds holds one row per arcana, so a hero's rune page = all of its rows.
+// A build = one item_builds row; its rune page (up to 10 slots per colour) lives in item_build_arcana.
 async function fetchDbBuild(hero: HeroSummary) {
   const { data, error } = await supabase
     .from("item_builds")
-    .select("source, arcana:arcana_id(name, description, icon_url), item_build_items(phase, reason, sort_order, item:item_id(slug))")
+    .select(
+      "source, item_build_items(phase, reason, sort_order, item:item_id(slug)), item_build_arcana(quantity, reason, sort_order, arcana:arcana_id(name, description, icon_url, color))"
+    )
     .eq("hero_id", hero.id);
   if (error || !data || data.length === 0) return null;
   const rows = data as unknown as DbBuildRow[];
 
   const arcana: BuildArcanaEntry[] = [];
-  for (const r of rows) {
-    if (r.arcana && !arcana.some((a) => a.name === r.arcana!.name)) {
-      arcana.push({ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined });
-    }
+  const dbArcana = rows.flatMap((r) => r.item_build_arcana ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  for (const r of dbArcana) {
+    const a = r.arcana;
+    if (!a || !a.color || !COLORS.includes(a.color) || arcana.some((x) => x.name === a.name)) continue;
+    arcana.push({
+      name: a.name,
+      color: a.color as ArcanaColor,
+      quantity: r.quantity,
+      stats: a.description ?? "",
+      reason: r.reason ?? undefined,
+      icon: a.icon_url ?? undefined,
+    });
   }
 
   const items: BuildItemEntry[] = [];
@@ -139,7 +155,7 @@ export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
     patch: patch?.code ?? base.patch,
     items: hasDbItems ? db!.items : base.items,
     source: hasDbItems ? db!.source : base.source,
-    // Only real rune data: DB rows first, then the hand-authored mock (if any), else none.
+    // Only real rune data from the DB; never invent a rune page.
     arcana: db ? db.arcana : curatedMock?.arcana ?? [],
   };
 }

@@ -15,10 +15,17 @@ export interface BuildItemEntry {
   phase: "early" | "core" | "situational";
 }
 
+export type ArcanaColor = "red" | "purple" | "green";
+
 export interface BuildArcanaEntry {
   name: string;
-  /** คำอธิบายหรือค่าสเตตัสของรูน (จาก arcana.description) */
-  reason: string;
+  color: ArcanaColor;
+  /** จำนวนช่องที่ใส่รูนนี้ (1–10 ต่อสี) */
+  quantity: number;
+  /** สเตตัสต่อ 1 ช่อง เช่น "พลังโจมตี +2 · เจาะเกราะ +3.6" (arcana.description) */
+  stats: string;
+  /** หมายเหตุเหตุผลที่เลือกรูนนี้ (item_build_arcana.reason) */
+  reason?: string;
   icon?: string;
 }
 
