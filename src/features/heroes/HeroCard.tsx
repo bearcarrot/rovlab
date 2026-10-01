@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
+import { heroRoles } from "@/lib/heroPositions";
 import type { HeroSummary } from "@/types/hero";
 
 const ROLE_LABEL_TH: Record<string, string> = {
@@ -45,7 +46,7 @@ export function HeroCard({ hero }: { hero: HeroSummary }) {
       </div>
       <div className="space-y-1 p-2.5">
         <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-        <p className="text-xs text-text-faint">{ROLE_LABEL_TH[hero.role]}</p>
+        <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => ROLE_LABEL_TH[r] ?? r).join(" · ")}</p>
         <p className="text-xs text-text-muted">{hero.stat.hasStats ? `WR ${hero.stat.winRate.toFixed(1)}%` : "ยังไม่มีสถิติ"}</p>
       </div>
     </Link>

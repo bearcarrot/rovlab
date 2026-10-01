@@ -21,8 +21,10 @@ export interface HeroSummary {
   slug: string;
   name: string;
   nameTh: string;
-  role: HeroRole;
-  lane: HeroLane;
+  role: HeroRole; // ตำแหน่งหลัก (= roles[0])
+  lane: HeroLane; // เลนหลัก (= lanes[0])
+  roles?: HeroRole[]; // ทุกตำแหน่งที่ฮีโร่ไปได้ ใช้ heroRoles() จาก @/lib/heroPositions
+  lanes?: HeroLane[]; // ทุกเลนที่ฮีโร่ไปได้ ใช้ heroLanes()
   difficulty: HeroDifficulty;
   icon: string;
   stat: HeroStatSnapshot;
