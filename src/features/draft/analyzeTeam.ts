@@ -57,14 +57,29 @@ export type RiskLabel = "ต่ำ" | "กลาง" | "สูง";
 // composition = มีแต่ทีมเรา → เติมจุดที่ขาด + คอมโบ
 export type DraftMode = "firstPick" | "counter" | "composition";
 
+// รายละเอียดกลไกจากข้อมูลที่แอดมินกรอกไว้ (ใช้ส่งให้ Coach AI อธิบายต่อ)
+export interface ComboDetail {
+  partner: string;
+  reason: string; // ว่างได้ถ้าแอดมินยังไม่ได้กรอก
+}
+export interface CounterDetail {
+  enemy: string;
+  direction: "wins" | "loses"; // wins = ฮีโร่นี้ชนะทางศัตรูตัวนี้, loses = ศัตรูตัวนี้ชนะทางฮีโร่นี้
+  level: string;
+  reason: string;
+  laneTip: string;
+}
+
 export interface Recommendation {
   hero: HeroSummary;
   score: number;
   stars: number;
-  reasons: string[];
+  reasons: string[]; // หัวข้อสั้นๆ ว่าทำไมแนะนำ
+  explain: string[]; // คำอธิบายกลไกคอมโบ/ชนะทาง จากข้อมูลในระบบ (ว่างถ้าไม่มี)
   warnings: string[];
   tags: RecommendTag[];
   risk: RiskLabel;
+  details: { combos: ComboDetail[]; counters: CounterDetail[] };
 }
 
 export function getDraftMode(myTeam: (HeroSummary | null)[], enemyTeam: (HeroSummary | null)[]): DraftMode {
@@ -89,20 +104,29 @@ const DEFAULT_LIMIT = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
+interface CounterInfo {
+  strength: CounterStrength;
+  reason: string;
+  laneTip: string;
+}
+
 function indexRelations(rel?: DraftRelations) {
   // key: `${ฮีโร่ที่โดนเคาน์เตอร์}>${ฮีโร่ที่ชนะทาง}`
-  const counterOf = new Map<string, CounterStrength>();
+  const counterOf = new Map<string, CounterInfo>();
   // ฮีโร่ที่โดนเคาน์เตอร์ → ผลรวมน้ำหนักตัวที่ชนะทางมัน (ยิ่งสูง ยิ่งโดนแก้ง่าย)
   const exposure = new Map<string, number>();
   for (const c of rel?.counters ?? []) {
-    counterOf.set(`${c.victimId}>${c.counterId}`, c.strength);
+    counterOf.set(`${c.victimId}>${c.counterId}`, { strength: c.strength, reason: c.reason, laneTip: c.laneTip });
     exposure.set(c.victimId, (exposure.get(c.victimId) ?? 0) + (EXPOSURE_WEIGHT[c.strength] ?? 0));
   }
-  // คอมโบตีความเป็นสองทาง
-  const synergy = new Set<string>();
+  // คอมโบตีความเป็นสองทาง: key `a|b` และ `b|a` → ข้อความอธิบาย (ถ้ามีหลายแถว เก็บอันที่มีข้อความ)
+  const synergy = new Map<string, string>();
+  const setSynergy = (key: string, reason: string) => {
+    if (!synergy.has(key) || (!synergy.get(key) && reason)) synergy.set(key, reason);
+  };
   for (const s of rel?.synergies ?? []) {
-    synergy.add(`${s.heroId}|${s.partnerId}`);
-    synergy.add(`${s.partnerId}|${s.heroId}`);
+    setSynergy(`${s.heroId}|${s.partnerId}`, s.reason);
+    setSynergy(`${s.partnerId}|${s.heroId}`, s.reason);
   }
   return { counterOf, exposure, synergy };
 }
@@ -129,17 +153,23 @@ export function recommendPicks(
     .map((h): Recommendation => {
       const tag = ROLE_TAGS[h.role];
       const reasons: string[] = [];
+      const explain: string[] = [];
       const warnings: string[] = [];
       const tags: RecommendTag[] = [];
+      const combos: ComboDetail[] = [];
+      const counters: CounterDetail[] = [];
       let score = 0;
 
       // 1) ชนะทางศัตรูที่เลือกแล้ว
       let counterScore = 0;
       for (const e of enemies) {
-        const s = rel.counterOf.get(`${e.id}>${h.id}`);
-        if (!s) continue;
-        counterScore += COUNTER_POINTS[s];
-        reasons.push(`ชนะทาง ${e.nameTh} (ระดับ${LEVEL_TH[s]})`);
+        const info = rel.counterOf.get(`${e.id}>${h.id}`);
+        if (!info) continue;
+        counterScore += COUNTER_POINTS[info.strength];
+        reasons.push(`ชนะทาง ${e.nameTh} (ระดับ${LEVEL_TH[info.strength]})`);
+        counters.push({ enemy: e.nameTh, direction: "wins", level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
+        if (info.reason) explain.push(`${h.nameTh} ชนะทาง ${e.nameTh}: ${info.reason}`);
+        if (info.laneTip) explain.push(`ทิปเลนสู้ ${e.nameTh}: ${info.laneTip}`);
       }
       if (counterScore > 0) {
         score += Math.min(counterScore, COUNTER_CAP);
@@ -148,17 +178,22 @@ export function recommendPicks(
 
       // 2) โดนศัตรูที่เลือกแล้วชนะทาง → หักคะแนนและเตือน
       for (const e of enemies) {
-        const s = rel.counterOf.get(`${h.id}>${e.id}`);
-        if (!s) continue;
-        score -= COUNTER_POINTS[s];
-        warnings.push(`${e.nameTh} ชนะทางตัวนี้ (ระดับ${LEVEL_TH[s]})`);
+        const info = rel.counterOf.get(`${h.id}>${e.id}`);
+        if (!info) continue;
+        score -= COUNTER_POINTS[info.strength];
+        warnings.push(`${e.nameTh} ชนะทางตัวนี้ (ระดับ${LEVEL_TH[info.strength]})${info.reason ? `: ${info.reason}` : ""}`);
+        counters.push({ enemy: e.nameTh, direction: "loses", level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
       }
 
       // 3) คอมโบกับเพื่อนร่วมทีม
       for (const t of mine) {
-        if (!rel.synergy.has(`${h.id}|${t.id}`)) continue;
+        const key = `${h.id}|${t.id}`;
+        if (!rel.synergy.has(key)) continue;
+        const reason = rel.synergy.get(key) ?? "";
         score += SYNERGY_POINTS;
         reasons.push(`คอมโบกับ ${t.nameTh}`);
+        combos.push({ partner: t.nameTh, reason });
+        if (reason) explain.push(`${h.nameTh} + ${t.nameTh}: ${reason}`);
         if (!tags.includes("synergy")) tags.push("synergy");
       }
 
@@ -218,10 +253,48 @@ export function recommendPicks(
 
       const stars = clamp(Math.round(score * 0.75), 1, 5);
       const risk: RiskLabel = h.difficulty === "hard" ? "สูง" : h.difficulty === "medium" ? "กลาง" : "ต่ำ";
-      return { hero: h, score, stars, reasons, warnings, tags, risk };
+      return { hero: h, score, stars, reasons, explain, warnings, tags, risk, details: { combos, counters } };
     });
 
   return scored
     .sort((a, b) => b.score - a.score || b.hero.stat.winRate - a.hero.stat.winRate)
     .slice(0, ctx.limit ?? DEFAULT_LIMIT);
+}
+
+// สรุปความสัมพันธ์ที่ "เกิดขึ้นแล้ว" ในดราฟต์ปัจจุบัน (คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีม)
+// ใช้เป็น context ให้ Coach AI ตอบเรื่องกลไกได้ เพราะ AI อ้างอิงจากข้อมูลที่ส่งไปเท่านั้น
+export function describeDraft(
+  myTeam: (HeroSummary | null)[],
+  enemyTeam: (HeroSummary | null)[],
+  relations?: DraftRelations
+) {
+  const mine = filled(myTeam);
+  const enemies = filled(enemyTeam);
+  const rel = indexRelations(relations);
+
+  const teamCombos: { heroes: [string, string]; reason: string }[] = [];
+  for (let i = 0; i < mine.length; i++) {
+    for (let j = i + 1; j < mine.length; j++) {
+      const key = `${mine[i].id}|${mine[j].id}`;
+      if (rel.synergy.has(key)) {
+        teamCombos.push({ heroes: [mine[i].nameTh, mine[j].nameTh], reason: rel.synergy.get(key) ?? "" });
+      }
+    }
+  }
+
+  const matchups: { winner: string; loser: string; level: string; reason: string; laneTip: string }[] = [];
+  for (const m of mine) {
+    for (const e of enemies) {
+      const mineWins = rel.counterOf.get(`${e.id}>${m.id}`); // ศัตรูเป็นฝ่ายโดน, ฮีโร่เราชนะทาง
+      if (mineWins) {
+        matchups.push({ winner: m.nameTh, loser: e.nameTh, level: LEVEL_TH[mineWins.strength], reason: mineWins.reason, laneTip: mineWins.laneTip });
+      }
+      const enemyWins = rel.counterOf.get(`${m.id}>${e.id}`);
+      if (enemyWins) {
+        matchups.push({ winner: e.nameTh, loser: m.nameTh, level: LEVEL_TH[enemyWins.strength], reason: enemyWins.reason, laneTip: enemyWins.laneTip });
+      }
+    }
+  }
+
+  return { teamCombos, matchups };
 }

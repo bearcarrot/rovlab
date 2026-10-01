@@ -24,18 +24,26 @@ export function RecommendedPickCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
+  const missingCombos = rec.details.combos.filter((c) => !c.reason);
+  const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
+
   async function ask() {
     setBusy(true);
     setError("");
     try {
       const text = await askCoach(
-        `อธิบายสั้นๆ ไม่เกิน 3 ประโยค ว่าทำไมควรเลือก ${rec.hero.nameTh} ในดราฟต์นี้ และมีจุดไหนที่ต้องระวัง`,
+        `อธิบายสั้นๆ ไม่เกิน 4 ประโยค ว่าทำไมควรเลือก ${rec.hero.nameTh} ในดราฟต์นี้ ` +
+          `ถ้ามีคอมโบ (combos) หรือชนะทาง (counters) ให้อธิบายว่ากลไกทำงานยังไงโดยใช้ข้อความ reason/laneTip ในข้อมูลที่ให้ ` +
+          `(ถ้า reason ว่างให้บอกว่าในระบบยังไม่มีรายละเอียดกลไก ห้ามเดา) แล้วบอกจุดที่ต้องระวัง`,
         {
           hero: rec.hero.nameTh,
           tier: rec.hero.stat.tier,
           risk: rec.risk,
           reasons: rec.reasons,
           warnings: rec.warnings,
+          combos: rec.details.combos, // [{ partner, reason }]
+          counters: rec.details.counters, // [{ enemy, direction, level, reason, laneTip }]
           draft,
         },
       );
@@ -80,6 +88,22 @@ export function RecommendedPickCard({
         <ul className="space-y-1 text-sm text-text-muted">
           {rec.reasons.map((r) => <li key={r}>• {r}</li>)}
         </ul>
+
+        {/* กลไกคอมโบ/ชนะทาง จากข้อมูลที่แอดมินกรอกไว้ */}
+        {hasMechanism && (
+          <div className="space-y-1 rounded-lg border border-border bg-bg-raised p-2 text-xs leading-relaxed text-text">
+            <p className="font-medium text-text-muted">ทำงานยังไง</p>
+            {rec.explain.map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+            {missingCombos.map((c) => (
+              <p key={c.partner} className="text-text-faint">
+                {rec.hero.nameTh} + {c.partner}: ยังไม่มีคำอธิบายกลไกในระบบ
+              </p>
+            ))}
+          </div>
+        )}
+
         {rec.warnings.length > 0 && (
           <ul className="space-y-1 text-sm text-amber-400">
             {rec.warnings.map((w) => (
