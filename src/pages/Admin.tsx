@@ -11,7 +11,7 @@ const db: any = supabase;
 
 type Row = Record<string, any>;
 type RefType = "hero" | "item" | "arcana" | "patch";
-type RefOpt = { id: string; label: string };
+type RefOpt = { id: string; label: string; color?: string };
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 type Col = {
@@ -28,6 +28,8 @@ type Cfg = {
   add?: boolean;
   search?: string;
   cols: Col[];
+  // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
+  slots?: boolean;
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: { col: string; table: string; sel: string; order?: string; label: (r: Row) => string };
 };
@@ -37,6 +39,13 @@ const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
 const REF_TYPES: string[] = ["hero", "item", "arcana", "patch"];
 const BUCKET = "hero-icons";
+// หน้ารูนในเกมมี 30 ช่อง = แดง 10 + ม่วง 10 + เขียว 10
+const MAX_SLOTS = 10;
+const SLOT_COLORS = [
+  { k: "red", label: "แดง", hex: "#ef4444" },
+  { k: "purple", label: "ม่วง", hex: "#a855f7" },
+  { k: "green", label: "เขียว", hex: "#22c55e" },
+] as const;
 const heroName = (r?: Row) => r?.name_th || r?.name || "?";
 const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   col,
@@ -181,6 +190,7 @@ const CFG: Record<string, Cfg> = {
     table: "item_build_arcana",
     order: "sort_order",
     add: true,
+    slots: true,
     filter: buildFilter,
     cols: [
       { k: "arcana_id", label: "รูน", type: "arcana" },
@@ -317,6 +327,20 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) => {
     img: imgCol ? (row[imgCol.k] as string | null) : null,
   };
 };
+
+// รวมจำนวนช่องรูนต่อสีจากแถวของบิลด์ที่เลือก (อ่านจาก state จึงอัปเดตทันทีที่แก้จำนวน/เปลี่ยนรูน)
+function summarizeSlots(rows: Row[], arcana: RefOpt[]) {
+  const colorById = new Map(arcana.map((a) => [a.id, a.color]));
+  const used: Record<string, number> = { red: 0, purple: 0, green: 0 };
+  let uncolored = 0;
+  for (const r of rows) {
+    const n = Number(r.quantity) || 0;
+    const color = colorById.get(r.arcana_id);
+    if (color && color in used) used[color] += n;
+    else uncolored += n;
+  }
+  return { used, uncolored };
+}
 
 // อัปโหลดรูปเข้า Supabase Storage (bucket hero-icons, แยกโฟลเดอร์ตามชื่อตาราง) แล้วคืน public URL
 async function uploadImage(file: File, folder: string): Promise<string> {
@@ -532,6 +556,9 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
     }
   }
 
+  // รอให้โหลดรายชื่อรูนก่อนค่อยคำนวณ ไม่งั้นจะขึ้นเตือนว่าไม่มีสีชั่วครู่
+  const slotInfo = cfg.slots && (refs.arcana?.length ?? 0) > 0 ? summarizeSlots(rows, refs.arcana) : null;
+
   return (
     <div className="space-y-4 pb-24">
       {/* ตัวกรอง / ค้นหา: มือถือเรียงลง เดสก์ท็อปเรียงข้าง */}
@@ -556,6 +583,47 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
             />
           )}
         </div>
+      )}
+
+      {/* จำนวนช่องรูนต่อสี (สีละ 10 ช่อง) — เตือนเท่านั้น ไม่ขวางการบันทึก */}
+      {slotInfo && (
+        <section aria-label="จำนวนช่องรูน" className="space-y-2 rounded-card border border-border bg-bg-surface p-3 shadow-card">
+          <div className="grid grid-cols-3 gap-2">
+            {SLOT_COLORS.map(({ k, label, hex }) => {
+              const n = slotInfo.used[k];
+              const over = n > MAX_SLOTS;
+              return (
+                <div key={k} className="rounded-lg border border-border bg-bg-raised px-3 py-2">
+                  <p className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: hex }} />
+                    {label}
+                  </p>
+                  <p className={`mt-0.5 text-base font-semibold ${over ? "text-loss" : n === MAX_SLOTS ? "text-win" : ""}`}>
+                    {n}/{MAX_SLOTS}
+                  </p>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-bg">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.min(100, (n / MAX_SLOTS) * 100)}%`, backgroundColor: over ? "#ef4444" : hex }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {SLOT_COLORS.some(({ k }) => slotInfo.used[k] > MAX_SLOTS) && (
+            <p className="flex items-start gap-1.5 text-xs text-loss">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              รูนสีนี้ใส่ได้รวมไม่เกิน {MAX_SLOTS} ช่องต่อหน้ารูน ลดจำนวนหรือลบรูนบางตัว
+            </p>
+          )}
+          {slotInfo.uncolored > 0 && (
+            <p className="flex items-start gap-1.5 text-xs text-loss">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              มี {slotInfo.uncolored} ช่องที่รูนยังไม่ได้ตั้งสี ไปตั้งสีได้ในแท็บ "รูน" จึงจะนับรวม
+            </p>
+          )}
+        </section>
       )}
 
       {/* เพิ่มรายการ */}
@@ -698,11 +766,19 @@ export function Admin() {
         .select(sel)
         .order(order, { ascending: asc })
         .then(({ data }: { data: Row[] | null }) => (data ?? []).map((r) => ({ id: r.id as string, label: label(r) })));
+    // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
+    const arcanaOpts = db
+      .from("arcana")
+      .select("id,name,color")
+      .order("name", { ascending: true })
+      .then(({ data }: { data: Row[] | null }) =>
+        (data ?? []).map((r) => ({ id: r.id as string, label: r.name as string, color: (r.color ?? undefined) as string | undefined }))
+      );
     void Promise.all([
       opt("heroes", "id,name,name_th", "name", true, heroName),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
       opt("items", "id,name", "name", true, (r) => r.name ?? "?"),
-      opt("arcana", "id,name", "name", true, (r) => r.name),
+      arcanaOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
     ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));
   }, [isAdmin]);
