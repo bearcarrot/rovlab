@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
+import { getDraftRelations } from "@/services/draft";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -8,15 +9,23 @@ import { AskCoach } from "@/components/AskCoach";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
-import { analyzeTeam, recommendPicks } from "@/features/draft/analyzeTeam";
+import { analyzeTeam, getDraftMode, recommendPicks, type DraftMode } from "@/features/draft/analyzeTeam";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
 type Slot = { team: "mine" | "enemy"; index: number };
 
+const MODE_TEXT: Record<DraftMode, string> = {
+  firstPick: "โหมด First Pick: ยังไม่เห็นทีมศัตรู จึงเน้นสถิติแพตช์ และเลี่ยงตัวที่โดนเคาน์เตอร์ง่าย",
+  counter: "เน้นตัวที่ชนะทางศัตรู + คอมโบกับทีมเรา + เติมจุดที่ทีมขาด",
+  composition: "เน้นเติมจุดที่ทีมขาด + คอมโบกับทีมเรา (เลือกทีมศัตรูเพิ่มเพื่อดูตัวชนะทาง)",
+};
+
 export function DraftAssistant() {
   const heroesQ = useAsync(() => getHeroes(), []);
+  // ข้อมูล counter/synergy: โหลดไม่ได้ก็ไม่เป็นไร ระบบแนะนำยังทำงานด้วยสถิติ + คอมโพสิชัน
+  const relQ = useAsync(() => getDraftRelations(), []);
   const [myTeam, setMyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [enemyTeam, setEnemyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [active, setActive] = useState<Slot | null>({ team: "mine", index: 0 });
@@ -24,8 +33,13 @@ export function DraftAssistant() {
   const filters = useHeroFilters();
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
+  const relations = relQ.status === "success" ? relQ.data : undefined;
   const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
-  const recs = useMemo(() => (heroes.length ? recommendPicks(myTeam, heroes) : []), [myTeam, heroes]);
+  const mode = getDraftMode(myTeam, enemyTeam);
+  const recs = useMemo(
+    () => (heroes.length ? recommendPicks(myTeam, heroes, { enemyTeam, relations }) : []),
+    [myTeam, enemyTeam, heroes, relations]
+  );
   const draftCtx = useMemo(
     () => ({
       mine: myTeam.map((h) => h?.nameTh ?? null),
@@ -118,22 +132,22 @@ export function DraftAssistant() {
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
                     {h.icon ? (
-    <img
-      src={h.icon}
-      alt={h.nameTh}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className="h-full w-full object-cover"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-      }}
-    />
-  ) : null}
+                      <img
+                        src={h.icon}
+                        alt={h.nameTh}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
 
-  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-    {h.name.slice(0, 2).toUpperCase()}
-  </span>
+                    <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                      {h.name.slice(0, 2).toUpperCase()}
+                    </span>
                   </div>
                   <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
                 </button>
@@ -161,14 +175,15 @@ export function DraftAssistant() {
       </section>
 
       <section>
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-1 flex items-center gap-2">
           <Users className="h-4 w-4 text-accent" />
           <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป</h2>
         </div>
+        <p className="mb-2 text-xs text-text-muted">{MODE_TEXT[mode]} · เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ</p>
         {analysis.filledSlots === 5 ? (
           <p className="text-sm text-text-faint">ทีมของคุณครบ 5 ฮีโร่แล้ว</p>
         ) : recs.length === 0 ? (
-          <p className="text-sm text-text-faint">เลือกฮีโร่อย่างน้อย 1 ตัวเพื่อดูคำแนะนำ</p>
+          <p className="text-sm text-text-faint">ยังไม่มีฮีโร่ให้แนะนำ</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {recs.map((r) => (

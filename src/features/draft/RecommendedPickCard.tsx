@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { Sparkles, Star } from "lucide-react";
+import { AlertTriangle, Sparkles, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
 import { askCoach } from "@/services/ai";
-import type { recommendPicks } from "./analyzeTeam";
+import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
-type Rec = ReturnType<typeof recommendPicks>[number];
+const TAG_LABEL: Record<RecommendTag, string> = {
+  firstPick: "First Pick",
+  counter: "ชนะทางศัตรู",
+  synergy: "คอมโบ",
+};
 
 export function RecommendedPickCard({
   rec,
   onPick,
   draft,
 }: {
-  rec: Rec;
+  rec: Recommendation;
   onPick: () => void;
   draft?: unknown; // ทีมเรา/ศัตรูที่เลือกแล้ว (ไม่ใส่ก็ได้)
 }) {
@@ -31,6 +35,7 @@ export function RecommendedPickCard({
           tier: rec.hero.stat.tier,
           risk: rec.risk,
           reasons: rec.reasons,
+          warnings: rec.warnings,
           draft,
         },
       );
@@ -56,6 +61,18 @@ export function RecommendedPickCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {rec.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {rec.tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent"
+              >
+                {TAG_LABEL[t]}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3 text-xs text-text-muted">
           <span>ความเสี่ยง: {rec.risk}</span>
           <span>Tier {rec.hero.stat.tier}</span>
@@ -63,6 +80,16 @@ export function RecommendedPickCard({
         <ul className="space-y-1 text-sm text-text-muted">
           {rec.reasons.map((r) => <li key={r}>• {r}</li>)}
         </ul>
+        {rec.warnings.length > 0 && (
+          <ul className="space-y-1 text-sm text-amber-400">
+            {rec.warnings.map((w) => (
+              <li key={w} className="flex gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{w}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {advice && (
           <p className="whitespace-pre-wrap rounded-lg bg-bg-raised p-2 text-sm text-text">{advice}</p>
