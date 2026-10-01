@@ -12,6 +12,7 @@ import { HeroComments } from "@/features/comments/HeroComments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { ROLE_OPTIONS, LANE_OPTIONS } from "@/features/heroes/HeroFilters";
+import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
@@ -44,8 +45,9 @@ export function HeroDetail() {
   if (hero.status !== "success" || !hero.data) return null;
 
   const h = hero.data;
-  const roleLabel = ROLE_OPTIONS.find((r) => r.value === h.role)?.label ?? h.role;
-  const laneLabel = LANE_OPTIONS.find((l) => l.value === h.lane)?.label ?? h.lane;
+  // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /)
+  const roleLabel = heroRoles(h).map((r) => ROLE_OPTIONS.find((o) => o.value === r)?.label ?? r).join(" / ");
+  const laneLabel = heroLanes(h).map((l) => LANE_OPTIONS.find((o) => o.value === l)?.label ?? l).join(" / ");
 
   return (
     <div className="space-y-5 pb-4">
