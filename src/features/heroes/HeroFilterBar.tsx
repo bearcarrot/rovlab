@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
 import type { HeroLane, HeroRole, HeroSummary } from "@/types/hero";
+import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { LaneFilterRow, RoleFilterRow } from "./HeroFilters";
 
-/** state + predicate สำหรับกรองรายชื่อฮีโร่ตามตำแหน่ง (role) และเลน */
+/** state + predicate สำหรับกรองรายชื่อฮีโร่ตามตำแหน่ง (role) และเลน — ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนจะขึ้นในทุกตัวกรองที่ตรง */
 export function useHeroFilters() {
   const [role, setRole] = useState<HeroRole | null>(null);
   const [lane, setLane] = useState<HeroLane | null>(null);
   const match = useCallback(
-    (h: HeroSummary) => (role === null || h.role === role) && (lane === null || h.lane === lane),
+    (h: HeroSummary) =>
+      (role === null || heroRoles(h).includes(role)) && (lane === null || heroLanes(h).includes(lane)),
     [role, lane]
   );
   return { role, lane, setRole, setLane, match };

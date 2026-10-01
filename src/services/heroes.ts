@@ -13,6 +13,8 @@ import { getLatestPatch } from "@/services/meta";
 
 const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, banRate: 0, tier: "C" as Tier, matches: 0, hasStats: false };
 
+const HERO_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url, description, strengths, weaknesses";
+
 type DbHeroRow = {
   id: string;
   slug: string;
@@ -20,6 +22,8 @@ type DbHeroRow = {
   name_th: string;
   role: HeroRole;
   lane: HeroLane;
+  roles: HeroRole[] | null;
+  lanes: HeroLane[] | null;
   difficulty: "easy" | "medium" | "hard";
   icon_url: string | null;
   description: string | null;
@@ -35,6 +39,8 @@ function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]
     nameTh: row.name_th,
     role: row.role,
     lane: row.lane,
+    roles: row.roles && row.roles.length > 0 ? row.roles : [row.role],
+    lanes: row.lanes && row.lanes.length > 0 ? row.lanes : [row.lane],
     difficulty: row.difficulty,
     icon: row.icon_url ?? "",
     stat: statByHeroId.get(row.id) ?? EMPTY_STAT,
@@ -72,11 +78,12 @@ export async function getHeroes(rank: RankBucket = getRank()): Promise<HeroSumma
   if (!isSupabaseConfigured) return MOCK_HEROES;
   const { data, error } = await supabase
     .from("heroes")
-    .select("id, slug, name, name_th, role, lane, difficulty, icon_url, description, strengths, weaknesses")
+    .select(HERO_COLS)
     .order("name_th", { ascending: true });
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
-  const statMap = await fetchStatsByHeroId(data.map((h) => h.id), rank);
-  return data.map((row) => toSummary(row as DbHeroRow, statMap));
+  const rows = data as unknown as DbHeroRow[];
+  const statMap = await fetchStatsByHeroId(rows.map((h) => h.id), rank);
+  return rows.map((row) => toSummary(row, statMap));
 }
 
 function fallbackDetail(summary: HeroSummary, description: string | null, strengths: string[] | null, weaknesses: string[] | null): Omit<HeroDetail, "abilities" | "counteredBy" | "countersAgainst" | "synergies"> {
@@ -115,13 +122,13 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
 
   const { data: row, error } = await supabase
     .from("heroes")
-    .select("id, slug, name, name_th, role, lane, difficulty, icon_url, description, strengths, weaknesses")
+    .select(HERO_COLS)
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!row) return null;
 
-  const heroRow = row as DbHeroRow;
+  const heroRow = row as unknown as DbHeroRow;
   const statMap = await fetchStatsByHeroId([heroRow.id], rank);
   const summary = toSummary(heroRow, statMap);
   const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);

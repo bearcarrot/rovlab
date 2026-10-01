@@ -14,10 +14,11 @@ type RefType = "hero" | "item" | "arcana" | "patch";
 type RefOpt = { id: string; label: string; color?: string };
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
+// | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
 type Col = {
   k: string;
   label?: string;
-  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | RefType;
+  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | RefType;
   opts?: string[];
 };
 type Cfg = {
@@ -73,8 +74,9 @@ const CFG: Record<string, Cfg> = {
       { k: "slug" },
       { k: "name" },
       { k: "name_th" },
-      { k: "role", type: "sel", opts: ["assassin", "fighter", "mage", "marksman", "support", "tank"] },
-      { k: "lane", type: "sel", opts: ["slayer", "jungle", "mid", "abyssal", "support"] },
+      // แตะเลือกได้หลายตัว ตัวแรกที่เลือก (★) = ตำแหน่ง/เลนหลัก ระบบซิงค์ไปที่คอลัมน์ role / lane ให้เอง
+      { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "marksman", "support", "tank"] },
+      { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "support"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
       { k: "icon_url", label: "ไอคอน", type: "img" },
       { k: "description", type: "area" },
@@ -307,9 +309,10 @@ const toArr = (v: unknown): string[] =>
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-const norm = (c: Col, v: unknown) => (c.type === "arr" ? toArr(v).join("|") : String(v ?? ""));
+const isArrCol = (c: Col) => c.type === "arr" || c.type === "multi";
+const norm = (c: Col, v: unknown) => (isArrCol(c) ? toArr(v).join("|") : String(v ?? ""));
 const clean = (c: Col, v: unknown) =>
-  c.type === "arr" ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
+  isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
 
 const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
   if (v == null || v === "" || c.type === "img") return "";
@@ -382,6 +385,35 @@ function Cell({
         ))}
       </select>
     );
+  if (c.type === "multi") {
+    // ปุ่มสลับเลือก/ไม่เลือก เก็บลำดับตามที่กด ตัวแรก (★) = ตัวหลัก
+    const sel = toArr(v);
+    const toggle = (o: string) => change((sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o]).join(","));
+    return (
+      <div className="flex flex-wrap gap-2">
+        {c.opts?.map((o) => {
+          const idx = sel.indexOf(o);
+          const on = idx >= 0;
+          return (
+            <button
+              key={o}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(o)}
+              className={`h-11 rounded-full border px-4 text-sm transition ${
+                on
+                  ? "border-accent bg-accent/15 font-medium text-accent"
+                  : "border-border bg-bg-raised text-text-muted hover:border-text-faint"
+              }`}
+            >
+              {o}
+              {on && idx === 0 ? " ★" : ""}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   if (c.type && REF_TYPES.includes(c.type))
     return (
       <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
@@ -539,11 +571,11 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   }
 
   async function add() {
-    // ข้ามช่องที่ว่าง เพื่อให้ค่า default ของ DB ทำงาน (เช่น quantity = 10)
+    // ข้ามช่องที่ว่าง (รวมถึงลิสต์ว่าง) เพื่อให้ค่า default ของ DB ทำงาน (เช่น quantity = 10)
     const body: Row = {};
     for (const c of cfg.cols) {
       const val = clean(c, draft[c.k]);
-      if (val !== null) body[c.k] = val;
+      if (val !== null && !(Array.isArray(val) && val.length === 0)) body[c.k] = val;
     }
     if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
