@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Search, Swords, Users, Link2 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
 import { useAsync } from "@/hooks/useAsync";
@@ -9,7 +9,7 @@ import { AskCoach } from "@/components/AskCoach";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
-import { analyzeTeam, getDraftMode, recommendPicks, type DraftMode } from "@/features/draft/analyzeTeam";
+import { analyzeTeam, getDraftMode, recommendPicks, type DraftMode, type Recommendation } from "@/features/draft/analyzeTeam";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,40 @@ const MODE_TEXT: Record<DraftMode, string> = {
   counter: "เน้นตัวที่ชนะทางศัตรู + คอมโบกับทีมเรา + เติมจุดที่ทีมขาด",
   composition: "เน้นเติมจุดที่ทีมขาด + คอมโบกับทีมเรา (เลือกทีมศัตรูเพิ่มเพื่อดูตัวชนะทาง)",
 };
+
+// จำนวนสูงสุดของรายการคอมโบ/ชนะทางที่แสดงแยก (รายการภาพรวมยังแสดง 5 อันดับแรก)
+const RELATION_LIMIT = 6;
+
+function PickSection({
+  icon,
+  title,
+  hint,
+  recs,
+  draft,
+  onPick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+  recs: Recommendation[];
+  draft: unknown;
+  onPick: (hero: HeroSummary) => void;
+}) {
+  return (
+    <section>
+      <div className="mb-1 flex items-center gap-2">
+        {icon}
+        <h2 className="font-display text-base font-semibold">{title}</h2>
+      </div>
+      <p className="mb-2 text-xs text-text-muted">{hint}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {recs.map((r) => (
+          <RecommendedPickCard key={r.hero.id} rec={r} draft={draft} onPick={() => onPick(r.hero)} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function DraftAssistant() {
   const heroesQ = useAsync(() => getHeroes(), []);
@@ -36,10 +70,23 @@ export function DraftAssistant() {
   const relations = relQ.status === "success" ? relQ.data : undefined;
   const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
   const mode = getDraftMode(myTeam, enemyTeam);
-  const recs = useMemo(
-    () => (heroes.length ? recommendPicks(myTeam, heroes, { enemyTeam, relations }) : []),
+
+  // คำนวณทุกตัวครั้งเดียว แล้วแยกเป็น: ภาพรวม 5 อันดับ / คอมโบ / ชนะทาง
+  // (คอมโบ/ชนะทางต้องไม่ถูกตัดด้วยอันดับ 5 เพราะคะแนนเติมจุดที่ขาดของตัวอื่นอาจสูงกว่า)
+  const allRecs = useMemo(
+    () => (heroes.length ? recommendPicks(myTeam, heroes, { enemyTeam, relations, limit: heroes.length }) : []),
     [myTeam, enemyTeam, heroes, relations]
   );
+  const recs = allRecs.slice(0, 5);
+  const synergyRecs = useMemo(
+    () => allRecs.filter((r) => r.tags.includes("synergy")).slice(0, RELATION_LIMIT),
+    [allRecs]
+  );
+  const counterRecs = useMemo(
+    () => allRecs.filter((r) => r.tags.includes("counter")).slice(0, RELATION_LIMIT),
+    [allRecs]
+  );
+
   const draftCtx = useMemo(
     () => ({
       mine: myTeam.map((h) => h?.nameTh ?? null),
@@ -80,6 +127,19 @@ export function DraftAssistant() {
       return next;
     });
   }
+
+  // กด "เลือกฮีโร่นี้" ในการ์ดแนะนำ → ใส่ช่องว่างช่องแรกของทีมเรา
+  function pickForMyTeam(hero: HeroSummary) {
+    const idx = myTeam.findIndex((h) => h === null);
+    if (idx < 0) return;
+    setMyTeam((prev) => {
+      const next = [...prev];
+      next[idx] = hero;
+      return next;
+    });
+  }
+
+  const teamFull = analysis.filledSlots === 5;
 
   return (
     <div className="space-y-5">
@@ -174,34 +234,42 @@ export function DraftAssistant() {
         )}
       </section>
 
+      {/* ตัวที่ชนะทางศัตรู / คอมโบกับทีม: แสดงแยก ไม่ถูกตัดด้วย 5 อันดับภาพรวม */}
+      {!teamFull && counterRecs.length > 0 && (
+        <PickSection
+          icon={<Swords className="h-4 w-4 text-accent" />}
+          title="ชนะทางศัตรู"
+          hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
+          recs={counterRecs}
+          draft={draftCtx}
+          onPick={pickForMyTeam}
+        />
+      )}
+      {!teamFull && synergyRecs.length > 0 && (
+        <PickSection
+          icon={<Link2 className="h-4 w-4 text-accent" />}
+          title="คอมโบกับทีมของคุณ"
+          hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
+          recs={synergyRecs}
+          draft={draftCtx}
+          onPick={pickForMyTeam}
+        />
+      )}
+
       <section>
         <div className="mb-1 flex items-center gap-2">
           <Users className="h-4 w-4 text-accent" />
-          <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป</h2>
+          <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป (ภาพรวม)</h2>
         </div>
         <p className="mb-2 text-xs text-text-muted">{MODE_TEXT[mode]} · เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ</p>
-        {analysis.filledSlots === 5 ? (
+        {teamFull ? (
           <p className="text-sm text-text-faint">ทีมของคุณครบ 5 ฮีโร่แล้ว</p>
         ) : recs.length === 0 ? (
           <p className="text-sm text-text-faint">ยังไม่มีฮีโร่ให้แนะนำ</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {recs.map((r) => (
-              <RecommendedPickCard
-                key={r.hero.id}
-                rec={r}
-                draft={draftCtx}
-                onPick={() => {
-                  const idx = myTeam.findIndex((h) => h === null);
-                  if (idx >= 0) {
-                    setMyTeam((prev) => {
-                      const next = [...prev];
-                      next[idx] = r.hero;
-                      return next;
-                    });
-                  }
-                }}
-              />
+              <RecommendedPickCard key={r.hero.id} rec={r} draft={draftCtx} onPick={() => pickForMyTeam(r.hero)} />
             ))}
           </div>
         )}
