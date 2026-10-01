@@ -9,7 +9,14 @@ import { AskCoach } from "@/components/AskCoach";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
-import { analyzeTeam, getDraftMode, recommendPicks, type DraftMode, type Recommendation } from "@/features/draft/analyzeTeam";
+import {
+  analyzeTeam,
+  describeDraft,
+  getDraftMode,
+  recommendPicks,
+  type DraftMode,
+  type Recommendation,
+} from "@/features/draft/analyzeTeam";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
@@ -94,6 +101,8 @@ export function DraftAssistant() {
     }),
     [myTeam, enemyTeam]
   );
+  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีม พร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
+  const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
   const pickedElsewhere = new Set(
     [...myTeam, ...enemyTeam].filter((h): h is HeroSummary => h !== null).map((h) => h.slug)
@@ -222,13 +231,29 @@ export function DraftAssistant() {
         <div className="rounded-card border border-border bg-bg-surface p-4">
           <TeamMeters analysis={analysis} />
         </div>
+
+        {/* คอมโบที่เกิดขึ้นแล้วในทีมเรา: บอกกลไกตรงนี้เลย ไม่ต้องรอถาม AI */}
+        {relationCtx.teamCombos.length > 0 && (
+          <div className="mt-2 space-y-1.5 rounded-card border border-border bg-bg-surface p-3 text-sm">
+            <p className="flex items-center gap-1.5 font-medium">
+              <Link2 className="h-3.5 w-3.5 text-accent" /> คอมโบในทีมของคุณ
+            </p>
+            {relationCtx.teamCombos.map((c) => (
+              <p key={c.heroes.join("+")} className="text-text-muted">
+                <span className="text-text">{c.heroes[0]} + {c.heroes[1]}</span>
+                {c.reason ? `: ${c.reason}` : ": ยังไม่มีคำอธิบายกลไกในระบบ"}
+              </p>
+            ))}
+          </div>
+        )}
+
         {analysis.filledSlots > 0 && (
           <div className="mt-2">
             <AskCoach
               resetKey={JSON.stringify(draftCtx)}
               label="ถามโค้ช AI: ประเมินดราฟต์"
-              prompt="ประเมินคอมโพสิชันทีมของผู้เล่นเทียบกับทีมศัตรู บอกจุดแข็ง จุดที่ขาด และแผนเล่นสั้นๆ ไม่เกิน 5 ประโยค"
-              context={{ ...draftCtx, analysis }}
+              prompt="ประเมินคอมโพสิชันทีมของผู้เล่นเทียบกับทีมศัตรู บอกจุดแข็ง จุดที่ขาด และแผนเล่นสั้นๆ ไม่เกิน 5 ประโยค ถ้ามี teamCombos หรือ matchups ให้อธิบายกลไกจากข้อความ reason/laneTip (ถ้าว่างให้บอกว่าในระบบยังไม่มีรายละเอียด ห้ามเดา)"
+              context={{ ...draftCtx, analysis, ...relationCtx }}
             />
           </div>
         )}
@@ -241,7 +266,7 @@ export function DraftAssistant() {
           title="ชนะทางศัตรู"
           hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
           recs={counterRecs}
-          draft={draftCtx}
+          draft={{ ...draftCtx, ...relationCtx }}
           onPick={pickForMyTeam}
         />
       )}
@@ -251,7 +276,7 @@ export function DraftAssistant() {
           title="คอมโบกับทีมของคุณ"
           hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
           recs={synergyRecs}
-          draft={draftCtx}
+          draft={{ ...draftCtx, ...relationCtx }}
           onPick={pickForMyTeam}
         />
       )}
@@ -269,7 +294,12 @@ export function DraftAssistant() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {recs.map((r) => (
-              <RecommendedPickCard key={r.hero.id} rec={r} draft={draftCtx} onPick={() => pickForMyTeam(r.hero)} />
+              <RecommendedPickCard
+                key={r.hero.id}
+                rec={r}
+                draft={{ ...draftCtx, ...relationCtx }}
+                onPick={() => pickForMyTeam(r.hero)}
+              />
             ))}
           </div>
         )}
