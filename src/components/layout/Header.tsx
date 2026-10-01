@@ -1,4 +1,4 @@
-import { Menu, Search, User } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { RankToggle } from "@/components/layout/RankToggle";
@@ -19,10 +19,8 @@ export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2 text-sm text-text-faint lg:max-w-md">
-        <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">ค้นหาฮีโร่, ไอเทม, คู่มือ...</span>
-      </div>
+      {/* spacer: keeps the rank toggle and profile button on the right */}
+      <div className="flex-1" />
 
       <RankToggle />
 
