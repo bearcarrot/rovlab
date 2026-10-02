@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
+import { CoachText } from "@/components/CoachText";
 
 type Props = {
   prompt: string;
@@ -63,7 +64,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
       </button>
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
-          <p className="whitespace-pre-wrap text-sm text-text">{advice}</p>
+          <CoachText text={advice} className="text-text" />
           <p className="mt-1.5 text-[11px] text-text-faint">* คำแนะนำจาก AI สร้างจากข้อมูลบนหน้านี้ อาจคลาดเคลื่อน</p>
         </div>
       )}
