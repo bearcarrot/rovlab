@@ -212,16 +212,16 @@ export function DraftAssistant() {
             <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
           )}
           {heroesQ.status === "success" && filteredPool.length > 0 && (
-            <div className="grid grid-cols-5 gap-2 sm:grid-cols-8">
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {filteredPool.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => assign(h)}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-1.5 text-center hover:border-accent/40"
+                    "flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-2 text-center hover:border-accent/40"
                   )}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
                     {h.icon ? (
                       <img
                         src={h.icon}
@@ -240,7 +240,7 @@ export function DraftAssistant() {
                       {h.name.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
-                  <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
+                  <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
                 </button>
               ))}
             </div>
