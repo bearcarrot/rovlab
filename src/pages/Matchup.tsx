@@ -25,17 +25,17 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
       {list.length === 0 ? (
         <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
       ) : (
-        <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {list.map((h) => (
             <button
               key={h.id}
               onClick={() => onChange(h)}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center",
+                "flex flex-col items-center gap-1 rounded-lg border p-2 text-center",
                 value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-bg-raised text-[10px] font-display text-text-faint">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
                 {h.icon ? (
     <img
       src={h.icon}
@@ -54,7 +54,7 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
     {h.name.slice(0, 2).toUpperCase()}
   </span>
               </div>
-              <span className="truncate text-[10px] leading-tight">{h.nameTh}</span>
+              <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
             </button>
           ))}
         </div>
