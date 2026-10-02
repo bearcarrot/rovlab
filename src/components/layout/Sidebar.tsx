@@ -4,7 +4,6 @@ import {
   Swords,
   Users,
   GitCompareArrows,
-  Hammer,
   BarChart3,
   BookOpen,
   Heart,
@@ -36,11 +35,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: "/draft", label: "Draft Assistant", icon: Users }],
   },
   {
-    label: "บิลด์ & สถิติ",
-    items: [
-      { to: "/build", label: "Item Build", icon: Hammer },
-      { to: "/stats", label: "สถิติ", icon: BarChart3 },
-    ],
+    label: "สถิติ",
+    items: [{ to: "/stats", label: "สถิติ", icon: BarChart3 }],
   },
   {
     label: "เรียนรู้",
