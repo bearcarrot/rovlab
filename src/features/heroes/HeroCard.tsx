@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
+import { BalanceIcon } from "@/features/balance/BalanceIcon";
+import { useRecentBalance } from "@/features/balance/useRecentBalance";
 import { heroRoles } from "@/lib/heroPositions";
 import type { HeroSummary } from "@/types/hero";
 
@@ -14,6 +16,9 @@ const ROLE_LABEL_TH: Record<string, string> = {
 };
 
 export function HeroCard({ hero }: { hero: HeroSummary }) {
+  const recent = useRecentBalance();
+  const balance = recent?.get(hero.id);
+
   return (
     <Link
       to={`/heroes/${hero.slug}`}
@@ -24,6 +29,11 @@ export function HeroCard({ hero }: { hero: HeroSummary }) {
           {hero.stat.hasStats ? <Badge tier={hero.stat.tier}>{hero.stat.tier}</Badge> : <Badge>N/A</Badge>}
         </div>
         <FavoriteButton heroSlug={hero.slug} className="absolute right-1.5 top-1.5" />
+        {balance && (
+          <span className="absolute bottom-1.5 left-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-bg-surface/90 shadow">
+            <BalanceIcon kind={balance} className="h-3.5 w-3.5" />
+          </span>
+        )}
         <div className="flex h-full items-center justify-center text-2xl font-display text-text-faint">
           {hero.icon ? (
     <img

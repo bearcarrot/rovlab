@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { AskCoach } from "@/components/AskCoach";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
+import { BalanceIcon } from "@/features/balance/BalanceIcon";
+import { HeroBalance } from "@/features/balance/HeroBalance";
+import { useRecentBalance } from "@/features/balance/useRecentBalance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { ROLE_OPTIONS, LANE_OPTIONS } from "@/features/heroes/HeroFilters";
@@ -29,6 +32,7 @@ function StatBlock({ label, value }: { label: string; value: string }) {
 export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
+  const recentBalance = useRecentBalance();
 
   if (hero.status === "loading") {
     return (
@@ -45,6 +49,7 @@ export function HeroDetail() {
   if (hero.status !== "success" || !hero.data) return null;
 
   const h = hero.data;
+  const balanceKind = recentBalance?.get(h.id);
   // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /)
   const roleLabel = heroRoles(h).map((r) => ROLE_OPTIONS.find((o) => o.value === r)?.label ?? r).join(" / ");
   const laneLabel = heroLanes(h).map((l) => LANE_OPTIONS.find((o) => o.value === l)?.label ?? l).join(" / ");
@@ -75,6 +80,7 @@ export function HeroDetail() {
           <div className="flex items-center gap-2">
             <h1 className="truncate font-display text-xl font-semibold">{h.nameTh}</h1>
             {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
+            {balanceKind && <BalanceIcon kind={balanceKind} className="h-5 w-5 shrink-0" />}
             <FavoriteButton heroSlug={h.slug} className="ml-auto bg-bg-raised" />
           </div>
           <p className="text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
@@ -98,6 +104,8 @@ export function HeroDetail() {
         <CardHeader><CardTitle>เกี่ยวกับฮีโร่</CardTitle></CardHeader>
         <CardContent><p className="text-sm text-text-muted">{h.description}</p></CardContent>
       </Card>
+
+      <HeroBalance heroId={h.id} />
 
       {h.abilities.length > 0 && (
         <Card>
