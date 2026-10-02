@@ -15,7 +15,7 @@ import { Login } from "@/pages/Login";
 import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
 import { GuideDetail } from "@/pages/GuideDetail";
-import { Admin } from "@/pages/Admin";
+import { AdminHub } from "@/pages/AdminHub";
 import { PrivacyPolicy, TermsOfUse, Disclaimer, DataSources, CommunityGuidelines } from "@/pages/Legal";
 
 export default function App() {
@@ -37,7 +37,7 @@ export default function App() {
         <Route path="profile" element={<Profile />} />
         <Route path="players/:id" element={<PlayerProfile />} />
         <Route path="login" element={<Login />} />
-        <Route path="admin" element={<Admin />} />
+        <Route path="admin" element={<AdminHub />} />
         <Route path="privacy" element={<PrivacyPolicy />} />
         <Route path="terms" element={<TermsOfUse />} />
         <Route path="disclaimer" element={<Disclaimer />} />
