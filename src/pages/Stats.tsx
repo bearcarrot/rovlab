@@ -31,7 +31,6 @@ export function Stats() {
     return [...filtered].sort((a, b) => b.stat[metric] - a.stat[metric]);
   }, [heroesQ, lane, metric]);
 
-  const maxValue = sorted.length > 0 ? sorted[0].stat[metric] : 0;
   const patchLabel = heroesQ.status === "success" ? heroesQ.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
 
   return (
@@ -74,7 +73,7 @@ export function Stats() {
       {heroesQ.status === "success" && sorted.length > 0 && (
         <div className="space-y-2">
           {sorted.map((h) => (
-            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} maxValue={maxValue} />
+            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} />
           ))}
         </div>
       )}

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import type { HeroSummary } from "@/types/hero";
 
-export function StatBarRow({ hero, metric, maxValue }: { hero: HeroSummary; metric: number; maxValue: number }) {
-  const pct = maxValue > 0 ? (metric / maxValue) * 100 : 0;
+// หลอดแสดงสัดส่วนจาก 100% (เช่น WR 54.8% = หลอด 54.8% ไม่ใช่เทียบกับอันดับ 1)
+export function StatBarRow({ hero, metric }: { hero: HeroSummary; metric: number }) {
+  const pct = Math.min(100, Math.max(0, metric));
   return (
     <Link
       to={`/heroes/${hero.slug}`}
