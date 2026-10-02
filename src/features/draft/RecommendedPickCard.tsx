@@ -3,6 +3,7 @@ import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
 import { CoachIcon } from "@/components/CoachIcon";
+import { CoachText } from "@/components/CoachText";
 import { askCoach } from "@/services/ai";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 

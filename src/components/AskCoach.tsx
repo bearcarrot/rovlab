@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
 import { CoachIcon } from "@/components/CoachIcon";
+import { CoachText } from "@/components/CoachText";
 
 type Props = {
   prompt: string;
