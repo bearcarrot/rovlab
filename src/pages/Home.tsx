@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Swords, GitCompareArrows, Users, Hammer, BookOpen } from "lucide-react";
+import { Swords, GitCompareArrows, Users, BookOpen } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDashboardInsights } from "@/services/insights";
 import { useAsync } from "@/hooks/useAsync";
@@ -14,7 +14,6 @@ import type { HeroSummary } from "@/types/hero";
 const QUICK_ACTIONS = [
   { to: "/draft", label: "Draft Assist", icon: Users, desc: "ประเมินทีมระหว่างดราฟต์" },
   { to: "/counter-pick", label: "Counter ที่ควรรู้", icon: GitCompareArrows, desc: "หาตัวสวนคู่ต่อสู้" },
-  { to: "/build", label: "Build แนะนำ", icon: Hammer, desc: "ไอเทม/Arcana ต่อฮีโร่" },
   { to: "/learn", label: "คู่มือ", icon: BookOpen, desc: "Macro / Micro" },
 ];
 
@@ -61,7 +60,7 @@ export function Home() {
 
       <section>
         <h2 className="mb-3 font-display text-base font-semibold">ทางลัด</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {QUICK_ACTIONS.map(({ to, label, icon: Icon, desc }) => (
             <Link
               key={to}
