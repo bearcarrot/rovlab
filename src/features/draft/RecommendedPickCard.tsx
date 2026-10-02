@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Sparkles, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
+import { CoachText } from "@/components/CoachText";
 import { askCoach } from "@/services/ai";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
@@ -122,7 +123,9 @@ export function RecommendedPickCard({
         )}
 
         {advice && (
-          <p className="whitespace-pre-wrap rounded-lg bg-bg-raised p-2 text-sm text-text">{advice}</p>
+          <div className="rounded-lg bg-bg-raised p-2">
+            <CoachText text={advice} className="text-text" />
+          </div>
         )}
         {error && <p className="text-xs text-red-400">{error}</p>}
 
