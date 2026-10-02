@@ -65,7 +65,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
       </button>
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
-          <p className="whitespace-pre-wrap text-sm text-text">{advice}</p>
+          <CoachText text={advice} className="text-text" />
           <p className="mt-1.5 text-[11px] text-text-faint">* คำแนะนำจาก AI สร้างจากข้อมูลบนหน้านี้ อาจคลาดเคลื่อน</p>
         </div>
       )}
