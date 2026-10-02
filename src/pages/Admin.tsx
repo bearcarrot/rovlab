@@ -5,6 +5,7 @@ import { AlertCircle, Check, ChevronDown, ImagePlus, Plus, Trash2, X } from "luc
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { supabase } from "@/lib/supabase";
+import { clearFilterIconsCache } from "@/services/filterIcons";
 
 // ใช้ client แบบ untyped เพราะตารางถูกกำหนดแบบ config ด้านล่าง
 const db: any = supabase;
@@ -20,6 +21,8 @@ type Col = {
   label?: string;
   type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | RefType;
   opts?: string[];
+  // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
+  ro?: boolean;
 };
 type Cfg = {
   label: string;
@@ -27,6 +30,8 @@ type Cfg = {
   order?: string;
   asc?: boolean;
   add?: boolean;
+  // ซ่อนปุ่มลบ (แถวอ้างอิงคงที่ เช่น ตำแหน่ง/เลน) กันลบแล้วเพิ่มกลับไม่ได้
+  noDelete?: boolean;
   search?: string;
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
@@ -82,6 +87,29 @@ const CFG: Record<string, Cfg> = {
       { k: "description", type: "area" },
       { k: "strengths", type: "arr" },
       { k: "weaknesses", type: "arr" },
+    ],
+  },
+  // ไอคอนของปุ่มตัวกรองตำแหน่ง/เลน (ทุกหน้าใช้ชุดเดียวกัน) ว่าง = แสดงเฉพาะข้อความ
+  roleIcons: {
+    label: "ไอคอนตำแหน่ง",
+    table: "hero_roles",
+    order: "sort_order",
+    noDelete: true,
+    cols: [
+      { k: "label", label: "ตำแหน่ง", ro: true },
+      { k: "code", label: "รหัส", ro: true },
+      { k: "icon_url", label: "ไอคอน (เว้นว่าง = แสดงเฉพาะข้อความ)", type: "img" },
+    ],
+  },
+  laneIcons: {
+    label: "ไอคอนเลน",
+    table: "hero_lanes",
+    order: "sort_order",
+    noDelete: true,
+    cols: [
+      { k: "label", label: "เลน", ro: true },
+      { k: "code", label: "รหัส", ro: true },
+      { k: "icon_url", label: "ไอคอน (เว้นว่าง = แสดงเฉพาะข้อความ)", type: "img" },
     ],
   },
   abilities: {
@@ -375,6 +403,7 @@ function Cell({
     onChange(val);
     onCommit?.(val);
   };
+  if (c.ro) return <p className="flex h-11 items-center px-1 text-sm text-text-muted">{String(v ?? "")}</p>;
   if (c.type === "sel")
     return (
       <select className={inp} value={v ?? c.opts?.[0] ?? ""} onChange={(e) => change(e.target.value)}>
@@ -556,6 +585,8 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
       err(`บันทึกไม่สำเร็จ (${c.k}): ${error.message}`);
     } else {
       orig.current[row.id] = { ...orig.current[row.id], [c.k]: val };
+      // ไอคอนตัวกรองตำแหน่ง/เลนถูกแคชไว้ในแอป ล้างเพื่อให้หน้าถัดไปเห็นไอคอนใหม่
+      if (cfg.table === "hero_roles" || cfg.table === "hero_lanes") clearFilterIconsCache();
       ok(`บันทึก ${c.label ?? c.k} แล้ว`);
     }
   }
@@ -741,23 +772,25 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
                     ))}
                   </div>
 
-                  <div className="border-t border-border pt-4">
-                    {confirmId === row.id ? (
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                        <span className="text-sm text-text-muted sm:mr-auto">ลบรายการนี้ถาวร?</span>
-                        <Btn onClick={() => setConfirmId(null)}>
-                          <X className="h-4 w-4" /> ยกเลิก
+                  {!cfg.noDelete && (
+                    <div className="border-t border-border pt-4">
+                      {confirmId === row.id ? (
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                          <span className="text-sm text-text-muted sm:mr-auto">ลบรายการนี้ถาวร?</span>
+                          <Btn onClick={() => setConfirmId(null)}>
+                            <X className="h-4 w-4" /> ยกเลิก
+                          </Btn>
+                          <Btn variant="dangerSolid" onClick={() => void remove(row)}>
+                            <Trash2 className="h-4 w-4" /> ยืนยันลบ
+                          </Btn>
+                        </div>
+                      ) : (
+                        <Btn variant="danger" className="w-full sm:w-auto" onClick={() => setConfirmId(row.id)}>
+                          <Trash2 className="h-4 w-4" /> ลบรายการ
                         </Btn>
-                        <Btn variant="dangerSolid" onClick={() => void remove(row)}>
-                          <Trash2 className="h-4 w-4" /> ยืนยันลบ
-                        </Btn>
-                      </div>
-                    ) : (
-                      <Btn variant="danger" className="w-full sm:w-auto" onClick={() => setConfirmId(row.id)}>
-                        <Trash2 className="h-4 w-4" /> ลบรายการ
-                      </Btn>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </article>
