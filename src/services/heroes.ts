@@ -10,6 +10,11 @@ import { getLatestPatch } from "@/services/meta";
 // hero_counters holds, per hero, the top-3 heroes it beats (real in-game stats);
 // it has no rank/patch column, so it is not affected by the rank toggle.
 // hero_synergies is still empty.
+//
+// Hero names: the site shows the in-game English name everywhere (Thai translations
+// can differ from the game and confuse players). The `nameTh` / `heroNameTh` properties
+// are kept so existing components don't change, but they are now filled with the English
+// `name` column. The `name_th` column is no longer read for display.
 
 const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, banRate: 0, tier: "C" as Tier, matches: 0, hasStats: false };
 
@@ -36,7 +41,7 @@ function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]
     id: row.id,
     slug: row.slug,
     name: row.name,
-    nameTh: row.name_th,
+    nameTh: row.name, // display name = English in-game name
     role: row.role,
     lane: row.lane,
     roles: row.roles && row.roles.length > 0 ? row.roles : [row.role],
@@ -79,7 +84,7 @@ export async function getHeroes(rank: RankBucket = getRank()): Promise<HeroSumma
   const { data, error } = await supabase
     .from("heroes")
     .select(HERO_COLS)
-    .order("name_th", { ascending: true });
+    .order("name", { ascending: true });
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
   const rows = data as unknown as DbHeroRow[];
   const statMap = await fetchStatsByHeroId(rows.map((h) => h.id), rank);
@@ -135,9 +140,9 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
 
   const [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
     supabase.from("hero_abilities").select("slot, name, description, icon_url").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
-    supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
-    supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name_th, icon_url)").eq("counter_hero_id", heroRow.id),
-    supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name_th, icon_url)").eq("hero_id", heroRow.id),
+    supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
+    supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name, icon_url)").eq("counter_hero_id", heroRow.id),
+    supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
   ]);
 
   const abilities: HeroAbility[] = (abilitiesRes.data ?? []).map((a: any) => ({
@@ -150,7 +155,7 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   const counteredBy: CounterEntry[] = (counteredByRes.data ?? [])
     .map((c: any) => ({
       heroSlug: c.counter_hero?.slug ?? "",
-      heroNameTh: c.counter_hero?.name_th,
+      heroNameTh: c.counter_hero?.name,
       heroIcon: c.counter_hero?.icon_url ?? undefined,
       strength: c.strength,
       reason: c.reason,
@@ -161,7 +166,7 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   const countersAgainst: CounterEntry[] = (countersAgainstRes.data ?? [])
     .map((c: any) => ({
       heroSlug: c.hero?.slug ?? "",
-      heroNameTh: c.hero?.name_th,
+      heroNameTh: c.hero?.name,
       heroIcon: c.hero?.icon_url ?? undefined,
       strength: c.strength,
       reason: c.reason,
@@ -171,7 +176,7 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
 
   const synergies: SynergyEntry[] = (synergiesRes.data ?? []).map((s: any) => ({
     heroSlug: s.partner?.slug ?? "",
-    heroNameTh: s.partner?.name_th,
+    heroNameTh: s.partner?.name,
     heroIcon: s.partner?.icon_url ?? undefined,
     reason: s.reason,
   }));
