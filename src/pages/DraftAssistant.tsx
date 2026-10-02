@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, Swords, Users, Link2 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
+import { getAllAbilities } from "@/services/abilities";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -17,6 +18,7 @@ import {
   type DraftMode,
   type Recommendation,
 } from "@/features/draft/analyzeTeam";
+import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
@@ -32,19 +34,25 @@ const MODE_TEXT: Record<DraftMode, string> = {
 // จำนวนสูงสุดของรายการคอมโบ/ชนะทางที่แสดงแยก (รายการภาพรวมยังแสดง 5 อันดับแรก)
 const RELATION_LIMIT = 6;
 
+const DRAFT_PROMPT =
+  "ประเมินดราฟต์นี้เป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ: 1) จุดแข็งของทีมเรา 2) จุดที่ทีมยังขาด " +
+  "3) คอมโบของสกิลในทีมเรา (อ้างชื่อสกิลจริงจาก heroes[].skills และใช้ teamCombos ถ้ามี) " +
+  "4) สกิลศัตรูที่อันตรายที่สุดและวิธีหลบ/ตัดจังหวะด้วยสกิลของเรา (ใช้ matchups ถ้ามี) 5) แผนเล่นช่วงต้น-กลาง-ท้ายเกม " +
+  "ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
+
 function PickSection({
   icon,
   title,
   hint,
   recs,
-  draft,
+  coachContext,
   onPick,
 }: {
   icon: React.ReactNode;
   title: string;
   hint: string;
   recs: Recommendation[];
-  draft: unknown;
+  coachContext: (rec: Recommendation) => unknown;
   onPick: (hero: HeroSummary) => void;
 }) {
   return (
@@ -56,7 +64,7 @@ function PickSection({
       <p className="mb-2 text-xs text-text-muted">{hint}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {recs.map((r) => (
-          <RecommendedPickCard key={r.hero.id} rec={r} draft={draft} onPick={() => onPick(r.hero)} />
+          <RecommendedPickCard key={r.hero.id} rec={r} coachContext={coachContext} onPick={() => onPick(r.hero)} />
         ))}
       </div>
     </section>
@@ -67,6 +75,8 @@ export function DraftAssistant() {
   const heroesQ = useAsync(() => getHeroes(), []);
   // ข้อมูล counter/synergy: โหลดไม่ได้ก็ไม่เป็นไร ระบบแนะนำยังทำงานด้วยสถิติ + คอมโพสิชัน
   const relQ = useAsync(() => getDraftRelations(), []);
+  // สกิลของฮีโร่ทั้งหมด: ให้ Coach AI อธิบายการใช้สกิล/คอมโบ/วิธีแก้ทางจากข้อมูลจริง (โหลดไม่ได้ = AI เห็นแค่ชื่อฮีโร่)
+  const skillsQ = useAsync(() => getAllAbilities(), []);
   const [myTeam, setMyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [enemyTeam, setEnemyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [active, setActive] = useState<Slot | null>({ team: "mine", index: 0 });
@@ -75,8 +85,12 @@ export function DraftAssistant() {
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const relations = relQ.status === "success" ? relQ.data : undefined;
+  const skills = useMemo(() => (skillsQ.status === "success" ? skillsQ.data : {}), [skillsQ.status, skillsQ.data]);
   const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
   const mode = getDraftMode(myTeam, enemyTeam);
+
+  const mineList = useMemo(() => myTeam.filter((h): h is HeroSummary => h !== null), [myTeam]);
+  const enemyList = useMemo(() => enemyTeam.filter((h): h is HeroSummary => h !== null), [enemyTeam]);
 
   // คำนวณทุกตัวครั้งเดียว แล้วแยกเป็น: ภาพรวม 5 อันดับ / คอมโบ / ชนะทาง
   // (คอมโบ/ชนะทางต้องไม่ถูกตัดด้วยอันดับ 5 เพราะคะแนนเติมจุดที่ขาดของตัวอื่นอาจสูงกว่า)
@@ -103,6 +117,14 @@ export function DraftAssistant() {
   );
   // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีม พร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
+
+  // context ของปุ่มประเมินดราฟต์: ข้อมูลภาพรวม + สกิลของทุกตัวที่เลือกไว้ (ย่อให้พอดีเพดาน 8000 ตัวอักษรของ edge function)
+  const draftCoachCtx = useMemo(
+    () => buildDraftContext({ ...draftCtx, analysis, ...relationCtx }, { mine: mineList, enemies: enemyList, skills }),
+    [draftCtx, analysis, relationCtx, mineList, enemyList, skills]
+  );
+  // context ของปุ่มถามโค้ชบนการ์ด: สกิลของฮีโร่ที่แนะนำ + คู่คอมโบ + ศัตรูที่เกี่ยวข้อง
+  const pickCoachCtx = (rec: Recommendation) => buildPickContext(rec, { mine: mineList, enemies: enemyList, skills });
 
   const pickedElsewhere = new Set(
     [...myTeam, ...enemyTeam].filter((h): h is HeroSummary => h !== null).map((h) => h.slug)
@@ -252,8 +274,8 @@ export function DraftAssistant() {
             <AskCoach
               resetKey={JSON.stringify(draftCtx)}
               label="ถามโค้ช AI: ประเมินดราฟต์"
-              prompt="ประเมินคอมโพสิชันทีมของผู้เล่นเทียบกับทีมศัตรู บอกจุดแข็ง จุดที่ขาด และแผนเล่นสั้นๆ ไม่เกิน 5 ประโยค ถ้ามี teamCombos หรือ matchups ให้อธิบายกลไกจากข้อความ reason/laneTip (ถ้าว่างให้บอกว่าในระบบยังไม่มีรายละเอียด ห้ามเดา)"
-              context={{ ...draftCtx, analysis, ...relationCtx }}
+              prompt={DRAFT_PROMPT}
+              context={draftCoachCtx}
             />
           </div>
         )}
@@ -266,7 +288,7 @@ export function DraftAssistant() {
           title="ชนะทางศัตรู"
           hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
           recs={counterRecs}
-          draft={{ ...draftCtx, ...relationCtx }}
+          coachContext={pickCoachCtx}
           onPick={pickForMyTeam}
         />
       )}
@@ -276,7 +298,7 @@ export function DraftAssistant() {
           title="คอมโบกับทีมของคุณ"
           hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
           recs={synergyRecs}
-          draft={{ ...draftCtx, ...relationCtx }}
+          coachContext={pickCoachCtx}
           onPick={pickForMyTeam}
         />
       )}
@@ -297,7 +319,7 @@ export function DraftAssistant() {
               <RecommendedPickCard
                 key={r.hero.id}
                 rec={r}
-                draft={{ ...draftCtx, ...relationCtx }}
+                coachContext={pickCoachCtx}
                 onPick={() => pickForMyTeam(r.hero)}
               />
             ))}
