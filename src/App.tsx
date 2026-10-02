@@ -16,6 +16,7 @@ import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
 import { GuideDetail } from "@/pages/GuideDetail";
 import { Admin } from "@/pages/Admin";
+import { PrivacyPolicy, TermsOfUse, Disclaimer, DataSources, CommunityGuidelines } from "@/pages/Legal";
 
 export default function App() {
   return (
@@ -37,6 +38,11 @@ export default function App() {
         <Route path="players/:id" element={<PlayerProfile />} />
         <Route path="login" element={<Login />} />
         <Route path="admin" element={<Admin />} />
+        <Route path="privacy" element={<PrivacyPolicy />} />
+        <Route path="terms" element={<TermsOfUse />} />
+        <Route path="disclaimer" element={<Disclaimer />} />
+        <Route path="data-sources" element={<DataSources />} />
+        <Route path="community-guidelines" element={<CommunityGuidelines />} />
       </Route>
     </Routes>
   );
