@@ -191,16 +191,16 @@ export function HeroDetail() {
         }}
       />
 
-      {/* lg+ วางการ์ดตัวสวน/สวนได้คู่กัน ลดความยาวหน้าบนจอกว้าง */}
+      {/* lg+ วางการ์ดแพ้ทาง/ชนะทางคู่กัน ลดความยาวหน้าบนจอกว้าง */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Card>
-          <CardHeader><CardTitle>ใครสวน {h.nameTh} ได้</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้" /></CardContent>
+          <CardHeader><CardTitle>{h.nameTh} แพ้ทางใครบ้าง</CardTitle></CardHeader>
+          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{h.nameTh} สวนใครได้</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลฮีโร่ที่ถูกสวน" /></CardContent>
+          <CardHeader><CardTitle>{h.nameTh} ชนะทางใครได้</CardTitle></CardHeader>
+          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
         </Card>
       </div>
 
