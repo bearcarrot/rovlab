@@ -278,13 +278,15 @@ export function AdminImport() {
             <span className="text-sm">
               อัปเดตเคาน์เตอร์จากอันดับชนะทาง 1-3 ในไฟล์ด้วย
               <span className="mt-0.5 block text-xs text-text-muted">
-                แทนที่เฉพาะแถวที่ระบบสร้างจากสถิติ ("ชนะทางอันดับ N ตามสถิติแรงก์จริง") แถวที่คุณเขียนเองจะไม่ถูกแตะ
+                อัปเดตเฉพาะแถวที่ระบบสร้างจากสถิติ ("ชนะทางอันดับ N ตามสถิติแรงก์จริง") และคง lane_tip เดิมไว้ แถวที่คุณเขียนเองจะไม่ถูกแตะ
               </span>
             </span>
           </label>
 
-          <p className="text-xs text-text-muted">
-            Tier คำนวณจาก Win Rate: S+ ≥ 52 · S ≥ 50.5 · A ≥ 49 · B ≥ 47.5 · น้อยกว่านั้น = C
+          <p className="rounded-lg border border-border bg-bg-raised p-3 text-xs text-text-muted">
+            <b className="text-text">ไม่แตะ Tier ที่จัดไว้แล้ว</b> — นำเข้าแล้วอัปเดตเฉพาะ Win/Pick/Ban Rate และจำนวนแมตช์
+            ฮีโร่ที่ยังไม่มีสถิติในแพตช์/แรงก์นี้จะได้ tier เริ่มต้นจาก Win Rate (S+ ≥ 52 · S ≥ 50.5 · A ≥ 49 · B ≥ 47.5 ·
+            น้อยกว่านั้น = C) แก้ได้ในแท็บสถิติ และ Tier List จัดเองในแท็บ Tier List (ไม่ถูกแตะ)
           </p>
 
           {!confirming ? (
@@ -299,10 +301,10 @@ export function AdminImport() {
           ) : (
             <div className="space-y-2 rounded-lg border border-accent/40 bg-bg-raised p-3">
               <p className="text-sm">
-                จะทับสถิติของ {parsed.rows.length - unmatched.length} ฮีโร่ ในแพตช์ <b>{patchCode}</b> · แรงก์ <b>{rank}</b>
+                จะอัปเดตสถิติของ {parsed.rows.length - unmatched.length} ฮีโร่ ในแพตช์ <b>{patchCode}</b> · แรงก์ <b>{rank}</b>{" "}
+                (tier เดิมไม่ถูกแตะ)
                 {counters && " และอัปเดตเคาน์เตอร์จากสถิติ"}
-                {unmatched.length > 0 && ` (ข้าม ${unmatched.length} ตัวที่ยังจับคู่ไม่ได้)`}
-                ยืนยันหรือไม่?
+                {unmatched.length > 0 && ` (ข้าม ${unmatched.length} ตัวที่ยังจับคู่ไม่ได้)`} ยืนยันหรือไม่?
               </p>
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button
@@ -332,8 +334,10 @@ export function AdminImport() {
             <Check className="h-4 w-4" /> นำเข้าเรียบร้อยแล้ว
           </h2>
           <ul className="space-y-1 text-sm">
-            <li>อัปเดตสถิติ {result.stats} ฮีโร่ (แพตช์ {patchCode} · แรงก์ {rank})</li>
-            {counters && <li>สร้างเคาน์เตอร์จากสถิติ {result.counters} แถว</li>}
+            <li>
+              อัปเดตสถิติ {result.stats} ฮีโร่ (แพตช์ {patchCode} · แรงก์ {rank}) · tier เดิมไม่ถูกแตะ
+            </li>
+            {counters && <li>อัปเดตเคาน์เตอร์จากสถิติ {result.counters} แถว</li>}
             {result.unmatched.length > 0 && (
               <li className="text-loss">
                 ข้าม {result.unmatched.length} ตัวที่ไม่มีในฐานข้อมูล: {result.unmatched.map((u) => u.name).join(", ")}
