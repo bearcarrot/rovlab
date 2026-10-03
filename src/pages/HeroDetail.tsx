@@ -22,9 +22,9 @@ const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium:
 
 function StatBlock({ label, value, valueClassName = "" }: { label: string; value: string; valueClassName?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-raised px-3 py-2 text-center">
-      <p className={`font-display text-lg font-semibold ${valueClassName}`}>{value}</p>
-      <p className="text-[11px] text-text-faint">{label}</p>
+    <div className="rounded-lg border border-border bg-bg-raised px-3 py-2 text-center sm:py-3">
+      <p className={`font-display text-lg font-semibold sm:text-xl ${valueClassName}`}>{value}</p>
+      <p className="text-[11px] text-text-faint sm:text-xs">{label}</p>
     </div>
   );
 }
@@ -56,38 +56,38 @@ export function HeroDetail() {
 
   return (
     <div className="space-y-5 pb-4">
-      <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint">
+      <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4 sm:items-center sm:gap-5 sm:p-5">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           {h.icon ? (
-    <img
-      src={h.icon}
-      alt={h.nameTh}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className="h-full w-full object-cover"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-      }}
-    />
-  ) : null}
+            <img
+              src={h.icon}
+              alt={h.nameTh}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              className="h-full w-full rounded-lg object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+              }}
+            />
+          ) : null}
 
-  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-    {h.name.slice(0, 2).toUpperCase()}
-  </span>
+          <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+            {h.name.slice(0, 2).toUpperCase()}
+          </span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate font-display text-xl font-semibold">{h.nameTh}</h1>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="max-w-full truncate font-display text-xl font-semibold sm:text-2xl">{h.nameTh}</h1>
             {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
             {balanceKind && <BalanceIcon kind={balanceKind} className="h-5 w-5 shrink-0" />}
             <FavoriteButton heroSlug={h.slug} className="ml-auto bg-bg-raised" />
           </div>
-          <p className="text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
+          <p className="mt-0.5 text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatBlock
           label="Win Rate"
           value={h.stat.hasStats ? `${h.stat.winRate.toFixed(1)}%` : "N/A"}
@@ -122,7 +122,7 @@ export function HeroDetail() {
       {h.abilities.length > 0 && (
         <Card>
           <CardHeader><CardTitle>สกิล</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="grid gap-3 md:grid-cols-2">
             {h.abilities.map((a) => (
               <div key={a.slot + a.name} className="rounded-lg border border-border bg-bg-raised p-3">
                 <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export function HeroDetail() {
                       alt={a.name}
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      className="h-9 w-9 shrink-0 rounded-[50%] object-cover"
+                      className="h-9 w-9 shrink-0 rounded-[50%] object-cover sm:h-10 sm:w-10"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -191,15 +191,18 @@ export function HeroDetail() {
         }}
       />
 
-      <Card>
-        <CardHeader><CardTitle>ใครสวน {h.nameTh} ได้</CardTitle></CardHeader>
-        <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้" /></CardContent>
-      </Card>
+      {/* lg+ วางการ์ดตัวสวน/สวนได้คู่กัน ลดความยาวหน้าบนจอกว้าง */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <Card>
+          <CardHeader><CardTitle>ใครสวน {h.nameTh} ได้</CardTitle></CardHeader>
+          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้" /></CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader><CardTitle>{h.nameTh} สวนใครได้</CardTitle></CardHeader>
-        <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลฮีโร่ที่ถูกสวน" /></CardContent>
-      </Card>
+        <Card>
+          <CardHeader><CardTitle>{h.nameTh} สวนใครได้</CardTitle></CardHeader>
+          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลฮีโร่ที่ถูกสวน" /></CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader><CardTitle>ฮีโร่ที่เข้าคู่ดี</CardTitle></CardHeader>
@@ -207,7 +210,7 @@ export function HeroDetail() {
           {h.synergies.length === 0 ? (
             <p className="text-sm text-text-faint">ยังไม่มีข้อมูล</p>
           ) : (
-            <div className="space-y-2">
+            <div className="grid gap-2 md:grid-cols-2">
               {h.synergies.map((s) => {
                 const nameTh = s.heroNameTh ?? MOCK_HEROES.find((m) => m.slug === s.heroSlug)?.nameTh;
                 if (!nameTh) return null;
