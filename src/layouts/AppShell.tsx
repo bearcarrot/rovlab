@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { Footer } from "@/components/layout/Footer";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { useRank } from "@/lib/rank";
 
 // App shell: persistent sidebar on desktop, header + bottom nav + slide-out
@@ -16,6 +17,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen bg-bg">
+      <ScrollToTop />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onOpenDrawer={() => setDrawerOpen(true)} />
