@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { AlertCircle, Check, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
+import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { supabase } from "@/lib/supabase";
 import { clearFilterIconsCache } from "@/services/filterIcons";
 
@@ -12,8 +13,7 @@ const db: any = supabase;
 
 type Row = Record<string, any>;
 type RefType = "hero" | "item" | "arcana" | "patch";
-// alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
-type RefOpt = { id: string; label: string; color?: string; alt?: string };
+type RefOpt = { id: string; label: string; color?: string; icon?: string };
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
@@ -24,6 +24,8 @@ type Col = {
   opts?: string[];
   // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
   ro?: boolean;
+  // รูปแบบวงกลม (border-radius 50%) ใช้กับไอคอนสกิลและรูน
+  round?: boolean;
 };
 type Cfg = {
   label: string;
@@ -56,6 +58,9 @@ const SLOT_COLORS = [
   { k: "purple", label: "ม่วง", hex: "#a855f7" },
   { k: "green", label: "เขียว", hex: "#22c55e" },
 ] as const;
+const DIFFICULTY_TH: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
+// ไอคอนสกิลและรูนเป็นวงกลม ส่วนฮีโร่/ไอเทมเป็นสี่เหลี่ยมมุมมน
+const ROUND = "rounded-[50%]";
 // แอดมินเลือกฮีโร่ด้วยชื่ออังกฤษ (ตรงกับเกม) ใช้ชื่อไทยเป็นตัวสำรองเท่านั้น
 const heroName = (r?: Row) => r?.name || r?.name_th || "?";
 const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
@@ -85,7 +90,7 @@ const CFG: Record<string, Cfg> = {
       { k: "name" },
       { k: "name_th" },
       // แตะเลือกได้หลายตัว ตัวแรกที่เลือก (★) = ตำแหน่ง/เลนหลัก ระบบซิงค์ไปที่คอลัมน์ role / lane ให้เอง
-      { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "marksman", "support", "tank"] },
+      { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "carry", "support", "tank"] },
       { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
       { k: "icon_url", label: "ไอคอน", type: "img" },
@@ -126,7 +131,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "slot" },
       { k: "name" },
-      { k: "icon_url", label: "ไอคอน", type: "img" },
+      { k: "icon_url", label: "ไอคอน", type: "img", round: true },
       { k: "description", type: "area" },
       { k: "sort_order", type: "num" },
     ],
@@ -192,7 +197,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "name" },
       { k: "color", label: "สี", type: "sel", opts: ["", "red", "purple", "green"] },
-      { k: "icon_url", label: "ไอคอน", type: "img" },
+      { k: "icon_url", label: "ไอคอน", type: "img", round: true },
       { k: "description", type: "area" },
     ],
   },
@@ -355,14 +360,52 @@ const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
   if (Array.isArray(v)) return v.join(", ");
   return String(v);
 };
-// หัวข้อ + คำอธิบายย่อ + รูป (ถ้ามี) ของแถว ตอนพับการ์ด
-const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) => {
+
+type Labels = { role: (code: string) => string; lane: (code: string) => string };
+type Tag = { text: string; kind: "role" | "lane" | "diff" };
+const TAG_STYLE: Record<Tag["kind"], string> = {
+  role: "border-accent/40 bg-accent/10 text-accent",
+  lane: "border-border bg-bg-raised text-text-muted",
+  diff: "border-border bg-bg-surface text-text-faint",
+};
+
+// หัวข้อ + คำอธิบายย่อ + รูป (ถ้ามี) + ป้ายสรุป ของแถว ตอนพับการ์ด
+const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Labels) => {
   const parts = cfg.cols.map((c) => show(c, row[c.k], refs)).filter(Boolean);
   const imgCol = cfg.cols.find((c) => c.type === "img");
+  let img = imgCol ? (row[imgCol.k] as string | null) : null;
+  let round = !!imgCol?.round;
+  if (!imgCol) {
+    // แท็บที่อ้างอิงฮีโร่/ไอเทม/รูน: ใช้ไอคอนของตัวที่เลือกไว้
+    for (const c of cfg.cols) {
+      if (!c.type || !REF_TYPES.includes(c.type)) continue;
+      const icon = refs[c.type]?.find((o) => o.id === row[c.k])?.icon;
+      if (icon) {
+        img = icon;
+        round = c.type === "arcana";
+        break;
+      }
+    }
+  }
+  // แท็บฮีโร่: โชว์ตำแหน่ง เลน และระดับความยากที่หน้าการ์ดเลย ไม่ต้องกดขยาย (★ = ตัวหลัก)
+  const tags: Tag[] = [];
+  if (cfg.table === "heroes") {
+    const roles = toArr(row.roles);
+    const lanes = toArr(row.lanes);
+    (roles.length > 0 ? roles : toArr(row.role)).forEach((r, i) =>
+      tags.push({ text: `${labels.role(r)}${i === 0 ? " ★" : ""}`, kind: "role" })
+    );
+    (lanes.length > 0 ? lanes : toArr(row.lane)).forEach((l, i) =>
+      tags.push({ text: `${labels.lane(l)}${i === 0 ? " ★" : ""}`, kind: "lane" })
+    );
+    if (row.difficulty) tags.push({ text: `ความยาก ${DIFFICULTY_TH[row.difficulty] ?? row.difficulty}`, kind: "diff" });
+  }
   return {
     title: parts[0] ?? "(ว่าง)",
     sub: parts.slice(1, 3).join(" · "),
-    img: imgCol ? (row[imgCol.k] as string | null) : null,
+    img,
+    round,
+    tags,
   };
 };
 
@@ -466,23 +509,39 @@ function Cell({
       </div>
     );
   }
-  if (c.type && REF_TYPES.includes(c.type))
+  if (c.type && REF_TYPES.includes(c.type)) {
+    // ฮีโร่/ไอเทม/รูนที่เลือกไว้ แสดงไอคอนข้างช่องเลือก
+    const icon = refs[c.type]?.find((o) => o.id === v)?.icon;
     return (
-      <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
-        <option value="">— เลือก —</option>
-        {(refs[c.type] ?? []).map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center gap-2">
+        {icon ? (
+          <img
+            src={icon}
+            alt=""
+            className={`h-11 w-11 shrink-0 border border-border object-cover ${c.type === "arcana" ? ROUND : "rounded-lg"}`}
+          />
+        ) : null}
+        <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
+          <option value="">— เลือก —</option>
+          {(refs[c.type] ?? []).map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
     );
+  }
   if (c.type === "img")
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           {v ? (
-            <img src={v} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-border object-cover" />
+            <img
+              src={v}
+              alt=""
+              className={`h-11 w-11 shrink-0 border border-border object-cover ${c.round ? ROUND : "rounded-lg"}`}
+            />
           ) : null}
           <input
             className={inp}
@@ -545,6 +604,8 @@ function Cell({
 
 function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   const blank = () => Object.fromEntries(cfg.cols.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
+  const { roleLabel, laneLabel } = useFilterLabels();
+  const labels: Labels = { role: roleLabel, lane: laneLabel };
   const [rows, setRows] = useState<Row[]>([]);
   const [opts, setOpts] = useState<Row[]>([]);
   const [fv, setFv] = useState("");
@@ -772,7 +833,7 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
         )}
         {view.map(({ row, i, info }) => {
           const open = openId === row.id;
-          const { title, sub, img } = info;
+          const { title, sub, img, round, tags } = summary(cfg, row, refs, labels);
           return (
             <article key={row.id} className="overflow-hidden rounded-card border border-border bg-bg-surface shadow-card">
               <button
@@ -785,11 +846,27 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
                 className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg-raised"
               >
                 {img ? (
-                  <img src={img} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover" />
+                  <img
+                    src={img}
+                    alt=""
+                    className={`h-9 w-9 shrink-0 border border-border object-cover ${round ? ROUND : "rounded-lg"}`}
+                  />
                 ) : null}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{title}</span>
                   {sub && <span className="block truncate text-xs text-text-muted">{sub}</span>}
+                  {tags.length > 0 && (
+                    <span className="mt-1.5 flex flex-wrap gap-1">
+                      {tags.map((t, ti) => (
+                        <span
+                          key={ti}
+                          className={`rounded-full border px-2 py-0.5 text-[11px] leading-none ${TAG_STYLE[t.kind]}`}
+                        >
+                          {t.text}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
                 <ChevronDown className={`h-5 w-5 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
               </button>
@@ -862,7 +939,7 @@ export function Admin() {
   const [tab, setTab] = useState("heroes");
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
 
-  // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์)
+  // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์) พร้อมไอคอน (ถ้ามี) ไว้แสดงในการ์ดและช่องเลือก
   useEffect(() => {
     if (!isAdmin) return;
     const opt = (
@@ -871,28 +948,32 @@ export function Admin() {
       order: string,
       asc: boolean,
       label: (r: Row) => string,
-      alt?: (r: Row) => string | undefined
+      icon?: (r: Row) => string | undefined
     ) =>
       db
         .from(table)
         .select(sel)
         .order(order, { ascending: asc })
         .then(({ data }: { data: Row[] | null }) =>
-          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), alt: alt?.(r) }))
+          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r) }))
         );
     // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
     const arcanaOpts = db
       .from("arcana")
-      .select("id,name,color")
+      .select("id,name,color,icon_url")
       .order("name", { ascending: true })
       .then(({ data }: { data: Row[] | null }) =>
-        (data ?? []).map((r) => ({ id: r.id as string, label: r.name as string, color: (r.color ?? undefined) as string | undefined }))
+        (data ?? []).map((r) => ({
+          id: r.id as string,
+          label: r.name as string,
+          color: (r.color ?? undefined) as string | undefined,
+          icon: (r.icon_url ?? undefined) as string | undefined,
+        }))
       );
     void Promise.all([
-      // ชื่อไทยเก็บเป็น alt ไว้ใช้ค้นหาอย่างเดียว (ยังแสดงชื่ออังกฤษเหมือนเดิม)
-      opt("heroes", "id,name,name_th", "name", true, heroName, (r) => (r.name_th as string | null) ?? undefined),
+      opt("heroes", "id,name,name_th,icon_url", "name", true, heroName, (r) => r.icon_url ?? undefined),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
-      opt("items", "id,name", "name", true, (r) => r.name ?? "?"),
+      opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
       arcanaOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
     ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));

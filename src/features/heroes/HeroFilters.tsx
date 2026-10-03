@@ -9,7 +9,7 @@ export const ROLE_OPTIONS: { value: HeroRole; label: string }[] = [
   { value: "assassin", label: "แอแซสซิน" },
   { value: "fighter", label: "ไฟท์เตอร์" },
   { value: "mage", label: "เมจ" },
-  { value: "marksman", label: "มาร์กแมน" },
+  { value: "carry", label: "แครี่" },
   { value: "support", label: "ซัพพอร์ต" },
   { value: "tank", label: "แทงค์" },
 ];

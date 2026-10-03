@@ -1,4 +1,4 @@
-export type HeroRole = "assassin" | "fighter" | "mage" | "marksman" | "support" | "tank";
+export type HeroRole = "assassin" | "fighter" | "mage" | "carry" | "support" | "tank";
 export type HeroLane = "slayer" | "jungle" | "mid" | "abyssal" | "roaming";
 export type HeroDifficulty = "easy" | "medium" | "hard";
 export type Tier = "S+" | "S" | "A" | "B" | "C";

@@ -11,6 +11,6 @@ export const ROLE_TAGS: Record<
   fighter: { damage: "physical", frontline: 2, cc: 1, mobility: 2, sustain: 1, scaling: "flat" },
   assassin: { damage: "physical", frontline: 0, cc: 0, mobility: 3, sustain: 0, scaling: "early" },
   mage: { damage: "magic", frontline: 0, cc: 2, mobility: 1, sustain: 0, scaling: "late" },
-  marksman: { damage: "physical", frontline: 0, cc: 0, mobility: 1, sustain: 0, scaling: "late" },
+  carry: { damage: "physical", frontline: 0, cc: 0, mobility: 1, sustain: 0, scaling: "late" },
   support: { damage: "magic", frontline: 1, cc: 3, mobility: 1, sustain: 3, scaling: "flat" },
 };
