@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { HeroBalanceMark } from "@/features/balance/HeroBalanceMark";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +32,11 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
               key={h.id}
               onClick={() => onChange(h)}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border p-2 text-center",
+                "relative flex flex-col items-center gap-1 rounded-lg border p-2 text-center",
                 value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
+              <HeroBalanceMark heroId={h.id} className="absolute right-1 top-1 z-10" />
               <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
                 {h.icon ? (
     <img
