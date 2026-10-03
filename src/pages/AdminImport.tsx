@@ -210,8 +210,7 @@ export function AdminImport() {
                     <option value="">— เลือกฮีโร่ในฐานข้อมูล —</option>
                     {freeHeroes.map((h) => (
                       <option key={h.id} value={h.id}>
-                        {h.name_th || h.name}
-                        {h.name_th ? ` (${h.name})` : ""}
+                        {h.name || h.name_th}
                       </option>
                     ))}
                   </select>

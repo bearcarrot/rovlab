@@ -52,7 +52,8 @@ const SLOT_COLORS = [
   { k: "purple", label: "ม่วง", hex: "#a855f7" },
   { k: "green", label: "เขียว", hex: "#22c55e" },
 ] as const;
-const heroName = (r?: Row) => r?.name_th || r?.name || "?";
+// แอดมินเลือกฮีโร่ด้วยชื่ออังกฤษ (ตรงกับเกม) ใช้ชื่อไทยเป็นตัวสำรองเท่านั้น
+const heroName = (r?: Row) => r?.name || r?.name_th || "?";
 const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
   col,
   table: "heroes",
