@@ -1,27 +1,34 @@
-import { useState } from "react";
 import { Admin } from "@/pages/Admin";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
+import { usePersistedState } from "@/hooks/usePersistedState";
+
+type Mode = "edit" | "import" | "balance";
+const MODES: [Mode, string][] = [
+  ["edit", "แก้ไขข้อมูล"],
+  ["import", "นำเข้าสถิติ"],
+  ["balance", "นำเข้าปรับสมดุล"],
+];
 
 // หน้า /admin: สลับระหว่าง "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
+// โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
   const { isAdmin } = useIsAdmin();
-  const [mode, setMode] = useState<"edit" | "import" | "balance">("edit");
+  const [saved, setMode] = usePersistedState<Mode>("admin:mode", "edit");
+  const mode = MODES.some(([k]) => k === saved) ? saved : "edit";
 
   if (!isAdmin) return <Admin />;
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="โหมดแอดมิน" className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg-surface p-1">
-        {(
-          [
-            ["edit", "แก้ไขข้อมูล"],
-            ["import", "นำเข้าสถิติ"],
-            ["balance", "นำเข้าปรับสมดุล"],
-          ] as const
-        ).map(([k, label]) => (
+      <div
+        role="tablist"
+        aria-label="โหมดแอดมิน"
+        className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg-surface p-1 sm:max-w-2xl"
+      >
+        {MODES.map(([k, label]) => (
           <button
             key={k}
             type="button"
