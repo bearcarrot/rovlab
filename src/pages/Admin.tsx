@@ -48,8 +48,8 @@ type FilterCfg = {
   order?: string;
   label: (r: Row, labels?: Labels) => string;
   // เลือก "ลิสต์" ของ Tier List จาก 3 ตัวเลือกแยกกัน แทน dropdown เดียว:
-  // แรงก์ = ชิป, แพตช์ = dropdown, เลน = ชิป (ทุกเลน = ลิสต์ที่ lane เป็น null)
-  // ต้องมีคอลัมน์ rank_tier / patch_id / lane และ patches(code) ใน sel
+  // แรงก์ = ชิป, แพตช์ = dropdown (ทุกแพตช์ในตาราง patches แม้ยังไม่มีลิสต์), เลน = ชิป (ทุกเลน = ลิสต์ที่ lane เป็น null)
+  // ถ้ายังไม่มีลิสต์ของชุดที่เลือก มีปุ่มสร้างให้ ต้องมีคอลัมน์ rank_tier / patch_id / lane ใน sel
   tierList?: { ranks: { value: string; label: string }[] };
 };
 type Cfg = {
@@ -686,20 +686,20 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
+  const loadOpts = useCallback(() => {
     if (!cfg.filter) return;
     let r = db.from(cfg.filter.table).select(cfg.filter.sel);
     if (cfg.filter.order) r = r.order(cfg.filter.order);
     r.then(({ data }: { data: Row[] | null }) => setOpts(data ?? []));
   }, [cfg]);
 
-  // Tier List: แพตช์ที่มีลิสต์ในแรงก์ที่เลือก (ใหม่สุดก่อน) → ลิสต์ที่ตรงกับ แรงก์ + แพตช์ + เลน
-  // (lane เป็น null = "ทุกเลน") ถ้าไม่มีลิสต์ตรงกัน fv จะว่างและขึ้นข้อความแจ้ง
-  const patchOpts = tl
-    ? [...new Map(opts.filter((o) => o.rank_tier === rankV).map((o) => [o.patch_id as string, o.patches?.code ?? "?"]))]
-        .map(([pid, code]) => ({ id: pid, code: String(code) }))
-        .sort((a, b) => b.code.localeCompare(a.code, "en", { numeric: true }))
-    : [];
+  useEffect(() => {
+    loadOpts();
+  }, [loadOpts]);
+
+  // Tier List: แพตช์ = ทุกแพตช์ในตาราง patches (ใหม่สุดก่อน) แม้ยังไม่มีลิสต์ — เลือกแล้วสร้างลิสต์ได้
+  // ลิสต์ที่เลือก = ตรงกับ แรงก์ + แพตช์ + เลน (lane เป็น null = "ทุกเลน") ถ้าไม่มี fv จะว่างและขึ้นปุ่มสร้าง
+  const patchOpts = tl ? (refs.patch ?? []).map((p) => ({ id: p.id, code: p.label })) : [];
   const patchV = patchOpts.find((p) => p.id === patchSaved)?.id ?? patchOpts[0]?.id ?? "";
   // ตัวเลือกที่เลือกอยู่ (ค่าที่จำไว้ถ้ายังอยู่ในรายการ ไม่งั้นใช้ตัวแรก)
   const fv = tl
@@ -776,6 +776,19 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
       setShowAdd(false);
       ok("เพิ่มแล้ว");
       void load();
+    }
+  }
+
+  // Tier List: สร้างลิสต์เปล่าของ แรงก์ + แพตช์ + เลน ที่เลือกอยู่ (ยังไม่มีในตาราง tier_lists)
+  async function createList() {
+    if (!patchV) return;
+    const { error } = await db
+      .from(cfg.filter!.table)
+      .insert({ patch_id: patchV, rank_tier: rankV, lane: listLane });
+    if (error) err(error.message);
+    else {
+      ok("สร้าง Tier List แล้ว");
+      loadOpts();
     }
   }
 
@@ -971,15 +984,21 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
 
       {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข */}
       <div className="space-y-2">
-        {view.length === 0 && (
-          <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
-            {tl && !fv
-              ? "ยังไม่มี Tier List สำหรับแรงก์ / แพตช์ / เลนนี้"
-              : rows.length === 0
-                ? "ยังไม่มีข้อมูล"
-                : "ไม่พบรายการที่ตรงกับตัวกรองหรือคำค้นหา"}
-          </p>
-        )}
+        {view.length === 0 &&
+          (tl && !fv ? (
+            <div className="space-y-3 rounded-card border border-dashed border-border p-6 text-center">
+              <p className="text-sm text-text-muted">ยังไม่มี Tier List สำหรับแรงก์ / แพตช์ / เลนนี้</p>
+              {patchV && (
+                <Btn variant="primary" onClick={() => void createList()}>
+                  <Plus className="h-4 w-4" /> สร้าง Tier List นี้
+                </Btn>
+              )}
+            </div>
+          ) : (
+            <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
+              {rows.length === 0 ? "ยังไม่มีข้อมูล" : "ไม่พบรายการที่ตรงกับตัวกรองหรือคำค้นหา"}
+            </p>
+          ))}
         {view.map(({ row, i, info }) => {
           const open = openId === row.id;
           const { title, sub, img, round, tags } = info;
