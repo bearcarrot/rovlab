@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +36,7 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
                 value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
                 {h.icon ? (
     <img
       src={h.icon}
@@ -53,6 +54,7 @@ function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string
   <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
     {h.name.slice(0, 2).toUpperCase()}
   </span>
+                <HeroBalanceBadge heroId={h.id} />
               </div>
               <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
             </button>

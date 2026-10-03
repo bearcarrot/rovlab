@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { CounterList } from "@/features/heroes/CounterList";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { cn } from "@/lib/utils";
 
 export function CounterPick() {
@@ -76,7 +77,7 @@ export function CounterPick() {
                 selected === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
                 {h.icon ? (
     <img
       src={h.icon}
@@ -94,6 +95,7 @@ export function CounterPick() {
   <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
     {h.name.slice(0, 2).toUpperCase()}
   </span>
+                <HeroBalanceBadge heroId={h.id} />
               </div>
               <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
             </button>

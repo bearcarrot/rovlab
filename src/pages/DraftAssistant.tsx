@@ -20,6 +20,7 @@ import {
 } from "@/features/draft/analyzeTeam";
 import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
@@ -221,7 +222,7 @@ export function DraftAssistant() {
                     "flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-2 text-center hover:border-accent/40"
                   )}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
+                  <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
                     {h.icon ? (
                       <img
                         src={h.icon}
@@ -239,6 +240,7 @@ export function DraftAssistant() {
                     <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
                       {h.name.slice(0, 2).toUpperCase()}
                     </span>
+                    <HeroBalanceBadge heroId={h.id} />
                   </div>
                   <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
                 </button>
