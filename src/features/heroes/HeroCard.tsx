@@ -15,7 +15,16 @@ const ROLE_LABEL_TH: Record<string, string> = {
   tank: "แทงค์",
 };
 
-export function HeroCard({ hero, metric = "winRate" }: { hero: HeroSummary; metric?: "winRate" | "banRate" }) {
+export function HeroCard({
+  hero,
+  metric = "winRate",
+  compact = false,
+}: {
+  hero: HeroSummary;
+  metric?: "winRate" | "banRate";
+  /** โหมดย่อ: โชว์แค่ชื่อฮีโร่ (ไม่แสดงตำแหน่งและ WR/BR) */
+  compact?: boolean;
+}) {
   const recent = useRecentBalance();
   const balance = recent?.get(hero.id);
 
@@ -54,17 +63,23 @@ export function HeroCard({ hero, metric = "winRate" }: { hero: HeroSummary; metr
   </span>
         </div>
       </div>
-      <div className="space-y-1 p-2.5">
-        <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-        <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => ROLE_LABEL_TH[r] ?? r).join(" · ")}</p>
-        <p className="text-xs text-text-muted">
-          {hero.stat.hasStats
-            ? metric === "banRate"
-              ? `BR ${hero.stat.banRate.toFixed(1)}%`
-              : `WR ${hero.stat.winRate.toFixed(1)}%`
-            : "ยังไม่มีสถิติ"}
-        </p>
-      </div>
+      {compact ? (
+        <div className="p-2">
+          <p className="truncate text-center font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+        </div>
+      ) : (
+        <div className="space-y-1 p-2.5">
+          <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+          <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => ROLE_LABEL_TH[r] ?? r).join(" · ")}</p>
+          <p className="text-xs text-text-muted">
+            {hero.stat.hasStats
+              ? metric === "banRate"
+                ? `BR ${hero.stat.banRate.toFixed(1)}%`
+                : `WR ${hero.stat.winRate.toFixed(1)}%`
+              : "ยังไม่มีสถิติ"}
+          </p>
+        </div>
+      )}
     </Link>
   );
 }
