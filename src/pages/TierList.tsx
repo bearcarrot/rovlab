@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { RankFilterRow } from "@/features/heroes/RankFilterRow";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -19,8 +21,9 @@ const TIER_ORDER: Tier[] = ["S+", "S", "A", "B", "C"];
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
-  const [role, setRole] = useState<HeroRole | null>(null);
-  const [lane, setLane] = useState<HeroLane | null>(null);
+  // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน)
+  const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
   // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
   const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
 
@@ -60,6 +63,7 @@ export function TierList() {
       </div>
 
       <div className="space-y-2">
+        <RankFilterRow />
         <RoleFilterRow value={role} onChange={setRole} />
         <LaneFilterRow value={lane} onChange={setLane} />
       </div>

@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
-import { LaneFilterRow } from "@/features/heroes/HeroFilters";
-import { heroLanes } from "@/lib/heroPositions";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { RankFilterRow } from "@/features/heroes/RankFilterRow";
+import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { StatBarRow } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { cn } from "@/lib/utils";
 import { RANK_LABEL, useRank } from "@/lib/rank";
-import type { HeroLane } from "@/types/hero";
+import type { HeroLane, HeroRole } from "@/types/hero";
 
 type Metric = "winRate" | "pickRate" | "banRate";
 
@@ -23,15 +25,22 @@ const METRIC_LABEL: Record<Metric, string> = {
 export function Stats() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const rank = useRank();
-  const [metric, setMetric] = useState<Metric>("winRate");
-  const [lane, setLane] = useState<HeroLane | null>(null);
+  // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน)
+  const [metric, setMetric] = usePersistedState<Metric>("rovlab:filter:stats:metric", "winRate");
+  const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:stats:role", null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:stats:lane", null);
 
   const sorted = useMemo(() => {
     if (heroesQ.status !== "success") return [];
-    // ฮีโร่ที่ไปได้หลายเลนต้องขึ้นในทุกเลนที่ตรง (ใช้ lanes ทั้งอาร์เรย์)
-    const filtered = heroesQ.data.filter((h) => h.stat.hasStats && (lane === null || heroLanes(h).includes(lane)));
+    // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนต้องขึ้นในทุกตัวกรองที่ตรง (ใช้ roles/lanes ทั้งอาร์เรย์)
+    const filtered = heroesQ.data.filter(
+      (h) =>
+        h.stat.hasStats &&
+        (role === null || heroRoles(h).includes(role)) &&
+        (lane === null || heroLanes(h).includes(lane))
+    );
     return [...filtered].sort((a, b) => b.stat[metric] - a.stat[metric]);
-  }, [heroesQ, lane, metric]);
+  }, [heroesQ, role, lane, metric]);
 
   const patchLabel = heroesQ.status === "success" ? heroesQ.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
 
@@ -57,7 +66,11 @@ export function Stats() {
         ))}
       </div>
 
-      <LaneFilterRow value={lane} onChange={setLane} />
+      <div className="space-y-2">
+        <RankFilterRow />
+        <RoleFilterRow value={role} onChange={setRole} />
+        <LaneFilterRow value={lane} onChange={setLane} />
+      </div>
 
       {heroesQ.status === "loading" && (
         <div className="grid gap-2 md:grid-cols-2">
@@ -69,7 +82,7 @@ export function Stats() {
         <EmptyState
           icon={BarChart3}
           title={heroesQ.data.some((h) => h.stat.hasStats) ? "ไม่พบข้อมูลในหมวดนี้" : "ยังไม่มีข้อมูลสถิติ"}
-          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
+          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
       {heroesQ.status === "success" && sorted.length > 0 && (

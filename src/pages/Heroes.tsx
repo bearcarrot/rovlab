@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, Swords } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { HeroCard } from "@/features/heroes/HeroCard";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
@@ -13,8 +14,9 @@ import type { HeroLane, HeroRole } from "@/types/hero";
 export function Heroes() {
   const heroes = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
-  const [role, setRole] = useState<HeroRole | null>(null);
-  const [lane, setLane] = useState<HeroLane | null>(null);
+  // จำตัวกรองตำแหน่ง/เลนไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน)
+  const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:heroes:role", null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:heroes:lane", null);
 
   const filtered = useMemo(() => {
     if (heroes.status !== "success") return [];
