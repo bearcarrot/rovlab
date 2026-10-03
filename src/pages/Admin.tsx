@@ -13,7 +13,9 @@ const db: any = supabase;
 
 type Row = Record<string, any>;
 type RefType = "hero" | "item" | "arcana" | "patch";
-type RefOpt = { id: string; label: string; color?: string; icon?: string };
+// icon = ไอคอนของรายการที่เลือก (แสดงบนการ์ดและข้างช่องเลือก)
+// alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
+type RefOpt = { id: string; label: string; color?: string; icon?: string; alt?: string };
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
@@ -709,7 +711,7 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   // รายการที่แสดง: ตารางที่เปิด clientSearch จะกรองตามคำค้นและเรียงตามชื่อ (A→Z) ตารางอื่นเรียงตามที่ DB ส่งมา
   // เก็บ i = ตำแหน่งเดิมใน rows ไว้ เพราะการแก้ไขอ้างอิงตำแหน่งนี้
   const view = (() => {
-    const list = rows.map((row, i) => ({ row, i, info: summary(cfg, row, refs) }));
+    const list = rows.map((row, i) => ({ row, i, info: summary(cfg, row, refs, labels) }));
     if (!cfg.clientSearch) return list;
     const needle = squash(q);
     const hit = needle ? list.filter(({ row }) => searchText(cfg, row, refs).includes(needle)) : list;
@@ -833,7 +835,7 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
         )}
         {view.map(({ row, i, info }) => {
           const open = openId === row.id;
-          const { title, sub, img, round, tags } = summary(cfg, row, refs, labels);
+          const { title, sub, img, round, tags } = info;
           return (
             <article key={row.id} className="overflow-hidden rounded-card border border-border bg-bg-surface shadow-card">
               <button
@@ -948,14 +950,15 @@ export function Admin() {
       order: string,
       asc: boolean,
       label: (r: Row) => string,
-      icon?: (r: Row) => string | undefined
+      icon?: (r: Row) => string | undefined,
+      alt?: (r: Row) => string | undefined
     ) =>
       db
         .from(table)
         .select(sel)
         .order(order, { ascending: asc })
         .then(({ data }: { data: Row[] | null }) =>
-          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r) }))
+          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r) }))
         );
     // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
     const arcanaOpts = db
@@ -971,7 +974,16 @@ export function Admin() {
         }))
       );
     void Promise.all([
-      opt("heroes", "id,name,name_th,icon_url", "name", true, heroName, (r) => r.icon_url ?? undefined),
+      // ชื่อไทยเก็บเป็น alt ไว้ใช้ค้นหาอย่างเดียว (ยังแสดงชื่ออังกฤษเหมือนเดิม)
+      opt(
+        "heroes",
+        "id,name,name_th,icon_url",
+        "name",
+        true,
+        heroName,
+        (r) => r.icon_url ?? undefined,
+        (r) => (r.name_th as string | null) ?? undefined
+      ),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
       opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
       arcanaOpts,
