@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Heart, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { getHeroes } from "@/services/heroes";
 import { HeroCard } from "@/features/heroes/HeroCard";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
@@ -16,8 +16,8 @@ export function Favorites() {
   const { user, isConfigured } = useAuth();
   const { favoriteSlugs, loading } = useFavorites();
   const heroesQ = useAsync(() => getHeroes(), []);
-  const [role, setRole] = useState<HeroRole | null>(null);
-  const [lane, setLane] = useState<HeroLane | null>(null);
+  const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:favorites:role", null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:favorites:lane", null);
 
   if (!isConfigured) {
     return (

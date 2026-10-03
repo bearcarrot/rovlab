@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { RankFilterRow } from "@/features/heroes/RankFilterRow";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
@@ -24,9 +25,10 @@ const METRIC_LABEL: Record<Metric, string> = {
 export function Stats() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const rank = useRank();
-  const [metric, setMetric] = useState<Metric>("winRate");
-  const [role, setRole] = useState<HeroRole | null>(null);
-  const [lane, setLane] = useState<HeroLane | null>(null);
+  // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน)
+  const [metric, setMetric] = usePersistedState<Metric>("rovlab:filter:stats:metric", "winRate");
+  const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:stats:role", null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:stats:lane", null);
 
   const sorted = useMemo(() => {
     if (heroesQ.status !== "success") return [];
