@@ -13,7 +13,7 @@ import type { HeroSummary } from "@/types/hero";
 
 const QUICK_ACTIONS = [
   { to: "/draft", label: "Draft Assist", icon: Users, desc: "ประเมินทีมระหว่างดราฟต์" },
-  { to: "/counter-pick", label: "Counter ที่ควรรู้", icon: GitCompareArrows, desc: "หาตัวสวนคู่ต่อสู้" },
+  { to: "/counter-pick", label: "Counter ที่ควรรู้", icon: GitCompareArrows, desc: "หาฮีโร่ที่ชนะทางศัตรู" },
   { to: "/learn", label: "คู่มือ", icon: BookOpen, desc: "Macro / Micro" },
   { to: "/stats", label: "สถิติ", icon: BarChart3, desc: "ดูสถิติฮีโร่และแพตช์" },
 ];
