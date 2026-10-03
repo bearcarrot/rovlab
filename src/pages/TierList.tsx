@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -70,7 +71,11 @@ export function TierList() {
               <div className="space-y-2">
                 {grouped.get(tier)!.map((h) => (
                   <div key={h.id} className="flex items-center gap-3 rounded-card border border-border bg-bg-surface p-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint">
+                    <Link
+                      to={`/heroes/${h.slug}`}
+                      aria-label={h.nameTh}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint hover:ring-2 hover:ring-accent/40"
+                    >
                       {h.icon ? (
     <img
       src={h.icon}
@@ -88,7 +93,7 @@ export function TierList() {
   <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
     {h.name.slice(0, 2).toUpperCase()}
   </span>
-                    </div>
+                    </Link>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate font-display text-sm font-medium">{h.nameTh}</p>
