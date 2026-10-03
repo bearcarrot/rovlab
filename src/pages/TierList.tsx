@@ -4,6 +4,8 @@ import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { tierReason } from "@/features/tierlist/tierReason";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -22,14 +24,17 @@ export function TierList() {
 
   const grouped = useMemo(() => {
     if (heroes.status !== "success") return null;
+    // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนต้องขึ้นในทุกตัวกรองที่ตรง (ใช้ roles/lanes ทั้งอาร์เรย์ ไม่ใช่แค่ค่าหลัก)
     const filtered = heroes.data.filter(
-      (h) => h.stat.hasStats && (role === null || h.role === role) && (lane === null || h.lane === lane)
+      (h) =>
+        h.stat.hasStats &&
+        (role === null || heroRoles(h).includes(role)) &&
+        (lane === null || heroLanes(h).includes(lane))
     );
     const map = new Map<Tier, typeof filtered>();
     for (const t of TIER_ORDER) map.set(t, []);
     for (const h of filtered) map.get(h.stat.tier)?.push(h);
-    // เรียง A-Z ตามชื่ออังกฤษ ไม่เรียงตาม Win Rate เพื่อไม่ให้ลำดับในช่องดูเหมือนอันดับความแข็ง
-    for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, "en"));
+    for (const list of map.values()) list.sort((a, b) => b.stat.winRate - a.stat.winRate);
     return map;
   }, [heroes, role, lane]);
 
@@ -38,12 +43,9 @@ export function TierList() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-xl font-semibold">Tier List</h1>
-          <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
-        </div>
-        <p className="mt-1 text-xs text-text-faint">Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่</p>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-xl font-semibold">Tier List</h1>
+        <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
       </div>
 
       <div className="space-y-2">
@@ -52,8 +54,8 @@ export function TierList() {
       </div>
 
       {heroes.status === "loading" && (
-        <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
-          {Array.from({ length: 20 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
       )}
       {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
@@ -72,34 +74,41 @@ export function TierList() {
                 <Badge tier={tier} className="text-sm px-2.5 py-1">{tier}</Badge>
                 <span className="text-xs text-text-faint">{grouped.get(tier)?.length} ฮีโร่</span>
               </div>
-              <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
+              <div className="grid gap-2 md:grid-cols-2">
                 {grouped.get(tier)!.map((h) => (
-                  <Link
-                    key={h.id}
-                    to={`/heroes/${h.slug}`}
-                    aria-label={h.nameTh}
-                    title={h.nameTh}
-                    className="relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40"
-                  >
-                    {h.icon ? (
-                      <img
-                        src={h.icon}
-                        alt={h.nameTh}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        className="h-full w-full rounded-lg object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                        }}
-                      />
-                    ) : null}
+                  <div key={h.id} className="flex items-center gap-3 rounded-card border border-border bg-bg-surface p-3">
+                    <Link
+                      to={`/heroes/${h.slug}`}
+                      aria-label={h.nameTh}
+                      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint hover:ring-2 hover:ring-accent/40 sm:h-12 sm:w-12"
+                    >
+                      {h.icon ? (
+                        <img
+                          src={h.icon}
+                          alt={h.nameTh}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full rounded-lg object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
 
-                    <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-                      {h.name.slice(0, 2).toUpperCase()}
-                    </span>
-                    <HeroBalanceBadge heroId={h.id} />
-                  </Link>
+                      <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                        {h.name.slice(0, 2).toUpperCase()}
+                      </span>
+                      <HeroBalanceBadge heroId={h.id} />
+                    </Link>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-display text-sm font-medium">{h.nameTh}</p>
+                        <p className="shrink-0 text-xs text-text-muted">WR {h.stat.winRate.toFixed(1)}% · Ban {h.stat.banRate.toFixed(1)}%</p>
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-text-faint">{tierReason(h)}</p>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

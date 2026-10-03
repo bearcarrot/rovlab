@@ -3,6 +3,7 @@ import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { heroLanes } from "@/lib/heroPositions";
 import { StatBarRow } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -27,7 +28,8 @@ export function Stats() {
 
   const sorted = useMemo(() => {
     if (heroesQ.status !== "success") return [];
-    const filtered = heroesQ.data.filter((h) => h.stat.hasStats && (lane === null || h.lane === lane));
+    // ฮีโร่ที่ไปได้หลายเลนต้องขึ้นในทุกเลนที่ตรง (ใช้ lanes ทั้งอาร์เรย์)
+    const filtered = heroesQ.data.filter((h) => h.stat.hasStats && (lane === null || heroLanes(h).includes(lane)));
     return [...filtered].sort((a, b) => b.stat[metric] - a.stat[metric]);
   }, [heroesQ, lane, metric]);
 
