@@ -44,7 +44,7 @@ export function CounterPick() {
         <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ฝั่งศัตรู ระบบจะบอกว่าใครสวนได้ และทำไม</p>
       </div>
 
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5">
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
         <Search className="h-4 w-4 shrink-0 text-text-faint" />
         <input
           value={query}
@@ -57,8 +57,8 @@ export function CounterPick() {
       <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
 
       {heroes.status === "loading" && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
+          {Array.from({ length: 16 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
         </div>
       )}
       {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
@@ -67,7 +67,7 @@ export function CounterPick() {
         <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
       )}
       {heroes.status === "success" && filtered.length > 0 && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
           {filtered.map((h) => (
             <button
               key={h.id}
@@ -77,27 +77,27 @@ export function CounterPick() {
                 selected === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint sm:h-11 sm:w-11">
                 {h.icon ? (
-    <img
-      src={h.icon}
-      alt={h.nameTh}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className="h-full w-full object-cover"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-      }}
-    />
-  ) : null}
+                  <img
+                    src={h.icon}
+                    alt={h.nameTh}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full rounded-md object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                    }}
+                  />
+                ) : null}
 
-  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-    {h.name.slice(0, 2).toUpperCase()}
-  </span>
+                <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
+                  {h.name.slice(0, 2).toUpperCase()}
+                </span>
                 <HeroBalanceBadge heroId={h.id} />
               </div>
-              <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
+              <span className="w-full truncate text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
             </button>
           ))}
         </div>
@@ -114,7 +114,7 @@ export function CounterPick() {
           {detailQ.status === "error" && <ErrorState message={detailQ.message} onRetry={detailQ.refetch} />}
           {detailQ.status === "success" && counters.length > 0 && (
             <>
-              <CounterList entries={counters} emptyText="" icons={iconBySlug} />
+              <CounterList entries={counters} emptyText="" icons={iconBySlug} grid />
               <AskCoach
                 resetKey={selected}
                 label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"

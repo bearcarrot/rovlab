@@ -49,8 +49,8 @@ export function TierList() {
       </div>
 
       {heroes.status === "loading" && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
       )}
       {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
@@ -69,31 +69,31 @@ export function TierList() {
                 <Badge tier={tier} className="text-sm px-2.5 py-1">{tier}</Badge>
                 <span className="text-xs text-text-faint">{grouped.get(tier)?.length} ฮีโร่</span>
               </div>
-              <div className="space-y-2">
+              <div className="grid gap-2 md:grid-cols-2">
                 {grouped.get(tier)!.map((h) => (
                   <div key={h.id} className="flex items-center gap-3 rounded-card border border-border bg-bg-surface p-3">
                     <Link
                       to={`/heroes/${h.slug}`}
                       aria-label={h.nameTh}
-                      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint hover:ring-2 hover:ring-accent/40"
+                      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint hover:ring-2 hover:ring-accent/40 sm:h-12 sm:w-12"
                     >
                       {h.icon ? (
-    <img
-      src={h.icon}
-      alt={h.nameTh}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className="h-full w-full object-cover"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-      }}
-    />
-  ) : null}
+                        <img
+                          src={h.icon}
+                          alt={h.nameTh}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full rounded-lg object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
 
-  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-    {h.name.slice(0, 2).toUpperCase()}
-  </span>
+                      <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                        {h.name.slice(0, 2).toUpperCase()}
+                      </span>
                       <HeroBalanceBadge heroId={h.id} />
                     </Link>
                     <div className="min-w-0 flex-1">
