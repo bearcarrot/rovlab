@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Swords,
   Users,
   GitCompareArrows,
   BarChart3,
@@ -10,6 +9,7 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
+import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 
@@ -24,7 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "ฮีโร่",
     items: [
-      { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: Swords },
+      { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
       { to: "/tier-list", label: "Tier List", icon: BarChart3 },
       { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows },
       { to: "/matchup", label: "Matchup", icon: GitCompareArrows },
