@@ -6,8 +6,8 @@ import { MOCK_HEROES } from "@/data/heroes.mock";
 import { cn } from "@/lib/utils";
 
 const STRENGTH_LABEL: Record<CounterEntry["strength"], string> = {
-  best: "สวนได้ดีที่สุด",
-  good: "สวนได้ดี",
+  best: "ชนะทางได้ดีที่สุด",
+  good: "ชนะทางได้ดี",
   situational: "ใช้ได้เฉพาะสถานการณ์",
 };
 
@@ -26,7 +26,7 @@ export function CounterList({ entries, emptyText, icons, grid = false }: Props) 
   if (entries.length === 0) {
     return <p className="text-sm text-text-faint">{emptyText}</p>;
   }
-  // เรียงจากสวนได้ดีที่สุด → ใช้ได้เฉพาะสถานการณ์ (sort แบบ stable คงลำดับเดิมในกลุ่มเดียวกัน)
+  // เรียงจากชนะทางได้ดีที่สุด → ใช้ได้เฉพาะสถานการณ์ (sort แบบ stable คงลำดับเดิมในกลุ่มเดียวกัน)
   const sorted = [...entries].sort(
     (a, b) => (STRENGTH_ORDER[a.strength] ?? 3) - (STRENGTH_ORDER[b.strength] ?? 3)
   );
