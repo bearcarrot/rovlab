@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
@@ -67,7 +68,9 @@ export function RecommendedPickCard({
     <Card>
       <CardHeader>
         <div className="flex min-w-0 items-center gap-2.5">
-          <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
+          <Link to={`/heroes/${rec.hero.slug}`} aria-label={rec.hero.nameTh} className="shrink-0">
+            <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
+          </Link>
           <CardTitle>{rec.hero.nameTh}</CardTitle>
         </div>
         <div className="flex shrink-0">
