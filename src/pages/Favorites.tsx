@@ -38,16 +38,16 @@ export function Favorites() {
     <div className="space-y-4">
       <h1 className="font-display text-xl font-semibold">รายการโปรด</h1>
       {(loading || heroesQ.status === "loading") && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)}
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
         </div>
       )}
       {!loading && heroesQ.status === "success" && heroes.length === 0 && (
         <EmptyState icon={Heart} title="ยังไม่มีฮีโร่โปรด" description="กดรูปหัวใจที่การ์ดฮีโร่เพื่อบันทึกไว้ที่นี่" />
       )}
       {!loading && heroes.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {heroes.map((h) => <HeroCard key={h.id} hero={h} />)}
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
+          {heroes.map((h) => <HeroCard key={h.id} hero={h} compact />)}
         </div>
       )}
     </div>
