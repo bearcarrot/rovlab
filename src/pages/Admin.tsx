@@ -4,9 +4,11 @@ import { Link } from "react-router-dom";
 import { AlertCircle, Check, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
-import { useFilterLabels } from "@/features/heroes/HeroFilters";
+import { LANE_OPTIONS, LaneFilterRow, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { clearFilterIconsCache } from "@/services/filterIcons";
+import type { HeroLane, HeroRole } from "@/types/hero";
 
 // ใช้ client แบบ untyped เพราะตารางถูกกำหนดแบบ config ด้านล่าง
 const db: any = supabase;
@@ -15,7 +17,16 @@ type Row = Record<string, any>;
 type RefType = "hero" | "item" | "arcana" | "patch";
 // icon = ไอคอนของรายการที่เลือก (แสดงบนการ์ดและข้างช่องเลือก)
 // alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
-type RefOpt = { id: string; label: string; color?: string; icon?: string; alt?: string };
+// roles / lanes = ตำแหน่งและเลนของฮีโร่ ใช้กับชิปกรองในแท็บสถิติ/Tier List
+type RefOpt = {
+  id: string;
+  label: string;
+  color?: string;
+  icon?: string;
+  alt?: string;
+  roles?: string[];
+  lanes?: string[];
+};
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
@@ -29,6 +40,18 @@ type Col = {
   // รูปแบบวงกลม (border-radius 50%) ใช้กับไอคอนสกิลและรูน
   round?: boolean;
 };
+type Labels = { role: (code: string) => string; lane: (code: string) => string };
+type FilterCfg = {
+  col: string;
+  table: string;
+  sel: string;
+  order?: string;
+  label: (r: Row, labels?: Labels) => string;
+  // แยกค่าของคอลัมน์หนึ่ง (เช่น rank_tier) ออกมาเป็นชิปด้านบน แล้ว dropdown แสดงเฉพาะรายการในค่าที่เลือก
+  split?: { col: string; label: string; opts: { value: string; label: string }[] };
+  // เรียงตัวเลือกใน dropdown (หลังกรองด้วย split)
+  sort?: (a: Row, b: Row) => number;
+};
 type Cfg = {
   label: string;
   table: string;
@@ -41,11 +64,13 @@ type Cfg = {
   // ค้นหา + เรียงตามชื่อฝั่งเบราว์เซอร์ ใช้กับตารางที่ชื่อฮีโร่มาจากการอ้างอิง (ไม่ใช่คอลัมน์ในตาราง)
   // ค้นได้ทั้งชื่ออังกฤษ/ไทย และพิมพ์ไม่ต้องใส่ช่องว่าง/เครื่องหมายก็เจอ (เช่น "azzenka" = Azzen'Ka)
   clientSearch?: boolean;
+  // ชิปกรองตำแหน่ง/เลนของฮีโร่ (ค่าที่เลือกจำไว้ตามแท็บ รีเฟรชแล้วไม่หาย)
+  heroChips?: boolean;
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
   slots?: boolean;
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
-  filter?: { col: string; table: string; sel: string; order?: string; label: (r: Row) => string };
+  filter?: FilterCfg;
 };
 type Toast = { text: string; kind: "ok" | "err" } | null;
 
@@ -65,20 +90,22 @@ const DIFFICULTY_TH: Record<string, string> = { easy: "ง่าย", medium: "�
 const ROUND = "rounded-[50%]";
 // แอดมินเลือกฮีโร่ด้วยชื่ออังกฤษ (ตรงกับเกม) ใช้ชื่อไทยเป็นตัวสำรองเท่านั้น
 const heroName = (r?: Row) => r?.name || r?.name_th || "?";
-const heroFilter = (col: string): NonNullable<Cfg["filter"]> => ({
+const heroFilter = (col: string): FilterCfg => ({
   col,
   table: "heroes",
   sel: "id,name,name_th",
   order: "name",
-  label: heroName,
+  label: (r) => heroName(r),
 });
 // ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์)
-const buildFilter: NonNullable<Cfg["filter"]> = {
+const buildFilter: FilterCfg = {
   col: "build_id",
   table: "item_builds",
   sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
   label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
 };
+// ลำดับเลนใน dropdown ของ Tier List: ทุกเลน (lane = null) มาก่อน แล้วตามลำดับเลนมาตรฐาน
+const laneIdx = (lane: string | null) => (lane ? LANE_OPTIONS.findIndex((o) => o.value === lane) + 1 : 0);
 
 const CFG: Record<string, Cfg> = {
   heroes: {
@@ -87,6 +114,7 @@ const CFG: Record<string, Cfg> = {
     order: "name",
     add: true,
     search: "name",
+    heroChips: true,
     cols: [
       { k: "slug" },
       { k: "name" },
@@ -246,6 +274,7 @@ const CFG: Record<string, Cfg> = {
     table: "hero_stats",
     add: true,
     clientSearch: true,
+    heroChips: true,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "rank_tier" },
@@ -262,16 +291,30 @@ const CFG: Record<string, Cfg> = {
     table: "tier_list_entries",
     add: true,
     clientSearch: true,
+    heroChips: true,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "tier", type: "sel", opts: TIERS },
       { k: "reason", type: "area" },
     ],
+    // แรงก์ (ทั้งหมด / Commander+) แยกเป็นชิปด้านบน dropdown เหลือแพตช์ + เลนของลิสต์
     filter: {
       col: "tier_list_id",
       table: "tier_lists",
       sel: "id,rank_tier,lane,patches(code)",
-      label: (r) => `${r.patches?.code ?? "?"} · ${r.rank_tier} · ${r.lane ?? "all"}`,
+      label: (r, labels) =>
+        `${r.patches?.code ?? "?"} · ${r.lane ? (labels?.lane(r.lane) ?? r.lane) : "ทุกเลน"}`,
+      split: {
+        col: "rank_tier",
+        label: "แรงก์",
+        opts: [
+          { value: "all", label: "ทั้งหมด" },
+          { value: "high", label: "Commander+" },
+        ],
+      },
+      sort: (a, b) =>
+        String(b.patches?.code ?? "").localeCompare(String(a.patches?.code ?? ""), "en", { numeric: true }) ||
+        laneIdx(a.lane) - laneIdx(b.lane),
     },
   },
   patches: {
@@ -363,7 +406,6 @@ const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
   return String(v);
 };
 
-type Labels = { role: (code: string) => string; lane: (code: string) => string };
 type Tag = { text: string; kind: "role" | "lane" | "diff" };
 const TAG_STYLE: Record<Tag["kind"], string> = {
   role: "border-accent/40 bg-accent/10 text-accent",
@@ -410,6 +452,19 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
     tags,
   };
 };
+
+// ตำแหน่ง/เลนของฮีโร่ในแถว: แท็บฮีโร่อ่านจากแถวเอง แท็บอื่นอ่านจากฮีโร่ที่อ้างอิง (null = หาไม่เจอ)
+// ใช้ roles/lanes (หลายค่า) ถ้าว่างค่อยถอยไปใช้ role/lane เดี่ยว
+const arrOr = (many: unknown, one: unknown) => {
+  const a = toArr(many);
+  return a.length > 0 ? a : toArr(one);
+};
+function heroAttrs(cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>): { roles: string[]; lanes: string[] } | null {
+  if (cfg.table === "heroes") return { roles: arrOr(row.roles, row.role), lanes: arrOr(row.lanes, row.lane) };
+  const c = cfg.cols.find((x) => x.type === "hero");
+  const o = c ? refs.hero?.find((x) => x.id === row[c.k]) : undefined;
+  return o ? { roles: o.roles ?? [], lanes: o.lanes ?? [] } : null;
+}
 
 // ตัดตัวพิมพ์/ช่องว่าง/เครื่องหมายออก เพื่อให้พิมพ์ "azzenka" ก็เจอ Azzen'Ka, "wiro" ก็เจอ Wiro Sableng
 const squash = (s: string) => s.toLowerCase().replace(/[\s'’`"\-_.]/g, "");
@@ -604,19 +659,25 @@ function Cell({
   );
 }
 
-function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
+// id = คีย์ของแท็บ ใช้ตั้งชื่อค่าที่จำไว้ (ชิปตำแหน่ง/เลน แรงก์ และตัวเลือกใน dropdown แยกกันต่อแท็บ)
+function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   const blank = () => Object.fromEntries(cfg.cols.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
   const { roleLabel, laneLabel } = useFilterLabels();
   const labels: Labels = { role: roleLabel, lane: laneLabel };
   const [rows, setRows] = useState<Row[]>([]);
   const [opts, setOpts] = useState<Row[]>([]);
-  const [fv, setFv] = useState("");
   const [q, setQ] = useState("");
   const [toast, setToast] = useState<Toast>(null);
   const [draft, setDraft] = useState<Row>(blank);
   const [showAdd, setShowAdd] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // ค่าที่จำไว้ (sessionStorage) รีเฟรชแล้วไม่หาย: ชิปตำแหน่ง/เลน, แรงก์ที่แยกออกมา, ตัวเลือกใน dropdown
+  const [role, setRole] = usePersistedState<HeroRole | null>(`admin:${id}:role`, null);
+  const [lane, setLane] = usePersistedState<HeroLane | null>(`admin:${id}:lane`, null);
+  const split = cfg.filter?.split;
+  const [splitV, setSplitV] = usePersistedState<string>(`admin:${id}:split`, split?.opts[0]?.value ?? "");
+  const [fvSaved, setFvSaved] = usePersistedState<string>(`admin:${id}:fv`, "");
   // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
   const orig = useRef<Record<string, Row>>({});
 
@@ -633,14 +694,23 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
     if (!cfg.filter) return;
     let r = db.from(cfg.filter.table).select(cfg.filter.sel);
     if (cfg.filter.order) r = r.order(cfg.filter.order);
-    r.then(({ data }: { data: Row[] | null }) => {
-      setOpts(data ?? []);
-      setFv(data?.[0]?.id ?? "");
-    });
+    r.then(({ data }: { data: Row[] | null }) => setOpts(data ?? []));
   }, [cfg]);
 
+  // ตัวเลือกใน dropdown: กรองตามชิปที่แยก (เช่น แรงก์) แล้วเรียง
+  // fv = ตัวที่เลือก (ใช้ค่าที่จำไว้ถ้ายังอยู่ในรายการ ไม่งั้นใช้ตัวแรก)
+  const visOpts = (() => {
+    let o = split ? opts.filter((x) => x[split.col] === splitV) : opts;
+    if (cfg.filter?.sort) o = [...o].sort(cfg.filter.sort);
+    return o;
+  })();
+  const fv = visOpts.find((o) => o.id === fvSaved)?.id ?? visOpts[0]?.id ?? "";
+
   const load = useCallback(async () => {
-    if (cfg.filter && !fv) return;
+    if (cfg.filter && !fv) {
+      setRows([]);
+      return;
+    }
     let r = db.from(cfg.table).select("*");
     if (cfg.filter) r = r.eq(cfg.filter.col, fv);
     if (cfg.search && q) r = r.ilike(cfg.search, `%${q}%`);
@@ -708,10 +778,18 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   // รอให้โหลดรายชื่อรูนก่อนค่อยคำนวณ ไม่งั้นจะขึ้นเตือนว่าไม่มีสีชั่วครู่
   const slotInfo = cfg.slots && (refs.arcana?.length ?? 0) > 0 ? summarizeSlots(rows, refs.arcana) : null;
 
-  // รายการที่แสดง: ตารางที่เปิด clientSearch จะกรองตามคำค้นและเรียงตามชื่อ (A→Z) ตารางอื่นเรียงตามที่ DB ส่งมา
-  // เก็บ i = ตำแหน่งเดิมใน rows ไว้ เพราะการแก้ไขอ้างอิงตำแหน่งนี้
+  // รายการที่แสดง: กรองด้วยชิปตำแหน่ง/เลน (ถ้าแท็บเปิดใช้) → กรองด้วยคำค้นและเรียงชื่อ A→Z (ถ้าเปิด clientSearch)
+  // ตารางอื่นเรียงตามที่ DB ส่งมา เก็บ i = ตำแหน่งเดิมใน rows ไว้ เพราะการแก้ไขอ้างอิงตำแหน่งนี้
   const view = (() => {
-    const list = rows.map((row, i) => ({ row, i, info: summary(cfg, row, refs, labels) }));
+    let list = rows.map((row, i) => ({ row, i, info: summary(cfg, row, refs, labels) }));
+    // แท็บที่อ้างอิงฮีโร่ต้องรอรายชื่อฮีโร่โหลดก่อน ไม่งั้นรายการจะว่างชั่วครู่
+    const heroesReady = cfg.table === "heroes" || (refs.hero?.length ?? 0) > 0;
+    if (cfg.heroChips && heroesReady && (role || lane)) {
+      list = list.filter(({ row }) => {
+        const a = heroAttrs(cfg, row, refs);
+        return !!a && (!role || a.roles.includes(role)) && (!lane || a.lanes.includes(lane));
+      });
+    }
     if (!cfg.clientSearch) return list;
     const needle = squash(q);
     const hit = needle ? list.filter(({ row }) => searchText(cfg, row, refs).includes(needle)) : list;
@@ -727,11 +805,34 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
       {/* ตัวกรอง / ค้นหา: มือถือเรียงลง เดสก์ท็อปเรียงข้าง */}
       {(cfg.filter || cfg.search || cfg.clientSearch) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {split && (
+            <div role="group" aria-label={split.label} className="flex flex-wrap gap-2">
+              {split.opts.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  aria-pressed={splitV === o.value}
+                  onClick={() => setSplitV(o.value)}
+                  className={`h-11 rounded-full border px-4 text-sm transition ${
+                    splitV === o.value
+                      ? "border-accent bg-accent font-medium text-accent-fg"
+                      : "border-border bg-bg-surface text-text-muted hover:border-text-faint hover:text-text"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
           {cfg.filter && (
-            <select className={`${inp} sm:w-auto sm:min-w-[18rem]`} value={fv} onChange={(e) => setFv(e.target.value)}>
-              {opts.map((o) => (
+            <select
+              className={`${inp} sm:w-auto sm:min-w-[18rem]`}
+              value={fv}
+              onChange={(e) => setFvSaved(e.target.value)}
+            >
+              {visOpts.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {cfg.filter!.label(o)}
+                  {cfg.filter!.label(o, labels)}
                 </option>
               ))}
             </select>
@@ -746,6 +847,14 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
               onChange={(e) => setQ(e.target.value)}
             />
           )}
+        </div>
+      )}
+
+      {/* ชิปกรองตำแหน่ง / เลน (ใช้ชุดเดียวกับหน้าฮีโร่: ชื่อ ลำดับ ไอคอนมาจาก DB) */}
+      {cfg.heroChips && (
+        <div className="space-y-1">
+          <RoleFilterRow value={role} onChange={setRole} />
+          <LaneFilterRow value={lane} onChange={setLane} />
         </div>
       )}
 
@@ -830,7 +939,7 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
       <div className="space-y-2">
         {view.length === 0 && (
           <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
-            {rows.length === 0 ? "ยังไม่มีข้อมูล" : "ไม่พบรายการที่ตรงกับคำค้นหา"}
+            {rows.length === 0 ? "ยังไม่มีข้อมูล" : "ไม่พบรายการที่ตรงกับตัวกรองหรือคำค้นหา"}
           </p>
         )}
         {view.map(({ row, i, info }) => {
@@ -938,7 +1047,9 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
 export function Admin() {
   const { user, loading } = useAuth();
   const { isAdmin, checking, error } = useIsAdmin();
-  const [tab, setTab] = useState("heroes");
+  // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
+  const [savedTab, setTab] = usePersistedState<string>("admin:tab", "heroes");
+  const tab = savedTab in CFG ? savedTab : "heroes";
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
 
   // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์) พร้อมไอคอน (ถ้ามี) ไว้แสดงในการ์ดและช่องเลือก
@@ -951,14 +1062,15 @@ export function Admin() {
       asc: boolean,
       label: (r: Row) => string,
       icon?: (r: Row) => string | undefined,
-      alt?: (r: Row) => string | undefined
+      alt?: (r: Row) => string | undefined,
+      extra?: (r: Row) => Partial<RefOpt>
     ) =>
       db
         .from(table)
         .select(sel)
         .order(order, { ascending: asc })
         .then(({ data }: { data: Row[] | null }) =>
-          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r) }))
+          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r), ...extra?.(r) }))
         );
     // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
     const arcanaOpts = db
@@ -975,14 +1087,16 @@ export function Admin() {
       );
     void Promise.all([
       // ชื่อไทยเก็บเป็น alt ไว้ใช้ค้นหาอย่างเดียว (ยังแสดงชื่ออังกฤษเหมือนเดิม)
+      // roles / lanes ไว้ให้ชิปกรองในแท็บสถิติและ Tier List
       opt(
         "heroes",
-        "id,name,name_th,icon_url",
+        "id,name,name_th,icon_url,roles,lanes,role,lane",
         "name",
         true,
         heroName,
         (r) => r.icon_url ?? undefined,
-        (r) => (r.name_th as string | null) ?? undefined
+        (r) => (r.name_th as string | null) ?? undefined,
+        (r) => ({ roles: arrOr(r.roles, r.role), lanes: arrOr(r.lanes, r.lane) })
       ),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
       opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
@@ -1025,7 +1139,7 @@ export function Admin() {
         </div>
       </nav>
 
-      <Editor key={tab} cfg={CFG[tab]} refs={refs} />
+      <Editor key={tab} id={tab} cfg={CFG[tab]} refs={refs} />
     </div>
   );
 }
