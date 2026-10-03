@@ -45,9 +45,9 @@ export function Heroes() {
       </div>
 
       {heroes.status === "loading" && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-4 gap-3">
           {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[3/4]" />
+            <Skeleton key={i} className="aspect-square" />
           ))}
         </div>
       )}
@@ -56,9 +56,9 @@ export function Heroes() {
         <EmptyState icon={Swords} title="ไม่พบฮีโร่ที่ตรงเงื่อนไข" description="ลองล้างตัวกรองหรือค้นหาด้วยคำอื่น" />
       )}
       {heroes.status === "success" && filtered.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-4 gap-3">
           {filtered.map((h) => (
-            <HeroCard key={h.id} hero={h} />
+            <HeroCard key={h.id} hero={h} compact />
           ))}
         </div>
       )}
