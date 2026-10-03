@@ -78,7 +78,7 @@ export function Home() {
       </section>
 
       <HeroRow title="Hero ที่กำลังแรง (Win Rate สูงสุด)" state={heroes} heroes={topWinRate} />
-      <HeroRow title="Hero ที่ถูกแบนมากสุด" state={heroes} heroes={mostBanned} />
+      <HeroRow title="Hero ที่ถูกแบนมากสุด" state={heroes} heroes={mostBanned} metric="banRate" />
     </div>
   );
 }
@@ -89,10 +89,12 @@ function HeroRow({
   title,
   state,
   heroes,
+  metric = "winRate",
 }: {
   title: string;
   state: FetchStatus;
   heroes: HeroSummary[];
+  metric?: "winRate" | "banRate";
 }) {
   return (
     <section>
@@ -111,7 +113,7 @@ function HeroRow({
       {state.status === "success" && heroes.length > 0 && (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {heroes.map((h) => (
-            <HeroCard key={h.id} hero={h} />
+            <HeroCard key={h.id} hero={h} metric={metric} />
           ))}
         </div>
       )}
