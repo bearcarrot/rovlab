@@ -291,7 +291,7 @@ export function AdminImportBalance() {
             <li key={s.id} className="space-y-2 rounded-lg border border-border bg-bg-raised p-3">
               <div className="flex items-center gap-2">
                 <BalanceIcon kind={s.kind} className="h-4 w-4" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.heroes?.name_th || s.heroes?.name || "?"}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.heroes?.name || s.heroes?.name_th || "?"}</span>
                 <span className="text-xs text-text-muted">{fmt(s.changed_at)}</span>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
