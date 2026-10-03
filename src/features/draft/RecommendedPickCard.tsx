@@ -48,7 +48,10 @@ export function RecommendedPickCard({
           ? coachContext(rec)
           : {
               hero: rec.hero.nameTh,
-              tier: rec.hero.stat.tier,
+              // ไม่ส่ง Tier/Win Rate ถ้าฮีโร่ยังไม่มีสถิติจริง (ค่าเริ่มต้นเป็น Tier C ซึ่งเป็นค่าสมมติ)
+              stat: rec.hero.stat.hasStats
+                ? { tier: rec.hero.stat.tier, winRate: rec.hero.stat.winRate, patch: rec.hero.stat.patch }
+                : null,
               risk: rec.risk,
               reasons: rec.reasons,
               warnings: rec.warnings,
@@ -94,7 +97,7 @@ export function RecommendedPickCard({
         )}
         <div className="flex gap-3 text-xs text-text-muted">
           <span>ความเสี่ยง: {rec.risk}</span>
-          <span>Tier {rec.hero.stat.tier}</span>
+          {rec.hero.stat.hasStats && <span>Tier {rec.hero.stat.tier}</span>}
         </div>
         <ul className="space-y-1 text-sm text-text-muted">
           {rec.reasons.map((r) => <li key={r}>• {r}</li>)}

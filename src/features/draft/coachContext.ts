@@ -1,16 +1,37 @@
 import type { HeroSummary } from "@/types/hero";
 import type { AbilitiesByHero } from "@/services/abilities";
-import type { Recommendation } from "./analyzeTeam";
+import { analyzeTeam, type Recommendation } from "./analyzeTeam";
 
 // Edge function ai-coach ตัด context ที่ 8000 ตัวอักษร (JSON.stringify(...).slice(0, 8000))
 // ถ้าเกิน JSON จะขาดกลางทาง AI อ่านไม่ออก จึงเผื่อไว้ที่ 7200 แล้วค่อยๆ ย่อข้อความสกิลจนพอดี
 const BUDGET = 7200;
 const TEXT_STEPS = [320, 220, 150, 100, 60, 0];
 
+// บอก AI ตรงๆ ว่าข้อมูลส่วนไหนเชื่อได้แค่ไหน (ดู system prompt ใน ai-coach ด้วย)
+const DATA_NOTE =
+  "stat เป็น null = ยังไม่มีสถิติจริง ห้ามอ้าง Tier/Win Rate; " +
+  "teamProfile และ reasons ที่พูดถึงแนวหน้า/CC/ดาเมจ เป็นการประเมินคร่าวๆ ตามบทบาท (heuristic) ไม่ใช่ข้อมูลยืนยัน";
+
 const squash = (s: string, n: number) => {
   const t = s.replace(/\s+/g, " ").trim();
   return t.length <= n ? t : `${t.slice(0, Math.max(0, n - 1))}…`;
 };
+
+// สถิติจริงเท่านั้น: ฮีโร่ที่ไม่มีสถิติจะมีค่าเริ่มต้น (Tier C / 0%) ซึ่งเป็นค่าสมมติ ห้ามส่งให้ AI
+function statOf(hero: HeroSummary) {
+  const s = hero.stat;
+  if (!s.hasStats) return null;
+  return { tier: s.tier, winRate: s.winRate, patch: s.patch };
+}
+
+// ภาพรวมทีมแบบหยาบ (จาก ROLE_TAGS) — null ถ้าทีมยังว่าง
+function teamProfile(team: HeroSummary[]) {
+  if (team.length === 0) return null;
+  const a = analyzeTeam(team);
+  const damage =
+    a.physicalDamage >= a.magicDamage * 2 ? "physical" : a.magicDamage >= a.physicalDamage * 2 ? "magic" : "mixed";
+  return { heroes: team.length, damage, frontline: a.frontline, cc: a.cc };
+}
 
 function skillsOf(skills: AbilitiesByHero, hero: HeroSummary, n: number) {
   return (skills[hero.id] ?? []).map((a) => ({
@@ -56,13 +77,15 @@ export function buildPickContext(
   return fit((n) => ({
     hero: rec.hero.nameTh,
     role: rec.hero.role,
-    tier: rec.hero.stat.tier,
+    stat: statOf(rec.hero), // null = ไม่มีสถิติจริง
     risk: rec.risk,
     reasons: rec.reasons,
     warnings: rec.warnings,
     combos: rec.details.combos, // [{ partner, reason }]
     counters: rec.details.counters, // [{ enemy, direction, level, reason, laneTip }]
     team: { mine: mine.map((h) => h.nameTh), enemy: enemies.map((h) => h.nameTh) },
+    teamProfile: { mine: teamProfile(mine), enemy: teamProfile(enemies) },
+    dataNote: DATA_NOTE,
     heroes: heroes.map((h) => heroBlock(skills, h, n)), // สกิลจริงจากฐานข้อมูล
   }));
 }
@@ -75,6 +98,8 @@ export function buildDraftContext(
   const { mine, enemies, skills } = opts;
   return fit((n) => ({
     ...base,
+    teamProfile: { mine: teamProfile(mine), enemy: teamProfile(enemies) },
+    dataNote: DATA_NOTE,
     heroes: [...mine, ...enemies].map((h) => ({ team: mine.includes(h) ? "mine" : "enemy", ...heroBlock(skills, h, n) })),
   }));
 }
