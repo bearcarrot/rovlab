@@ -5,6 +5,7 @@ import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { RankFilterRow } from "@/features/heroes/RankFilterRow";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -60,6 +61,7 @@ export function TierList() {
       </div>
 
       <div className="space-y-2">
+        <RankFilterRow />
         <RoleFilterRow value={role} onChange={setRole} />
         <LaneFilterRow value={lane} onChange={setLane} />
       </div>
