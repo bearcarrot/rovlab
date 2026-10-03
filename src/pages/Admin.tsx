@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { AlertCircle, Check, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
-import { LaneFilterRow, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { clearFilterIconsCache } from "@/services/filterIcons";
@@ -370,14 +370,19 @@ function Btn({
   return <button type="button" {...p} className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${className}`} />;
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={`min-w-0 ${className}`}>
       <span className="mb-1.5 block text-xs font-medium text-text-muted">{label}</span>
       {children}
     </div>
   );
 }
+
+// ฟอร์มแก้ไข/เพิ่ม: จอ ≥ sm จัดช่องสั้นเป็น 2 คอลัมน์ ช่องยาว (ข้อความหลายบรรทัด ปุ่มหลายตัว รูป ลิสต์) เต็มความกว้าง
+const fieldGrid = "grid gap-3 sm:grid-cols-2";
+const fieldSpan = (c: Col) =>
+  c.type === "area" || c.type === "multi" || c.type === "img" || c.type === "arr" ? "sm:col-span-2" : "";
 
 // ---------- helpers ----------
 
@@ -667,13 +672,18 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   // ค่าที่จำไว้ (sessionStorage) รีเฟรชแล้วไม่หาย: ชิปตำแหน่ง/เลน, แรงก์/แพตช์/เลนของ Tier List, ตัวเลือกใน dropdown
-  const [role, setRole] = usePersistedState<HeroRole | null>(`admin:${id}:role`, null);
-  const [lane, setLane] = usePersistedState<HeroLane | null>(`admin:${id}:lane`, null);
+  const [roleSaved, setRole] = usePersistedState<HeroRole | null>(`admin:${id}:role`, null);
+  const [laneSaved, setLane] = usePersistedState<HeroLane | null>(`admin:${id}:lane`, null);
   const tl = cfg.filter?.tierList;
-  const [rankV, setRankV] = usePersistedState<string>(`admin:${id}:rank`, tl?.ranks[0]?.value ?? "");
+  const [rankSaved, setRankV] = usePersistedState<string>(`admin:${id}:rank`, tl?.ranks[0]?.value ?? "");
   const [patchSaved, setPatchSaved] = usePersistedState<string>(`admin:${id}:patch`, "");
-  const [listLane, setListLane] = usePersistedState<HeroLane | null>(`admin:${id}:listlane`, null);
+  const [listLaneSaved, setListLane] = usePersistedState<HeroLane | null>(`admin:${id}:listlane`, null);
   const [fvSaved, setFvSaved] = usePersistedState<string>(`admin:${id}:fv`, "");
+  // ค่าที่จำไว้อาจเก่า (เช่นรหัสตำแหน่ง/เลนที่เปลี่ยนชื่อไปแล้ว) ใช้เฉพาะค่าที่ยังมีอยู่ ไม่งั้นกลับไปค่าเริ่มต้น
+  const role = ROLE_OPTIONS.some((o) => o.value === roleSaved) ? roleSaved : null;
+  const lane = LANE_OPTIONS.some((o) => o.value === laneSaved) ? laneSaved : null;
+  const listLane = LANE_OPTIONS.some((o) => o.value === listLaneSaved) ? listLaneSaved : null;
+  const rankV = tl?.ranks.some((r) => r.value === rankSaved) ? rankSaved : (tl?.ranks[0]?.value ?? "");
   // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
   const orig = useRef<Record<string, Row>>({});
 
@@ -863,7 +873,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           ) : (
             cfg.filter && (
               <select
-                className={`${inp} sm:w-auto sm:min-w-[18rem]`}
+                className={`${inp} sm:w-auto sm:min-w-[18rem] sm:max-w-full`}
                 value={fv}
                 onChange={(e) => setFvSaved(e.target.value)}
               >
@@ -907,7 +917,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
 
       {/* จำนวนช่องรูนต่อสี (สีละ 10 ช่อง) — เตือนเท่านั้น ไม่ขวางการบันทึก */}
       {slotInfo && (
-        <section aria-label="จำนวนช่องรูน" className="space-y-2 rounded-card border border-border bg-bg-surface p-3 shadow-card">
+        <section aria-label="จำนวนช่องรูน" className="space-y-2 rounded-card border border-border bg-bg-surface p-3 shadow-card sm:max-w-xl">
           <div className="grid grid-cols-3 gap-2">
             {SLOT_COLORS.map(({ k, label, hex }) => {
               const n = slotInfo.used[k];
@@ -951,9 +961,9 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         (showAdd ? (
           <section className="space-y-4 rounded-card border border-accent/40 bg-bg-surface p-4 shadow-card">
             <h2 className="font-display text-base font-semibold">เพิ่ม{cfg.label}</h2>
-            <div className="space-y-3">
+            <div className={fieldGrid}>
               {cfg.cols.map((c) => (
-                <Field key={c.k} label={c.label ?? c.k}>
+                <Field key={c.k} label={c.label ?? c.k} className={fieldSpan(c)}>
                   <Cell
                     c={c}
                     v={draft[c.k]}
@@ -982,11 +992,11 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         {view.length === rows.length ? rows.length : `${view.length}/${rows.length}`} รายการ · แก้ไขแล้วบันทึกอัตโนมัติ
       </p>
 
-      {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข */}
-      <div className="space-y-2">
+      {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข จอ ≥ lg เรียง 2 คอลัมน์ การ์ดที่เปิดอยู่กินเต็มแถว */}
+      <div className="grid gap-2 lg:grid-cols-2 lg:items-start">
         {view.length === 0 &&
           (tl && !fv ? (
-            <div className="space-y-3 rounded-card border border-dashed border-border p-6 text-center">
+            <div className="space-y-3 rounded-card border border-dashed border-border p-6 text-center lg:col-span-2">
               <p className="text-sm text-text-muted">ยังไม่มี Tier List สำหรับแรงก์ / แพตช์ / เลนนี้</p>
               {patchV && (
                 <Btn variant="primary" onClick={() => void createList()}>
@@ -995,7 +1005,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
               )}
             </div>
           ) : (
-            <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
+            <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted lg:col-span-2">
               {rows.length === 0 ? "ยังไม่มีข้อมูล" : "ไม่พบรายการที่ตรงกับตัวกรองหรือคำค้นหา"}
             </p>
           ))}
@@ -1003,7 +1013,12 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           const open = openId === row.id;
           const { title, sub, img, round, tags } = info;
           return (
-            <article key={row.id} className="overflow-hidden rounded-card border border-border bg-bg-surface shadow-card">
+            <article
+              key={row.id}
+              className={`min-w-0 overflow-hidden rounded-card border border-border bg-bg-surface shadow-card ${
+                open ? "lg:col-span-2" : ""
+              }`}
+            >
               <button
                 type="button"
                 aria-expanded={open}
@@ -1041,9 +1056,9 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
 
               {open && (
                 <div className="space-y-4 border-t border-border p-4">
-                  <div className="space-y-3">
+                  <div className={fieldGrid}>
                     {cfg.cols.map((c) => (
-                      <Field key={c.k} label={c.label ?? c.k}>
+                      <Field key={c.k} label={c.label ?? c.k} className={fieldSpan(c)}>
                         <Cell
                           c={c}
                           v={row[c.k]}
@@ -1106,8 +1121,16 @@ export function Admin() {
   const { isAdmin, checking, error } = useIsAdmin();
   // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
   const [savedTab, setTab] = usePersistedState<string>("admin:tab", "heroes");
-  const tab = savedTab in CFG ? savedTab : "heroes";
+  const tab = Object.prototype.hasOwnProperty.call(CFG, savedTab) ? savedTab : "heroes";
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
+  const navRef = useRef<HTMLElement>(null);
+
+  // รีเฟรชแล้วแท็บที่จำไว้อาจอยู่นอกจอ (แถบแท็บเลื่อนแนวนอนบนมือถือ) เลื่อนให้แท็บที่เปิดอยู่มาอยู่กลางแถบ
+  useEffect(() => {
+    const nav = navRef.current;
+    const el = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (nav && el) nav.scrollTo({ left: el.offsetLeft - (nav.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  }, [tab, isAdmin]);
 
   // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์) พร้อมไอคอน (ถ้ามี) ไว้แสดงในการ์ดและช่องเลือก
   useEffect(() => {
@@ -1175,8 +1198,12 @@ export function Admin() {
     <div className="space-y-4">
       <h1 className="font-display text-xl font-semibold">RoVLab Admin</h1>
 
-      {/* แท็บ: มือถือเลื่อนแนวนอน เดสก์ท็อปขึ้นบรรทัดใหม่ */}
-      <nav aria-label="ตาราง" className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* แท็บ: มือถือเลื่อนแนวนอน (relative เพื่อให้คำนวณตำแหน่งเลื่อนได้) เดสก์ท็อปขึ้นบรรทัดใหม่ */}
+      <nav
+        ref={navRef}
+        aria-label="ตาราง"
+        className="relative overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div className="flex w-max gap-2 md:w-auto md:flex-wrap">
           {Object.entries(CFG).map(([k, c]) => (
             <button
