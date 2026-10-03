@@ -82,7 +82,7 @@ const CFG: Record<string, Cfg> = {
       { k: "name_th" },
       // แตะเลือกได้หลายตัว ตัวแรกที่เลือก (★) = ตำแหน่ง/เลนหลัก ระบบซิงค์ไปที่คอลัมน์ role / lane ให้เอง
       { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "marksman", "support", "tank"] },
-      { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "support"] },
+      { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
       { k: "icon_url", label: "ไอคอน", type: "img" },
       { k: "description", type: "area" },
