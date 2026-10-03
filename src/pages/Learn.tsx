@@ -56,7 +56,7 @@ export function Learn() {
       )}
 
       {guidesQ.status === "loading" && (
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
       )}
@@ -65,7 +65,7 @@ export function Learn() {
         <EmptyState icon={BookOpen} title="ยังไม่มีคู่มือในหมวดนี้" description="ลองเลือกหมวดอื่น" />
       )}
       {guidesQ.status === "success" && filtered.length > 0 && (
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {filtered.map((g) => (
             <Link
               key={g.id}

@@ -58,7 +58,7 @@ export function Stats() {
       <LaneFilterRow value={lane} onChange={setLane} />
 
       {heroesQ.status === "loading" && (
-        <div className="space-y-2">
+        <div className="grid gap-2 md:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
         </div>
       )}
@@ -71,7 +71,7 @@ export function Stats() {
         />
       )}
       {heroesQ.status === "success" && sorted.length > 0 && (
-        <div className="space-y-2">
+        <div className="grid gap-2 md:grid-cols-2">
           {sorted.map((h) => (
             <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} />
           ))}

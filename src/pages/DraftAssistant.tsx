@@ -180,23 +180,26 @@ export function DraftAssistant() {
         <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ทีละช่อง ระบบจะประเมินคอมโพสิชันและแนะนำตัวถัดไป</p>
       </div>
 
-      <TeamSlots
-        label="ทีมของคุณ"
-        team={myTeam}
-        activeIndex={active?.team === "mine" ? active.index : null}
-        onSelectSlot={(i) => setActive({ team: "mine", index: i })}
-        onClearSlot={(i) => clearSlot("mine", i)}
-      />
-      <TeamSlots
-        label="ทีมศัตรู"
-        team={enemyTeam}
-        activeIndex={active?.team === "enemy" ? active.index : null}
-        onSelectSlot={(i) => setActive({ team: "enemy", index: i })}
-        onClearSlot={(i) => clearSlot("enemy", i)}
-      />
+      {/* md+ วางทีมเรา/ทีมศัตรูคู่กัน บนมือถือยังเรียงลงมาเหมือนเดิม */}
+      <div className="grid gap-5 md:grid-cols-2">
+        <TeamSlots
+          label="ทีมของคุณ"
+          team={myTeam}
+          activeIndex={active?.team === "mine" ? active.index : null}
+          onSelectSlot={(i) => setActive({ team: "mine", index: i })}
+          onClearSlot={(i) => clearSlot("mine", i)}
+        />
+        <TeamSlots
+          label="ทีมศัตรู"
+          team={enemyTeam}
+          activeIndex={active?.team === "enemy" ? active.index : null}
+          onSelectSlot={(i) => setActive({ team: "enemy", index: i })}
+          onClearSlot={(i) => clearSlot("enemy", i)}
+        />
+      </div>
 
       {active && (
-        <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+        <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-text-faint" />
             <input
@@ -213,7 +216,7 @@ export function DraftAssistant() {
             <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
           )}
           {heroesQ.status === "success" && filteredPool.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
               {filteredPool.map((h) => (
                 <button
                   key={h.id}
@@ -222,14 +225,14 @@ export function DraftAssistant() {
                     "flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-2 text-center hover:border-accent/40"
                   )}
                 >
-                  <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint">
+                  <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint sm:h-11 sm:w-11">
                     {h.icon ? (
                       <img
                         src={h.icon}
                         alt={h.nameTh}
                         loading="lazy"
                         referrerPolicy="no-referrer"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full rounded-md object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                           e.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -237,12 +240,12 @@ export function DraftAssistant() {
                       />
                     ) : null}
 
-                    <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                    <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
                       {h.name.slice(0, 2).toUpperCase()}
                     </span>
                     <HeroBalanceBadge heroId={h.id} />
                   </div>
-                  <span className="truncate text-[11px] leading-tight">{h.nameTh}</span>
+                  <span className="w-full truncate text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
                 </button>
               ))}
             </div>
