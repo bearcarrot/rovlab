@@ -14,7 +14,7 @@ Backend: Supabase (Postgres + Auth + RLS + Storage + Edge Functions); deploy tar
 | สกิล (`hero_abilities`) | 516 แถว แสดงใน Hero Detail — UI รองรับไอคอนสกิลแล้ว แต่ `icon_url` ยังว่างทั้ง 516 แถว (อัปโหลดผ่านหน้า `/admin`) |
 | สถิติ (`hero_stats`) | 258 แถว (Win/Pick/Ban Rate, Tier) อ่านเฉพาะแพตช์ล่าสุด (`patches.released_at`) ตาม rank ที่เลือกผ่านปุ่ม All / High ทั่วแอป — ถ้าฮีโร่ไม่มีแถวใน rank นั้นจะแสดง N/A (ไม่สลับไปใช้ rank อื่น) |
 | ชนะทาง/แพ้ทาง (`hero_counters`) | 387 แถว ใช้ใน Hero Detail, Counter Pick และคะแนนแนะนำใน Draft Assistant |
-| ซินเนอร์จี้ (`hero_synergies`) | อ่านจริงและใช้ใน Draft Assistant แต่ตอนนี้มีแค่ 1 แถว — การ์ด "ฮีโร่ที่เข้าคู่ดี" ส่วนใหญ่จะยังว่าง |
+| ซินเนอร์จี้ (`hero_synergies`) | อ่านจริงและใช้ใน Draft Assistant แต่ตอนนี้มีแค่ 1 แถว — การ์ด "ฮีโร่ที่คอมโบกับ {ชื่อฮีโร่} ได้ดี" ส่วนใหญ่จะยังว่าง |
 | ไอเทม (`items`) | 112 รายการ มีรูปครบ แสดงในหน้า Item Build (ชื่ออังกฤษในแอดมิน/บิลด์ ชื่อไทยใน DB เป็นการแปลเครื่องจึงใช้เป็นหลักไม่ได้) |
 | รูน (`arcana`) | 30 รูนเลเวล 3 ครบ มีสี (red / purple / green) รูป และสเตตัสต่อ 1 ช่องใน `description` |
 | บิลด์แนะนำ (`item_builds`, `item_build_items`, `item_build_arcana`) | Item Build อ่านจาก DB ก่อน ถ้าฮีโร่ไม่มีไอเทมใน DB จะสลับไปบิลด์ heuristic ตาม Role (มี label กำกับ) — ตอนนี้มีข้อมูล 2 บิลด์ / 10 ไอเทม / 7 แถวรูน รูนแยกเป็น 3 สี พร้อมจำนวนช่อง (x/10 ต่อสี) |

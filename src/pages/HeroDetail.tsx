@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Users, MessageCircle } from "lucide-react";
 import { getHeroBySlug } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { AskCoach } from "@/components/AskCoach";
+import { HeroIcon } from "@/components/HeroIcon";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
 import { BalanceIcon } from "@/features/balance/BalanceIcon";
@@ -205,19 +206,28 @@ export function HeroDetail() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>ฮีโร่ที่เข้าคู่ดี</CardTitle></CardHeader>
+        <CardHeader><CardTitle>ฮีโร่ที่คอมโบกับ {h.nameTh} ได้ดี</CardTitle></CardHeader>
         <CardContent>
           {h.synergies.length === 0 ? (
             <p className="text-sm text-text-faint">ยังไม่มีข้อมูล</p>
           ) : (
             <div className="grid gap-2 md:grid-cols-2">
               {h.synergies.map((s) => {
-                const nameTh = s.heroNameTh ?? MOCK_HEROES.find((m) => m.slug === s.heroSlug)?.nameTh;
+                const mock = MOCK_HEROES.find((m) => m.slug === s.heroSlug);
+                const nameTh = s.heroNameTh ?? mock?.nameTh;
                 if (!nameTh) return null;
+                const icon = s.heroIcon || mock?.icon || "";
                 return (
-                  <div key={s.heroSlug} className="rounded-lg border border-border bg-bg-raised p-3">
-                    <p className="font-display text-sm font-medium">{nameTh}</p>
-                    <p className="mt-1 text-sm text-text-muted">{s.reason}</p>
+                  <div key={s.heroSlug} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
+                    <Link to={`/heroes/${s.heroSlug}`} aria-label={nameTh} className="shrink-0">
+                      <HeroIcon icon={icon} name={nameTh} fallback={mock?.name.slice(0, 2).toUpperCase()} className="h-11 w-11" />
+                    </Link>
+                    <div className="min-w-0 flex-1">
+                      <Link to={`/heroes/${s.heroSlug}`} className="font-display text-sm font-medium hover:text-accent">
+                        {nameTh}
+                      </Link>
+                      <p className="mt-1 text-sm text-text-muted">{s.reason}</p>
+                    </div>
                   </div>
                 );
               })}
