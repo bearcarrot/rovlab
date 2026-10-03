@@ -1,5 +1,5 @@
 -- NOT yet applied to any Supabase project. Review, then run in the SQL editor (or `supabase db push`).
--- Adds username/rank/main_role to profiles, hardens handle_new_user, and requires a verified email to comment.
+-- Adds username/rank/main_role to profiles, hardens handle_new_user (incl. Google avatar), and requires a verified email to comment.
 
 -- 1) New profile columns -------------------------------------------------
 alter table public.profiles
@@ -55,6 +55,11 @@ create trigger profiles_touch_updated_at
 
 -- 2) New-user trigger: validate username from sign-up metadata -----------
 --    Google sign-ins have no username metadata, so they get a generated one.
+--    Google sign-ins also start with their Google profile picture as avatar (changeable/removable
+--    later via the `avatar` Edge Function).
+--    SECURITY: raw_user_meta_data is user-controlled for email sign-ups, so the picture is only
+--    accepted when raw_app_meta_data.provider (set by Supabase, not the client) is 'google' AND the URL
+--    points at Google's image CDN. Email sign-ups can never set an avatar this way (it would skip moderation).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -64,6 +69,7 @@ as $$
 declare
   v_display text := left(btrim(coalesce(new.raw_user_meta_data->>'display_name', '')), 30);
   v_user text := btrim(coalesce(new.raw_user_meta_data->>'username', ''));
+  v_avatar text := coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture');
 begin
   if char_length(v_display) < 2 then
     v_display := 'ผู้เล่น' || substr(md5(new.id::text), 1, 4);
@@ -77,12 +83,29 @@ begin
     raise exception 'username_taken';
   end if;
 
-  insert into public.profiles (id, display_name, username)
-  values (new.id, v_display, v_user)
+  if (new.raw_app_meta_data->>'provider') is distinct from 'google'
+     or v_avatar is null
+     or char_length(v_avatar) > 500
+     or v_avatar !~ '^https://lh[0-9]+\.googleusercontent\.com/' then
+    v_avatar := null;
+  end if;
+
+  insert into public.profiles (id, display_name, username, avatar_url)
+  values (new.id, v_display, v_user, v_avatar)
   on conflict (id) do nothing;
   return new;
 end;
 $$;
+
+-- Optional one-off backfill for Google users who signed up before this migration and have no avatar.
+-- Left commented out on purpose: it changes existing users' public profiles, so run it only if you want that.
+-- update public.profiles p
+-- set avatar_url = coalesce(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture')
+-- from auth.users u
+-- where u.id = p.id
+--   and p.avatar_url is null
+--   and u.raw_app_meta_data->>'provider' = 'google'
+--   and coalesce(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture') ~ '^https://lh[0-9]+\.googleusercontent\.com/';
 
 -- 3) Username availability check for the register form -------------------
 create or replace function public.username_available(p_username text)
