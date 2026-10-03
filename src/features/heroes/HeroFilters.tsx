@@ -12,12 +12,13 @@ export const ROLE_OPTIONS: { value: HeroRole; label: string }[] = [
   { value: "tank", label: "แทงค์" },
 ];
 
+// value เป็นรหัสที่ผูกกับ DB (CHECK ใน hero_lanes / heroes.lane) ห้ามเปลี่ยน — เปลี่ยนได้เฉพาะ label ที่แสดง
 export const LANE_OPTIONS: { value: HeroLane; label: string }[] = [
   { value: "slayer", label: "Slayer" },
   { value: "jungle", label: "Jungle" },
   { value: "mid", label: "Mid" },
   { value: "abyssal", label: "Abyssal" },
-  { value: "support", label: "Support" },
+  { value: "support", label: "Roaming" },
 ];
 
 const NO_ICONS: FilterIcons = { roles: {}, lanes: {} };
