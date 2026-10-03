@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
+import { RequireAuth } from "@/features/auth/RequireAuth";
 import { Home } from "@/pages/Home";
 import { Heroes } from "@/pages/Heroes";
 import { HeroDetail } from "@/pages/HeroDetail";
@@ -13,6 +14,9 @@ import { Favorites } from "@/pages/Favorites";
 import { Profile } from "@/pages/Profile";
 import { PlayerProfile } from "@/pages/PlayerProfile";
 import { Login } from "@/pages/Login";
+import { Register } from "@/pages/Register";
+import { ForgotPassword } from "@/pages/ForgotPassword";
+import { ResetPassword } from "@/pages/ResetPassword";
 import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
 import { GuideDetail } from "@/pages/GuideDetail";
@@ -62,10 +66,26 @@ export default function App() {
             </WithNav>
           }
         />
-        <Route path="favorites" element={<Favorites />} />
-        <Route path="profile" element={<WithNav crumbs={[HOME, { label: "โปรไฟล์" }]}><Profile /></WithNav>} />
+        <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
+        <Route
+          path="profile"
+          element={
+            <RequireAuth>
+              <WithNav crumbs={[HOME, { label: "โปรไฟล์" }]}><Profile /></WithNav>
+            </RequireAuth>
+          }
+        />
         <Route path="players/:id" element={<WithNav crumbs={[HOME, { label: "โปรไฟล์ผู้เล่น" }]}><PlayerProfile /></WithNav>} />
         <Route path="login" element={<WithNav crumbs={[HOME, { label: "เข้าสู่ระบบ" }]}><Login /></WithNav>} />
+        <Route path="register" element={<WithNav crumbs={[HOME, { label: "สมัครสมาชิก" }]} fallback="/login"><Register /></WithNav>} />
+        <Route
+          path="forgot-password"
+          element={<WithNav crumbs={[HOME, { label: "ลืมรหัสผ่าน" }]} fallback="/login"><ForgotPassword /></WithNav>}
+        />
+        <Route
+          path="reset-password"
+          element={<WithNav crumbs={[HOME, { label: "ตั้งรหัสผ่านใหม่" }]} fallback="/login"><ResetPassword /></WithNav>}
+        />
         <Route path="admin" element={<WithNav crumbs={[HOME, { label: "แอดมิน" }]}><AdminHub /></WithNav>} />
         <Route path="privacy" element={<WithNav crumbs={[HOME, { label: "Privacy Policy" }]}><PrivacyPolicy /></WithNav>} />
         <Route path="terms" element={<WithNav crumbs={[HOME, { label: "Terms of Use" }]}><TermsOfUse /></WithNav>} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle, Trash2 } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
+import { VerifyEmailNotice } from "@/features/auth/VerifyEmailNotice";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -17,7 +18,7 @@ function formatWhen(iso: string) {
 }
 
 export function HeroComments({ heroSlug }: { heroSlug: string }) {
-  const { user } = useAuth();
+  const { user, isVerified } = useAuth();
   const [reloadKey, setReloadKey] = useState(0);
   const listQ = useAsync(() => listHeroComments(heroSlug), [heroSlug, reloadKey]);
   const [text, setText] = useState("");
@@ -36,7 +37,7 @@ export function HeroComments({ heroSlug }: { heroSlug: string }) {
   }
 
   async function submit() {
-    if (!user || busy) return;
+    if (!user || !isVerified || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -66,7 +67,7 @@ export function HeroComments({ heroSlug }: { heroSlug: string }) {
 
   return (
     <div className="space-y-4">
-      {user ? (
+      {user && isVerified ? (
         <div className="space-y-2">
           <textarea
             value={text}
@@ -87,6 +88,8 @@ export function HeroComments({ heroSlug }: { heroSlug: string }) {
             </button>
           </div>
         </div>
+      ) : user ? (
+        <VerifyEmailNotice />
       ) : (
         <p className="text-sm text-text-muted">
           <Link to="/login" className="text-accent underline">เข้าสู่ระบบ</Link> เพื่อแสดงความคิดเห็น
