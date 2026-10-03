@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
+import { validateEmail } from "@/features/auth/email";
 import { checkUsernameAvailable, validateUsername } from "@/features/auth/username";
 import { useCooldown } from "@/features/auth/useCooldown";
 import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/auth/styles";
@@ -50,9 +51,12 @@ export function Register() {
     setInfo(null);
     const uErr = validateUsername(username);
     if (uErr) return setError(uErr);
+    const eErr = validateEmail(email);
+    if (eErr) return setError(eErr);
     if (password.length < 6) return setError("รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร");
     if (password !== confirm) return setError("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
 
+    const cleanEmail = email.trim();
     setBusy(true);
     submitted.current = true;
     if (!(await checkUsernameAvailable(username))) {
@@ -60,12 +64,13 @@ export function Register() {
       setBusy(false);
       return setError("Username นี้ถูกใช้แล้วหรือใช้ไม่ได้ กรุณาเลือกชื่ออื่น");
     }
-    const res = await signUpWithEmail(email, password, username, next);
+    const res = await signUpWithEmail(cleanEmail, password, username, next);
     setBusy(false);
     if (res.error) {
       submitted.current = false;
       return setError(authErrorMessage(res.code, "สมัครสมาชิกไม่สำเร็จ ลองเปลี่ยน Username หรือลองใหม่อีกครั้ง"));
     }
+    setEmail(cleanEmail);
     if (res.needsVerification) {
       cooldown.start();
       setDone(true);
@@ -136,12 +141,10 @@ export function Register() {
     <div className="mx-auto max-w-sm space-y-5">
       <h1 className="font-display text-xl font-semibold">สมัครสมาชิก</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} noValidate className="space-y-3">
         <div className="space-y-1">
           <input
             type="text"
-            required
-            minLength={3}
             maxLength={20}
             autoComplete="username"
             autoCapitalize="none"
@@ -154,17 +157,16 @@ export function Register() {
         </div>
         <input
           type="email"
-          required
+          inputMode="email"
+          autoCapitalize="none"
           autoComplete="email"
-          placeholder="อีเมล"
+          placeholder="อีเมล (เช่น name@example.com)"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputCls}
         />
         <input
           type="password"
-          required
-          minLength={6}
           autoComplete="new-password"
           placeholder="รหัสผ่าน"
           value={password}
@@ -173,8 +175,6 @@ export function Register() {
         />
         <input
           type="password"
-          required
-          minLength={6}
           autoComplete="new-password"
           placeholder="ยืนยันรหัสผ่าน"
           value={confirm}

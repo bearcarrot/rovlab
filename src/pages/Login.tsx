@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
+import { validateEmail } from "@/features/auth/email";
 import { useCooldown } from "@/features/auth/useCooldown";
 import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/auth/styles";
 
@@ -45,8 +46,11 @@ export function Login() {
     setError(null);
     setInfo(null);
     setUnverified(false);
+    const emailErr = validateEmail(email);
+    if (emailErr) return setError(emailErr);
+    if (!password) return setError("กรุณากรอกรหัสผ่าน");
     setBusy(true);
-    const { error: err, code } = await signInWithEmail(email, password);
+    const { error: err, code } = await signInWithEmail(email.trim(), password);
     setBusy(false);
     if (err) {
       if (code === "email_not_confirmed") setUnverified(true);
@@ -67,10 +71,12 @@ export function Login() {
   }
 
   async function handleResend() {
-    if (!email || busy || cooldown.remaining > 0) return;
+    if (busy || cooldown.remaining > 0) return;
+    const emailErr = validateEmail(email);
+    if (emailErr) return setError(emailErr);
     setError(null);
     setBusy(true);
-    const { error: err, code } = await resendVerification(email, next);
+    const { error: err, code } = await resendVerification(email.trim(), next);
     setBusy(false);
     if (err) setError(authErrorMessage(code));
     else {
@@ -83,10 +89,11 @@ export function Login() {
     <div className="mx-auto max-w-sm space-y-5">
       <h1 className="font-display text-xl font-semibold">เข้าสู่ระบบ</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} noValidate className="space-y-3">
         <input
           type="email"
-          required
+          inputMode="email"
+          autoCapitalize="none"
           autoComplete="email"
           placeholder="อีเมล"
           value={email}
@@ -95,8 +102,6 @@ export function Login() {
         />
         <input
           type="password"
-          required
-          minLength={6}
           autoComplete="current-password"
           placeholder="รหัสผ่าน"
           value={password}

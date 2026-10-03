@@ -4,6 +4,7 @@ import { UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { authErrorMessage } from "@/features/auth/errors";
+import { validateEmail } from "@/features/auth/email";
 import { useCooldown } from "@/features/auth/useCooldown";
 import { inputCls, linkBtnCls, primaryBtnCls } from "@/features/auth/styles";
 
@@ -28,8 +29,12 @@ export function ForgotPassword() {
     e.preventDefault();
     if (busy || cooldown.remaining > 0) return;
     setError(null);
+    setSent(false);
+    // ตรวจรูปแบบอีเมลก่อนส่ง (รูปแบบผิด = แจ้งผู้ใช้ได้ ไม่เกี่ยวกับการเปิดเผยว่ามีบัญชีหรือไม่)
+    const emailErr = validateEmail(email);
+    if (emailErr) return setError(emailErr);
     setBusy(true);
-    const { code } = await sendPasswordReset(email);
+    const { code } = await sendPasswordReset(email.trim());
     setBusy(false);
     // ข้อความเหมือนกันไม่ว่าอีเมลนี้จะมีบัญชีหรือไม่ — แจ้งเฉพาะกรณีโดน rate limit
     if (code === "over_request_rate_limit" || code === "over_email_send_rate_limit") {
@@ -45,10 +50,11 @@ export function ForgotPassword() {
       <h1 className="font-display text-xl font-semibold">ลืมรหัสผ่าน</h1>
       <p className="text-sm text-text-muted">กรอกอีเมลที่ใช้สมัคร เราจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ให้</p>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} noValidate className="space-y-3">
         <input
           type="email"
-          required
+          inputMode="email"
+          autoCapitalize="none"
           autoComplete="email"
           placeholder="อีเมล"
           value={email}
