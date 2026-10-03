@@ -1,11 +1,12 @@
 import { BalanceIcon } from "./BalanceIcon";
 import { useRecentBalance } from "./useRecentBalance";
+import type { HeroSummary } from "@/types/hero";
 
 /**
  * ไอคอน buff / nerf / adjust / rework มุมขวาล่างของรูปฮีโร่
  * วางไว้ใน element ที่เป็น `relative` (กรอบรูปฮีโร่) — ไม่แสดงอะไรถ้าฮีโร่ไม่ได้ถูกปรับในแพตช์ล่าสุด
  */
-export function HeroBalanceBadge({ heroId }: { heroId: string }) {
+export function HeroBalanceBadge({ heroId }: { heroId: HeroSummary["id"] }) {
   const recent = useRecentBalance();
   const kind = recent?.get(heroId);
   if (!kind) return null;
