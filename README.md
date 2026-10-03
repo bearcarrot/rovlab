@@ -13,7 +13,7 @@ Backend: Supabase (Postgres + Auth + RLS + Storage + Edge Functions); deploy tar
 | ฮีโร่ (`heroes`) | 129 ตัว มีไอคอนครบ รองรับหลายตำแหน่ง/หลายเลนต่อฮีโร่ (`roles` / `lanes`, ตาราง `hero_roles` / `hero_lanes`) |
 | สกิล (`hero_abilities`) | 516 แถว แสดงใน Hero Detail — UI รองรับไอคอนสกิลแล้ว แต่ `icon_url` ยังว่างทั้ง 516 แถว (อัปโหลดผ่านหน้า `/admin`) |
 | สถิติ (`hero_stats`) | 258 แถว (Win/Pick/Ban Rate, Tier) อ่านเฉพาะแพตช์ล่าสุด (`patches.released_at`) ตาม rank ที่เลือกผ่านปุ่ม All / High ทั่วแอป — ถ้าฮีโร่ไม่มีแถวใน rank นั้นจะแสดง N/A (ไม่สลับไปใช้ rank อื่น) |
-| ตัวสวน (`hero_counters`) | 387 แถว ใช้ใน Hero Detail, Counter Pick และคะแนนแนะนำใน Draft Assistant |
+| ชนะทาง/แพ้ทาง (`hero_counters`) | 387 แถว ใช้ใน Hero Detail, Counter Pick และคะแนนแนะนำใน Draft Assistant |
 | ซินเนอร์จี้ (`hero_synergies`) | อ่านจริงและใช้ใน Draft Assistant แต่ตอนนี้มีแค่ 1 แถว — การ์ด "ฮีโร่ที่เข้าคู่ดี" ส่วนใหญ่จะยังว่าง |
 | ไอเทม (`items`) | 112 รายการ มีรูปครบ แสดงในหน้า Item Build (ชื่ออังกฤษในแอดมิน/บิลด์ ชื่อไทยใน DB เป็นการแปลเครื่องจึงใช้เป็นหลักไม่ได้) |
 | รูน (`arcana`) | 30 รูนเลเวล 3 ครบ มีสี (red / purple / green) รูป และสเตตัสต่อ 1 ช่องใน `description` |
@@ -49,10 +49,10 @@ Backend: Supabase (Postgres + Auth + RLS + Storage + Edge Functions); deploy tar
 | Path | หน้า |
 |---|---|
 | `/` | Home Dashboard: Insight cards, Quick actions, Hero rows (Win Rate / Ban Rate สูงสุด) |
-| `/heroes`, `/heroes/:slug` | Hero Database (ค้นหา + กรอง Role/Lane) และ Hero Detail (สถิติ สกิล จุดแข็ง/อ่อน ใครสวน/สวนใคร ซินเนอร์จี้ คอมเมนต์ ปุ่มรายการโปรด ถามโค้ช AI) แสดงตำแหน่ง/เลนทั้งหมดของฮีโร่ |
+| `/heroes`, `/heroes/:slug` | Hero Database (ค้นหา + กรอง Role/Lane) และ Hero Detail (สถิติ สกิล จุดแข็ง/อ่อน แพ้ทางใครบ้าง/ชนะทางใครได้ ซินเนอร์จี้ คอมเมนต์ ปุ่มรายการโปรด ถามโค้ช AI) แสดงตำแหน่ง/เลนทั้งหมดของฮีโร่ |
 | `/tier-list` | จัดกลุ่มตาม Tier พร้อมเหตุผลสั้น ๆ ต่อฮีโร่ กรอง Role/Lane |
 | `/stats` | Win / Pick / Ban Rate เรียงจากมากไปน้อย กรอง Lane |
-| `/counter-pick` | เลือกฮีโร่ศัตรู → ดูตัวสวนพร้อมไอคอน เหตุผล และคำแนะนำเลน (จาก `hero_counters`) |
+| `/counter-pick` | เลือกฮีโร่ศัตรู → ดูฮีโร่ที่ชนะทางพร้อมไอคอน เหตุผล และคำแนะนำเลน (จาก `hero_counters`) |
 | `/matchup` | เทียบฮีโร่ 2 ตัว — ข้อมูลเจาะจง (curated) หรือ heuristic จาก Win Rate (label ชัดเจนทั้งสองแบบ) |
 | `/draft` | Draft Assistant: เลือกทีมทีละช่อง วิเคราะห์ดาเมจ/แนวหน้า/CC/Mobility/Sustain/Early-Late แนะนำตัวถัดไปพร้อมเหตุผล รองรับโหมด First Pick และคะแนนจาก counter/synergy |
 | `/build` | Item Build: บิลด์แยกตามช่วงเกมพร้อมเหตุผล + หน้ารูนแยก 3 สี (label curated vs heuristic) |
@@ -105,7 +105,7 @@ VITE_SUPABASE_ANON_KEY=<anon key>
 7. ข้อควรระวัง: free tier มี rate limit ต่อโปรเจกต์ (เจอ 429 ได้) และ Google อาจนำเนื้อหาที่ส่งไปใช้ปรับปรุงผลิตภัณฑ์ — ห้ามส่งข้อมูลส่วนตัวผู้ใช้เข้า prompt (รูปโปรไฟล์ที่อัปโหลดจะถูกส่งไปให้ Gemini ตรวจ)
 
 ## หมายเหตุเรื่องข้อมูล
-- ข้อมูลฮีโร่ สกิล สถิติ ตัวสวน ไอเทม และรูนมาจาก Supabase จริงเมื่อตั้งค่า `.env` ส่วนที่ยังเป็น mock ที่ label ไว้ชัดเจน (`src/data/*.mock.ts`) คือ matchup, Home insights และเนื้อหาคู่มือ ถ้าไม่ตั้งค่า Supabase แอปจะ fallback เป็น mock ทั้งหมด
+- ข้อมูลฮีโร่ สกิล สถิติ ชนะทาง/แพ้ทาง ไอเทม และรูนมาจาก Supabase จริงเมื่อตั้งค่า `.env` ส่วนที่ยังเป็น mock ที่ label ไว้ชัดเจน (`src/data/*.mock.ts`) คือ matchup, Home insights และเนื้อหาคู่มือ ถ้าไม่ตั้งค่า Supabase แอปจะ fallback เป็น mock ทั้งหมด
 - **แหล่งรูปภาพ:** ไอคอนไอเทมอ้างจาก `lienquan.garena.vn` และไอคอนรูนอ้างจาก CDN ของ Garena Thailand (`cdn-webth.garenanow.com`) โดยตรง (hotlink) ไม่ได้อัปโหลดเก็บเอง ถ้าเจ้าของเปลี่ยน URL หรือบล็อก hotlink รูปจะแสดงเป็นตัวอักษรย่อแทน (fallback ของ `HeroIcon`) และควรพิจารณาย้ายไปเก็บใน Supabase Storage และตรวจสิทธิ์การใช้งานงานศิลป์เกม
 - **ค่าสเตตัสรูน** (`arcana.description`) คือค่าเลเวล 3 จากแหล่งข้อมูลของบุคคลที่สาม (ปี 2019) ยังไม่ได้เทียบกับแพตช์ปัจจุบันของเกม
 - **ชื่อไอเทม** ภาษาอังกฤษในคอลัมน์ `items.name` ไม่น่าเชื่อถือทุกแถว (บางแถวชื่อไม่ตรงกับชนิดไอเทม) ควรตรวจทานบางแถวก่อนขึ้นบิลด์จริง
