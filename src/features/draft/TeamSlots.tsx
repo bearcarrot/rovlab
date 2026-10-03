@@ -2,6 +2,7 @@ import { Plus, X } from "lucide-react";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { HeroBalanceMark } from "@/features/balance/HeroBalanceMark";
 
 function HeroSlotIcon({ hero }: { hero: HeroSummary }) {
   const [imageError, setImageError] = useState(false);
@@ -59,6 +60,7 @@ export function TeamSlots({
             {hero ? (
               <>
                 <HeroSlotIcon hero={hero} />
+                <HeroBalanceMark heroId={hero.id} className="absolute -left-1 -top-1 z-10" />
 
                 <span className="max-w-full truncate px-1 text-[10px] font-medium leading-tight">
                   {hero.nameTh}
