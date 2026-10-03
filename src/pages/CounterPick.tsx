@@ -17,7 +17,7 @@ export function CounterPick() {
   const [selected, setSelected] = useState<string | null>(null);
   const filters = useHeroFilters();
 
-  // ข้อมูลตัวสวนจริงจาก Supabase (hero_counters) ผ่าน getHeroBySlug — ไม่ใช้ mock แล้ว
+  // ข้อมูลฮีโร่ที่ชนะทางจริงจาก Supabase (hero_counters) ผ่าน getHeroBySlug — ไม่ใช้ mock แล้ว
   const detailQ = useAsync(() => (selected ? getHeroBySlug(selected) : Promise.resolve(null)), [selected]);
 
   const filtered = useMemo(() => {
@@ -28,7 +28,7 @@ export function CounterPick() {
     );
   }, [heroes, query, filters.match]);
 
-  // slug → icon URL จากรายชื่อฮีโร่ที่โหลดแล้ว ใช้เป็น fallback แสดงไอคอนในรายการตัวสวน
+  // slug → icon URL จากรายชื่อฮีโร่ที่โหลดแล้ว ใช้เป็น fallback แสดงไอคอนในรายการฮีโร่ที่ชนะทาง
   const iconBySlug = useMemo<Record<string, string>>(() => {
     if (heroes.status !== "success") return {};
     return Object.fromEntries(heroes.data.map((h) => [h.slug, h.icon]));
@@ -41,7 +41,7 @@ export function CounterPick() {
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-xl font-semibold">Counter Pick</h1>
-        <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ฝั่งศัตรู ระบบจะบอกว่าใครสวนได้ และทำไม</p>
+        <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ฝั่งศัตรู ระบบจะบอกว่าใครชนะทางได้ และทำไม</p>
       </div>
 
       <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
@@ -107,7 +107,7 @@ export function CounterPick() {
         <div className="space-y-4 border-t border-border pt-4">
           <div className="flex items-center gap-2">
             <GitCompareArrows className="h-4 w-4 text-accent" />
-            <h2 className="font-display text-base font-semibold">ตัวสวน {selectedHero.nameTh}</h2>
+            <h2 className="font-display text-base font-semibold">{selectedHero.nameTh} แพ้ทางใครบ้าง</h2>
           </div>
 
           {detailQ.status === "loading" && <Skeleton className="h-40" />}
@@ -118,7 +118,7 @@ export function CounterPick() {
               <AskCoach
                 resetKey={selected}
                 label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"
-                prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นสวนและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
+                prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นให้ชนะทางและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
                 context={{ enemy: selectedHero.nameTh, counteredBy: counters }}
               />
             </>
@@ -126,7 +126,7 @@ export function CounterPick() {
           {detailQ.status === "success" && counters.length === 0 && (
             <EmptyState
               icon={GitCompareArrows}
-              title="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้"
+              title="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร"
               description="ทีมงานกำลังเพิ่มข้อมูลเชิงลึกสำหรับฮีโร่ทุกตัว"
             />
           )}
