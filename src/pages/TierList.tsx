@@ -4,6 +4,7 @@ import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -22,8 +23,12 @@ export function TierList() {
 
   const grouped = useMemo(() => {
     if (heroes.status !== "success") return null;
+    // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนต้องขึ้นในทุกตัวกรองที่ตรง (ใช้ roles/lanes ทั้งอาร์เรย์ ไม่ใช่แค่ค่าหลัก)
     const filtered = heroes.data.filter(
-      (h) => h.stat.hasStats && (role === null || h.role === role) && (lane === null || h.lane === lane)
+      (h) =>
+        h.stat.hasStats &&
+        (role === null || heroRoles(h).includes(role)) &&
+        (lane === null || heroLanes(h).includes(lane))
     );
     const map = new Map<Tier, typeof filtered>();
     for (const t of TIER_ORDER) map.set(t, []);
