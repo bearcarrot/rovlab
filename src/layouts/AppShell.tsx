@@ -21,10 +21,11 @@ export function AppShell() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onOpenDrawer={() => setDrawerOpen(true)} />
-        <main className="flex-1 overflow-x-hidden px-4 pb-8 pt-4 lg:px-6 lg:pt-6">
+        <main className="flex-1 overflow-x-hidden px-4 pb-8 pt-4 sm:px-5 lg:px-6 lg:pt-6">
           {/* key={rank}: switching the all/high toggle remounts the page so every
-              useAsync refetches stats for the new bucket (page-local UI state resets). */}
-          <div key={rank}>
+              useAsync refetches stats for the new bucket (page-local UI state resets).
+              max-w-6xl: ไม่ให้เนื้อหายืดเต็มจอบนหน้าจอกว้างมาก */}
+          <div key={rank} className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
         </main>

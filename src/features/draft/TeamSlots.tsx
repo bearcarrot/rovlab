@@ -6,8 +6,10 @@ import { useState } from "react";
 function HeroSlotIcon({ hero }: { hero: HeroSummary }) {
   const [imageError, setImageError] = useState(false);
 
+  // ขนาดไอคอนไล่ตามความกว้างช่อง: จอแคบ (5 ช่องเรียงแถวเดียว) เล็กลงไม่ให้ล้นช่อง,
+  // sm = ทีมละแถวเต็มจอ ช่องกว้าง, md+ = สองทีมวางคู่กัน ช่องแคบลงอีกครั้ง, xl กว้างพอให้ใหญ่ขึ้น
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg-raised">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg-raised sm:h-12 sm:w-12 md:h-10 md:w-10 xl:h-12 xl:w-12">
       {hero.icon && !imageError ? (
         <img
           src={hero.icon}
@@ -18,7 +20,7 @@ function HeroSlotIcon({ hero }: { hero: HeroSummary }) {
           onError={() => setImageError(true)}
         />
       ) : (
-        <span className="text-sm font-display text-text-faint">
+        <span className="text-xs font-display text-text-faint sm:text-sm">
           {hero.name.slice(0, 2).toUpperCase()}
         </span>
       )}
@@ -43,7 +45,7 @@ export function TeamSlots({
     <div>
       <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
 
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-5 gap-2 sm:gap-3">
         {team.map((hero, i) => (
           <button
             key={i}
@@ -60,7 +62,7 @@ export function TeamSlots({
               <>
                 <HeroSlotIcon hero={hero} />
 
-                <span className="max-w-full truncate px-1 text-[10px] font-medium leading-tight">
+                <span className="max-w-full truncate px-1 text-[10px] font-medium leading-tight sm:text-xs">
                   {hero.nameTh}
                 </span>
 
@@ -75,7 +77,7 @@ export function TeamSlots({
                 </span>
               </>
             ) : (
-              <Plus className="h-4 w-4 text-text-faint" />
+              <Plus className="h-4 w-4 text-text-faint sm:h-5 sm:w-5" />
             )}
           </button>
         ))}

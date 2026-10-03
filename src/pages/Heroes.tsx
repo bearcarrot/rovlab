@@ -29,7 +29,7 @@ export function Heroes() {
     <div className="space-y-4">
       <h1 className="font-display text-xl font-semibold">ฮีโร่ทั้งหมด</h1>
 
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5">
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
         <Search className="h-4 w-4 shrink-0 text-text-faint" />
         <input
           value={query}
@@ -45,8 +45,8 @@ export function Heroes() {
       </div>
 
       {heroes.status === "loading" && (
-        <div className="grid grid-cols-4 gap-3">
-          {Array.from({ length: 12 }).map((_, i) => (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
+          {Array.from({ length: 16 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square" />
           ))}
         </div>
@@ -56,7 +56,7 @@ export function Heroes() {
         <EmptyState icon={Swords} title="ไม่พบฮีโร่ที่ตรงเงื่อนไข" description="ลองล้างตัวกรองหรือค้นหาด้วยคำอื่น" />
       )}
       {heroes.status === "success" && filtered.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
           {filtered.map((h) => (
             <HeroCard key={h.id} hero={h} compact />
           ))}
