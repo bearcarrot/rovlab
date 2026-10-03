@@ -10,9 +10,8 @@ import { AskCoach } from "@/components/AskCoach";
 import { HeroIcon } from "@/components/HeroIcon";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
-import { BalanceIcon } from "@/features/balance/BalanceIcon";
 import { HeroBalance } from "@/features/balance/HeroBalance";
-import { useRecentBalance } from "@/features/balance/useRecentBalance";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
@@ -33,7 +32,6 @@ function StatBlock({ label, value, valueClassName = "" }: { label: string; value
 export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
-  const recentBalance = useRecentBalance();
   const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
 
   if (hero.status === "loading") {
@@ -51,7 +49,6 @@ export function HeroDetail() {
   if (hero.status !== "success" || !hero.data) return null;
 
   const h = hero.data;
-  const balanceKind = recentBalance?.get(h.id);
   // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /) ชื่อมาจาก DB (hero_roles / hero_lanes)
   const roleLabel = heroRoles(h).map((r) => roleName(r)).join(" / ");
   const laneLabel = heroLanes(h).map((l) => laneName(l)).join(" / ");
@@ -59,7 +56,7 @@ export function HeroDetail() {
   return (
     <div className="space-y-5 pb-4">
       <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4 sm:items-center sm:gap-5 sm:p-5">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
+        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           {h.icon ? (
             <img
               src={h.icon}
@@ -77,12 +74,13 @@ export function HeroDetail() {
           <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
             {h.name.slice(0, 2).toUpperCase()}
           </span>
+          {/* ขวาล่างของรูปฮีโร่ เหมือนทุกหน้า */}
+          <HeroBalanceBadge heroId={h.id} size="md" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h1 className="max-w-full truncate font-display text-xl font-semibold sm:text-2xl">{h.nameTh}</h1>
             {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
-            {balanceKind && <BalanceIcon kind={balanceKind} className="h-5 w-5 shrink-0" />}
             <FavoriteButton heroSlug={h.slug} className="ml-auto bg-bg-raised" />
           </div>
           <p className="mt-0.5 text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
