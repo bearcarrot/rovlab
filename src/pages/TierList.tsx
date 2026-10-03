@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
+import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
@@ -20,26 +21,31 @@ export function TierList() {
   const rank = useRank();
   const [role, setRole] = useState<HeroRole | null>(null);
   const [lane, setLane] = useState<HeroLane | null>(null);
+  // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
+  const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
 
   const grouped = useMemo(() => {
-    if (heroes.status !== "success") return null;
-    // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนต้องขึ้นในทุกตัวกรองที่ตรง (ใช้ roles/lanes ทั้งอาร์เรย์ ไม่ใช่แค่ค่าหลัก)
-    const filtered = heroes.data.filter(
-      (h) =>
-        h.stat.hasStats &&
-        (role === null || heroRoles(h).includes(role)) &&
-        (lane === null || heroLanes(h).includes(lane))
-    );
+    if (heroes.status !== "success" || curated.status === "loading") return null;
+    const tiers = curated.status === "success" ? curated.data : null;
+    const filtered = heroes.data.filter((h) => {
+      if (role !== null && !heroRoles(h).includes(role)) return false;
+      // มีลิสต์ที่แอดมินจัด: แสดงเฉพาะฮีโร่ในลิสต์นั้น (ลิสต์รายเลนคือเลนนั้นอยู่แล้ว)
+      if (tiers) return tiers.has(h.id);
+      // fallback: tier จากสถิติ + กรองเลนจากอาร์เรย์ lanes
+      return h.stat.hasStats && (lane === null || heroLanes(h).includes(lane));
+    });
     const map = new Map<Tier, typeof filtered>();
     for (const t of TIER_ORDER) map.set(t, []);
-    for (const h of filtered) map.get(h.stat.tier)?.push(h);
+    for (const h of filtered) map.get(tiers ? tiers.get(h.id)! : h.stat.tier)?.push(h);
     // เรียง A-Z ตามชื่ออังกฤษ ไม่เรียงตาม Win Rate เพื่อไม่ให้ลำดับในช่องดูเหมือนอันดับความแข็ง
     for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, "en"));
     return map;
-  }, [heroes, role, lane]);
+  }, [heroes, curated, role, lane]);
 
+  const isCurated = curated.status === "success" && curated.data !== null;
   const totalShown = grouped ? [...grouped.values()].reduce((n, l) => n + l.length, 0) : 0;
   const patchLabel = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
+  const loading = heroes.status === "loading" || curated.status === "loading";
 
   return (
     <div className="space-y-4">
@@ -48,7 +54,9 @@ export function TierList() {
           <h1 className="font-display text-xl font-semibold">Tier List</h1>
           <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
         </div>
-        <p className="mt-1 text-xs text-text-faint">Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่</p>
+        <p className="mt-1 text-xs text-text-faint">
+          {isCurated ? "Tier จัดโดยทีมงาน" : "Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก"} · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -56,20 +64,20 @@ export function TierList() {
         <LaneFilterRow value={lane} onChange={setLane} />
       </div>
 
-      {heroes.status === "loading" && (
+      {loading && (
         <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
           {Array.from({ length: 20 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
         </div>
       )}
       {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
-      {heroes.status === "success" && totalShown === 0 && (
+      {!loading && heroes.status === "success" && totalShown === 0 && (
         <EmptyState
           icon={BarChart3}
-          title={heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
-          description={heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
+          title={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
+          description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
-      {grouped && totalShown > 0 && (
+      {!loading && grouped && totalShown > 0 && (
         <div className="space-y-5">
           {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((tier) => (
             <div key={tier}>
