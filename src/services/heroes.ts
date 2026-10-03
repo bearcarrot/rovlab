@@ -3,6 +3,7 @@ import type { HeroAbility, HeroDetail, HeroLane, HeroRole, HeroSummary, Tier, Co
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
 import { getLatestPatch } from "@/services/meta";
+import { getCuratedTiers } from "@/services/tierlist";
 
 // Live Supabase data. hero_stats is read for the latest patch (patches.released_at)
 // and the selected rank bucket ("all" | "high"); a hero with no row for that bucket
@@ -10,6 +11,11 @@ import { getLatestPatch } from "@/services/meta";
 // hero_counters holds, per hero, the top-3 heroes it beats (real in-game stats);
 // it has no rank/patch column, so it is not affected by the rank toggle.
 // hero_synergies is still empty.
+//
+// Tier badges: `stat.tier` is the tier the admin set in the Admin "Tier List" tab
+// (overall list = tier_lists.lane IS NULL for the latest patch + selected rank).
+// hero_stats.tier (computed from win rate at import) is only the fallback for heroes
+// that are not in the admin's list, or when no list exists yet.
 //
 // Hero names: the site shows the in-game English name everywhere (Thai translations
 // can differ from the game and confuse players). The `nameTh` / `heroNameTh` properties
@@ -62,7 +68,8 @@ async function fetchStatsByHeroId(heroIds: string[], rank: RankBucket): Promise<
     .in("hero_id", heroIds)
     .eq("rank_tier", rank);
   if (patch) query = query.eq("patch_id", patch.id);
-  const { data, error } = await query;
+  // อ่าน tier ที่แอดมินจัดเอง (ลิสต์รวม) คู่กัน กับสถิติ
+  const [{ data, error }, curated] = await Promise.all([query, getCuratedTiers(rank, null)]);
   if (error || !data) return map; // not readable/empty — every hero falls back to EMPTY_STAT
   for (const row of data) {
     map.set(row.hero_id, {
@@ -71,7 +78,8 @@ async function fetchStatsByHeroId(heroIds: string[], rank: RankBucket): Promise<
       winRate: Number(row.win_rate),
       pickRate: Number(row.pick_rate),
       banRate: Number(row.ban_rate),
-      tier: row.tier as Tier,
+      // ใช้ tier ที่แอดมินจัดก่อน ถ้าฮีโร่ไม่อยู่ในลิสต์ค่อยใช้ tier จาก hero_stats
+      tier: curated?.get(row.hero_id) ?? (row.tier as Tier),
       matches: Number(row.matches),
       hasStats: true,
     });
