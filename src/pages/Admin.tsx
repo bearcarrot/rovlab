@@ -36,6 +36,9 @@ type Cfg = {
   // ซ่อนปุ่มลบ (แถวอ้างอิงคงที่ เช่น ตำแหน่ง/เลน) กันลบแล้วเพิ่มกลับไม่ได้
   noDelete?: boolean;
   search?: string;
+  // ค้นหา + เรียงตามชื่อฝั่งเบราว์เซอร์ ใช้กับตารางที่ชื่อฮีโร่มาจากการอ้างอิง (ไม่ใช่คอลัมน์ในตาราง)
+  // ค้นได้ทั้งชื่ออังกฤษ/ไทย และพิมพ์ไม่ต้องใส่ช่องว่าง/เครื่องหมายก็เจอ (เช่น "azzenka" = Azzen'Ka)
+  clientSearch?: boolean;
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
   slots?: boolean;
@@ -240,6 +243,7 @@ const CFG: Record<string, Cfg> = {
     label: "สถิติ",
     table: "hero_stats",
     add: true,
+    clientSearch: true,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "rank_tier" },
@@ -255,6 +259,7 @@ const CFG: Record<string, Cfg> = {
     label: "Tier List",
     table: "tier_list_entries",
     add: true,
+    clientSearch: true,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "tier", type: "sel", opts: TIERS },
@@ -403,6 +408,22 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
     tags,
   };
 };
+
+// ตัดตัวพิมพ์/ช่องว่าง/เครื่องหมายออก เพื่อให้พิมพ์ "azzenka" ก็เจอ Azzen'Ka, "wiro" ก็เจอ Wiro Sableng
+const squash = (s: string) => s.toLowerCase().replace(/[\s'’`"\-_.]/g, "");
+// ข้อความที่ใช้ค้นหาของแถว: เฉพาะช่องที่เป็นชื่อ (อ้างอิงฮีโร่/ไอเทม/ข้อความสั้น) + ชื่อสำรอง (ชื่อไทย)
+// ไม่รวมช่องข้อความยาว (reason) กันค้นแล้วเจอแถวที่แค่พูดถึงชื่อนั้น
+const searchText = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) =>
+  squash(
+    cfg.cols
+      .filter((c) => !c.type || c.type === "text" || REF_TYPES.includes(c.type))
+      .flatMap((c) => {
+        const alt =
+          c.type && REF_TYPES.includes(c.type) ? refs[c.type]?.find((o) => o.id === row[c.k])?.alt : undefined;
+        return [show(c, row[c.k], refs), alt ?? ""];
+      })
+      .join(" ")
+  );
 
 // รวมจำนวนช่องรูนต่อสีจากแถวของบิลด์ที่เลือก (อ่านจาก state จึงอัปเดตทันทีที่แก้จำนวน/เปลี่ยนรูน)
 function summarizeSlots(rows: Row[], arcana: RefOpt[]) {
@@ -685,10 +706,24 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
   // รอให้โหลดรายชื่อรูนก่อนค่อยคำนวณ ไม่งั้นจะขึ้นเตือนว่าไม่มีสีชั่วครู่
   const slotInfo = cfg.slots && (refs.arcana?.length ?? 0) > 0 ? summarizeSlots(rows, refs.arcana) : null;
 
+  // รายการที่แสดง: ตารางที่เปิด clientSearch จะกรองตามคำค้นและเรียงตามชื่อ (A→Z) ตารางอื่นเรียงตามที่ DB ส่งมา
+  // เก็บ i = ตำแหน่งเดิมใน rows ไว้ เพราะการแก้ไขอ้างอิงตำแหน่งนี้
+  const view = (() => {
+    const list = rows.map((row, i) => ({ row, i, info: summary(cfg, row, refs) }));
+    if (!cfg.clientSearch) return list;
+    const needle = squash(q);
+    const hit = needle ? list.filter(({ row }) => searchText(cfg, row, refs).includes(needle)) : list;
+    return hit.sort(
+      (a, b) =>
+        a.info.title.localeCompare(b.info.title, "en", { sensitivity: "base" }) ||
+        a.info.sub.localeCompare(b.info.sub, "en", { sensitivity: "base" })
+    );
+  })();
+
   return (
     <div className="space-y-4 pb-24">
       {/* ตัวกรอง / ค้นหา: มือถือเรียงลง เดสก์ท็อปเรียงข้าง */}
-      {(cfg.filter || cfg.search) && (
+      {(cfg.filter || cfg.search || cfg.clientSearch) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {cfg.filter && (
             <select className={`${inp} sm:w-auto sm:min-w-[18rem]`} value={fv} onChange={(e) => setFv(e.target.value)}>
@@ -699,11 +734,12 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
               ))}
             </select>
           )}
-          {cfg.search && (
+          {(cfg.search || cfg.clientSearch) && (
             <input
               className={`${inp} sm:w-64`}
               type="search"
-              placeholder="ค้นหาชื่อ..."
+              autoComplete="off"
+              placeholder={cfg.clientSearch ? "ค้นหาชื่อฮีโร่ (อังกฤษ/ไทย)..." : "ค้นหาชื่อ..."}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -784,16 +820,18 @@ function Editor({ cfg, refs }: { cfg: Cfg; refs: Record<string, RefOpt[]> }) {
           </Btn>
         ))}
 
-      <p className="text-xs text-text-muted">{rows.length} รายการ · แก้ไขแล้วบันทึกอัตโนมัติ</p>
+      <p className="text-xs text-text-muted">
+        {view.length === rows.length ? rows.length : `${view.length}/${rows.length}`} รายการ · แก้ไขแล้วบันทึกอัตโนมัติ
+      </p>
 
       {/* รายการ: การ์ดพับได้ แตะเพื่อแก้ไข */}
       <div className="space-y-2">
-        {rows.length === 0 && (
+        {view.length === 0 && (
           <p className="rounded-card border border-dashed border-border p-6 text-center text-sm text-text-muted">
-            ยังไม่มีข้อมูล
+            {rows.length === 0 ? "ยังไม่มีข้อมูล" : "ไม่พบรายการที่ตรงกับคำค้นหา"}
           </p>
         )}
-        {rows.map((row, i) => {
+        {view.map(({ row, i, info }) => {
           const open = openId === row.id;
           const { title, sub, img, round, tags } = summary(cfg, row, refs, labels);
           return (
