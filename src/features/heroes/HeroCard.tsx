@@ -3,17 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { BalanceIcon } from "@/features/balance/BalanceIcon";
 import { useRecentBalance } from "@/features/balance/useRecentBalance";
+import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroRoles } from "@/lib/heroPositions";
 import type { HeroSummary } from "@/types/hero";
-
-const ROLE_LABEL_TH: Record<string, string> = {
-  assassin: "แอสแซสซิน",
-  fighter: "ไฟท์เตอร์",
-  mage: "เมจ",
-  marksman: "มาร์กแมน",
-  support: "ซัพพอร์ต",
-  tank: "แทงค์",
-};
 
 export function HeroCard({
   hero,
@@ -27,6 +19,7 @@ export function HeroCard({
 }) {
   const recent = useRecentBalance();
   const balance = recent?.get(hero.id);
+  const { roleLabel } = useFilterLabels();
 
   return (
     <Link
@@ -70,7 +63,7 @@ export function HeroCard({
       ) : (
         <div className="space-y-1 p-2.5">
           <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-          <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => ROLE_LABEL_TH[r] ?? r).join(" · ")}</p>
+          <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
           <p className="text-xs text-text-muted">
             {hero.stat.hasStats
               ? metric === "banRate"

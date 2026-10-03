@@ -15,7 +15,7 @@ import { HeroBalance } from "@/features/balance/HeroBalance";
 import { useRecentBalance } from "@/features/balance/useRecentBalance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
-import { ROLE_OPTIONS, LANE_OPTIONS } from "@/features/heroes/HeroFilters";
+import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
@@ -34,6 +34,7 @@ export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
   const recentBalance = useRecentBalance();
+  const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
 
   if (hero.status === "loading") {
     return (
@@ -51,9 +52,9 @@ export function HeroDetail() {
 
   const h = hero.data;
   const balanceKind = recentBalance?.get(h.id);
-  // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /)
-  const roleLabel = heroRoles(h).map((r) => ROLE_OPTIONS.find((o) => o.value === r)?.label ?? r).join(" / ");
-  const laneLabel = heroLanes(h).map((l) => LANE_OPTIONS.find((o) => o.value === l)?.label ?? l).join(" / ");
+  // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /) ชื่อมาจาก DB (hero_roles / hero_lanes)
+  const roleLabel = heroRoles(h).map((r) => roleName(r)).join(" / ");
+  const laneLabel = heroLanes(h).map((l) => laneName(l)).join(" / ");
 
   return (
     <div className="space-y-5 pb-4">
