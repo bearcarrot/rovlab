@@ -1,13 +1,10 @@
-import { Menu, User } from "lucide-react";
+import { Menu, Search, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
-import { useMyAvatar } from "@/features/profile/useMyAvatar";
-import { RankToggle } from "@/components/layout/RankToggle";
-import { UserAvatar } from "@/components/UserAvatar";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 
 export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
   const { user } = useAuth();
-  const avatarUrl = useMyAvatar();
 
   return (
     <header
@@ -22,18 +19,19 @@ export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* spacer: keeps the rank toggle and profile button on the right */}
-      <div className="flex-1" />
+      <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2 text-sm text-text-faint lg:max-w-md">
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="truncate">ค้นหาฮีโร่, ไอเทม, คู่มือ...</span>
+      </div>
 
-      <RankToggle />
+      <NotificationBell />
 
       <Link
         to={user ? "/profile" : "/login"}
-        className="shrink-0 rounded-full text-text-muted hover:text-text"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-text-muted hover:text-text"
         aria-label="โปรไฟล์"
       >
-        {/* photo when the user has one; otherwise the original user icon */}
-        <UserAvatar name="โปรไฟล์" url={avatarUrl} fallback={<User className="h-4 w-4" />} className="h-9 w-9 text-text-muted" />
+        <User className="h-4 w-4" />
       </Link>
     </header>
   );

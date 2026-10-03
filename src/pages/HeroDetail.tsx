@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Users, MessageCircle } from "lucide-react";
 import { getHeroBySlug } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -6,25 +6,20 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { AskCoach } from "@/components/AskCoach";
-import { HeroIcon } from "@/components/HeroIcon";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
-import { HeroComments } from "@/features/comments/HeroComments";
-import { HeroBalance } from "@/features/balance/HeroBalance";
-import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
-import { useFilterLabels } from "@/features/heroes/HeroFilters";
-import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { CommentSection } from "@/features/community/CommentSection";
+import { ROLE_OPTIONS, LANE_OPTIONS } from "@/features/heroes/HeroFilters";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
 
-function StatBlock({ label, value, valueClassName = "" }: { label: string; value: string; valueClassName?: string }) {
+function StatBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-raised px-3 py-2 text-center sm:py-3">
-      <p className={`font-display text-lg font-semibold sm:text-xl ${valueClassName}`}>{value}</p>
-      <p className="text-[11px] text-text-faint sm:text-xs">{label}</p>
+    <div className="rounded-lg border border-border bg-bg-raised px-3 py-2 text-center">
+      <p className="font-display text-lg font-semibold">{value}</p>
+      <p className="text-[11px] text-text-faint">{label}</p>
     </div>
   );
 }
@@ -32,7 +27,6 @@ function StatBlock({ label, value, valueClassName = "" }: { label: string; value
 export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
-  const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
 
   if (hero.status === "loading") {
     return (
@@ -49,60 +43,45 @@ export function HeroDetail() {
   if (hero.status !== "success" || !hero.data) return null;
 
   const h = hero.data;
-  // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลน แสดงทั้งหมด (คั่นด้วย /) ชื่อมาจาก DB (hero_roles / hero_lanes)
-  const roleLabel = heroRoles(h).map((r) => roleName(r)).join(" / ");
-  const laneLabel = heroLanes(h).map((l) => laneName(l)).join(" / ");
+  const roleLabel = ROLE_OPTIONS.find((r) => r.value === h.role)?.label ?? h.role;
+  const laneLabel = LANE_OPTIONS.find((l) => l.value === h.lane)?.label ?? h.lane;
 
   return (
     <div className="space-y-5 pb-4">
-      <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4 sm:items-center sm:gap-5 sm:p-5">
-        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
+      <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint">
           {h.icon ? (
-            <img
-              src={h.icon}
-              alt={h.nameTh}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              className="h-full w-full rounded-lg object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-          ) : null}
+    <img
+      src={h.icon}
+      alt={h.nameTh}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      className="h-full w-full object-cover"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+      }}
+    />
+  ) : null}
 
-          <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-            {h.name.slice(0, 2).toUpperCase()}
-          </span>
-          {/* ขวาล่างของรูปฮีโร่ เหมือนทุกหน้า */}
-          <HeroBalanceBadge heroId={h.id} size="md" />
+  <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+    {h.name.slice(0, 2).toUpperCase()}
+  </span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="max-w-full truncate font-display text-xl font-semibold sm:text-2xl">{h.nameTh}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="truncate font-display text-xl font-semibold">{h.nameTh}</h1>
             {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
             <FavoriteButton heroSlug={h.slug} className="ml-auto bg-bg-raised" />
           </div>
-          <p className="mt-0.5 text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
+          <p className="text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <StatBlock
-          label="Win Rate"
-          value={h.stat.hasStats ? `${h.stat.winRate.toFixed(1)}%` : "N/A"}
-          valueClassName={h.stat.hasStats ? "text-win" : ""}
-        />
-        <StatBlock
-          label="Pick Rate"
-          value={h.stat.hasStats ? `${h.stat.pickRate.toFixed(1)}%` : "N/A"}
-          valueClassName={h.stat.hasStats ? "text-yellow-400" : ""}
-        />
-        <StatBlock
-          label="Ban Rate"
-          value={h.stat.hasStats ? `${h.stat.banRate.toFixed(1)}%` : "N/A"}
-          valueClassName={h.stat.hasStats ? "text-loss" : ""}
-        />
+      <div className="grid grid-cols-3 gap-2">
+        <StatBlock label="Win Rate" value={h.stat.hasStats ? `${h.stat.winRate.toFixed(1)}%` : "N/A"} />
+        <StatBlock label="Pick Rate" value={h.stat.hasStats ? `${h.stat.pickRate.toFixed(1)}%` : "N/A"} />
+        <StatBlock label="Ban Rate" value={h.stat.hasStats ? `${h.stat.banRate.toFixed(1)}%` : "N/A"} />
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
@@ -117,27 +96,13 @@ export function HeroDetail() {
         <CardContent><p className="text-sm text-text-muted">{h.description}</p></CardContent>
       </Card>
 
-      <HeroBalance heroId={h.id} />
-
       {h.abilities.length > 0 && (
         <Card>
           <CardHeader><CardTitle>สกิล</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
+          <CardContent className="space-y-3">
             {h.abilities.map((a) => (
               <div key={a.slot + a.name} className="rounded-lg border border-border bg-bg-raised p-3">
                 <div className="flex items-center gap-2">
-                  {a.icon ? (
-                    <img
-                      src={a.icon}
-                      alt={a.name}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      className="h-9 w-9 shrink-0 rounded-[50%] object-cover sm:h-10 sm:w-10"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : null}
                   <Badge className="uppercase">{a.slot}</Badge>
                   <p className="font-display text-sm font-medium">{a.name}</p>
                 </div>
@@ -173,60 +138,30 @@ export function HeroDetail() {
         </div>
       )}
 
-      <AskCoach
-        resetKey={h.slug}
-        label="ถามโค้ช AI: เล่นตัวนี้ยังไง"
-        prompt={`สรุปวิธีเล่น ${h.nameTh} ให้ผู้เล่นมือใหม่ถึงกลาง ไม่เกิน 4 ประโยค`}
-        context={{
-          hero: h.nameTh,
-          role: roleLabel,
-          lane: laneLabel,
-          difficulty: DIFFICULTY_LABEL[h.difficulty],
-          stats: h.stat.hasStats
-            ? { winRate: h.stat.winRate, pickRate: h.stat.pickRate, banRate: h.stat.banRate, tier: h.stat.tier }
-            : null,
-          strengths: h.strengths,
-          weaknesses: h.weaknesses,
-          abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name, description: a.description })),
-        }}
-      />
-
-      {/* lg+ วางการ์ดแพ้ทาง/ชนะทางคู่กัน ลดความยาวหน้าบนจอกว้าง */}
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-        <Card>
-          <CardHeader><CardTitle>{h.nameTh} แพ้ทางใครบ้าง</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>{h.nameTh} ชนะทางใครได้</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader><CardTitle>ใครสวน {h.nameTh} ได้</CardTitle></CardHeader>
+        <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลตัวสวนสำหรับฮีโร่นี้" /></CardContent>
+      </Card>
 
       <Card>
-        <CardHeader><CardTitle>ฮีโร่ที่คอมโบกับ {h.nameTh} ได้ดี</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{h.nameTh} สวนใครได้</CardTitle></CardHeader>
+        <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลฮีโร่ที่ถูกสวน" /></CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>ฮีโร่ที่เข้าคู่ดี</CardTitle></CardHeader>
         <CardContent>
           {h.synergies.length === 0 ? (
             <p className="text-sm text-text-faint">ยังไม่มีข้อมูล</p>
           ) : (
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-2">
               {h.synergies.map((s) => {
-                const mock = MOCK_HEROES.find((m) => m.slug === s.heroSlug);
-                const nameTh = s.heroNameTh ?? mock?.nameTh;
+                const nameTh = s.heroNameTh ?? MOCK_HEROES.find((m) => m.slug === s.heroSlug)?.nameTh;
                 if (!nameTh) return null;
-                const icon = s.heroIcon || mock?.icon || "";
                 return (
-                  <div key={s.heroSlug} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
-                    <Link to={`/heroes/${s.heroSlug}`} aria-label={nameTh} className="shrink-0">
-                      <HeroIcon icon={icon} name={nameTh} fallback={mock?.name.slice(0, 2).toUpperCase()} className="h-11 w-11" />
-                    </Link>
-                    <div className="min-w-0 flex-1">
-                      <Link to={`/heroes/${s.heroSlug}`} className="font-display text-sm font-medium hover:text-accent">
-                        {nameTh}
-                      </Link>
-                      <p className="mt-1 text-sm text-text-muted">{s.reason}</p>
-                    </div>
+                  <div key={s.heroSlug} className="rounded-lg border border-border bg-bg-raised p-3">
+                    <p className="font-display text-sm font-medium">{nameTh}</p>
+                    <p className="mt-1 text-sm text-text-muted">{s.reason}</p>
                   </div>
                 );
               })}
@@ -235,12 +170,12 @@ export function HeroDetail() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="comments">
         <CardHeader>
           <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-text-faint" /><CardTitle>ความคิดเห็นชุมชน</CardTitle></div>
         </CardHeader>
         <CardContent>
-          <HeroComments heroSlug={h.slug} />
+          <CommentSection heroSlug={h.slug} />
         </CardContent>
       </Card>
     </div>
