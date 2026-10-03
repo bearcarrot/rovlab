@@ -12,9 +12,9 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
-function HeroPicker({ label, heroes, value, onChange, exclude }: { label: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
-  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอสแซสซินศัตรู" ได้
-  const filters = useHeroFilters();
+function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label: string; scope: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
+  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอสแซสซินศัตรู" ได้ (scope แยกกัน จึงจำค่าแยกกันด้วย)
+  const filters = useHeroFilters(scope);
   const list = heroes.filter((h) => h.slug !== exclude && filters.match(h));
   return (
     <div className="min-w-0 space-y-2">
@@ -84,8 +84,8 @@ export function Matchup() {
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
       {heroesQ.status === "success" && (
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-          <HeroPicker label="ฮีโร่ของคุณ" heroes={heroes} value={a} onChange={setA} exclude={b?.slug} />
-          <HeroPicker label="ฮีโร่ศัตรู" heroes={heroes} value={b} onChange={setB} exclude={a?.slug} />
+          <HeroPicker label="ฮีโร่ของคุณ" scope="mine" heroes={heroes} value={a} onChange={setA} exclude={b?.slug} />
+          <HeroPicker label="ฮีโร่ศัตรู" scope="enemy" heroes={heroes} value={b} onChange={setB} exclude={a?.slug} />
         </div>
       )}
 
