@@ -5,6 +5,7 @@ import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { tierReason } from "@/features/tierlist/tierReason";
+import { HeroBalanceMark } from "@/features/balance/HeroBalanceMark";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -96,7 +97,10 @@ export function TierList() {
                     </Link>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate font-display text-sm font-medium">{h.nameTh}</p>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p className="truncate font-display text-sm font-medium">{h.nameTh}</p>
+                          <HeroBalanceMark heroId={h.id} className="shrink-0" />
+                        </div>
                         <p className="shrink-0 text-xs text-text-muted">WR {h.stat.winRate.toFixed(1)}% · Ban {h.stat.banRate.toFixed(1)}%</p>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-text-faint">{tierReason(h)}</p>

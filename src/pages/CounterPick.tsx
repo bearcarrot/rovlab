@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { CounterList } from "@/features/heroes/CounterList";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { HeroBalanceMark } from "@/features/balance/HeroBalanceMark";
 import { cn } from "@/lib/utils";
 
 export function CounterPick() {
@@ -72,10 +73,11 @@ export function CounterPick() {
               key={h.id}
               onClick={() => setSelected(h.slug)}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors",
+                "relative flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors",
                 selected === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
+              <HeroBalanceMark heroId={h.id} className="absolute right-1 top-1 z-10" />
               <div className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
                 {h.icon ? (
     <img
