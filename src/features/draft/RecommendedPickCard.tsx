@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
 import { CoachIcon } from "@/components/CoachIcon";
 import { CoachText } from "@/components/CoachText";
+import { HeroBalanceMark } from "@/features/balance/HeroBalanceMark";
 import { askCoach } from "@/services/ai";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
@@ -72,6 +73,7 @@ export function RecommendedPickCard({
             <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
           </Link>
           <CardTitle>{rec.hero.nameTh}</CardTitle>
+          <HeroBalanceMark heroId={rec.hero.id} className="shrink-0" />
         </div>
         <div className="flex shrink-0">
           {Array.from({ length: 5 }).map((_, i) => (
