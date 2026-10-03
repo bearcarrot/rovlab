@@ -20,10 +20,10 @@ import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
 
-function StatBlock({ label, value }: { label: string; value: string }) {
+function StatBlock({ label, value, valueClassName = "" }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className="rounded-lg border border-border bg-bg-raised px-3 py-2 text-center">
-      <p className="font-display text-lg font-semibold">{value}</p>
+      <p className={`font-display text-lg font-semibold ${valueClassName}`}>{value}</p>
       <p className="text-[11px] text-text-faint">{label}</p>
     </div>
   );
@@ -88,9 +88,21 @@ export function HeroDetail() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <StatBlock label="Win Rate" value={h.stat.hasStats ? `${h.stat.winRate.toFixed(1)}%` : "N/A"} />
-        <StatBlock label="Pick Rate" value={h.stat.hasStats ? `${h.stat.pickRate.toFixed(1)}%` : "N/A"} />
-        <StatBlock label="Ban Rate" value={h.stat.hasStats ? `${h.stat.banRate.toFixed(1)}%` : "N/A"} />
+        <StatBlock
+          label="Win Rate"
+          value={h.stat.hasStats ? `${h.stat.winRate.toFixed(1)}%` : "N/A"}
+          valueClassName={h.stat.hasStats ? "text-win" : ""}
+        />
+        <StatBlock
+          label="Pick Rate"
+          value={h.stat.hasStats ? `${h.stat.pickRate.toFixed(1)}%` : "N/A"}
+          valueClassName={h.stat.hasStats ? "text-yellow-400" : ""}
+        />
+        <StatBlock
+          label="Ban Rate"
+          value={h.stat.hasStats ? `${h.stat.banRate.toFixed(1)}%` : "N/A"}
+          valueClassName={h.stat.hasStats ? "text-loss" : ""}
+        />
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
@@ -120,7 +132,7 @@ export function HeroDetail() {
                       alt={a.name}
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      className="h-9 w-9 shrink-0 rounded-md object-cover"
+                      className="h-9 w-9 shrink-0 rounded-[50%] object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
