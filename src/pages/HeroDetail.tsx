@@ -205,7 +205,7 @@ export function HeroDetail() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>ฮีโร่ที่เข้าคู่ดี</CardTitle></CardHeader>
+        <CardHeader><CardTitle>ฮีโร่ที่คอมโบกับ {h.nameTh} ได้ดี</CardTitle></CardHeader>
         <CardContent>
           {h.synergies.length === 0 ? (
             <p className="text-sm text-text-faint">ยังไม่มีข้อมูล</p>
