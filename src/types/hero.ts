@@ -1,3 +1,5 @@
+import type { EffectTag } from "@/lib/effectTags";
+
 export type HeroRole = "assassin" | "fighter" | "mage" | "carry" | "support" | "tank";
 export type HeroLane = "slayer" | "jungle" | "mid" | "abyssal" | "roaming";
 export type HeroDifficulty = "easy" | "medium" | "hard";
@@ -35,6 +37,7 @@ export interface HeroAbility {
   name: string;
   description: string;
   icon?: string; // icon_url from hero_abilities (set via /admin)
+  effectTags?: EffectTag[]; // จาก hero_abilities.effect_tags (กายภาพ/เวท/สตั๊น ฯลฯ)
 }
 
 export interface CounterEntry {
