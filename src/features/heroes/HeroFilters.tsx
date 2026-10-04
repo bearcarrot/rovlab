@@ -30,7 +30,7 @@ const NO_ICONS: FilterIcons = { roles: {}, lanes: {}, roleLabels: {}, laneLabels
 
 // Icons, names and order come from the DB (hero_roles / hero_lanes). Until they load, or if none are set,
 // chips render the fallback names/order above, text only.
-function useFilterIcons(): FilterIcons {
+export function useFilterIcons(): FilterIcons {
   const [icons, setIcons] = useState<FilterIcons>(NO_ICONS);
   useEffect(() => {
     let cancelled = false;
@@ -53,18 +53,20 @@ export function useFilterLabels() {
   };
 }
 
-// With an icon: icon only on small screens, icon + text from `sm` up. Without an icon (or if it fails to
-// load): text only, as before. `label` is always exposed via title / aria-label.
-function Chip({
+// With an icon: icon only on small screens, icon + text from `sm` up (or always with `showLabel`). Without an
+// icon (or if it fails to load): text only, as before. `label` is always exposed via title / aria-label.
+export function Chip({
   active,
   onClick,
   label,
   icon,
+  showLabel = false,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   icon?: string;
+  showLabel?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -81,7 +83,7 @@ function Chip({
       title={label}
       className={cn(
         "flex shrink-0 items-center gap-1.5 rounded-full border py-1.5 text-xs font-medium transition-colors",
-        showIcon ? "px-2.5 sm:px-3" : "px-3",
+        showIcon && !showLabel ? "px-2.5 sm:px-3" : showIcon ? "px-2.5" : "px-3",
         active ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted hover:text-text"
       )}
     >
@@ -95,7 +97,7 @@ function Chip({
           onError={() => setFailed(true)}
         />
       )}
-      <span className={showIcon ? "hidden sm:inline" : undefined}>{label}</span>
+      <span className={showIcon && !showLabel ? "hidden sm:inline" : undefined}>{label}</span>
     </button>
   );
 }
