@@ -17,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
-import { summarizeTags } from "@/lib/effectTags";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
@@ -86,8 +85,6 @@ export function HeroDetail() {
             <FavoriteButton heroSlug={h.slug} className="ml-auto bg-bg-raised" />
           </div>
           <p className="mt-0.5 text-sm text-text-muted">{roleLabel} · {laneLabel} · ความยาก {DIFFICULTY_LABEL[h.difficulty]}</p>
-          {/* สรุปแท็กชนิดสกิลทั้งหมดของฮีโร่ (กายภาพแดง / เวทน้ำเงิน / CC เหลือง ฯลฯ) */}
-          <EffectTagList tags={summarizeTags(h.abilities.map((a) => a.effectTags))} className="mt-2" />
         </div>
       </div>
 
