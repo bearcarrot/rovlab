@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { AskCoach } from "@/components/AskCoach";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
+import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import {
   analyzeTeam,
@@ -18,6 +19,7 @@ import {
   type DraftMode,
   type Recommendation,
 } from "@/features/draft/analyzeTeam";
+import { findTeamGaps } from "@/features/draft/teamGaps";
 import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
 import { buildKits } from "@/features/draft/skillTags";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
@@ -92,6 +94,8 @@ export function DraftAssistant() {
   // ความสามารถของฮีโร่จากแท็กสกิลในเกม (ยังไม่นำเข้าแท็ก = ว่าง ระบบทำงานเหมือนเดิม)
   const kits = useMemo(() => buildKits(skills), [skills]);
   const analysis = useMemo(() => analyzeTeam(myTeam, kits), [myTeam, kits]);
+  // จุดที่ทีมยังขาด (แสดงเหนือแถบ meter) — เกณฑ์เดียวกับที่ระบบแนะนำใช้เติมจุดอ่อน
+  const gaps = useMemo(() => findTeamGaps(analysis, myTeam, kits), [analysis, myTeam, kits]);
   const mode = getDraftMode(myTeam, enemyTeam);
 
   const mineList = useMemo(() => myTeam.filter((h): h is HeroSummary => h !== null), [myTeam]);
@@ -259,6 +263,7 @@ export function DraftAssistant() {
 
       <section>
         <h2 className="mb-2 font-display text-base font-semibold">ภาพรวมทีมของคุณ</h2>
+        <TeamGaps gaps={gaps} filledSlots={analysis.filledSlots} />
         <div className="rounded-card border border-border bg-bg-surface p-4">
           <TeamMeters analysis={analysis} />
         </div>
