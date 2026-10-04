@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { HeroIcon } from "@/components/HeroIcon";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FollowButton } from "@/features/community/FollowButton";
 import { ROLE_OPTIONS } from "@/features/heroes/HeroFilters";
 import type { HeroSummary } from "@/types/hero";
 
@@ -89,6 +90,7 @@ export function PlayerProfile() {
               แก้ไขโปรไฟล์ →
             </Link>
           )}
+          {!mine && <FollowButton targetId={p.id} />}
         </div>
       </div>
 

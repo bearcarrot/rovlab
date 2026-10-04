@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { UserAvatar } from "@/components/UserAvatar";
+import { HandleCard } from "@/features/community/HandleCard";
 import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
 import { ROLE_OPTIONS } from "@/features/heroes/HeroFilters";
 import { fileToAvatarBase64 } from "@/lib/image";
@@ -167,6 +168,8 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
       <Link to={`/players/${profile.id}`} className="block text-sm text-accent">
         ดูโปรไฟล์สาธารณะของฉัน →
       </Link>
+
+      <HandleCard userId={profile.id} />
 
       <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4">
         {nameFromEmail && (

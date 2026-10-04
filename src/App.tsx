@@ -21,6 +21,9 @@ import { Stats } from "@/pages/Stats";
 import { Learn } from "@/pages/Learn";
 import { GuideDetail } from "@/pages/GuideDetail";
 import { AdminHub } from "@/pages/AdminHub";
+import { Notifications } from "@/pages/Notifications";
+import { Feed } from "@/pages/Feed";
+import { UserByHandle } from "@/pages/UserByHandle";
 import { PrivacyPolicy, TermsOfUse, Disclaimer, DataSources, CommunityGuidelines } from "@/pages/Legal";
 
 const HOME: Crumb = { label: "หน้าแรก", to: "/" };
@@ -68,6 +71,22 @@ export default function App() {
         />
         <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
         <Route
+          path="notifications"
+          element={
+            <RequireAuth>
+              <WithNav crumbs={[HOME, { label: "การแจ้งเตือน" }]}><Notifications /></WithNav>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="feed"
+          element={
+            <RequireAuth>
+              <WithNav crumbs={[HOME, { label: "ฟีดคนที่ติดตาม" }]} fallback="/notifications"><Feed /></WithNav>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="profile"
           element={
             <RequireAuth>
@@ -76,6 +95,7 @@ export default function App() {
           }
         />
         <Route path="players/:id" element={<WithNav crumbs={[HOME, { label: "โปรไฟล์ผู้เล่น" }]}><PlayerProfile /></WithNav>} />
+        <Route path="u/:handle" element={<UserByHandle />} />
         <Route path="login" element={<WithNav crumbs={[HOME, { label: "เข้าสู่ระบบ" }]}><Login /></WithNav>} />
         <Route path="register" element={<WithNav crumbs={[HOME, { label: "สมัครสมาชิก" }]} fallback="/login"><Register /></WithNav>} />
         <Route
