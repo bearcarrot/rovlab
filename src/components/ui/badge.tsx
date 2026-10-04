@@ -1,12 +1,14 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+// สีป้าย Tier ทุกหน้าใช้ที่นี่ที่เดียว (ค่าสีอยู่ใน tailwind.config.ts → colors.tier)
+// S+ แดง · S ส้ม · A เหลือง · B เขียว · C ฟ้า (ชื่อคลาสเขียนเต็มเพื่อให้ Tailwind สแกนเจอ)
 const TIER_STYLES: Record<string, string> = {
-  "S+": "bg-accent text-accent-fg",
-  S: "bg-accent/90 text-accent-fg",
-  A: "bg-rift text-white",
-  B: "bg-bg-raised text-text-muted border border-border",
-  C: "bg-bg-raised text-text-faint border border-border",
+  "S+": "bg-tier-sp text-white",
+  S: "bg-tier-s text-accent-fg",
+  A: "bg-tier-a text-accent-fg",
+  B: "bg-tier-b text-accent-fg",
+  C: "bg-tier-c text-white",
 };
 
 export function Badge({
