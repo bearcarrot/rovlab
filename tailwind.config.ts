@@ -28,11 +28,13 @@ export default {
         },
         win: "#3DD68C",
         loss: "#E5484D",
+        // สีป้าย Tier: S+ แดง (เด่น/อันตรายสุด) → S ส้ม → A เหลือง → B เขียว → C ฟ้า
         tier: {
-          s: "#E8A33D",
-          a: "#4C8DFF",
-          b: "#8B909B",
-          c: "#5C616D",
+          sp: "#EF4444",
+          s: "#F97316",
+          a: "#EAB308",
+          b: "#22C55E",
+          c: "#3B82F6",
         },
       },
       fontFamily: {
