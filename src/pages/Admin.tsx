@@ -14,7 +14,7 @@ import type { HeroLane, HeroRole } from "@/types/hero";
 const db: any = supabase;
 
 type Row = Record<string, any>;
-type RefType = "hero" | "item" | "arcana" | "patch";
+type RefType = "hero" | "item" | "arcana" | "patch" | "guideCat";
 // icon = ไอคอนของรายการที่เลือก (แสดงบนการ์ดและข้างช่องเลือก)
 // alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
 // roles / lanes = ตำแหน่งและเลนของฮีโร่ ใช้กับชิปกรองในแท็บสถิติ/Tier List
@@ -27,7 +27,7 @@ type RefOpt = {
   roles?: string[];
   lanes?: string[];
 };
-// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch(เลือกจากตารางอื่น)
+// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch/guideCat(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
 type Col = {
@@ -77,7 +77,7 @@ type Toast = { text: string; kind: "ok" | "err" } | null;
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
-const REF_TYPES: string[] = ["hero", "item", "arcana", "patch"];
+const REF_TYPES: string[] = ["hero", "item", "arcana", "patch", "guideCat"];
 const BUCKET = "hero-icons";
 // หน้ารูนในเกมมี 30 ช่อง = แดง 10 + ม่วง 10 + เขียว 10
 const MAX_SLOTS = 10;
@@ -328,6 +328,8 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "slug" },
       { k: "title" },
+      // เลือกหมวดจากแท็บ "หมวดคู่มือ" เว้นว่าง = ยังไม่จัดหมวด (หน้าคู่มือจะแสดงเฉพาะใน "ทั้งหมด")
+      { k: "category_id", label: "หมวดหมู่", type: "guideCat" },
       { k: "cover_url", label: "รูปปก", type: "img" },
       { k: "difficulty", type: "sel", opts: ["", "easy", "medium", "hard"] },
       { k: "reading_minutes", type: "num" },
@@ -1132,7 +1134,8 @@ export function Admin() {
     if (nav && el) nav.scrollTo({ left: el.offsetLeft - (nav.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
   }, [tab, isAdmin]);
 
-  // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์) พร้อมไอคอน (ถ้ามี) ไว้แสดงในการ์ดและช่องเลือก
+  // โหลดตัวเลือกสำหรับช่องที่อ้างอิงตารางอื่น (ฮีโร่/ไอเทม/รูน/แพตช์/หมวดคู่มือ) พร้อมไอคอน (ถ้ามี) ไว้แสดงในการ์ดและช่องเลือก
+  // โหลดใหม่ทุกครั้งที่สลับแท็บ เพื่อให้หมวดที่เพิ่ง เพิ่ม/แก้ ในแท็บ "หมวดคู่มือ" โผล่ในช่องเลือกของแท็บ "คู่มือ" ทันที
   useEffect(() => {
     if (!isAdmin) return;
     const opt = (
@@ -1182,8 +1185,10 @@ export function Admin() {
       opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
       arcanaOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
-    ]).then(([hero, item, arcana, patch]) => setRefs({ hero, item, arcana, patch }));
-  }, [isAdmin]);
+      // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ"
+      opt("guide_categories", "id,name_th,slug", "name_th", true, (r) => r.name_th ?? r.slug ?? "?"),
+    ]).then(([hero, item, arcana, patch, guideCat]) => setRefs({ hero, item, arcana, patch, guideCat }));
+  }, [isAdmin, tab]);
 
   if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
   if (!user)
