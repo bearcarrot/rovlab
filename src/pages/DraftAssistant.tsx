@@ -19,6 +19,7 @@ import {
   type Recommendation,
 } from "@/features/draft/analyzeTeam";
 import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
+import { buildKits } from "@/features/draft/skillTags";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
@@ -77,6 +78,7 @@ export function DraftAssistant() {
   // ข้อมูล counter/synergy: โหลดไม่ได้ก็ไม่เป็นไร ระบบแนะนำยังทำงานด้วยสถิติ + คอมโพสิชัน
   const relQ = useAsync(() => getDraftRelations(), []);
   // สกิลของฮีโร่ทั้งหมด: ให้ Coach AI อธิบายการใช้สกิล/คอมโบ/วิธีแก้ทางจากข้อมูลจริง (โหลดไม่ได้ = AI เห็นแค่ชื่อฮีโร่)
+  // และใช้แท็กชนิดสกิล (ฮีล/โล่/บัฟ) ประเมินว่าทีมขาดอะไร
   const skillsQ = useAsync(() => getAllAbilities(), []);
   const [myTeam, setMyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [enemyTeam, setEnemyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
@@ -87,7 +89,9 @@ export function DraftAssistant() {
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const relations = relQ.status === "success" ? relQ.data : undefined;
   const skills = useMemo(() => (skillsQ.status === "success" ? skillsQ.data : {}), [skillsQ.status, skillsQ.data]);
-  const analysis = useMemo(() => analyzeTeam(myTeam), [myTeam]);
+  // ความสามารถของฮีโร่จากแท็กสกิลในเกม (ยังไม่นำเข้าแท็ก = ว่าง ระบบทำงานเหมือนเดิม)
+  const kits = useMemo(() => buildKits(skills), [skills]);
+  const analysis = useMemo(() => analyzeTeam(myTeam, kits), [myTeam, kits]);
   const mode = getDraftMode(myTeam, enemyTeam);
 
   const mineList = useMemo(() => myTeam.filter((h): h is HeroSummary => h !== null), [myTeam]);
@@ -96,8 +100,8 @@ export function DraftAssistant() {
   // คำนวณทุกตัวครั้งเดียว แล้วแยกเป็น: ภาพรวม 5 อันดับ / คอมโบ / ชนะทาง
   // (คอมโบ/ชนะทางต้องไม่ถูกตัดด้วยอันดับ 5 เพราะคะแนนเติมจุดที่ขาดของตัวอื่นอาจสูงกว่า)
   const allRecs = useMemo(
-    () => (heroes.length ? recommendPicks(myTeam, heroes, { enemyTeam, relations, limit: heroes.length }) : []),
-    [myTeam, enemyTeam, heroes, relations]
+    () => (heroes.length ? recommendPicks(myTeam, heroes, { enemyTeam, relations, kits, limit: heroes.length }) : []),
+    [myTeam, enemyTeam, heroes, relations, kits]
   );
   const recs = allRecs.slice(0, 5);
   const synergyRecs = useMemo(
