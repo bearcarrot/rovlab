@@ -7,7 +7,9 @@ import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
+import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
 import { clearFilterIconsCache } from "@/services/filterIcons";
+import { clearEffectTagStylesCache } from "@/services/effectTagStyles";
 import type { HeroLane, HeroRole } from "@/types/hero";
 
 // ใช้ client แบบ untyped เพราะตารางถูกกำหนดแบบ config ด้านล่าง
@@ -18,6 +20,7 @@ type RefType = "hero" | "item" | "arcana" | "patch" | "guideCat";
 // icon = ไอคอนของรายการที่เลือก (แสดงบนการ์ดและข้างช่องเลือก)
 // alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
 // roles / lanes = ตำแหน่งและเลนของฮีโร่ ใช้กับชิปกรองในแท็บสถิติ/Tier List
+// tagType = รหัสแท็กของเกม (เฉพาะรายการแท็กสกิล ใช้ตอนเพิ่มแท็กให้สกิล)
 type RefOpt = {
   id: string;
   label: string;
@@ -26,14 +29,16 @@ type RefOpt = {
   alt?: string;
   roles?: string[];
   lanes?: string[];
+  tagType?: number;
 };
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch/guideCat(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
+// | tags(แท็กสกิล: jsonb [{type,name}] แตะเลือกจากรายการในแท็บ "แท็กและสี") | color(สี hex)
 type Col = {
   k: string;
   label?: string;
-  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | RefType;
+  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | "tags" | "color" | RefType;
   opts?: string[];
   // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
   ro?: boolean;
@@ -79,6 +84,8 @@ const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
 const REF_TYPES: string[] = ["hero", "item", "arcana", "patch", "guideCat"];
 const BUCKET = "hero-icons";
+// ตารางสีแท็กสกิล: แก้แล้วต้องล้างแคชสีที่หน้าเว็บโหลดไว้
+const TAG_STYLES_TABLE = "effect_tag_styles";
 // หน้ารูนในเกมมี 30 ช่อง = แดง 10 + ม่วง 10 + เขียว 10
 const MAX_SLOTS = 10;
 const SLOT_COLORS = [
@@ -162,7 +169,22 @@ const CFG: Record<string, Cfg> = {
       { k: "name" },
       { k: "icon_url", label: "ไอคอน", type: "img", round: true },
       { k: "description", type: "area" },
+      // แตะเพื่อเปิด/ปิดแท็กของสกิล (บันทึกทันที) รายการแท็กและสีจัดการที่แท็บ "แท็กและสี"
+      { k: "effect_tags", label: "แท็กสกิล (แตะเพื่อเปิด/ปิด)", type: "tags" },
       { k: "sort_order", type: "num" },
+    ],
+  },
+  // รายการแท็กสกิลทั้งหมด + สีป้าย (ใช้ทั้งหน้าฮีโร่ และเป็นตัวเลือกในแท็บ "สกิล")
+  effectTags: {
+    label: "แท็กและสี",
+    table: TAG_STYLES_TABLE,
+    order: "tag_type",
+    add: true,
+    search: "name",
+    cols: [
+      { k: "name", label: "ชื่อแท็ก (ต้องตรงกับที่ใช้ในสกิล)" },
+      { k: "color", label: "สีป้าย", type: "color" },
+      { k: "tag_type", label: "รหัสแท็กในเกม (type)", type: "num" },
     ],
   },
   counters: {
@@ -393,7 +415,9 @@ function Field({ label, children, className = "" }: { label: string; children: R
 // ฟอร์มแก้ไข/เพิ่ม: จอ ≥ sm จัดช่องสั้นเป็น 2 คอลัมน์ ช่องยาว (ข้อความหลายบรรทัด ปุ่มหลายตัว รูป ลิสต์) เต็มความกว้าง
 const fieldGrid = "grid gap-3 sm:grid-cols-2";
 const fieldSpan = (c: Col) =>
-  c.type === "area" || c.type === "multi" || c.type === "img" || c.type === "arr" ? "sm:col-span-2" : "";
+  c.type === "area" || c.type === "multi" || c.type === "img" || c.type === "arr" || c.type === "tags" || c.type === "color"
+    ? "sm:col-span-2"
+    : "";
 
 // ---------- helpers ----------
 
@@ -405,12 +429,28 @@ const toArr = (v: unknown): string[] =>
         .map((s) => s.trim())
         .filter(Boolean);
 const isArrCol = (c: Col) => c.type === "arr" || c.type === "multi";
-const norm = (c: Col, v: unknown) => (isArrCol(c) ? toArr(v).join("|") : String(v ?? ""));
-const clean = (c: Col, v: unknown) =>
-  isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
+const norm = (c: Col, v: unknown) =>
+  c.type === "tags" ? tagNames(v).join("|") : isArrCol(c) ? toArr(v).join("|") : String(v ?? "");
+// refs / prev ใช้กับช่องแท็ก: หา type ของแท็กจากรายการแท็ก และคง type เดิมของแท็กที่สกิลมีอยู่แล้ว (แท็กชื่อซ้ำบางตัวมีหลาย type)
+const clean = (c: Col, v: unknown, refs?: Record<string, RefOpt[]>, prev?: unknown) => {
+  if (c.type === "tags") {
+    const typeOf = new Map<string, number>();
+    for (const o of refs?.effectTag ?? []) if (o.tagType != null) typeOf.set(o.label, o.tagType);
+    if (Array.isArray(prev)) {
+      for (const t of prev) {
+        const name = t && typeof t === "object" ? String((t as any).name ?? "") : "";
+        const type = Number((t as any)?.type);
+        if (name && Number.isFinite(type)) typeOf.set(name, type);
+      }
+    }
+    return tagNames(v).map((name) => ({ type: typeOf.get(name) ?? 0, name }));
+  }
+  return isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
+};
 
 const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
   if (v == null || v === "" || c.type === "img") return "";
+  if (c.type === "tags") return tagNames(v).join(", ");
   if (c.type && REF_TYPES.includes(c.type)) return refs[c.type]?.find((o) => o.id === v)?.label ?? "";
   if (Array.isArray(v)) return v.join(", ");
   return String(v);
@@ -454,12 +494,15 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
     );
     if (row.difficulty) tags.push({ text: `ความยาก ${DIFFICULTY_TH[row.difficulty] ?? row.difficulty}`, kind: "diff" });
   }
+  // แท็บ "แท็กและสี": ช่องสีตัวอย่างหน้าการ์ด
+  const swatch = cfg.table === TAG_STYLES_TABLE ? (safeHex(row.color) ?? undefined) : undefined;
   return {
     title: parts[0] ?? "(ว่าง)",
     sub: parts.slice(1, 3).join(" · "),
     img,
     round,
     tags,
+    swatch,
   };
 };
 
@@ -573,6 +616,89 @@ function Cell({
             </button>
           );
         })}
+      </div>
+    );
+  }
+  if (c.type === "tags") {
+    // แท็กสกิล: แตะเปิด/ปิดแต่ละแท็ก (ป้ายใช้สีที่ตั้งไว้ในแท็บ "แท็กและสี") แท็กที่สกิลมีแต่ไม่อยู่ในรายการ (เช่นชื่อที่นำเข้าผิด) ก็แสดงให้กดปิดได้
+    const sel = tagNames(v);
+    const cat = refs.effectTag ?? [];
+    const colors: Record<string, string> = Object.fromEntries(cat.filter((o) => o.color).map((o) => [o.label, o.color!]));
+    const names = [...cat.map((o) => o.label), ...sel.filter((n) => !cat.some((o) => o.label === n))];
+    const toggle = (n: string) => change((sel.includes(n) ? sel.filter((x) => x !== n) : [...sel, n]).join(","));
+    if (names.length === 0)
+      return <p className="text-sm text-text-faint">ยังไม่มีรายการแท็ก เพิ่มได้ที่แท็บ "แท็กและสี"</p>;
+    return (
+      <div className="flex flex-wrap gap-2">
+        {names.map((n) => {
+          const on = sel.includes(n);
+          const hex = tagColor(n, colors);
+          return (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(n)}
+              className={`h-9 rounded-full border px-3 text-sm transition ${
+                on ? "font-semibold" : "border-border bg-bg-raised text-text-muted hover:border-text-faint"
+              }`}
+              style={on ? { color: hex, borderColor: hex, backgroundColor: `${hex}33` } : undefined}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+  if (c.type === "color") {
+    // สี hex: ตัวเลือกสี (บันทึกตอนปิดตัวเลือก) + ช่องพิมพ์รหัส + ชุดสีสำเร็จรูป (แตะแล้วบันทึกทันที)
+    const hex = safeHex(v) ?? "#94a3b8";
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            aria-label="เลือกสี"
+            value={hex}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={(e) => onCommit?.(e.target.value)}
+            className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-border bg-bg-raised p-1"
+          />
+          <input
+            className={inp}
+            placeholder="#ef4444"
+            value={v ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={(e) => {
+              const val = e.target.value.trim();
+              if (!val) return;
+              const h = safeHex(val);
+              if (!h) {
+                onError("รหัสสีไม่ถูกต้อง ใช้รูปแบบ #RRGGBB เช่น #ef4444");
+                return;
+              }
+              onChange(h);
+              onCommit?.(h);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {EFFECT_COLOR_PRESETS.map((p) => (
+            <button
+              key={p.hex}
+              type="button"
+              title={p.label}
+              aria-label={p.label}
+              onClick={() => change(p.hex)}
+              className={`h-8 w-8 rounded-full border-2 transition ${hex === p.hex ? "border-text" : "border-border"}`}
+              style={{ backgroundColor: p.hex }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -754,7 +880,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
 
   async function commit(row: Row, c: Col, v: string) {
     if (norm(c, orig.current[row.id]?.[c.k]) === norm(c, v)) return; // ไม่มีอะไรเปลี่ยน
-    const val = clean(c, v);
+    const val = clean(c, v, refs, orig.current[row.id]?.[c.k]);
     const body: Row = { [c.k]: val };
     if (cfg.table === "heroes") body.updated_at = new Date().toISOString();
     const { error } = await db.from(cfg.table).update(body).eq("id", row.id);
@@ -764,6 +890,8 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
       orig.current[row.id] = { ...orig.current[row.id], [c.k]: val };
       // ไอคอนตัวกรองตำแหน่ง/เลนถูกแคชไว้ในแอป ล้างเพื่อให้หน้าถัดไปเห็นไอคอนใหม่
       if (cfg.table === "hero_roles" || cfg.table === "hero_lanes") clearFilterIconsCache();
+      // สีแท็กสกิลก็ถูกแคชไว้เช่นกัน
+      if (cfg.table === TAG_STYLES_TABLE) clearEffectTagStylesCache();
       ok(`บันทึก ${c.label ?? c.k} แล้ว`);
     }
   }
@@ -773,6 +901,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     setConfirmId(null);
     if (error) err(error.message);
     else {
+      if (cfg.table === TAG_STYLES_TABLE) clearEffectTagStylesCache();
       ok("ลบแล้ว");
       void load();
     }
@@ -786,13 +915,14 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     // ข้ามช่องที่ว่าง (รวมถึงลิสต์ว่าง) เพื่อให้ค่า default ของ DB ทำงาน (เช่น quantity = 10)
     const body: Row = {};
     for (const c of cfg.cols) {
-      const val = clean(c, draft[c.k]);
+      const val = clean(c, draft[c.k], refs);
       if (val !== null && !(Array.isArray(val) && val.length === 0)) body[c.k] = val;
     }
     if (cfg.filter) body[cfg.filter.col] = fv;
     const { error } = await db.from(cfg.table).insert(body);
     if (error) err(error.message);
     else {
+      if (cfg.table === TAG_STYLES_TABLE) clearEffectTagStylesCache();
       setDraft(blank());
       setShowAdd(false);
       ok("เพิ่มแล้ว");
@@ -1022,7 +1152,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           ))}
         {view.map(({ row, i, info }) => {
           const open = openId === row.id;
-          const { title, sub, img, round, tags } = info;
+          const { title, sub, img, round, tags, swatch } = info;
           return (
             <article
               key={row.id}
@@ -1039,6 +1169,13 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
                 }}
                 className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg-raised"
               >
+                {swatch ? (
+                  <span
+                    aria-hidden
+                    className="h-9 w-9 shrink-0 rounded-lg border border-border"
+                    style={{ backgroundColor: swatch }}
+                  />
+                ) : null}
                 {img ? (
                   <img
                     src={img}
@@ -1196,7 +1333,21 @@ export function Admin() {
       opt("patches", "id,code", "released_at", false, (r) => r.code),
       // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ" (เรียงตาม sort_id เหมือนที่แสดงบนเว็บ)
       opt("guide_categories", "id,name_th,slug,sort_id", "sort_id", true, (r) => r.name_th ?? r.slug ?? "?"),
-    ]).then(([hero, item, arcana, patch, guideCat]) => setRefs({ hero, item, arcana, patch, guideCat }));
+      // รายการแท็กสกิล (ชื่อ + สี + type ของเกม) ใช้เป็นปุ่มเลือกในช่อง "แท็กสกิล" ของแท็บ "สกิล"
+      // ตารางยังไม่มี = รายการว่าง (ช่องแท็กจะบอกให้ไปเพิ่มที่แท็บ "แท็กและสี")
+      opt(
+        TAG_STYLES_TABLE,
+        "id,name,tag_type,color",
+        "tag_type",
+        true,
+        (r) => r.name ?? "?",
+        undefined,
+        undefined,
+        (r) => ({ color: (r.color ?? undefined) as string | undefined, tagType: (r.tag_type ?? undefined) as number | undefined })
+      ),
+    ]).then(([hero, item, arcana, patch, guideCat, effectTag]) =>
+      setRefs({ hero, item, arcana, patch, guideCat, effectTag })
+    );
   }, [isAdmin, tab]);
 
   if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
