@@ -139,7 +139,7 @@ export function LaneFilterRow({ value, onChange }: { value: HeroLane | null; onC
 export function TierFilterRow({ value, onChange }: { value: Tier | null; onChange: (v: Tier | null) => void }) {
   return (
     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-      <Chip active={value === null} onClick={() => onChange(null)} label="ทุก Tier" />
+      <Chip active={value === null} onClick={() => onChange(null)} label="ทั้งหมด" />
       {TIER_OPTIONS.map((t) => (
         <Chip key={t} active={value === t} onClick={() => onChange(value === t ? null : t)} label={t} />
       ))}
