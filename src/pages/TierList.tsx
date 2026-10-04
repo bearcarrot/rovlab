@@ -69,9 +69,9 @@ export function TierList() {
       </div>
 
       <div className="space-y-2">
-        <TierFilterRow value={tier} onChange={setTier} />
         <RoleFilterRow value={role} onChange={setRole} />
         <LaneFilterRow value={lane} onChange={setLane} />
+        <TierFilterRow value={tier} onChange={setTier} />
       </div>
 
       {loading && (
