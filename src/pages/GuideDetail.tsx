@@ -34,7 +34,7 @@ export function GuideDetail() {
     <div className="space-y-5 pb-4">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <Badge>{DIFFICULTY_LABEL[g.difficulty]}</Badge>
+          {g.difficulty && <Badge>{DIFFICULTY_LABEL[g.difficulty]}</Badge>}
           <span className="flex items-center gap-1 text-xs text-text-faint">
             <Clock className="h-3 w-3" /> อ่าน {g.readingMinutes} นาที
           </span>
@@ -44,7 +44,7 @@ export function GuideDetail() {
 
       <div className="space-y-3 text-sm leading-relaxed text-text-muted">
         {g.content.map((para, i) => (
-          <p key={i}>{para}</p>
+          <p key={i} className="whitespace-pre-line">{para}</p>
         ))}
       </div>
 
@@ -53,11 +53,11 @@ export function GuideDetail() {
           <p className="mb-2 text-xs font-medium text-text-faint">ฮีโร่ที่เกี่ยวข้อง</p>
           <div className="flex flex-wrap gap-2">
             {g.heroRefs.map((slug) => {
-              const hero = MOCK_HEROES.find((h) => h.slug === slug);
-              if (!hero) return null;
+              const name = g.heroNames?.[slug] ?? MOCK_HEROES.find((h) => h.slug === slug)?.nameTh;
+              if (!name) return null;
               return (
                 <Link key={slug} to={`/heroes/${slug}`} className="rounded-full border border-border bg-bg-surface px-3 py-1.5 text-xs hover:border-accent/40">
-                  {hero.nameTh}
+                  {name}
                 </Link>
               );
             })}
