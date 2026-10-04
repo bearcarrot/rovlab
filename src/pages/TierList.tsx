@@ -5,7 +5,7 @@ import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroLane, HeroRole, Tier } from "@/types/hero";
 
-const TIER_ORDER: Tier[] = ["S+", "S", "A", "B", "C"];
+const TIER_ORDER: Tier[] = TIER_OPTIONS;
 
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
@@ -23,6 +23,9 @@ export function TierList() {
   // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรงก์สลับที่ปุ่มบน Header
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
+  const [storedTier, setTier] = usePersistedState<Tier | null>("rovlab:filter:tier:tier", null);
+  // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น "ทุก Tier"
+  const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
   // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
   const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
 
@@ -32,9 +35,13 @@ export function TierList() {
     const filtered = heroes.data.filter((h) => {
       if (role !== null && !heroRoles(h).includes(role)) return false;
       // มีลิสต์ที่แอดมินจัด: แสดงเฉพาะฮีโร่ในลิสต์นั้น (ลิสต์รายเลนคือเลนนั้นอยู่แล้ว)
-      if (tiers) return tiers.has(h.id);
+      if (tiers) {
+        if (!tiers.has(h.id)) return false;
+        return tier === null || tiers.get(h.id) === tier;
+      }
       // fallback: tier จากสถิติ + กรองเลนจากอาร์เรย์ lanes
-      return h.stat.hasStats && (lane === null || heroLanes(h).includes(lane));
+      if (!h.stat.hasStats || (lane !== null && !heroLanes(h).includes(lane))) return false;
+      return tier === null || h.stat.tier === tier;
     });
     const map = new Map<Tier, typeof filtered>();
     for (const t of TIER_ORDER) map.set(t, []);
@@ -42,7 +49,7 @@ export function TierList() {
     // เรียง A-Z ตามชื่ออังกฤษ ไม่เรียงตาม Win Rate เพื่อไม่ให้ลำดับในช่องดูเหมือนอันดับความแข็ง
     for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, "en"));
     return map;
-  }, [heroes, curated, role, lane]);
+  }, [heroes, curated, role, lane, tier]);
 
   const isCurated = curated.status === "success" && curated.data !== null;
   const totalShown = grouped ? [...grouped.values()].reduce((n, l) => n + l.length, 0) : 0;
@@ -62,6 +69,7 @@ export function TierList() {
       </div>
 
       <div className="space-y-2">
+        <TierFilterRow value={tier} onChange={setTier} />
         <RoleFilterRow value={role} onChange={setRole} />
         <LaneFilterRow value={lane} onChange={setLane} />
       </div>
@@ -76,19 +84,19 @@ export function TierList() {
         <EmptyState
           icon={BarChart3}
           title={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
-          description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
+          description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Tier, Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
       {!loading && grouped && totalShown > 0 && (
         <div className="space-y-5">
-          {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((tier) => (
-            <div key={tier}>
+          {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((t) => (
+            <div key={t}>
               <div className="mb-2 flex items-center gap-2">
-                <Badge tier={tier} className="text-sm px-2.5 py-1">{tier}</Badge>
-                <span className="text-xs text-text-faint">{grouped.get(tier)?.length} ฮีโร่</span>
+                <Badge tier={t} className="text-sm px-2.5 py-1">{t}</Badge>
+                <span className="text-xs text-text-faint">{grouped.get(t)?.length} ฮีโร่</span>
               </div>
               <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
-                {grouped.get(tier)!.map((h) => (
+                {grouped.get(t)!.map((h) => (
                   <Link
                     key={h.id}
                     to={`/heroes/${h.slug}`}
