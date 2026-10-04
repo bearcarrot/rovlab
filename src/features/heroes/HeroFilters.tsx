@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getFilterIcons, sortByOrder, type FilterIcons } from "@/services/filterIcons";
-import type { HeroLane, HeroRole } from "@/types/hero";
+import type { HeroLane, HeroRole, Tier } from "@/types/hero";
 
 // Fallback labels / order, used until the DB (hero_roles / hero_lanes) loads or when it has no row for a code.
 // The names and order actually shown come from the DB (label, sort_order) — see useFilterIcons().
@@ -22,6 +22,9 @@ export const LANE_OPTIONS: { value: HeroLane; label: string }[] = [
   { value: "abyssal", label: "Abyssal" },
   { value: "roaming", label: "Roaming" },
 ];
+
+// ลำดับ Tier ที่ใช้ทั้งชิปกรองและการจัดกลุ่มในหน้า Tier List
+export const TIER_OPTIONS: Tier[] = ["S+", "S", "A", "B", "C"];
 
 const NO_ICONS: FilterIcons = { roles: {}, lanes: {}, roleLabels: {}, laneLabels: {}, roleOrder: [], laneOrder: [] };
 
@@ -128,6 +131,17 @@ export function LaneFilterRow({ value, onChange }: { value: HeroLane | null; onC
           label={icons.laneLabels[l.value] ?? l.label}
           icon={icons.lanes[l.value]}
         />
+      ))}
+    </div>
+  );
+}
+
+export function TierFilterRow({ value, onChange }: { value: Tier | null; onChange: (v: Tier | null) => void }) {
+  return (
+    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+      <Chip active={value === null} onClick={() => onChange(null)} label="ทุก Tier" />
+      {TIER_OPTIONS.map((t) => (
+        <Chip key={t} active={value === t} onClick={() => onChange(value === t ? null : t)} label={t} />
       ))}
     </div>
   );
