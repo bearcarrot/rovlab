@@ -2,6 +2,7 @@ import { MOCK_HERO_DETAILS, MOCK_HEROES } from "@/data/heroes.mock";
 import type { HeroAbility, HeroDetail, HeroLane, HeroRole, HeroSummary, Tier, CounterEntry, SynergyEntry } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
+import { parseEffectTags } from "@/lib/effectTags";
 import { getLatestPatch } from "@/services/meta";
 import { ALL_LANES, getCuratedTierLists } from "@/services/tierlist";
 
@@ -156,7 +157,7 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);
 
   const [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
-    supabase.from("hero_abilities").select("slot, name, description, icon_url").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
+    supabase.from("hero_abilities").select("slot, name, description, icon_url, effect_tags").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
     supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
     supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name, icon_url)").eq("counter_hero_id", heroRow.id),
     supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
@@ -167,6 +168,7 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
     name: a.name,
     description: a.description,
     icon: a.icon_url ?? undefined,
+    effectTags: parseEffectTags(a.effect_tags),
   }));
 
   const counteredBy: CounterEntry[] = (counteredByRes.data ?? [])
