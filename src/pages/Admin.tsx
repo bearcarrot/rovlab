@@ -322,8 +322,9 @@ const CFG: Record<string, Cfg> = {
   guides: {
     label: "คู่มือ",
     table: "guides",
-    order: "created_at",
-    asc: false,
+    // เรียงตามลำดับที่แสดงบนเว็บ (sort_id เล็ก = ก่อน)
+    order: "sort_id",
+    asc: true,
     add: true,
     cols: [
       { k: "slug" },
@@ -333,14 +334,22 @@ const CFG: Record<string, Cfg> = {
       { k: "cover_url", label: "รูปปก", type: "img" },
       { k: "difficulty", type: "sel", opts: ["", "easy", "medium", "hard"] },
       { k: "reading_minutes", type: "num" },
+      // ตัวเลขน้อย = แสดงก่อน ค่าเริ่มต้น 0 เท่ากันทุกเล่ม = เรียงตามระดับความยาก (ง่าย → ยาก)
+      { k: "sort_id", label: "ลำดับ (เล็ก = แสดงก่อน)", type: "num" },
       { k: "content", type: "area" },
     ],
   },
   guideCats: {
     label: "หมวดคู่มือ",
     table: "guide_categories",
+    order: "sort_id",
+    asc: true,
     add: true,
-    cols: [{ k: "slug" }, { k: "name_th" }],
+    cols: [
+      { k: "slug" },
+      { k: "name_th" },
+      { k: "sort_id", label: "ลำดับ (เล็ก = แสดงก่อน)", type: "num" },
+    ],
   },
 };
 
@@ -1185,8 +1194,8 @@ export function Admin() {
       opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
       arcanaOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
-      // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ"
-      opt("guide_categories", "id,name_th,slug", "name_th", true, (r) => r.name_th ?? r.slug ?? "?"),
+      // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ" (เรียงตาม sort_id เหมือนที่แสดงบนเว็บ)
+      opt("guide_categories", "id,name_th,slug,sort_id", "sort_id", true, (r) => r.name_th ?? r.slug ?? "?"),
     ]).then(([hero, item, arcana, patch, guideCat]) => setRefs({ hero, item, arcana, patch, guideCat }));
   }, [isAdmin, tab]);
 
