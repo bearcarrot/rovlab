@@ -5,9 +5,10 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 // คู่มือดึงจาก Supabase (ตาราง guides + guide_categories) ถ้าตั้งค่า Supabase แล้ว
 // ถ้ายังไม่ได้ตั้งค่า (เช่นรัน dev โดยไม่มี .env) จะใช้ข้อมูลตัวอย่างจาก guides.mock แทน
 //
-// guides.content เก็บเป็นข้อความ (markdown) แยกย่อหน้าด้วยบรรทัดว่าง
+// guides.content เก็บเป็นข้อความ (markdown แบบย่อ) แยกย่อหน้าด้วยบรรทัดว่าง
+// หน้ารายละเอียดแปลงเป็นหัวข้อ/ลิสต์/ลิงก์ด้วย components/guides/GuideContent
 // guides.hero_refs เก็บเป็น uuid ของฮีโร่ จึงแปลงเป็น slug + ชื่อตอนเปิดหน้ารายละเอียด
-// ตารางยังไม่มีคอลัมน์ excerpt จึงตัดจากย่อหน้าแรกของ content ให้
+// ตารางยังไม่มีคอลัมน์ excerpt จึงตัดจากย่อหน้าแรกที่ไม่ใช่หัวข้อของ content ให้
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -35,9 +36,28 @@ function toParagraphs(content: string | null): string[] {
     .filter(Boolean);
 }
 
+// ถอด markdown ออกให้เหลือข้อความล้วน สำหรับคำโปรยในการ์ด
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/\[([^\]]+)\]\(https?:[^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/(\*\*|\*|`)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// คำโปรย = ย่อหน้าแรกที่มีข้อความจริง (ข้ามบรรทัดหัวข้อ # ## ###)
 function toExcerpt(paragraphs: string[]): string {
-  const first = (paragraphs[0] ?? "").replace(/^[#>*\-\s]+/, "").replace(/\s+/g, " ");
-  return first.length > 120 ? `${first.slice(0, 120).trimEnd()}…` : first;
+  for (const p of paragraphs) {
+    const text = p
+      .split("\n")
+      .filter((l) => !/^\s*#{1,6}\s/.test(l))
+      .join(" ")
+      .replace(/^[\s>\-*•]+/, "");
+    const clean = stripMarkdown(text);
+    if (clean) return clean.length > 120 ? `${clean.slice(0, 120).trimEnd()}…` : clean;
+  }
+  return "";
 }
 
 function categorySlugOf(row: DbGuideRow): string {
