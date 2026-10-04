@@ -74,7 +74,11 @@ export function Learn() {
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="font-display text-sm font-medium leading-snug">{g.title}</p>
-                {g.difficulty && <Badge className="shrink-0">{DIFFICULTY_LABEL[g.difficulty]}</Badge>}
+                {g.difficulty && (
+                  <Badge difficulty={g.difficulty} className="shrink-0">
+                    {DIFFICULTY_LABEL[g.difficulty]}
+                  </Badge>
+                )}
               </div>
               <p className="mt-1.5 text-sm text-text-muted">{g.excerpt}</p>
               <p className="mt-2 flex items-center gap-1 text-xs text-text-faint">

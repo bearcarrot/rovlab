@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { GuideContent } from "@/components/guides/GuideContent";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
@@ -34,7 +35,7 @@ export function GuideDetail() {
     <div className="space-y-5 pb-4">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          {g.difficulty && <Badge>{DIFFICULTY_LABEL[g.difficulty]}</Badge>}
+          {g.difficulty && <Badge difficulty={g.difficulty}>{DIFFICULTY_LABEL[g.difficulty]}</Badge>}
           <span className="flex items-center gap-1 text-xs text-text-faint">
             <Clock className="h-3 w-3" /> อ่าน {g.readingMinutes} นาที
           </span>
@@ -42,11 +43,7 @@ export function GuideDetail() {
         <h1 className="font-display text-xl font-semibold leading-snug">{g.title}</h1>
       </div>
 
-      <div className="space-y-3 text-sm leading-relaxed text-text-muted">
-        {g.content.map((para, i) => (
-          <p key={i} className="whitespace-pre-line">{para}</p>
-        ))}
-      </div>
+      <GuideContent blocks={g.content} />
 
       {g.heroRefs.length > 0 && (
         <div>
