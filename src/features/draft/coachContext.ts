@@ -10,7 +10,8 @@ const TEXT_STEPS = [320, 220, 150, 100, 60, 0];
 // บอก AI ตรงๆ ว่าข้อมูลส่วนไหนเชื่อได้แค่ไหน (ดู system prompt ใน ai-coach ด้วย)
 const DATA_NOTE =
   "stat เป็น null = ยังไม่มีสถิติจริง ห้ามอ้าง Tier/Win Rate; " +
-  "teamProfile และ reasons ที่พูดถึงแนวหน้า/CC/ดาเมจ เป็นการประเมินคร่าวๆ ตามบทบาท (heuristic) ไม่ใช่ข้อมูลยืนยัน";
+  "teamProfile และ reasons ที่พูดถึงแนวหน้า/CC/ดาเมจ เป็นการประเมินคร่าวๆ ตามบทบาท (heuristic) ไม่ใช่ข้อมูลยืนยัน; " +
+  "skills[].tags (เช่น ฮีล/โล่/บัฟ) เป็นแท็กชนิดสกิลที่เกมระบุไว้จริง";
 
 const squash = (s: string, n: number) => {
   const t = s.replace(/\s+/g, " ").trim();
@@ -37,6 +38,8 @@ function skillsOf(skills: AbilitiesByHero, hero: HeroSummary, n: number) {
   return (skills[hero.id] ?? []).map((a) => ({
     slot: a.slot,
     name: a.name,
+    // แท็กชนิดสกิลจากเกม (ฮีล/โล่/บัฟ ...) ส่งเฉพาะสกิลที่มีแท็ก เพื่อไม่กินงบตัวอักษร
+    ...(a.effectTags.length > 0 ? { tags: a.effectTags } : {}),
     text: n > 0 ? squash(a.description, n) : "",
   }));
 }

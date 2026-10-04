@@ -1,6 +1,7 @@
 import type { HeroSummary, Tier } from "@/types/hero";
 import type { CounterStrength, DraftRelations } from "@/services/draft";
 import { ROLE_TAGS } from "./heroTags";
+import type { KitsByHero } from "./skillTags";
 
 export interface TeamAnalysis {
   physicalDamage: number;
@@ -11,6 +12,8 @@ export interface TeamAnalysis {
   sustain: number;
   earlyGame: number;
   lateGame: number;
+  // จำนวนฮีโร่ในทีมที่สกิลมีฮีลหรือโล่ (จากแท็กสกิลในเกม; 0 = ไม่มี หรือยังไม่มีข้อมูลแท็ก)
+  healShield: number;
   filledSlots: number;
 }
 
@@ -18,8 +21,8 @@ const filled = (team: (HeroSummary | null)[]) => team.filter((h): h is HeroSumma
 
 // All numbers here are relative point totals from the ROLE_TAGS heuristic, not
 // measured game data — the UI must present them as a rough heuristic, never as
-// precise math.
-export function analyzeTeam(heroes: (HeroSummary | null)[]): TeamAnalysis {
+// precise math. ยกเว้น healShield ที่มาจากแท็กสกิลในเกม (ถ้าส่ง kits มา)
+export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): TeamAnalysis {
   const picked = filled(heroes);
   const result: TeamAnalysis = {
     physicalDamage: 0,
@@ -30,6 +33,7 @@ export function analyzeTeam(heroes: (HeroSummary | null)[]): TeamAnalysis {
     sustain: 0,
     earlyGame: 0,
     lateGame: 0,
+    healShield: 0,
     filledSlots: picked.length,
   };
   for (const h of picked) {
@@ -42,6 +46,8 @@ export function analyzeTeam(heroes: (HeroSummary | null)[]): TeamAnalysis {
     result.sustain += tag.sustain;
     if (tag.scaling === "early") result.earlyGame += 2;
     if (tag.scaling === "late") result.lateGame += 2;
+    const kit = kits?.[h.id];
+    if (kit && (kit.heal || kit.shield)) result.healShield += 1;
   }
   return result;
 }
@@ -97,6 +103,7 @@ const EXPOSURE_WEIGHT: Record<CounterStrength, number> = { best: 1, good: 0.6, s
 const EXPOSURE_PENALTY_PER_POINT = 0.5;
 const EXPOSURE_PENALTY_CAP = 1.5;
 const SYNERGY_POINTS = 1.5;
+const HEAL_SHIELD_POINTS = 1.5; // ทีมยังไม่มีฮีล/โล่ แล้วฮีโร่นี้มีในสกิล
 const TIER_POINTS: Record<Tier, number> = { "S+": 2.5, S: 2, A: 1, B: 0.5, C: 0 };
 const MIN_MATCHES = 100; // ต่ำกว่านี้ถือว่า Win Rate ยังไม่น่าเชื่อถือ
 const LEVEL_TH: Record<CounterStrength, string> = { best: "ดีที่สุด", good: "ดี", situational: "บางสถานการณ์" };
@@ -132,10 +139,11 @@ function indexRelations(rel?: DraftRelations) {
 }
 
 // ctx.limit: จำนวนที่คืนสูงสุด (ค่าเริ่มต้น 5) — ส่งค่ามากๆ เพื่อเอารายการทั้งหมดไปกรองตามแท็ก (คอมโบ/ชนะทาง)
+// ctx.kits: ความสามารถจากแท็กสกิลในเกม (ฮีล/โล่/บัฟ) — ไม่ส่ง = ใช้เฉพาะบทบาทเหมือนเดิม
 export function recommendPicks(
   currentTeam: (HeroSummary | null)[],
   pool: HeroSummary[],
-  ctx: { enemyTeam?: (HeroSummary | null)[]; relations?: DraftRelations; limit?: number } = {}
+  ctx: { enemyTeam?: (HeroSummary | null)[]; relations?: DraftRelations; kits?: KitsByHero; limit?: number } = {}
 ): Recommendation[] {
   const enemyTeam = ctx.enemyTeam ?? [];
   const mine = filled(currentTeam);
@@ -143,7 +151,7 @@ export function recommendPicks(
   // ฮีโร่ซ้ำกันข้ามทีมไม่ได้ จึงตัดตัวที่ฝั่งศัตรูเลือกไปแล้วออกด้วย
   const taken = new Set([...mine, ...enemies].map((h) => h.slug));
   const mode = getDraftMode(currentTeam, enemyTeam);
-  const analysis = analyzeTeam(currentTeam);
+  const analysis = analyzeTeam(currentTeam, ctx.kits);
   const rel = indexRelations(ctx.relations);
   // ทีมเรายังว่างแต่เห็นศัตรูแล้ว: ลดน้ำหนักการเติมจุดที่ขาด ให้ตัวชนะทางเด่นกว่า
   const compScale = mine.length === 0 ? 0.5 : 1;
@@ -206,6 +214,13 @@ export function recommendPicks(
         if (analysis.cc < 3 && tag.cc >= 2) {
           reasons.push("ทีมมี Crowd Control น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้");
           score += 2 * compScale;
+        }
+        // ฮีล/โล่ จากแท็กสกิลในเกม: นับเฉพาะตอนทีมเรามีคนแล้ว และทีมยังไม่มีใครมีฮีล/โล่เลย
+        const kit = ctx.kits?.[h.id];
+        if (kit && mine.length > 0 && analysis.healShield === 0 && (kit.heal || kit.shield)) {
+          const what = kit.heal && kit.shield ? "ฮีลและโล่" : kit.heal ? "ฮีล" : "โล่";
+          reasons.push(`ทีมยังไม่มีฮีล/โล่ สกิลของฮีโร่นี้มี${what}`);
+          score += HEAL_SHIELD_POINTS * compScale;
         }
         // เช็คเฉพาะตอนมีคนในทีมแล้ว (ทีมว่างไม่ใช่ "มีแต่ดาเมจชนิดเดียว")
         if (analysis.physicalDamage > 0 && analysis.magicDamage === 0 && tag.damage === "magic") {
