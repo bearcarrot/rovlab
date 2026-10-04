@@ -2,6 +2,7 @@ import { Menu, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useMyAvatar } from "@/features/profile/useMyAvatar";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { RankToggle } from "@/components/layout/RankToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 
@@ -26,6 +27,9 @@ export function Header({ onOpenDrawer }: { onOpenDrawer: () => void }) {
       <div className="flex-1" />
 
       <RankToggle />
+
+      {/* bell sits to the left of the profile button (renders only when signed in) */}
+      <NotificationBell />
 
       <Link
         to={user ? "/profile" : "/login"}
