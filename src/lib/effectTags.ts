@@ -1,5 +1,6 @@
 // แท็กชนิดสกิลจากเกม (hero_abilities.effect_tags = jsonb [{ "type": 1, "name": "กายภาพ" }])
-// ที่นี่เป็นที่เดียวที่รู้ว่าแท็กไหนอยู่กลุ่มไหน / สีอะไร — หน้าฮีโร่และ Draft Assist ใช้ร่วมกัน
+// ที่นี่เป็นที่เดียวที่รู้ว่าแท็กไหนอยู่กลุ่มไหน / สีเริ่มต้นอะไร — หน้าฮีโร่ Draft Assist และหน้าแอดมินใช้ร่วมกัน
+// สีที่แอดมินตั้งไว้เก็บในตาราง effect_tag_styles (ทับสีเริ่มต้นเป็นรายชื่อแท็ก)
 
 export interface EffectTag {
   type: number;
@@ -33,7 +34,7 @@ const GROUP_BY_NAME: Record<string, EffectGroup> = {
   ความเสียหายหมู่: "aoe",
   // คุมฝูงชน
   สตั๊น: "cc", ลอยขึ้น: "cc", ผลักถอยหลัง: "cc", ควบคุม: "cc", ใบ้: "cc", ล็อคตัว: "cc",
-  แช่แข็ง: "cc", ยั่วยุ: "cc", จำกัด: "cc", ดูดกลืน: "cc", Fossilize: "cc",
+  แช่แข็ง: "cc", ยั่วยุ: "cc", จำกัด: "cc", ดูดกลืน: "cc", หยุดนิ่ง: "cc", Fossilize: "cc",
   ลดความเร็ว: "slow",
   เคลื่อนที่: "mobility", เพิ่มความเร็ว: "mobility", วาร์ป: "mobility",
   ฮีล: "heal", คืนชีพ: "heal",
@@ -43,14 +44,73 @@ const GROUP_BY_NAME: Record<string, EffectGroup> = {
   บัฟ: "buff", เพิ่มความเสียหาย: "buff", เพิ่มความเร็วโจมตี: "buff",
 };
 
-// ชื่อแท็กที่เป็นภาษาอังกฤษล้วน = ชื่อสกิลที่หลุดเข้ามาในคอลัมน์ (type 1 เช่น "Chrono Shield") ไม่ใช่แท็กจริง → ทิ้ง
-const ASCII_ONLY = /^[\x00-\x7F]+$/;
+// สีเริ่มต้นตามกลุ่ม (hex) — กายภาพ แดง · เวท น้ำเงิน · จริง เทา · CC เหลือง ฯลฯ
+export const GROUP_COLOR: Record<EffectGroup, string> = {
+  physical: "#ef4444",
+  magic: "#3b82f6",
+  true: "#94a3b8",
+  mixed: "#a855f7",
+  aoe: "#f97316",
+  cc: "#eab308",
+  slow: "#06b6d4",
+  mobility: "#10b981",
+  heal: "#22c55e",
+  defense: "#14b8a6",
+  buff: "#ec4899",
+  other: "#94a3b8",
+};
+
+// ชุดสีให้แอดมินแตะเลือก (นอกจากนี้เลือกเองได้จากตัวเลือกสี)
+export const EFFECT_COLOR_PRESETS: { label: string; hex: string }[] = [
+  { label: "แดง", hex: "#ef4444" },
+  { label: "ส้ม", hex: "#f97316" },
+  { label: "เหลือง", hex: "#eab308" },
+  { label: "เขียว", hex: "#22c55e" },
+  { label: "เขียวมรกต", hex: "#10b981" },
+  { label: "เขียวน้ำทะเล", hex: "#14b8a6" },
+  { label: "ฟ้า", hex: "#06b6d4" },
+  { label: "น้ำเงิน", hex: "#3b82f6" },
+  { label: "ม่วง", hex: "#a855f7" },
+  { label: "ชมพู", hex: "#ec4899" },
+  { label: "เทา", hex: "#94a3b8" },
+  { label: "ขาว", hex: "#e2e8f0" },
+];
+
+const HAS_THAI = /[\u0E00-\u0E7F]/;
+const HEX6 = /^#[0-9a-f]{6}$/i;
+const HEX3 = /^#[0-9a-f]{3}$/i;
+
+// รับ #RGB / #RRGGBB คืน #rrggbb (ตัวพิมพ์เล็ก) · ไม่ถูกต้อง = null
+export function safeHex(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  if (HEX6.test(s)) return s.toLowerCase();
+  if (HEX3.test(s)) return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`.toLowerCase();
+  return null;
+}
 
 export function tagGroup(name: string): EffectGroup {
   return GROUP_BY_NAME[name] ?? "other";
 }
 
-// อ่าน jsonb ทนข้อมูลผิดรูปแบบ: ตัดชื่อซ้ำ (เช่น ต้านสถานะ มี 2 type) + ตัดชื่อสกิลภาษาอังกฤษที่หลุดมา
+// overrides = สีที่แอดมินตั้งไว้ (name → hex) ถ้าไม่มีหรือรหัสสีเสีย ใช้สีเริ่มต้นตามกลุ่ม
+export function tagColor(name: string, overrides?: Record<string, string>): string {
+  return safeHex(overrides?.[name]) ?? GROUP_COLOR[tagGroup(name)];
+}
+
+// อ่านชื่อแท็กจากค่าได้ทั้ง jsonb [{type,name}] / อาร์เรย์ชื่อ / ข้อความคั่นด้วย ,
+export function tagNames(v: unknown): string[] {
+  const raw: unknown[] = Array.isArray(v) ? v : String(v ?? "").split(",");
+  const out: string[] = [];
+  for (const t of raw) {
+    const name = (t && typeof t === "object" ? String((t as { name?: unknown }).name ?? "") : String(t ?? "")).trim();
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+// อ่าน jsonb ทนข้อมูลผิดรูปแบบ: ตัดชื่อซ้ำ (เช่น ต้านสถานะ มี 2 type)
+// และตัดชื่อสกิลภาษาอังกฤษที่หลุดเข้ามาในคอลัมน์ (type 1 เช่น "Chrono Shield", "Don’t Test Me") — ไม่ใช่แท็กจริง
+// เกณฑ์: ชื่อที่ไม่อยู่ในรายการที่รู้จักและไม่มีตัวอักษรไทยเลย = ทิ้ง
 export function parseEffectTags(raw: unknown): EffectTag[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -59,14 +119,14 @@ export function parseEffectTags(raw: unknown): EffectTag[] {
     if (!t || typeof t !== "object") continue;
     const name = String((t as { name?: unknown }).name ?? "").trim();
     if (!name || seen.has(name)) continue;
-    if (!(name in GROUP_BY_NAME) && ASCII_ONLY.test(name)) continue;
+    if (!(name in GROUP_BY_NAME) && !HAS_THAI.test(name)) continue;
     seen.add(name);
     out.push({ type: Number((t as { type?: unknown }).type) || 0, name });
   }
   return out;
 }
 
-// รวมแท็กของทุกสกิลเป็นชุดเดียว (ไม่ซ้ำ) เรียงตามกลุ่ม สำหรับสรุปบนหัวหน้าฮีโร่
+// รวมแท็กของทุกสกิลเป็นชุดเดียว (ไม่ซ้ำ) เรียงตามกลุ่ม
 export function summarizeTags(lists: (EffectTag[] | undefined)[]): EffectTag[] {
   const seen = new Map<string, EffectTag>();
   for (const l of lists) for (const t of l ?? []) if (!seen.has(t.name)) seen.set(t.name, t);
@@ -76,19 +136,3 @@ export function summarizeTags(lists: (EffectTag[] | undefined)[]): EffectTag[] {
 export function sortTags(tags: EffectTag[]): EffectTag[] {
   return [...tags].sort((a, b) => GROUP_ORDER.indexOf(tagGroup(a.name)) - GROUP_ORDER.indexOf(tagGroup(b.name)));
 }
-
-// ชื่อคลาสเขียนเต็มเพื่อให้ Tailwind สแกนเจอ — กายภาพ แดง · เวท น้ำเงิน · จริง ขาว/เทา · CC เหลือง ฯลฯ
-export const GROUP_STYLE: Record<EffectGroup, string> = {
-  physical: "bg-red-500/15 text-red-500 border-red-500/40",
-  magic: "bg-blue-500/15 text-blue-500 border-blue-500/40",
-  true: "bg-slate-400/20 text-slate-400 border-slate-400/40",
-  mixed: "bg-purple-500/15 text-purple-500 border-purple-500/40",
-  aoe: "bg-orange-500/15 text-orange-500 border-orange-500/40",
-  cc: "bg-yellow-500/15 text-yellow-500 border-yellow-500/40",
-  slow: "bg-cyan-500/15 text-cyan-500 border-cyan-500/40",
-  mobility: "bg-emerald-500/15 text-emerald-500 border-emerald-500/40",
-  heal: "bg-green-500/15 text-green-500 border-green-500/40",
-  defense: "bg-teal-500/15 text-teal-500 border-teal-500/40",
-  buff: "bg-pink-500/15 text-pink-500 border-pink-500/40",
-  other: "bg-bg-raised text-text-muted border-border",
-};
