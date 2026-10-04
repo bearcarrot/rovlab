@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
-// เรียงจากง่ายไปยาก คู่มือที่ไม่ได้ระบุระดับไปท้ายสุด (ระดับเดียวกันคงลำดับเดิม คือใหม่สุดก่อน)
+// ลำดับคู่มือ: sort_id ที่แอดมินตั้ง (เล็ก = ก่อน) → ระดับความยากจากง่ายไปยาก (ไม่ระบุไปท้าย) → ใหม่สุดก่อน
+// ค่าเริ่มต้นของ sort_id เป็น 0 ทุกเล่ม จึงเรียงตามระดับความยากจนกว่าแอดมินจะตั้งลำดับเอง
 const DIFFICULTY_ORDER: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
 const difficultyRank = (d: string | null) => (d ? (DIFFICULTY_ORDER[d] ?? 3) : 3);
 
@@ -24,7 +25,10 @@ export function Learn() {
     if (guidesQ.status !== "success") return [];
     return guidesQ.data
       .filter((g) => category === null || g.categorySlug === category)
-      .sort((a, b) => difficultyRank(a.difficulty) - difficultyRank(b.difficulty));
+      .sort(
+        (a, b) =>
+          (a.sortId ?? 0) - (b.sortId ?? 0) || difficultyRank(a.difficulty) - difficultyRank(b.difficulty)
+      );
   }, [guidesQ, category]);
 
   return (

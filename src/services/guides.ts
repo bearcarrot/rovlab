@@ -9,6 +9,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 // หน้ารายละเอียดแปลงเป็นหัวข้อ/ลิสต์/ลิงก์ด้วย components/guides/GuideContent
 // guides.hero_refs เก็บเป็น uuid ของฮีโร่ จึงแปลงเป็น slug + ชื่อตอนเปิดหน้ารายละเอียด
 // ตารางยังไม่มีคอลัมน์ excerpt จึงตัดจากย่อหน้าแรกที่ไม่ใช่หัวข้อของ content ให้
+// sort_id (guides และ guide_categories) = ลำดับที่แอดมินตั้ง เล็ก = ก่อน (ต้องรัน migration 20261004_guides_sort_id.sql)
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -24,10 +25,11 @@ type DbGuideRow = {
   reading_minutes: number | null;
   content: string | null;
   hero_refs: string[] | null;
+  sort_id: number | null;
   guide_categories: DbCategoryRef | DbCategoryRef[] | null;
 };
 
-const GUIDE_COLS = "id, slug, title, difficulty, reading_minutes, content, hero_refs, guide_categories(slug)";
+const GUIDE_COLS = "id, slug, title, difficulty, reading_minutes, content, hero_refs, sort_id, guide_categories(slug)";
 
 function toParagraphs(content: string | null): string[] {
   return (content ?? "")
@@ -75,14 +77,17 @@ function toSummary(row: DbGuideRow): GuideSummary {
     difficulty: row.difficulty ?? null,
     readingMinutes: row.reading_minutes ?? Math.max(1, Math.ceil((row.content ?? "").length / 800)),
     excerpt: toExcerpt(toParagraphs(row.content)),
+    sortId: row.sort_id ?? 0,
   };
 }
 
+// เรียง sort_id น้อย → มาก แล้วใหม่สุดก่อน (หน้า Learn เอาไปเรียงต่อด้วยระดับความยากในกลุ่ม sort_id เดียวกัน)
 export async function getGuides(): Promise<GuideSummary[]> {
   if (!isSupabaseConfigured) return delay(GUIDES);
   const { data, error } = await supabase
     .from("guides")
     .select(GUIDE_COLS)
+    .order("sort_id", { ascending: true })
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as DbGuideRow[]).map(toSummary);
@@ -93,6 +98,7 @@ export async function getGuideCategories(): Promise<GuideCategory[]> {
   const { data, error } = await supabase
     .from("guide_categories")
     .select("slug, name_th")
+    .order("sort_id", { ascending: true })
     .order("name_th", { ascending: true });
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as { slug: string; name_th: string }[]).map((c) => ({

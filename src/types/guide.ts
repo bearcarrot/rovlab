@@ -13,6 +13,7 @@ export interface GuideSummary {
   difficulty: GuideDifficulty | null; // null = แอดมินยังไม่ระบุ
   readingMinutes: number;
   excerpt: string;
+  sortId?: number; // ลำดับที่แอดมินตั้ง (เล็ก = ก่อน) ไม่มี/0 = เรียงตามระดับความยาก
 }
 
 export interface GuideDetail extends GuideSummary {
