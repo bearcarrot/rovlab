@@ -5,6 +5,7 @@ import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
 import { CoachIcon } from "@/components/CoachIcon";
 import { CoachText } from "@/components/CoachText";
+import { useToast } from "@/components/ui/toast";
 
 type Props = {
   prompt: string;
@@ -18,9 +19,9 @@ type Props = {
 
 export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey, onAdvice }: Props) {
   const { user, loading } = useAuth();
+  const toast = useToast();
   const [advice, setAdvice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const reqId = useRef(0);
   const onAdviceRef = useRef(onAdvice);
   onAdviceRef.current = onAdvice;
@@ -28,7 +29,6 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
   useEffect(() => {
     reqId.current++;
     setAdvice("");
-    setError("");
     setBusy(false);
   }, [resetKey]);
 
@@ -39,12 +39,11 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
   async function ask() {
     const id = ++reqId.current;
     setBusy(true);
-    setError("");
     try {
       const text = await askCoach(prompt, context);
       if (id === reqId.current) setAdvice(text);
     } catch (e) {
-      if (id === reqId.current) setError(e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
+      if (id === reqId.current) toast.error(e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
     } finally {
       if (id === reqId.current) setBusy(false);
     }
@@ -78,7 +77,6 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
           <p className="mt-1.5 text-[11px] text-text-faint">* คำแนะนำจาก AI สร้างจากข้อมูลบนหน้านี้ อาจคลาดเคลื่อน</p>
         </div>
       )}
-      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
