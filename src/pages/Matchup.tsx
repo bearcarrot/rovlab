@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroDetail, HeroSummary } from "@/types/hero";
 import type { MatchupDetail } from "@/types/matchup";
@@ -78,13 +79,28 @@ function Section({ title, text }: { title: string; text: string }) {
   );
 }
 
+// เลนในผล Matchup อาจเป็นรหัส (heuristic: "mid" หรือ "mid/jungle") หรือข้อความที่แอดมินกรอก (curated: "Mid")
+// แปลงรหัสเป็นชื่อเลนจาก DB (hero_lanes.label) ถ้าไม่ใช่รหัสที่รู้จักให้แสดงตามที่เก็บไว้
+function formatLane(raw: string, laneLabel: (code: string) => string): string {
+  return raw
+    .split("/")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const code = p.toLowerCase();
+      const label = laneLabel(code);
+      return label === code ? p : label;
+    })
+    .join(" / ");
+}
+
 // ข้อมูลที่ส่งให้ Coach AI: เฉพาะข้อมูลจริงในระบบ (สกิล สถิติ ความสัมพันธ์ชนะทาง แผนเล่นถ้ามี)
 // stat เป็น null = ยังไม่มีสถิติจริง (ai-coach ถูกสั่งไม่ให้อ้างตัวเลขในกรณีนี้)
-function heroContext(s: HeroSummary, d: HeroDetail | null) {
+function heroContext(s: HeroSummary, d: HeroDetail | null, laneLabel: (code: string) => string) {
   return {
     name: s.nameTh,
     roles: s.roles,
-    lanes: s.lanes,
+    lanes: s.lanes.map((l) => laneLabel(l)),
     difficulty: s.difficulty,
     stat: s.stat.hasStats
       ? { patch: s.stat.patch, winRate: s.stat.winRate, pickRate: s.stat.pickRate, banRate: s.stat.banRate, tier: s.stat.tier, matches: s.stat.matches }
@@ -98,14 +114,16 @@ function heroContext(s: HeroSummary, d: HeroDetail | null) {
 }
 
 function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSummary; b: HeroSummary; m: MatchupDetail; coachReady: boolean; detailA: HeroDetail | null; detailB: HeroDetail | null }) {
+  const { laneLabel } = useFilterLabels();
   const nameOf = (slug: string) => (slug === a.slug ? a.nameTh : b.nameTh);
+  const lane = formatLane(m.lane, laneLabel);
   const notes = m.counterNotes ?? [];
   const hasPlan = [m.early, m.mid, m.late, m.winCondition, m.tips].some((t) => t.trim());
   const hasAnything = hasPlan || !!m.summary || notes.length > 0;
 
   const matchupContext = {
     source: m.source === "curated" ? "แผนเล่นที่ทีมงานเขียนไว้" : "ยังไม่มีแผนเล่นเจาะจงคู่นี้ (มีเฉพาะข้อมูลสถิติด้านล่าง)",
-    lane: m.lane,
+    lane,
     difficulty: m.difficulty,
     ...(m.early ? { early: m.early } : {}),
     ...(m.mid ? { mid: m.mid } : {}),
@@ -126,7 +144,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
       <div className="space-y-3 rounded-card border border-border bg-bg-surface p-4 text-sm">
         <p>
           <span className="font-medium text-text">เลน: </span>
-          <span className="text-text-muted">{m.lane}</span> · <span className="font-medium text-text">ความยาก: </span>
+          <span className="text-text-muted">{lane}</span> · <span className="font-medium text-text">ความยาก: </span>
           <span className="text-text-muted">{m.difficulty}</span>
         </p>
 
@@ -159,7 +177,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
           resetKey={`${a.slug}-${b.slug}`}
           label="ถามโค้ช AI: แผนเล่นคู่นี้"
           prompt={`ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค อ้างอิงจากสกิล สถิติ และข้อมูลชนะทางที่ให้เท่านั้น ถ้าข้อมูลส่วนไหนไม่พอให้บอกตรงๆ`}
-          context={{ me: heroContext(a, detailA), enemy: heroContext(b, detailB), matchup: matchupContext }}
+          context={{ me: heroContext(a, detailA, laneLabel), enemy: heroContext(b, detailB, laneLabel), matchup: matchupContext }}
         />
       )}
     </div>
