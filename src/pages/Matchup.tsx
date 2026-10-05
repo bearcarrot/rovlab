@@ -10,6 +10,7 @@ import { AskCoach } from "@/components/AskCoach";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { StatCompare } from "@/features/matchup/StatCompare";
 import type { HeroDetail, HeroSummary } from "@/types/hero";
 import type { MatchupDetail } from "@/types/matchup";
 import { cn } from "@/lib/utils";
@@ -118,8 +119,10 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
   const nameOf = (slug: string) => (slug === a.slug ? a.nameTh : b.nameTh);
   const lane = formatLane(m.lane, laneLabel);
   const notes = m.counterNotes ?? [];
+  // มีสถิติของทั้งสองตัว → แสดงเป็นแถบเปรียบเทียบ (แทนข้อความสรุป Win Rate ที่ซ้ำกัน)
+  const showBars = a.stat.hasStats && b.stat.hasStats;
   const hasPlan = [m.early, m.mid, m.late, m.winCondition, m.tips].some((t) => t.trim());
-  const hasAnything = hasPlan || !!m.summary || notes.length > 0;
+  const hasAnything = hasPlan || showBars || !!m.summary || notes.length > 0;
 
   const matchupContext = {
     source: m.source === "curated" ? "แผนเล่นที่ทีมงานเขียนไว้" : "ยังไม่มีแผนเล่นเจาะจงคู่นี้ (มีเฉพาะข้อมูลสถิติด้านล่าง)",
@@ -141,12 +144,14 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
           * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถามโค้ช AI เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
         </p>
       )}
-      <div className="space-y-3 rounded-card border border-border bg-bg-surface p-4 text-sm">
+      <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4 text-sm">
         <p>
           <span className="font-medium text-text">เลน: </span>
           <span className="text-text-muted">{lane}</span> · <span className="font-medium text-text">ความยาก: </span>
           <span className="text-text-muted">{m.difficulty}</span>
         </p>
+
+        {showBars && <StatCompare a={a} b={b} />}
 
         {notes.length > 0 && (
           <div>
@@ -162,7 +167,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
             </ul>
           </div>
         )}
-        <Section title="สถิติรวม" text={m.summary ?? ""} />
+        {!showBars && <Section title="สถิติรวม" text={m.summary ?? ""} />}
         <Section title="ช่วงต้นเกม" text={m.early} />
         <Section title="ช่วงกลางเกม" text={m.mid} />
         <Section title="ช่วงปลายเกม" text={m.late} />
