@@ -1,3 +1,19 @@
+export type ContactAppId =
+  | "line"
+  | "facebook"
+  | "discord"
+  | "instagram"
+  | "tiktok"
+  | "youtube"
+  | "x"
+  | "twitch"
+  | "telegram";
+
+export interface ContactLink {
+  app: ContactAppId;
+  url: string; // https URL on the app's official host (validated client-side and by a DB CHECK)
+}
+
 export interface Profile {
   id: string;
   displayName: string | null;
@@ -6,7 +22,8 @@ export interface Profile {
   preferredHeroes: string[]; // hero ids (uuid), at most PROFILE_LIMITS.favoriteHeroes
   bio: string | null;
   gameName: string | null; // in-game name (RoV) — shown to signed-in users only
-  contact: string | null; // LINE / Discord / etc. — shown to signed-in users only
+  contact: string | null; // legacy free-text contact: no longer shown or editable (replaced by contactLinks)
+  contactLinks: ContactLink[]; // official social links — shown to signed-in users only
 }
 
 export interface PublicProfile extends Profile {

@@ -12,11 +12,12 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { UserAvatar } from "@/components/UserAvatar";
 import { HandleCard } from "@/features/community/HandleCard";
 import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
-import { ROLE_OPTIONS } from "@/features/heroes/HeroFilters";
+import { ContactLinksEditor } from "@/features/profile/ContactLinksEditor";
+import { RoleMultiSelect } from "@/features/profile/RoleChips";
 import { fileToAvatarBase64 } from "@/lib/image";
 import { cn } from "@/lib/utils";
 import { PROFILE_LIMITS } from "@/types/profile";
-import type { Profile as ProfileData } from "@/types/profile";
+import type { ContactLink, Profile as ProfileData } from "@/types/profile";
 import type { HeroSummary } from "@/types/hero";
 
 type Msg = { type: "ok" | "error"; text: string } | null;
@@ -49,7 +50,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
   const [savedName, setSavedName] = useState(profile.displayName ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
   const [gameName, setGameName] = useState(profile.gameName ?? "");
-  const [contact, setContact] = useState(profile.contact ?? "");
+  const [contactLinks, setContactLinks] = useState<ContactLink[]>(profile.contactLinks);
   const [roles, setRoles] = useState<string[]>(profile.preferredRoles);
   const [heroIds, setHeroIds] = useState<string[]>(
     profile.preferredHeroes.filter((id) => heroes.some((h) => h.id === id))
@@ -77,7 +78,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
         displayName,
         bio,
         gameName,
-        contact,
+        contactLinks,
         preferredRoles: roles,
         preferredHeroes: heroIds,
       });
@@ -210,37 +211,14 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
         </Field>
         <Field
           label="ช่องทางติดต่อ (ชวนเล่น)"
-          counter={`${contact.length}/${PROFILE_LIMITS.contact}`}
-          hint="เช่น LINE / Discord / Facebook — แสดงเฉพาะผู้ที่ล็อกอินเท่านั้น ใส่เฉพาะช่องทางที่สะดวกให้คนอื่นเห็น"
+          hint="แสดงเฉพาะผู้ที่ล็อกอินเท่านั้น รับเฉพาะลิงก์ทางการของแอปที่เลือก และคนที่กดจะเห็นคำเตือนก่อนเปิดลิงก์"
         >
-          <input
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            maxLength={PROFILE_LIMITS.contact}
-            className={INPUT_CLASS}
-          />
+          <ContactLinksEditor value={contactLinks} onChange={setContactLinks} />
         </Field>
 
         <div>
           <p className="mb-2 text-sm font-medium">Role ที่ถนัด</p>
-          <div className="flex flex-wrap gap-2">
-            {ROLE_OPTIONS.map((r) => {
-              const active = roles.includes(r.value);
-              return (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => toggleRole(r.value)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium",
-                    active ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted"
-                  )}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
+          <RoleMultiSelect value={roles} onToggle={toggleRole} />
         </div>
 
         <div>

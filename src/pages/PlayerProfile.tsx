@@ -12,7 +12,8 @@ import { HeroIcon } from "@/components/HeroIcon";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FollowButton } from "@/features/community/FollowButton";
-import { ROLE_OPTIONS } from "@/features/heroes/HeroFilters";
+import { ContactLinksView } from "@/features/profile/ContactLinksView";
+import { RoleBadges } from "@/features/profile/RoleChips";
 import type { HeroSummary } from "@/types/hero";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,7 +70,6 @@ export function PlayerProfile() {
   const p = profileQ.data;
   const name = p.displayName?.trim() || "ผู้เล่นนิรนาม";
   const mine = user?.id === p.id;
-  const roleLabels = ROLE_OPTIONS.filter((r) => p.preferredRoles.includes(r.value));
   const favHeroes: HeroSummary[] =
     heroesQ.status === "success"
       ? p.preferredHeroes.map((hid) => heroesQ.data.find((h) => h.id === hid)).filter((h): h is HeroSummary => !!h)
@@ -106,16 +106,10 @@ export function PlayerProfile() {
         <CardContent className="space-y-4">
           <div>
             <p className="mb-2 text-xs font-medium text-text-faint">Role ที่ถนัด</p>
-            {roleLabels.length === 0 ? (
+            {p.preferredRoles.length === 0 ? (
               <p className="text-sm text-text-faint">ยังไม่ได้ระบุ</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {roleLabels.map((r) => (
-                  <span key={r.value} className="rounded-full border border-accent bg-accent px-3 py-1 text-xs font-medium text-accent-fg">
-                    {r.label}
-                  </span>
-                ))}
-              </div>
+              <RoleBadges roles={p.preferredRoles} />
             )}
           </div>
           <div>
@@ -146,7 +140,7 @@ export function PlayerProfile() {
         <CardHeader>
           <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent" /><CardTitle>ชวนเล่น</CardTitle></div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {!user ? (
             <div className="space-y-2">
               <p className="flex items-center gap-2 text-sm text-text-muted">
@@ -155,12 +149,12 @@ export function PlayerProfile() {
               </p>
               <Link to="/login" className="block text-sm text-accent">ไปหน้าล็อกอิน →</Link>
             </div>
-          ) : !p.gameName && !p.contact ? (
+          ) : !p.gameName && p.contactLinks.length === 0 ? (
             <p className="text-sm text-text-faint">ผู้เล่นยังไม่ได้ระบุชื่อในเกมหรือช่องทางติดต่อ</p>
           ) : (
             <>
               {p.gameName && <CopyRow label="ชื่อในเกม" value={p.gameName} />}
-              {p.contact && <CopyRow label="ช่องทางติดต่อ" value={p.contact} />}
+              <ContactLinksView links={p.contactLinks} />
             </>
           )}
         </CardContent>
