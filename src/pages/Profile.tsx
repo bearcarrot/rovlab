@@ -210,7 +210,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
           />
         </Field>
         <Field
-          label="ช่องทางติดต่อ (ชวนเล่น)"
+          label="ช่องทางติดต่อ"
           hint="แสดงเฉพาะผู้ที่ล็อกอินเท่านั้น รับเฉพาะลิงก์ทางการของแอปที่เลือก และคนที่กดจะเห็นคำเตือนก่อนเปิดลิงก์"
         >
           <ContactLinksEditor value={contactLinks} onChange={setContactLinks} />

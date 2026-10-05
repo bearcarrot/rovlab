@@ -138,7 +138,7 @@ export function PlayerProfile() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent" /><CardTitle>ชวนเล่น</CardTitle></div>
+          <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent" /><CardTitle>ช่องทางติดต่อ</CardTitle></div>
         </CardHeader>
         <CardContent className="space-y-3">
           {!user ? (
