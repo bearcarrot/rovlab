@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { GitCompareArrows } from "lucide-react";
-import { getHeroes } from "@/services/heroes";
+import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { AskCoach } from "@/components/AskCoach";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
-import type { HeroSummary } from "@/types/hero";
+import type { HeroDetail, HeroSummary } from "@/types/hero";
+import type { MatchupDetail } from "@/types/matchup";
 import { cn } from "@/lib/utils";
 
 function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label: string; scope: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
@@ -66,12 +67,117 @@ function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label:
   );
 }
 
+// หัวข้อที่ไม่มีข้อความจะไม่แสดง (ข้อมูลคู่นี้ยังไม่ครบ ไม่ต้องขึ้นว่า "ยังไม่มีข้อมูล" ซ้ำทุกหัวข้อ)
+function Section({ title, text }: { title: string; text: string }) {
+  if (!text.trim()) return null;
+  return (
+    <div>
+      <p className="font-medium text-text">{title}</p>
+      <p className="whitespace-pre-line text-text-muted">{text}</p>
+    </div>
+  );
+}
+
+// ข้อมูลที่ส่งให้ Coach AI: เฉพาะข้อมูลจริงในระบบ (สกิล สถิติ ความสัมพันธ์ชนะทาง แผนเล่นถ้ามี)
+// stat เป็น null = ยังไม่มีสถิติจริง (ai-coach ถูกสั่งไม่ให้อ้างตัวเลขในกรณีนี้)
+function heroContext(s: HeroSummary, d: HeroDetail | null) {
+  return {
+    name: s.nameTh,
+    roles: s.roles,
+    lanes: s.lanes,
+    difficulty: s.difficulty,
+    stat: s.stat.hasStats
+      ? { patch: s.stat.patch, winRate: s.stat.winRate, pickRate: s.stat.pickRate, banRate: s.stat.banRate, tier: s.stat.tier, matches: s.stat.matches }
+      : null,
+    abilities: (d?.abilities ?? []).slice(0, 6).map((x) => ({
+      slot: x.slot,
+      name: x.name,
+      description: (x.description ?? "").slice(0, 120),
+    })),
+  };
+}
+
+function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSummary; b: HeroSummary; m: MatchupDetail; coachReady: boolean; detailA: HeroDetail | null; detailB: HeroDetail | null }) {
+  const nameOf = (slug: string) => (slug === a.slug ? a.nameTh : b.nameTh);
+  const notes = m.counterNotes ?? [];
+  const hasPlan = [m.early, m.mid, m.late, m.winCondition, m.tips].some((t) => t.trim());
+  const hasAnything = hasPlan || !!m.summary || notes.length > 0;
+
+  const matchupContext = {
+    source: m.source === "curated" ? "แผนเล่นที่ทีมงานเขียนไว้" : "ยังไม่มีแผนเล่นเจาะจงคู่นี้ (มีเฉพาะข้อมูลสถิติด้านล่าง)",
+    lane: m.lane,
+    difficulty: m.difficulty,
+    ...(m.early ? { early: m.early } : {}),
+    ...(m.mid ? { mid: m.mid } : {}),
+    ...(m.late ? { late: m.late } : {}),
+    ...(m.winCondition ? { winCondition: m.winCondition } : {}),
+    ...(m.tips ? { tips: m.tips } : {}),
+    ...(m.summary ? { summary: m.summary } : {}),
+    counterNotes: notes.map((n) => ({ winner: nameOf(n.winner), loser: nameOf(n.loser), reason: n.reason, laneTip: n.laneTip })),
+  };
+
+  return (
+    <div className="space-y-3">
+      {m.source === "heuristic" && (
+        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
+          * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถามโค้ช AI เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
+        </p>
+      )}
+      <div className="space-y-3 rounded-card border border-border bg-bg-surface p-4 text-sm">
+        <p>
+          <span className="font-medium text-text">เลน: </span>
+          <span className="text-text-muted">{m.lane}</span> · <span className="font-medium text-text">ความยาก: </span>
+          <span className="text-text-muted">{m.difficulty}</span>
+        </p>
+
+        {notes.length > 0 && (
+          <div>
+            <p className="font-medium text-text">ชนะทางกันตามสถิติแรงก์จริง</p>
+            <ul className="mt-1 space-y-1 text-text-muted">
+              {notes.map((n, i) => (
+                <li key={i}>
+                  <span className="text-text">{nameOf(n.winner)}</span> ชนะทาง <span className="text-text">{nameOf(n.loser)}</span>
+                  {n.reason ? ` — ${n.reason}` : ""}
+                  {n.laneTip ? ` · ${n.laneTip}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Section title="สถิติรวม" text={m.summary ?? ""} />
+        <Section title="ช่วงต้นเกม" text={m.early} />
+        <Section title="ช่วงกลางเกม" text={m.mid} />
+        <Section title="ช่วงปลายเกม" text={m.late} />
+        <Section title="เงื่อนไขชนะ" text={m.winCondition} />
+        <Section title="เคล็ดลับ" text={m.tips} />
+
+        {!hasAnything && <p className="text-text-muted">ยังไม่มีข้อมูลเฉพาะคู่นี้ในระบบ</p>}
+      </div>
+
+      {coachReady && (
+        <AskCoach
+          resetKey={`${a.slug}-${b.slug}`}
+          label="ถามโค้ช AI: แผนเล่นคู่นี้"
+          prompt={`ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค อ้างอิงจากสกิล สถิติ และข้อมูลชนะทางที่ให้เท่านั้น ถ้าข้อมูลส่วนไหนไม่พอให้บอกตรงๆ`}
+          context={{ me: heroContext(a, detailA), enemy: heroContext(b, detailB), matchup: matchupContext }}
+        />
+      )}
+    </div>
+  );
+}
+
 export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const [a, setA] = useState<HeroSummary | null>(null);
   const [b, setB] = useState<HeroSummary | null>(null);
   const matchupQ = useAsync(() => (a && b ? getMatchup(a, b) : Promise.resolve(null)), [a?.slug, b?.slug]);
+  // สกิลของทั้งสองตัว ใช้เป็นข้อมูลให้ Coach AI (โหลดไม่สำเร็จก็ยังถามโค้ชได้ แค่ไม่มีข้อมูลสกิล)
+  const detailsQ = useAsync(
+    () => (a && b ? Promise.all([getHeroBySlug(a.slug), getHeroBySlug(b.slug)]) : Promise.resolve(null)),
+    [a?.slug, b?.slug]
+  );
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
+  const details = detailsQ.status === "success" ? detailsQ.data : null;
 
   return (
     <div className="space-y-5">
@@ -98,29 +204,16 @@ export function Matchup() {
           </div>
 
           {matchupQ.status === "loading" && <Skeleton className="h-56" />}
-          {matchupQ.status === "error" && <ErrorState message={matchupQ.message} />}
+          {matchupQ.status === "error" && <ErrorState message={matchupQ.message} onRetry={matchupQ.refetch} />}
           {matchupQ.status === "success" && matchupQ.data && (
-            <div className="space-y-3">
-              {matchupQ.data.source === "heuristic" && (
-                <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-                  * ยังไม่มีข้อมูลเจาะจงคู่นี้ ระบบประเมินแบบ Heuristic จาก Win Rate ปัจจุบัน
-                </p>
-              )}
-              <div className="rounded-card border border-border bg-bg-surface p-4 space-y-3 text-sm">
-                <p><span className="font-medium text-text">เลน: </span><span className="text-text-muted">{matchupQ.data.lane}</span> · <span className="font-medium text-text">ความยาก: </span><span className="text-text-muted">{matchupQ.data.difficulty}</span></p>
-                <div><p className="font-medium text-text">ช่วงต้นเกม</p><p className="text-text-muted">{matchupQ.data.early}</p></div>
-                <div><p className="font-medium text-text">ช่วงกลางเกม</p><p className="text-text-muted">{matchupQ.data.mid}</p></div>
-                <div><p className="font-medium text-text">ช่วงปลายเกม</p><p className="text-text-muted">{matchupQ.data.late}</p></div>
-                <div><p className="font-medium text-text">เงื่อนไขชนะ</p><p className="text-text-muted">{matchupQ.data.winCondition}</p></div>
-                <div><p className="font-medium text-text">เคล็ดลับ</p><p className="text-text-muted">{matchupQ.data.tips}</p></div>
-              </div>
-              <AskCoach
-                resetKey={`${a.slug}-${b.slug}`}
-                label="ถามโค้ช AI: แผนเล่นคู่นี้"
-                prompt={`ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค`}
-                context={{ me: a.nameTh, enemy: b.nameTh, matchup: matchupQ.data }}
-              />
-            </div>
+            <MatchupResult
+              a={a}
+              b={b}
+              m={matchupQ.data}
+              coachReady={detailsQ.status !== "loading"}
+              detailA={details ? details[0] : null}
+              detailB={details ? details[1] : null}
+            />
           )}
         </div>
       )}
