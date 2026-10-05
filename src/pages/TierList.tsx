@@ -129,7 +129,6 @@ export function TierList() {
             <ShareImageButtons
               busy={share.busy}
               pending={share.pending}
-              status={share.status}
               onShare={share.share}
               onDownload={share.download}
             />

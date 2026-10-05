@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, FileUp, Link2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/toast";
 
 // client แบบ untyped เพราะเรียก RPC / ตารางที่ไม่มี generated types
 const db: any = supabase;
@@ -92,9 +93,9 @@ const btn =
 const card = "space-y-3 rounded-card border border-border bg-bg-surface p-4 shadow-card";
 
 export function AdminImport() {
+  const toast = useToast();
   const [fileName, setFileName] = useState("");
   const [parsed, setParsed] = useState<{ rows: ImportRow[]; updated: Date | null } | null>(null);
-  const [error, setError] = useState("");
   const [patches, setPatches] = useState<Patch[]>([]);
   const [patchId, setPatchId] = useState("");
   const [rank, setRank] = useState<"high" | "all">("high");
@@ -106,32 +107,33 @@ export function AdminImport() {
   const [result, setResult] = useState<Result | null>(null);
 
   const loadHeroes = useCallback(async () => {
-    const { data } = await db.from("heroes").select("id,name,name_th,hero_id").order("name");
+    const { data, error } = await db.from("heroes").select("id,name,name_th,hero_id").order("name");
+    if (error) toast.error(`โหลดรายชื่อฮีโร่ไม่สำเร็จ: ${error.message}`);
     setHeroes((data ?? []) as DbHero[]);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     void loadHeroes();
     db.from("patches")
       .select("id,code")
       .order("released_at", { ascending: false })
-      .then(({ data }: { data: Patch[] | null }) => {
+      .then(({ data, error }: { data: Patch[] | null; error: { message: string } | null }) => {
+        if (error) toast.error(`โหลดรายการแพตช์ไม่สำเร็จ: ${error.message}`);
         setPatches(data ?? []);
         setPatchId(data?.[0]?.id ?? "");
       });
-  }, [loadHeroes]);
+  }, [loadHeroes, toast]);
 
   async function onFile(f: File | undefined) {
     setResult(null);
     setConfirming(false);
-    setError("");
     setParsed(null);
     if (!f) return;
     setFileName(f.name);
     try {
       setParsed(parseRankList(await f.text()));
     } catch (e) {
-      setError((e as Error).message);
+      toast.error((e as Error).message);
     }
   }
 
@@ -144,9 +146,9 @@ export function AdminImport() {
     const uuid = linkSel[r.id];
     if (!uuid) return;
     const { error: e } = await db.from("heroes").update({ hero_id: r.id }).eq("id", uuid);
-    if (e) setError(e.message);
+    if (e) toast.error(`ผูกฮีโร่ไม่สำเร็จ: ${e.message}`);
     else {
-      setError("");
+      toast.success(`ผูก ${r.name} แล้ว`);
       await loadHeroes();
     }
   }
@@ -154,7 +156,6 @@ export function AdminImport() {
   async function runImport() {
     if (!parsed || !patchId) return;
     setBusy(true);
-    setError("");
     const { data, error: e } = await db.rpc("admin_import_rank_list", {
       p_patch: patchId,
       p_rank: rank,
@@ -163,8 +164,11 @@ export function AdminImport() {
     });
     setBusy(false);
     setConfirming(false);
-    if (e) setError(e.message);
-    else setResult(data as Result);
+    if (e) toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
+    else {
+      setResult(data as Result);
+      toast.success("นำเข้าสถิติแล้ว");
+    }
   }
 
   return (
@@ -345,13 +349,6 @@ export function AdminImport() {
             )}
           </ul>
         </section>
-      )}
-
-      {error && (
-        <p role="alert" className="flex items-start gap-1.5 text-sm text-loss">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 break-words">{error}</span>
-        </p>
       )}
     </div>
   );

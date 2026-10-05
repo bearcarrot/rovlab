@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Check, FileUp, Trash2 } from "lucide-react";
+import { Check, FileUp, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/toast";
 import { BalanceIcon } from "@/features/balance/BalanceIcon";
 import { BALANCE_LABEL, type BalanceKind } from "@/services/balance";
 
@@ -110,9 +111,9 @@ const card = "space-y-3 rounded-card border border-border bg-bg-surface p-4 shad
 const KINDS: BalanceKind[] = ["buff", "nerf", "adjust", "rework"];
 
 export function AdminImportBalance() {
+  const toast = useToast();
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [error, setError] = useState("");
   const [patches, setPatches] = useState<Patch[]>([]);
   const [patchId, setPatchId] = useState("");
   const [known, setKnown] = useState<Set<number>>(new Set());
@@ -123,69 +124,77 @@ export function AdminImportBalance() {
   const [delId, setDelId] = useState<string | null>(null);
 
   const loadSaved = useCallback(async () => {
-    const { data } = await db
+    const { data, error } = await db
       .from("hero_balance_changes")
       .select("id, kind, changed_at, heroes(name, name_th)")
       .order("changed_at", { ascending: false })
       .limit(60);
+    if (error) toast.error(`โหลดรายการที่บันทึกไว้ไม่สำเร็จ: ${error.message}`);
     setSaved((data ?? []) as Saved[]);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     void loadSaved();
     db.from("heroes")
       .select("hero_id")
-      .then(({ data }: { data: { hero_id: number | null }[] | null }) =>
-        setKnown(new Set((data ?? []).map((h) => h.hero_id).filter((x): x is number => x != null)))
-      );
+      .then(({ data, error }: { data: { hero_id: number | null }[] | null; error: { message: string } | null }) => {
+        if (error) toast.error(`โหลดรายชื่อฮีโร่ไม่สำเร็จ: ${error.message}`);
+        setKnown(new Set((data ?? []).map((h) => h.hero_id).filter((x): x is number => x != null)));
+      });
     db.from("patches")
       .select("id, code")
       .order("released_at", { ascending: false })
-      .then(({ data }: { data: Patch[] | null }) => {
+      .then(({ data, error }: { data: Patch[] | null; error: { message: string } | null }) => {
+        if (error) toast.error(`โหลดรายการแพตช์ไม่สำเร็จ: ${error.message}`);
         setPatches(data ?? []);
         setPatchId(data?.[0]?.id ?? "");
       });
-  }, [loadSaved]);
+  }, [loadSaved, toast]);
 
   async function onFile(f: File | undefined) {
     setResult(null);
     setConfirming(false);
-    setError("");
     setRows(null);
     if (!f) return;
     setFileName(f.name);
     try {
       setRows(parseAdjustList(await f.text()));
     } catch (e) {
-      setError((e as Error).message);
+      toast.error((e as Error).message);
     }
   }
 
   async function runImport() {
     if (!rows) return;
     setBusy(true);
-    setError("");
     const { data, error: e } = await db.rpc("admin_import_balance_changes", { p_patch: patchId || null, p_rows: rows });
     setBusy(false);
     setConfirming(false);
-    if (e) setError(e.message);
+    if (e) toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
     else {
       setResult(data);
+      toast.success("นำเข้ารายการปรับสมดุลแล้ว");
       void loadSaved();
     }
   }
 
   async function setKind(id: string, kind: BalanceKind) {
     const { error: e } = await db.from("hero_balance_changes").update({ kind }).eq("id", id);
-    if (e) setError(e.message);
-    else setSaved((s) => s.map((x) => (x.id === id ? { ...x, kind } : x)));
+    if (e) toast.error(`แก้ประเภทไม่สำเร็จ: ${e.message}`);
+    else {
+      setSaved((s) => s.map((x) => (x.id === id ? { ...x, kind } : x)));
+      toast.success("แก้ประเภทแล้ว");
+    }
   }
 
   async function remove(id: string) {
     const { error: e } = await db.from("hero_balance_changes").delete().eq("id", id);
     setDelId(null);
-    if (e) setError(e.message);
-    else setSaved((s) => s.filter((x) => x.id !== id));
+    if (e) toast.error(`ลบไม่สำเร็จ: ${e.message}`);
+    else {
+      setSaved((s) => s.filter((x) => x.id !== id));
+      toast.success("ลบแล้ว");
+    }
   }
 
   const matched = rows ? rows.filter((r) => known.has(r.id)).length : 0;
@@ -273,13 +282,6 @@ export function AdminImportBalance() {
             <p className="text-sm text-loss">ข้ามที่ไม่มีในฐานข้อมูล: {result.unmatched.map((u) => u.name).join(", ")}</p>
           )}
         </section>
-      )}
-
-      {error && (
-        <p role="alert" className="flex items-start gap-1.5 text-sm text-loss">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 break-words">{error}</span>
-        </p>
       )}
 
       <section className={card}>

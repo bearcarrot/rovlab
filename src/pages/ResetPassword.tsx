@@ -4,11 +4,13 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { authErrorMessage } from "@/features/auth/errors";
 import { inputCls, linkBtnCls, primaryBtnCls } from "@/features/auth/styles";
+import { useToast } from "@/components/ui/toast";
 
 // ลิงก์ในอีเมล reset จะ sign-in ชั่วคราวให้ แล้วหน้านี้ใช้ session นั้นเปลี่ยนรหัสผ่าน
 export function ResetPassword() {
   const { user, loading, updatePassword } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,7 +39,10 @@ export function ResetPassword() {
     const { error: err, code } = await updatePassword(password);
     setBusy(false);
     if (err) setError(authErrorMessage(code));
-    else navigate("/profile", { replace: true });
+    else {
+      toast.success("เปลี่ยนรหัสผ่านแล้ว");
+      navigate("/profile", { replace: true });
+    }
   }
 
   return (

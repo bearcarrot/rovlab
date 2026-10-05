@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Check, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
 import { clearFilterIconsCache } from "@/services/filterIcons";
 import { clearEffectTagStylesCache } from "@/services/effectTagStyles";
+import { useToast } from "@/components/ui/toast";
 import type { HeroLane, HeroRole } from "@/types/hero";
 
 // ใช้ client แบบ untyped เพราะตารางถูกกำหนดแบบ config ด้านล่าง
@@ -78,7 +79,6 @@ type Cfg = {
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: FilterCfg;
 };
-type Toast = { text: string; kind: "ok" | "err" } | null;
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
@@ -800,10 +800,11 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const blank = () => Object.fromEntries(cfg.cols.filter((c) => c.type === "sel").map((c) => [c.k, c.opts?.[0]]));
   const { roleLabel, laneLabel } = useFilterLabels();
   const labels: Labels = { role: roleLabel, lane: laneLabel };
+  // แจ้งผลด้วย toast กลางของแอป (อยู่เหนือ Editor จึงไม่หายตอนสลับแท็บ)
+  const toast = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [opts, setOpts] = useState<Row[]>([]);
   const [q, setQ] = useState("");
-  const [toast, setToast] = useState<Toast>(null);
   const [draft, setDraft] = useState<Row>(blank);
   const [showAdd, setShowAdd] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -824,21 +825,18 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
   const orig = useRef<Record<string, Row>>({});
 
-  const ok = (text: string) => setToast({ text, kind: "ok" });
-  const err = (text: string) => setToast({ text, kind: "err" });
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), toast.kind === "err" ? 6000 : 2200);
-    return () => clearTimeout(t);
-  }, [toast]);
+  const ok = toast.success;
+  const err = toast.error;
 
   const loadOpts = useCallback(() => {
     if (!cfg.filter) return;
     let r = db.from(cfg.filter.table).select(cfg.filter.sel);
     if (cfg.filter.order) r = r.order(cfg.filter.order);
-    r.then(({ data }: { data: Row[] | null }) => setOpts(data ?? []));
-  }, [cfg]);
+    r.then(({ data, error }: { data: Row[] | null; error: { message: string } | null }) => {
+      if (error) toast.error(`โหลดตัวเลือกไม่สำเร็จ: ${error.message}`);
+      setOpts(data ?? []);
+    });
+  }, [cfg, toast]);
 
   useEffect(() => {
     loadOpts();
@@ -1245,21 +1243,6 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           );
         })}
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div
-          role="status"
-          className={`fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-card sm:inset-x-auto sm:right-6 sm:w-96 ${
-            toast.kind === "ok"
-              ? "border-win/40 bg-bg-raised text-win"
-              : "border-loss/50 bg-bg-raised text-loss"
-          }`}
-        >
-          {toast.kind === "ok" ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-          <span className="min-w-0 break-words">{toast.text}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -1267,6 +1250,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
 export function Admin() {
   const { user, loading } = useAuth();
   const { isAdmin, checking, error } = useIsAdmin();
+  const toast = useToast();
   // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
   const [savedTab, setTab] = usePersistedState<string>("admin:tab", "heroes");
   const tab = Object.prototype.hasOwnProperty.call(CFG, savedTab) ? savedTab : "heroes";
@@ -1284,6 +1268,8 @@ export function Admin() {
   // โหลดใหม่ทุกครั้งที่สลับแท็บ เพื่อให้หมวดที่เพิ่ง เพิ่ม/แก้ ในแท็บ "หมวดคู่มือ" โผล่ในช่องเลือกของแท็บ "คู่มือ" ทันที
   useEffect(() => {
     if (!isAdmin) return;
+    // มีตัวเลือกชุดไหนโหลดพลาดหรือไม่ — แจ้งครั้งเดียวตอนจบ แทนที่จะเด้ง toast ทีละชุด
+    const state = { failed: false };
     const opt = (
       table: string,
       sel: string,
@@ -1298,22 +1284,24 @@ export function Admin() {
         .from(table)
         .select(sel)
         .order(order, { ascending: asc })
-        .then(({ data }: { data: Row[] | null }) =>
-          (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r), ...extra?.(r) }))
-        );
+        .then(({ data, error }: { data: Row[] | null; error: unknown }) => {
+          if (error) state.failed = true;
+          return (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r), ...extra?.(r) }));
+        });
     // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
     const arcanaOpts = db
       .from("arcana")
       .select("id,name,color,icon_url")
       .order("name", { ascending: true })
-      .then(({ data }: { data: Row[] | null }) =>
-        (data ?? []).map((r) => ({
+      .then(({ data, error }: { data: Row[] | null; error: unknown }) => {
+        if (error) state.failed = true;
+        return (data ?? []).map((r) => ({
           id: r.id as string,
           label: r.name as string,
           color: (r.color ?? undefined) as string | undefined,
           icon: (r.icon_url ?? undefined) as string | undefined,
-        }))
-      );
+        }));
+      });
     void Promise.all([
       // ชื่อไทยเก็บเป็น alt ไว้ใช้ค้นหาอย่างเดียว (ยังแสดงชื่ออังกฤษเหมือนเดิม)
       // roles / lanes ไว้ให้ชิปกรองในแท็บสถิติและ Tier List
@@ -1345,10 +1333,13 @@ export function Admin() {
         undefined,
         (r) => ({ color: (r.color ?? undefined) as string | undefined, tagType: (r.tag_type ?? undefined) as number | undefined })
       ),
-    ]).then(([hero, item, arcana, patch, guideCat, effectTag]) =>
-      setRefs({ hero, item, arcana, patch, guideCat, effectTag })
-    );
-  }, [isAdmin, tab]);
+    ])
+      .then(([hero, item, arcana, patch, guideCat, effectTag]) => {
+        setRefs({ hero, item, arcana, patch, guideCat, effectTag });
+        if (state.failed) toast.error("โหลดตัวเลือกบางรายการไม่สำเร็จ ลองรีเฟรชหน้านี้อีกครั้ง");
+      })
+      .catch(() => toast.error("โหลดตัวเลือกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองรีเฟรชหน้านี้"));
+  }, [isAdmin, tab, toast]);
 
   if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
   if (!user)

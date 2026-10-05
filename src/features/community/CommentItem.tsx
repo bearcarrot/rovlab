@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/features/auth/AuthContext";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useToast } from "@/components/ui/toast";
 import { CommentComposer } from "./CommentComposer";
 import { MentionText } from "./MentionText";
 import {
@@ -64,6 +65,7 @@ export function CommentItem({
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [c, setC] = useState(comment);
   const [panel, setPanel] = useState<Panel>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,7 +73,6 @@ export function CommentItem({
   const [showReplies, setShowReplies] = useState(defaultOpenReplies);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [gone, setGone] = useState(false);
-  const [note, setNote] = useState("");
   const [reason, setReason] = useState<ReportReason>("abuse");
   const [detail, setDetail] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -86,17 +87,12 @@ export function CommentItem({
     if (highlightId === c.id) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [highlightId, c.id]);
 
-  function flash(msg: string) {
-    setNote(msg);
-    setTimeout(() => setNote(""), 2500);
-  }
-
   async function loadReplies() {
     setLoadingReplies(true);
     try {
       setReplies(await listComments({ heroSlug, parentId: c.id, sort: "new", limit: 100 }));
     } catch {
-      flash("โหลดการตอบกลับไม่สำเร็จ");
+      toast.error("โหลดการตอบกลับไม่สำเร็จ");
     } finally {
       setLoadingReplies(false);
     }
@@ -134,8 +130,9 @@ export function CommentItem({
     });
     try {
       await setReaction(c.id, user.id, next);
-    } catch {
+    } catch (e) {
       setC(prev);
+      toast.error(communityError(e, "ทำรายการไม่สำเร็จ"));
     }
   }
 
@@ -150,8 +147,9 @@ export function CommentItem({
     });
     try {
       await setEmoji(c.id, user.id, key, on);
-    } catch {
+    } catch (e) {
       setC(prev);
+      toast.error(communityError(e, "ทำรายการไม่สำเร็จ"));
     }
   }
 
@@ -159,6 +157,7 @@ export function CommentItem({
     await editComment(c.id, body);
     setC({ ...c, body, editedAt: new Date().toISOString() });
     setPanel(null);
+    toast.success("บันทึกการแก้ไขแล้ว");
   }
 
   async function remove() {
@@ -168,8 +167,9 @@ export function CommentItem({
       await deleteComment(c.id);
       setGone(true);
       onGone?.(c.id);
+      toast.success("ลบความคิดเห็นแล้ว");
     } catch (e) {
-      flash(communityError(e, "ลบไม่สำเร็จ"));
+      toast.error(communityError(e, "ลบไม่สำเร็จ"));
     }
   }
 
@@ -180,8 +180,9 @@ export function CommentItem({
       await blockUser(user.id, c.userId);
       setGone(true);
       onGone?.(c.id);
+      toast.success("บล็อกผู้ใช้แล้ว");
     } catch (e) {
-      flash(communityError(e, "บล็อกไม่สำเร็จ"));
+      toast.error(communityError(e, "บล็อกไม่สำเร็จ"));
     }
   }
 
@@ -192,9 +193,9 @@ export function CommentItem({
       setPanel(null);
       setMenuOpen(false);
       setDetail("");
-      flash("ขอบคุณที่รายงาน ทีมงานจะตรวจสอบ");
+      toast.success("ขอบคุณที่รายงาน ทีมงานจะตรวจสอบ");
     } catch (e) {
-      flash(communityError(e, "รายงานไม่สำเร็จ"));
+      toast.error(communityError(e, "รายงานไม่สำเร็จ"));
     }
   }
 
@@ -203,7 +204,7 @@ export function CommentItem({
       await adminSetFlags(c.id, flags);
       setC({ ...c, ...flags });
     } catch (e) {
-      flash(communityError(e, "ทำรายการไม่สำเร็จ"));
+      toast.error(communityError(e, "ทำรายการไม่สำเร็จ"));
     }
   }
 
@@ -213,9 +214,9 @@ export function CommentItem({
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      flash("คัดลอกลิงก์แล้ว");
+      toast.success("คัดลอกลิงก์แล้ว");
     } catch {
-      flash("คัดลอกไม่สำเร็จ");
+      toast.error("คัดลอกไม่สำเร็จ");
     }
   }
 
@@ -287,7 +288,7 @@ export function CommentItem({
               onClick={() => {
                 if (!requireLogin()) return;
                 if (!canPost) {
-                  flash("ยืนยันอีเมลก่อนจึงจะตอบกลับได้");
+                  toast.info("ยืนยันอีเมลก่อนจึงจะตอบกลับได้");
                   return;
                 }
                 setPanel(panel === "reply" ? null : "reply");
@@ -388,8 +389,6 @@ export function CommentItem({
             onCancel={() => setPanel(null)}
           />
         )}
-
-        {note && <p className="text-xs text-text-faint">{note}</p>}
 
         {!isReply && c.replyCount > 0 && (
           <button onClick={() => setShowReplies((s) => !s)} className="flex items-center gap-1 text-xs font-medium text-accent">

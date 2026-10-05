@@ -7,6 +7,7 @@ import { listNotifications, markNotificationRead } from "@/services/community";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
+import { useToast } from "@/components/ui/toast";
 import { timeAgo } from "@/lib/timeAgo";
 import { cn } from "@/lib/utils";
 import type { NotificationItem, NotificationType } from "@/types/community";
@@ -27,7 +28,18 @@ function hrefFor(n: NotificationItem): string {
 export function Notifications() {
   const { user } = useAuth();
   const { refresh, markAllRead } = useNotifications();
+  const toast = useToast();
   const q = useAsync(() => (user ? listNotifications() : Promise.resolve<NotificationItem[]>([])), [user?.id]);
+
+  async function handleMarkAllRead() {
+    try {
+      await markAllRead();
+      q.refetch();
+      toast.success("ทำเครื่องหมายอ่านทั้งหมดแล้ว");
+    } catch {
+      toast.error("ทำเครื่องหมายอ่านทั้งหมดไม่สำเร็จ");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -35,13 +47,7 @@ export function Notifications() {
         <h1 className="font-display text-xl font-semibold">การแจ้งเตือน</h1>
         <div className="flex items-center gap-3 text-xs">
           <Link to="/feed" className="text-text-muted hover:text-text">ฟีดคนที่ติดตาม</Link>
-          <button
-            onClick={async () => {
-              await markAllRead();
-              q.refetch();
-            }}
-            className="text-accent"
-          >
+          <button onClick={() => void handleMarkAllRead()} className="text-accent">
             อ่านทั้งหมด
           </button>
         </div>

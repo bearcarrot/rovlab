@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
-import { getFollowerCount, getFollowState, setFollow } from "@/services/community";
+import { useToast } from "@/components/ui/toast";
+import { communityError, getFollowerCount, getFollowState, setFollow } from "@/services/community";
 
 // Follow / unfollow + follower count for the public profile page (/players/:id).
 export function FollowButton({ targetId }: { targetId: string }) {
   const { user, isConfigured } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [following, setFollowing] = useState(false);
   const [followers, setFollowers] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -43,9 +45,10 @@ export function FollowButton({ targetId }: { targetId: string }) {
     setFollowers((n) => Math.max(0, n + (next ? 1 : -1)));
     try {
       await setFollow(user.id, targetId, next);
-    } catch {
+    } catch (e) {
       setFollowing(!next);
       setFollowers((n) => Math.max(0, n + (next ? -1 : 1)));
+      toast.error(communityError(e, next ? "ติดตามไม่สำเร็จ" : "เลิกติดตามไม่สำเร็จ"));
     } finally {
       setBusy(false);
     }

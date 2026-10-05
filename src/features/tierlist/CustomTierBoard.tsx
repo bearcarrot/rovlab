@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCcw, Search, X } from "lucide-react";
 import { HeroIcon } from "@/components/HeroIcon";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
@@ -31,6 +32,7 @@ import {
 const DRAG_TYPE = "text/rovlab-hero";
 
 export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patch: string }) {
+  const toast = useToast();
   const [list, setList] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -75,6 +77,7 @@ export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patc
     setList(createDefault(patch));
     setSelected(null);
     setConfirmReset(false);
+    toast.success("รีเซ็ต Tier List ของฉันแล้ว");
   }
 
   // รูปที่ใช้แชร์: ข้ามฮีโร่ที่ไม่มีในข้อมูลแล้ว (เช่นถูกลบออกจากระบบ)
@@ -222,7 +225,6 @@ export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patc
       <ShareImageButtons
         busy={share.busy}
         pending={share.pending}
-        status={share.status}
         disabled={totalPlaced === 0}
         onShare={share.share}
         onDownload={share.download}

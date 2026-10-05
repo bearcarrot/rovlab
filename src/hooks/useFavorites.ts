@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useToast } from "@/components/ui/toast";
 import { addFavorite, getFavoriteHeroSlugs, removeFavorite } from "@/services/favorites";
 
 // Centralizes favorite state so HeroCard/HeroDetail/Favorites page stay in sync.
@@ -7,6 +8,7 @@ import { addFavorite, getFavoriteHeroSlugs, removeFavorite } from "@/services/fa
 // is a no-op for them (UI should prompt sign-in instead of calling toggle).
 export function useFavorites() {
   const { user, isConfigured } = useAuth();
+  const toast = useToast();
   const [slugs, setSlugs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
@@ -42,9 +44,10 @@ export function useFavorites() {
           isFav ? next.add(heroSlug) : next.delete(heroSlug);
           return next;
         });
+        toast.error(isFav ? "เอาออกจากรายการโปรดไม่สำเร็จ" : "เพิ่มในรายการโปรดไม่สำเร็จ");
       }
     },
-    [user, slugs]
+    [user, slugs, toast]
   );
 
   return { favoriteSlugs: slugs, isFavorite: (slug: string) => slugs.has(slug), toggle, loading, canToggle: Boolean(user) };

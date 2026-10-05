@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { HeroIcon } from "@/components/HeroIcon";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
 import { FollowButton } from "@/features/community/FollowButton";
 import { ContactLinksView } from "@/features/profile/ContactLinksView";
 import { RoleBadges } from "@/features/profile/RoleChips";
@@ -19,14 +20,16 @@ import type { HeroSummary } from "@/types/hero";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const toast = useToast();
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+      toast.success(`คัดลอก${label}แล้ว`);
     } catch {
-      /* clipboard unavailable — the text is still selectable */
+      toast.error("คัดลอกไม่สำเร็จ");
     }
   }
   return (

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useToast } from "@/components/ui/toast";
 import { HandleCard } from "@/features/community/HandleCard";
 import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
 import { ContactLinksEditor } from "@/features/profile/ContactLinksEditor";
@@ -19,8 +20,6 @@ import { cn } from "@/lib/utils";
 import { PROFILE_LIMITS } from "@/types/profile";
 import type { ContactLink, Profile as ProfileData } from "@/types/profile";
 import type { HeroSummary } from "@/types/hero";
-
-type Msg = { type: "ok" | "error"; text: string } | null;
 
 const INPUT_CLASS =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none placeholder:text-text-faint focus:border-accent/60";
@@ -38,13 +37,9 @@ function Field({ label, hint, counter, children }: { label: string; hint?: strin
   );
 }
 
-function MsgLine({ msg }: { msg: Msg }) {
-  if (!msg) return null;
-  return <p className={cn("text-xs", msg.type === "ok" ? "text-win" : "text-red-400")}>{msg.text}</p>;
-}
-
 function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes: HeroSummary[]; email: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const [displayName, setDisplayName] = useState(profile.displayName ?? "");
   const [savedName, setSavedName] = useState(profile.displayName ?? "");
@@ -58,9 +53,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatarUrl);
 
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<Msg>(null);
   const [avatarBusy, setAvatarBusy] = useState<"upload" | "remove" | null>(null);
-  const [avatarMsg, setAvatarMsg] = useState<Msg>(null);
 
   const emailPrefix = (email.split("@")[0] ?? "").toLowerCase();
   const nameFromEmail = emailPrefix !== "" && savedName.trim().toLowerCase() === emailPrefix;
@@ -72,7 +65,6 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
 
   async function save() {
     setSaving(true);
-    setSaveMsg(null);
     try {
       await updateProfile(profile.id, {
         displayName,
@@ -83,9 +75,9 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
         preferredHeroes: heroIds,
       });
       setSavedName(displayName.trim());
-      setSaveMsg({ type: "ok", text: "บันทึกแล้ว" });
+      toast.success("บันทึกโปรไฟล์แล้ว");
     } catch (e) {
-      setSaveMsg({ type: "error", text: e instanceof Error ? e.message : "บันทึกไม่สำเร็จ" });
+      toast.error(e instanceof Error ? e.message : "บันทึกโปรไฟล์ไม่สำเร็จ");
     } finally {
       setSaving(false);
     }
@@ -96,14 +88,13 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
     e.target.value = ""; // allow picking the same file again
     if (!file) return;
     setAvatarBusy("upload");
-    setAvatarMsg(null);
     try {
       const b64 = await fileToAvatarBase64(file);
       const url = await uploadAvatar(b64);
       setAvatarUrl(url);
-      setAvatarMsg({ type: "ok", text: "อัปโหลดรูปเรียบร้อย" });
+      toast.success("อัปโหลดรูปแล้ว");
     } catch (err) {
-      setAvatarMsg({ type: "error", text: err instanceof Error ? err.message : "อัปโหลดรูปไม่สำเร็จ" });
+      toast.error(err instanceof Error ? err.message : "อัปโหลดรูปไม่สำเร็จ");
     } finally {
       setAvatarBusy(null);
     }
@@ -111,13 +102,12 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
 
   async function onRemoveAvatar() {
     setAvatarBusy("remove");
-    setAvatarMsg(null);
     try {
       await removeAvatar();
       setAvatarUrl(null);
-      setAvatarMsg({ type: "ok", text: "ลบรูปแล้ว" });
+      toast.success("ลบรูปแล้ว");
     } catch (err) {
-      setAvatarMsg({ type: "error", text: err instanceof Error ? err.message : "ลบรูปไม่สำเร็จ" });
+      toast.error(err instanceof Error ? err.message : "ลบรูปไม่สำเร็จ");
     } finally {
       setAvatarBusy(null);
     }
@@ -159,12 +149,9 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
           </div>
         </div>
       </div>
-      <div className="space-y-1">
-        <MsgLine msg={avatarMsg} />
-        <p className="text-[11px] text-text-faint">
-          รูปจะถูกตรวจสอบอัตโนมัติก่อนแสดง ไม่รับรูปโป๊ รุนแรง หรือไม่เหมาะสม (ระบบตรวจด้วย AI อาจผิดพลาดได้)
-        </p>
-      </div>
+      <p className="text-[11px] text-text-faint">
+        รูปจะถูกตรวจสอบอัตโนมัติก่อนแสดง ไม่รับรูปโป๊ รุนแรง หรือไม่เหมาะสม (ระบบตรวจด้วย AI อาจผิดพลาดได้)
+      </p>
 
       <Link to={`/players/${profile.id}`} className="block text-sm text-accent">
         ดูโปรไฟล์สาธารณะของฉัน →
@@ -240,7 +227,6 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
           {nameTooShort && (
             <p className="text-xs text-text-faint">ชื่อที่แสดงต้องยาวอย่างน้อย {PROFILE_LIMITS.displayNameMin} ตัวอักษร</p>
           )}
-          <MsgLine msg={saveMsg} />
         </div>
       </div>
     </div>
