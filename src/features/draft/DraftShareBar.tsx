@@ -83,7 +83,6 @@ export function DraftShareBar({
       <ShareImageButtons
         busy={share.busy}
         pending={share.pending}
-        status={share.status}
         disabled={filled === 0}
         onShare={share.share}
         onDownload={share.download}
