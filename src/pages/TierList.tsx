@@ -1,13 +1,15 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Palette } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS } from "@/features/heroes/HeroFilters";
+import { RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { ShareImageButton } from "@/components/ShareImageButton";
+import { renderTierListImage } from "@/lib/shareImage/tierListImage";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -20,13 +22,14 @@ const TIER_ORDER: Tier[] = TIER_OPTIONS;
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
-  // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรงก์สลับที่ปุ่มบน Header
+  const { roleLabel, laneLabel } = useFilterLabels();
+  // จำค่าตัวกรองไว้แม้สลับแรนก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรนก์สลับที่ปุ่มบน Header
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
   const [storedTier, setTier] = usePersistedState<Tier | null>("rovlab:filter:tier:tier", null);
   // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น "ทุก Tier"
   const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
-  // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
+  // Tier ที่แอดมินจัดเองตามแพตช์/แรนก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
   const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
 
   const grouped = useMemo(() => {
@@ -56,6 +59,22 @@ export function TierList() {
   const patchLabel = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
   const loading = heroes.status === "loading" || curated.status === "loading";
 
+  // ข้อมูลสำหรับรูปที่แชร์: หน้าจอแสดงอยู่อย่างไร รูปก็เห็นอย่างนั้น (รวมตัวกรองที่เลือก)
+  const shareRows = useMemo(
+    () =>
+      grouped
+        ? TIER_ORDER.map((t) => ({
+            tier: t,
+            heroes: (grouped.get(t) ?? []).map((h) => ({ name: h.name, nameTh: h.nameTh, icon: h.icon })),
+          })).filter((r) => r.heroes.length > 0)
+        : [],
+    [grouped]
+  );
+  const subtitleParts = [`Patch ${patchLabel}`, RANK_LABEL[rank], isCurated ? "Tier จัดโดยทีมงาน" : "Tier จาก Win Rate"];
+  if (role) subtitleParts.push(roleLabel(role));
+  if (lane) subtitleParts.push(`เลน ${laneLabel(lane)}`);
+  if (tier) subtitleParts.push(`เฉพาะ Tier ${tier}`);
+
   return (
     <div className="space-y-4">
       <div>
@@ -64,8 +83,35 @@ export function TierList() {
           <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
         </div>
         <p className="mt-1 text-xs text-text-faint">
-          {isCurated ? "Tier จัดโดยทีมงาน" : "Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก"} · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่
+          {isCurated ? "Tier จัดโดยทีมงาน" : "Tier คำนวณจาก Win Rate ของแรนก์ที่เลือก"} · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <ShareImageButton
+            title="RoV Tier List"
+            filenameBase="rovlab-tier-list"
+            disabled={loading || totalShown === 0}
+            render={(format) =>
+              renderTierListImage(
+                {
+                  title: "RoV Tier List",
+                  subtitle: subtitleParts.join(" · "),
+                  footnote: isCurated
+                    ? "Tier จัดโดยทีมงาน RovLab · เรียง A–Z ในแต่ละ Tier"
+                    : "* Tier คำนวณจาก Win Rate ของแรนก์ที่เลือก · เรียง A–Z ในแต่ละ Tier",
+                  rows: shareRows,
+                },
+                format
+              )
+            }
+          />
+          <Link
+            to="/tier-list/create"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-3 py-1.5 text-xs font-medium text-text hover:border-accent/40"
+          >
+            <Palette className="h-3.5 w-3.5" />
+            สร้าง Tier List ของฉัน
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -84,7 +130,7 @@ export function TierList() {
         <EmptyState
           icon={BarChart3}
           title={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
-          description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Tier, Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
+          description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Tier, Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรนก์ที่เลือก"}
         />
       )}
       {!loading && grouped && totalShown > 0 && (
