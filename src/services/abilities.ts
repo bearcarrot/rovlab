@@ -1,28 +1,21 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { parseEffectTags } from "@/lib/effectTags";
 
 // คำอธิบายสกิลของฮีโร่ทั้งหมด (ประมาณ 500 แถว) โหลดครั้งเดียวต่อเซสชัน
 // ใช้เป็นข้อมูลอ้างอิงให้ Coach AI อธิบายการใช้สกิล / คอมโบ / วิธีแก้ทาง โดยไม่ต้องกรอกคู่คอมโบด้วยมือทุกคู่
-// และใช้ effectTags (ฮีล/โล่/บัฟ ฯลฯ จากเกม) ให้ Draft Assistant ประเมินว่าทีมขาดอะไร
+// และใช้ effectTags (กายภาพ/เวท/ฮีล/สตั๊น ฯลฯ จากเกม) ให้ Draft Assistant ประเมินว่าทีมขาดอะไร
 
 export interface AbilityBrief {
   slot: string;
   name: string;
   description: string;
-  // ชื่อแท็กชนิดสกิลจากเกม เช่น "ฮีล", "บัฟ" (ว่างถ้ายังไม่ได้นำเข้า)
+  // ชื่อแท็กชนิดสกิลจากเกม เช่น "กายภาพ", "ฮีล" (ว่างถ้ายังไม่ได้นำเข้า) — ตัดชื่อสกิลอังกฤษที่หลุดมาแล้ว
   effectTags: string[];
 }
 
 export type AbilitiesByHero = Record<string, AbilityBrief[]>; // hero_id → สกิลเรียงตาม sort_order
 
 let cache: Promise<AbilitiesByHero> | null = null;
-
-// effect_tags เป็น jsonb [{ "type": 8, "name": "ฮีล" }] — อ่านเฉพาะชื่อ และทนต่อข้อมูลผิดรูปแบบ
-function tagNames(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((t) => (t && typeof t === "object" ? String((t as { name?: unknown }).name ?? "").trim() : ""))
-    .filter(Boolean);
-}
 
 export function getAllAbilities(): Promise<AbilitiesByHero> {
   if (!isSupabaseConfigured) return Promise.resolve({});
@@ -41,7 +34,7 @@ export function getAllAbilities(): Promise<AbilitiesByHero> {
         slot: String(r.slot ?? ""),
         name: (r.name as string | null) ?? "",
         description: (r.description as string | null) ?? "",
-        effectTags: tagNames(r.effect_tags),
+        effectTags: parseEffectTags(r.effect_tags).map((t) => t.name),
       });
     }
     return out;

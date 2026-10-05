@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { AskCoach } from "@/components/AskCoach";
 import { HeroIcon } from "@/components/HeroIcon";
+import { EffectTagList } from "@/components/EffectTagList";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
 import { HeroBalance } from "@/features/balance/HeroBalance";
@@ -141,6 +142,7 @@ export function HeroDetail() {
                   <Badge className="uppercase">{a.slot}</Badge>
                   <p className="font-display text-sm font-medium">{a.name}</p>
                 </div>
+                <EffectTagList tags={a.effectTags ?? []} className="mt-2" />
                 <p className="mt-1.5 text-sm text-text-muted">{a.description}</p>
               </div>
             ))}

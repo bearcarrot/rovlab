@@ -1,7 +1,7 @@
 import type { HeroSummary, Tier } from "@/types/hero";
 import type { CounterStrength, DraftRelations } from "@/services/draft";
 import { ROLE_TAGS } from "./heroTags";
-import type { KitsByHero } from "./skillTags";
+import { damageSplit, heroCc, type KitsByHero } from "./skillTags";
 
 export interface TeamAnalysis {
   physicalDamage: number;
@@ -19,9 +19,8 @@ export interface TeamAnalysis {
 
 const filled = (team: (HeroSummary | null)[]) => team.filter((h): h is HeroSummary => h !== null);
 
-// All numbers here are relative point totals from the ROLE_TAGS heuristic, not
-// measured game data — the UI must present them as a rough heuristic, never as
-// precise math. ยกเว้น healShield ที่มาจากแท็กสกิลในเกม (ถ้าส่ง kits มา)
+// ตัวเลขส่วนใหญ่เป็นคะแนนสัมพัทธ์จาก heuristic ของ ROLE_TAGS ไม่ใช่ข้อมูลที่วัดได้จริง — UI ต้องแสดงเป็นค่าประเมินคร่าวๆ
+// ยกเว้น ดาเมจกายภาพ/เวท, CC และ healShield ที่อ่านจากแท็กสกิลในเกมเมื่อส่ง kits มาและฮีโร่นั้นมีแท็ก
 export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): TeamAnalysis {
   const picked = filled(heroes);
   const result: TeamAnalysis = {
@@ -38,15 +37,16 @@ export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): 
   };
   for (const h of picked) {
     const tag = ROLE_TAGS[h.role];
-    if (tag.damage === "physical") result.physicalDamage += 2;
-    else result.magicDamage += 2;
+    const kit = kits?.[h.id];
+    const dmg = damageSplit(h.role, kit);
+    result.physicalDamage += dmg.physical;
+    result.magicDamage += dmg.magic;
     result.frontline += tag.frontline;
-    result.cc += tag.cc;
+    result.cc += heroCc(h.role, kit);
     result.mobility += tag.mobility;
     result.sustain += tag.sustain;
     if (tag.scaling === "early") result.earlyGame += 2;
     if (tag.scaling === "late") result.lateGame += 2;
-    const kit = kits?.[h.id];
     if (kit && (kit.heal || kit.shield)) result.healShield += 1;
   }
   return result;
@@ -139,7 +139,7 @@ function indexRelations(rel?: DraftRelations) {
 }
 
 // ctx.limit: จำนวนที่คืนสูงสุด (ค่าเริ่มต้น 5) — ส่งค่ามากๆ เพื่อเอารายการทั้งหมดไปกรองตามแท็ก (คอมโบ/ชนะทาง)
-// ctx.kits: ความสามารถจากแท็กสกิลในเกม (ฮีล/โล่/บัฟ) — ไม่ส่ง = ใช้เฉพาะบทบาทเหมือนเดิม
+// ctx.kits: ความสามารถจากแท็กสกิลในเกม (ดาเมจกายภาพ/เวท, CC, ฮีล/โล่/บัฟ) — ไม่ส่ง = ใช้เฉพาะบทบาทเหมือนเดิม
 export function recommendPicks(
   currentTeam: (HeroSummary | null)[],
   pool: HeroSummary[],
@@ -160,6 +160,8 @@ export function recommendPicks(
     .filter((h) => !taken.has(h.slug))
     .map((h): Recommendation => {
       const tag = ROLE_TAGS[h.role];
+      const kitH = ctx.kits?.[h.id];
+      const dmgH = damageSplit(h.role, kitH);
       const reasons: string[] = [];
       const explain: string[] = [];
       const warnings: string[] = [];
@@ -211,23 +213,22 @@ export function recommendPicks(
           reasons.push("ทีมยังขาดแนวหน้า ฮีโร่นี้ช่วยเปิด/รับหน้าไฟต์ได้");
           score += 2 * compScale;
         }
-        if (analysis.cc < 3 && tag.cc >= 2) {
+        if (analysis.cc < 3 && heroCc(h.role, kitH) >= 2) {
           reasons.push("ทีมมี Crowd Control น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้");
           score += 2 * compScale;
         }
         // ฮีล/โล่ จากแท็กสกิลในเกม: นับเฉพาะตอนทีมเรามีคนแล้ว และทีมยังไม่มีใครมีฮีล/โล่เลย
-        const kit = ctx.kits?.[h.id];
-        if (kit && mine.length > 0 && analysis.healShield === 0 && (kit.heal || kit.shield)) {
-          const what = kit.heal && kit.shield ? "ฮีลและโล่" : kit.heal ? "ฮีล" : "โล่";
+        if (kitH && mine.length > 0 && analysis.healShield === 0 && (kitH.heal || kitH.shield)) {
+          const what = kitH.heal && kitH.shield ? "ฮีลและโล่" : kitH.heal ? "ฮีล" : "โล่";
           reasons.push(`ทีมยังไม่มีฮีล/โล่ สกิลของฮีโร่นี้มี${what}`);
           score += HEAL_SHIELD_POINTS * compScale;
         }
         // เช็คเฉพาะตอนมีคนในทีมแล้ว (ทีมว่างไม่ใช่ "มีแต่ดาเมจชนิดเดียว")
-        if (analysis.physicalDamage > 0 && analysis.magicDamage === 0 && tag.damage === "magic") {
+        if (analysis.physicalDamage > 0 && analysis.magicDamage === 0 && dmgH.magic >= 1) {
           reasons.push("ทีมมีแต่ดาเมจกายภาพ ฮีโร่นี้ช่วยให้เจาะเกราะเวทได้");
           score += 1.5;
         }
-        if (analysis.magicDamage > 0 && analysis.physicalDamage === 0 && tag.damage === "physical") {
+        if (analysis.magicDamage > 0 && analysis.physicalDamage === 0 && dmgH.physical >= 1) {
           reasons.push("ทีมมีแต่ดาเมจเวท ฮีโร่นี้ช่วยให้เจาะเกราะกายภาพได้");
           score += 1.5;
         }
