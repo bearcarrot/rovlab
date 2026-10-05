@@ -12,14 +12,18 @@ type Props = {
   label?: string;
   /** เปลี่ยนค่านี้เมื่อข้อมูลที่เลือกเปลี่ยน เพื่อล้างคำตอบเก่า */
   resetKey?: string;
+  /** แจ้งคำตอบล่าสุดให้หน้าแม่ (ส่ง "" เมื่อล้างคำตอบ) — ใช้กับการใส่ผล AI ในรูปแชร์ */
+  onAdvice?: (text: string) => void;
 };
 
-export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey }: Props) {
+export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey, onAdvice }: Props) {
   const { user, loading } = useAuth();
   const [advice, setAdvice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const reqId = useRef(0);
+  const onAdviceRef = useRef(onAdvice);
+  onAdviceRef.current = onAdvice;
 
   useEffect(() => {
     reqId.current++;
@@ -27,6 +31,10 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
     setError("");
     setBusy(false);
   }, [resetKey]);
+
+  useEffect(() => {
+    onAdviceRef.current?.(advice);
+  }, [advice]);
 
   async function ask() {
     const id = ++reqId.current;
