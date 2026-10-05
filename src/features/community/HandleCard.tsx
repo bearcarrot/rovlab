@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/toast";
 import { getMyHandle, HANDLE_RE, communityError, updateMyHandle } from "@/services/community";
 
 // Edit your @handle (used for mentions). Own state: it loads/saves by itself so the profile form stays untouched.
 export function HandleCard({ userId }: { userId: string }) {
+  const toast = useToast();
   const [current, setCurrent] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,11 +33,10 @@ export function HandleCard({ userId }: { userId: string }) {
   async function save() {
     if (!valid || !dirty || busy) return;
     setBusy(true);
-    setMsg(null);
     try {
       await updateMyHandle(userId, value);
       setCurrent(value);
-      setMsg({ ok: true, text: "บันทึกชื่อผู้ใช้แล้ว" });
+      toast.success("บันทึกชื่อผู้ใช้แล้ว");
     } catch (e) {
       const code = (e as { code?: string } | null)?.code;
       const text =
@@ -45,7 +45,7 @@ export function HandleCard({ userId }: { userId: string }) {
           : code === "23514"
             ? "รูปแบบไม่ถูกต้อง"
             : communityError(e, "บันทึกไม่สำเร็จ");
-      setMsg({ ok: false, text });
+      toast.error(text);
     } finally {
       setBusy(false);
     }
@@ -77,7 +77,6 @@ export function HandleCard({ userId }: { userId: string }) {
       <p className={`text-[11px] ${value && !valid ? "text-loss" : "text-text-faint"}`}>
         3–20 ตัว ใช้ได้เฉพาะ A–Z, 0–9 และ _ — คนอื่นใช้ชื่อนี้เพื่อแท็กคุณในความคิดเห็น
       </p>
-      {msg && <p className={`text-xs ${msg.ok ? "text-win" : "text-red-400"}`}>{msg.text}</p>}
     </div>
   );
 }
