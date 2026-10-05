@@ -11,6 +11,7 @@ import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
+import { DraftShareBar } from "@/features/draft/DraftShareBar";
 import {
   analyzeTeam,
   describeDraft,
@@ -80,12 +81,14 @@ export function DraftAssistant() {
   // ข้อมูล counter/synergy: โหลดไม่ได้ก็ไม่เป็นไร ระบบแนะนำยังทำงานด้วยสถิติ + คอมโพสิชัน
   const relQ = useAsync(() => getDraftRelations(), []);
   // สกิลของฮีโร่ทั้งหมด: ให้ Coach AI อธิบายการใช้สกิล/คอมโบ/วิธีแก้ทางจากข้อมูลจริง (โหลดไม่ได้ = AI เห็นแค่ชื่อฮีโร่)
-  // และใช้แท็กชนิดสกิล (ฮีล/โล่/บัฟ) ประเมินว่าทีมขาดอะไร
+  // และใช้แท็กชนิดสกิล (ฟีล/โล่/บัฟ) ประเมินว่าทีมขาดอะไร
   const skillsQ = useAsync(() => getAllAbilities(), []);
   const [myTeam, setMyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [enemyTeam, setEnemyTeam] = useState<(HeroSummary | null)[]>(Array(5).fill(null));
   const [active, setActive] = useState<Slot | null>({ team: "mine", index: 0 });
   const [query, setQuery] = useState("");
+  // คำตอบ AI Coach ล่าสุดของปุ่มประเมินดราฟต์ (ใช้ใส่ในรูปแชร์เมื่อผู้ใช้เลือก)
+  const [coachText, setCoachText] = useState("");
   const filters = useHeroFilters();
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
@@ -124,7 +127,7 @@ export function DraftAssistant() {
     }),
     [myTeam, enemyTeam]
   );
-  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีม พร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
+  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
   // context ของปุ่มประเมินดราฟต์: ข้อมูลภาพรวม + สกิลของทุกตัวที่เลือกไว้ (ย่อให้พอดีเพดาน 8000 ตัวอักษรของ edge function)
@@ -205,6 +208,16 @@ export function DraftAssistant() {
           onClearSlot={(i) => clearSlot("enemy", i)}
         />
       </div>
+
+      {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) */}
+      <DraftShareBar
+        myTeam={myTeam}
+        enemyTeam={enemyTeam}
+        recs={teamFull ? [] : recs}
+        analysis={analysis}
+        mode={mode}
+        coachText={analysis.filledSlots > 0 ? coachText : ""}
+      />
 
       {active && (
         <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
@@ -290,6 +303,7 @@ export function DraftAssistant() {
               label="ถามโค้ช AI: ประเมินดราฟต์"
               prompt={DRAFT_PROMPT}
               context={draftCoachCtx}
+              onAdvice={setCoachText}
             />
           </div>
         )}
