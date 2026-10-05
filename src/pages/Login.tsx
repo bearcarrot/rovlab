@@ -4,6 +4,7 @@ import { LogIn, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { GoogleIcon } from "@/components/GoogleIcon";
+import { useToast } from "@/components/ui/toast";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
 import { validateEmail } from "@/features/auth/email";
@@ -13,12 +14,12 @@ import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/a
 export function Login() {
   const { user, signInWithEmail, signInWithGoogle, resendVerification, isConfigured } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [unverified, setUnverified] = useState(false);
   const [busy, setBusy] = useState(false);
   const cooldown = useCooldown("resend-verification", 60);
@@ -44,7 +45,6 @@ export function Login() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
     setUnverified(false);
     const emailErr = validateEmail(email);
     if (emailErr) return setError(emailErr);
@@ -60,7 +60,6 @@ export function Login() {
 
   async function handleGoogle() {
     setError(null);
-    setInfo(null);
     setBusy(true);
     const { error: err, code } = await signInWithGoogle(next);
     // สำเร็จ: เบราว์เซอร์จะถูก redirect ไป Google เอง
@@ -81,7 +80,7 @@ export function Login() {
     if (err) setError(authErrorMessage(code));
     else {
       cooldown.start();
-      setInfo("ส่งอีเมลยืนยันอีกครั้งแล้ว กรุณาตรวจสอบกล่องจดหมาย");
+      toast.success("ส่งอีเมลยืนยันอีกครั้งแล้ว กรุณาตรวจสอบกล่องจดหมาย");
     }
   }
 
@@ -109,7 +108,6 @@ export function Login() {
           className={inputCls}
         />
         {error && <p className="text-sm text-loss">{error}</p>}
-        {info && <p className="text-sm text-text-muted">{info}</p>}
         {unverified && (
           <button type="button" onClick={handleResend} disabled={busy || cooldown.remaining > 0} className={outlineBtnCls}>
             {cooldown.remaining > 0 ? `ส่งอีกครั้งได้ใน ${cooldown.remaining} วินาที` : "Resend verification email"}

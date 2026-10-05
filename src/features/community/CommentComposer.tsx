@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useToast } from "@/components/ui/toast";
 import { COMMENT_MAX_LENGTH } from "@/services/comments";
 import { communityError, searchHandles } from "@/services/community";
 import type { HandleSuggestion } from "@/types/community";
@@ -21,9 +22,9 @@ function detectToken(text: string, caret: number): { start: number; query: strin
 }
 
 export function CommentComposer({ placeholder, initialValue = "", submitLabel = "ส่ง", autoFocus, onSubmit, onCancel }: Props) {
+  const toast = useToast();
   const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [token, setToken] = useState<{ start: number; query: string } | null>(null);
   const [suggestions, setSuggestions] = useState<HandleSuggestion[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -63,12 +64,11 @@ export function CommentComposer({ placeholder, initialValue = "", submitLabel = 
     const body = value.trim();
     if (!body || busy) return;
     setBusy(true);
-    setError("");
     try {
       await onSubmit(body);
       setValue("");
     } catch (e) {
-      setError(communityError(e, "ส่งความคิดเห็นไม่สำเร็จ"));
+      toast.error(communityError(e, "ส่งความคิดเห็นไม่สำเร็จ"));
     } finally {
       setBusy(false);
     }
@@ -112,7 +112,6 @@ export function CommentComposer({ placeholder, initialValue = "", submitLabel = 
           </ul>
         )}
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] text-text-faint">{value.length}/{COMMENT_MAX_LENGTH}</span>
         <div className="flex gap-2">

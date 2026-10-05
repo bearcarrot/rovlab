@@ -6,6 +6,7 @@ import { VerifyEmailNotice } from "@/features/auth/VerifyEmailNotice";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
+import { useToast } from "@/components/ui/toast";
 import { CommentComposer } from "./CommentComposer";
 import { CommentItem } from "./CommentItem";
 import { getComment, isAdmin as fetchIsAdmin, listComments, postComment } from "@/services/community";
@@ -16,6 +17,7 @@ const PAGE = 20;
 
 export function CommentSection({ heroSlug }: { heroSlug: string }) {
   const { user, isVerified, isConfigured } = useAuth();
+  const toast = useToast();
   const [params] = useSearchParams();
   const focusId = params.get("c");
   const canPost = Boolean(user && isVerified);
@@ -90,7 +92,8 @@ export function CommentSection({ heroSlug }: { heroSlug: string }) {
       setItems((prev) => [...prev, ...rows.slice(0, PAGE)]);
       setHasMore(rows.length > PAGE);
     } catch {
-      /* keep what we have */
+      // keep what we have
+      toast.error("โหลดความคิดเห็นเพิ่มไม่สำเร็จ");
     } finally {
       setLoadingMore(false);
     }

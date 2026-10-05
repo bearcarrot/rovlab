@@ -4,6 +4,7 @@ import { Mail, UserPlus, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { GoogleIcon } from "@/components/GoogleIcon";
+import { useToast } from "@/components/ui/toast";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
 import { validateEmail } from "@/features/auth/email";
@@ -14,6 +15,7 @@ import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/a
 export function Register() {
   const { user, signUpWithEmail, signInWithGoogle, resendVerification, isConfigured } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const [username, setUsername] = useState("");
@@ -21,7 +23,6 @@ export function Register() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const submitted = useRef(false);
@@ -48,7 +49,6 @@ export function Register() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
     const uErr = validateUsername(username);
     if (uErr) return setError(uErr);
     const eErr = validateEmail(email);
@@ -98,7 +98,7 @@ export function Register() {
     if (err) setError(authErrorMessage(code));
     else {
       cooldown.start();
-      setInfo("ส่งอีเมลยืนยันอีกครั้งแล้ว");
+      toast.success("ส่งอีเมลยืนยันอีกครั้งแล้ว");
     }
   }
 
@@ -115,7 +115,6 @@ export function Register() {
           </div>
         </div>
         {error && <p className="text-sm text-loss">{error}</p>}
-        {info && <p className="text-sm text-text-muted">{info}</p>}
         <button type="button" onClick={handleResend} disabled={busy || cooldown.remaining > 0} className={outlineBtnCls}>
           {cooldown.remaining > 0 ? `ส่งอีกครั้งได้ใน ${cooldown.remaining} วินาที` : "Resend verification email"}
         </button>
@@ -124,7 +123,6 @@ export function Register() {
           onClick={() => {
             submitted.current = false;
             setDone(false);
-            setInfo(null);
           }}
           className={outlineBtnCls}
         >
