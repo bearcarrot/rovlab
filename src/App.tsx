@@ -24,6 +24,7 @@ import { AdminHub } from "@/pages/AdminHub";
 import { Notifications } from "@/pages/Notifications";
 import { Feed } from "@/pages/Feed";
 import { UserByHandle } from "@/pages/UserByHandle";
+import { NotFound } from "@/pages/NotFound";
 import { PrivacyPolicy, TermsOfUse, Disclaimer, DataSources, CommunityGuidelines } from "@/pages/Legal";
 
 const HOME: Crumb = { label: "หน้าแรก", to: "/" };
@@ -106,7 +107,15 @@ export default function App() {
           path="reset-password"
           element={<WithNav crumbs={[HOME, { label: "ตั้งรหัสผ่านใหม่" }]} fallback="/login"><ResetPassword /></WithNav>}
         />
-        <Route path="admin" element={<WithNav crumbs={[HOME, { label: "แอดมิน" }]}><AdminHub /></WithNav>} />
+        {/* แอดมิน: ต้องล็อกอินก่อน (สิทธิ์แอดมินยังตรวจใน AdminHub และต้องถูกบังคับที่ RLS) */}
+        <Route
+          path="admin"
+          element={
+            <RequireAuth>
+              <WithNav crumbs={[HOME, { label: "แอดมิน" }]}><AdminHub /></WithNav>
+            </RequireAuth>
+          }
+        />
         <Route path="privacy" element={<WithNav crumbs={[HOME, { label: "Privacy Policy" }]}><PrivacyPolicy /></WithNav>} />
         <Route path="terms" element={<WithNav crumbs={[HOME, { label: "Terms of Use" }]}><TermsOfUse /></WithNav>} />
         <Route path="disclaimer" element={<WithNav crumbs={[HOME, { label: "Disclaimer" }]}><Disclaimer /></WithNav>} />
@@ -115,6 +124,8 @@ export default function App() {
           path="community-guidelines"
           element={<WithNav crumbs={[HOME, { label: "Community Guidelines" }]}><CommunityGuidelines /></WithNav>}
         />
+        {/* ทุก URL ที่ไม่ตรงกับ route ข้างบน */}
+        <Route path="*" element={<WithNav crumbs={[HOME, { label: "ไม่พบหน้า" }]}><NotFound /></WithNav>} />
       </Route>
     </Routes>
   );
