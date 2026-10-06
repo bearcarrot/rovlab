@@ -18,8 +18,11 @@ export interface MatchupDetail {
   winCondition: string;
   tips: string;
   source: "curated" | "heuristic";
+  // slug ของฮีโร่ที่แผนเล่นข้างบนเขียนจากมุมมองของตัวนั้น (hero_a ของแถวที่แอดมินกรอก)
+  // ถ้าไม่ใช่ฮีโร่ฝั่งที่ผู้ใช้เลือก แปลว่าแผนเก็บไว้คนละทิศ ห้ามแสดงเป็นแผนของผู้ใช้
+  planFor?: string;
   // สรุปจากสถิติจริง (Win Rate ของแต่ละตัว) ใช้เมื่อไม่มีแผนเล่นเขียนมือของคู่นี้
   summary?: string;
-  // ความสัมพันธ์ชนะทางของสองตัวนี้จากตาราง hero_counters (สถิติแรงก์จริง)
+  // ความสัมพันธ์ชนะทางของสองตัวนี้จากตาราง hero_counters (สถิติแรงค์จริง)
   counterNotes?: MatchupCounterNote[];
 }

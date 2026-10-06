@@ -16,7 +16,7 @@ import type { MatchupDetail } from "@/types/matchup";
 import { cn } from "@/lib/utils";
 
 function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label: string; scope: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
-  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอสแซสซินศัตรู" ได้ (scope แยกกัน จึงจำค่าแยกกันด้วย)
+  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอแซสซินศัตรู" ได้ (scope แยกกัน จึงจำค่าแยกกันด้วย)
   const filters = useHeroFilters(scope);
   const list = heroes.filter((h) => h.slug !== exclude && filters.match(h));
   return (
@@ -122,10 +122,17 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
   // มีสถิติของทั้งสองตัว → แสดงเป็นแถบเปรียบเทียบ (แทนข้อความสรุป Win Rate ที่ซ้ำกัน)
   const showBars = a.stat.hasStats && b.stat.hasStats;
   const hasPlan = [m.early, m.mid, m.late, m.winCondition, m.tips].some((t) => t.trim());
+  // แผนที่เก็บไว้ทิศ B vs A เขียนจากมุมมองของ B (ฝั่งศัตรูของผู้ใช้) ไม่ใช่มุมมองของ A ที่ผู้ใช้เลือก
+  const reversedPlan = hasPlan && !!m.planFor && m.planFor !== a.slug;
   const hasAnything = hasPlan || showBars || !!m.summary || notes.length > 0;
 
   const matchupContext = {
-    source: m.source === "curated" ? "แผนเล่นที่ทีมงานเขียนไว้" : "ยังไม่มีแผนเล่นเจาะจงคู่นี้ (มีเฉพาะข้อมูลสถิติด้านล่าง)",
+    source:
+      m.source !== "curated"
+        ? "ยังไม่มีแผนเล่นเจาะจงคู่นี้ (มีเฉพาะข้อมูลสถิติด้านล่าง)"
+        : reversedPlan
+          ? `แผนเล่นที่ทีมงานเขียนไว้สำหรับฝั่ง ${b.nameTh} (ศัตรูของผู้เล่น) เมื่อเจอ ${a.nameTh} ไม่ใช่แผนของผู้เล่น`
+          : "แผนเล่นที่ทีมงานเขียนไว้",
     lane,
     difficulty: m.difficulty,
     ...(m.early ? { early: m.early } : {}),
@@ -144,6 +151,11 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
           * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถามโค้ช AI เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
         </p>
       )}
+      {reversedPlan && (
+        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
+          * แผนเล่นด้านล่างทีมงานเขียนไว้จากมุมมองของ {b.nameTh} เมื่อเจอ {a.nameTh} คือแผนของฝั่งศัตรู ใช้ดูว่าศัตรูจะเล่นอย่างไร ไม่ใช่แผนของ {a.nameTh}
+        </p>
+      )}
       <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4 text-sm">
         <p>
           <span className="font-medium text-text">เลน: </span>
@@ -155,7 +167,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
 
         {notes.length > 0 && (
           <div>
-            <p className="font-medium text-text">ชนะทางกันตามสถิติแรงก์จริง</p>
+            <p className="font-medium text-text">ชนะทางกันตามสถิติแรงค์จริง</p>
             <ul className="mt-1 space-y-1 text-text-muted">
               {notes.map((n, i) => (
                 <li key={i}>
