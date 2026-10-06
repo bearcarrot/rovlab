@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
 import { getLatestPatch } from "@/services/meta";
 import type { RankBucket } from "@/lib/rank";
 import type { HeroLane, Tier } from "@/types/hero";
@@ -13,22 +14,22 @@ export const ALL_LANES = "all";
 /** lane (หรือ "all") → (hero_id → tier) */
 export type CuratedTierLists = Map<string, Map<string, Tier>>;
 
-/**
- * Tier ที่แอดมินจัดเองในแท็บ "Tier List" ของหน้า Admin ของแพตช์ล่าสุด + แรงก์ที่เลือก ครบทุกเลนในครั้งเดียว
- * คืน null เมื่อยังไม่มีลิสต์เลย (หรืออ่านไม่ได้) เพื่อให้ฝั่งเว็บ fallback ไปใช้ hero_stats.tier
- */
-export async function getCuratedTierLists(rank: RankBucket): Promise<CuratedTierLists | null> {
-  if (!isSupabaseConfigured) return null;
+// ok = false เมื่ออ่านไม่ได้/พลาด (ไม่เก็บใน cache) ต่างจาก "อ่านได้แต่ยังไม่มีลิสต์" ซึ่ง cache ได้
+type Loaded = { lists: CuratedTierLists | null; ok: boolean };
+
+async function loadCuratedTierLists(rank: RankBucket): Promise<Loaded> {
+  if (!isSupabaseConfigured) return { lists: null, ok: true };
   try {
     const patch = await getLatestPatch();
-    if (!patch) return null;
+    if (!patch) return { lists: null, ok: false };
 
     const { data: lists, error: listErr } = await db
       .from("tier_lists")
       .select("id, lane")
       .eq("patch_id", patch.id)
       .eq("rank_tier", rank);
-    if (listErr || !lists || lists.length === 0) return null;
+    if (listErr) return { lists: null, ok: false };
+    if (!lists || lists.length === 0) return { lists: null, ok: true };
 
     const { data: entries, error } = await db
       .from("tier_list_entries")
@@ -37,7 +38,8 @@ export async function getCuratedTierLists(rank: RankBucket): Promise<CuratedTier
         "tier_list_id",
         lists.map((l: any) => l.id)
       );
-    if (error || !entries || entries.length === 0) return null;
+    if (error) return { lists: null, ok: false };
+    if (!entries || entries.length === 0) return { lists: null, ok: true };
 
     const laneOfList = new Map<string, string>(lists.map((l: any) => [l.id as string, (l.lane as string | null) ?? ALL_LANES]));
     const out: CuratedTierLists = new Map();
@@ -51,10 +53,20 @@ export async function getCuratedTierLists(rank: RankBucket): Promise<CuratedTier
       }
       m.set(e.hero_id as string, e.tier as Tier);
     }
-    return out.size > 0 ? out : null;
+    return { lists: out.size > 0 ? out : null, ok: true };
   } catch {
-    return null;
+    return { lists: null, ok: false };
   }
+}
+
+/**
+ * Tier ที่แอดมินจัดเองในแท็บ "Tier List" ของหน้า Admin ของแพตช์ล่าสุด + แรงก์ที่เลือก ครบทุกเลนในครั้งเดียว
+ * คืน null เมื่อยังไม่มีลิสต์เลย (หรืออ่านไม่ได้) เพื่อให้ฝั่งเว็บ fallback ไปใช้ hero_stats.tier
+ * ผลลัพธ์ cache ไว้ในหน่วยความจำ (แอดมินข้าม cache) อย่าแก้ Map ที่ได้คืนไป
+ */
+export async function getCuratedTierLists(rank: RankBucket): Promise<CuratedTierLists | null> {
+  const res = await cached(`tiers:${rank}`, CACHE_TTL_MS, () => loadCuratedTierLists(rank), (v) => v.ok);
+  return res.lists;
 }
 
 /** ลิสต์ของเลนเดียว (lane = null → ลิสต์รวม) ใช้ในหน้า Tier List */
