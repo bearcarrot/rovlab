@@ -4,6 +4,7 @@ import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -166,8 +167,9 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
 
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
   if (isSupabaseConfigured) {
-    const db = await fetchDbBuild(hero);
-    if (db) return db;
+    // only a real DB build is cached (null = none/error → retry next time, then fallback below)
+    const db = await cached(`build:${hero.id}`, CACHE_TTL_MS, () => fetchDbBuild(hero), (v) => v !== null);
+    if (db) return { ...db };
   }
   return delay(MOCK_BUILDS[hero.slug] ?? genericBuildFor(hero));
 }
