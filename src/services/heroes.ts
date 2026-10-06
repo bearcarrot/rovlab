@@ -3,8 +3,9 @@ import type { HeroAbility, HeroDetail, HeroLane, HeroRole, HeroSummary, Tier, Co
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
 import { parseEffectTags } from "@/lib/effectTags";
+import { cached } from "@/lib/ttlCache";
 import { getLatestPatch } from "@/services/meta";
-import { ALL_LANES, getCuratedTierLists } from "@/services/tierlist";
+import { ALL_LANES, getCuratedTierLists, type CuratedTierLists } from "@/services/tierlist";
 
 // Live Supabase data. hero_stats is read for the latest patch (patches.released_at)
 // and the selected rank bucket ("all" | "high"); a hero with no row for that bucket
@@ -22,6 +23,11 @@ import { ALL_LANES, getCuratedTierLists } from "@/services/tierlist";
 // can differ from the game and confuse players). The `nameTh` / `heroNameTh` properties
 // are kept so existing components don't change, but they are now filled with the English
 // `name` column. The `name_th` column is no longer read for display.
+//
+// Performance: the independent queries run in parallel, and results are cached in memory
+// for CACHE_TTL_MS (see lib/ttlCache). Admins bypass the cache so their edits show up at once.
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, banRate: 0, tier: "C" as Tier, matches: 0, hasStats: false };
 
@@ -59,15 +65,16 @@ function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]
   };
 }
 
-async function fetchStatsByHeroId(heroIds: string[], rank: RankBucket): Promise<Map<string, HeroSummary["stat"]>> {
+// heroIds = null → every hero's stat row for the latest patch + rank (used by the hero list)
+async function fetchStatsByHeroId(heroIds: string[] | null, rank: RankBucket): Promise<Map<string, HeroSummary["stat"]>> {
   const map = new Map<string, HeroSummary["stat"]>();
-  if (heroIds.length === 0) return map;
+  if (heroIds && heroIds.length === 0) return map;
   const patch = await getLatestPatch();
   let query = supabase
     .from("hero_stats")
     .select("hero_id, rank_tier, win_rate, pick_rate, ban_rate, tier, matches")
-    .in("hero_id", heroIds)
     .eq("rank_tier", rank);
+  if (heroIds) query = query.in("hero_id", heroIds);
   if (patch) query = query.eq("patch_id", patch.id);
   const { data, error } = await query;
   if (error || !data) return map; // not readable/empty — every hero falls back to EMPTY_STAT
@@ -87,8 +94,7 @@ async function fetchStatsByHeroId(heroIds: string[], rank: RankBucket): Promise<
 }
 
 // ทับ stat.tier ด้วย tier ที่แอดมินจัดเอง: ลิสต์ของเลนหลักของฮีโร่ก่อน รองลงมาคือลิสต์รวม ไม่มีทั้งสองค่อยใช้ค่าจาก hero_stats
-async function withCuratedTiers(list: HeroSummary[], rank: RankBucket): Promise<HeroSummary[]> {
-  const lists = await getCuratedTierLists(rank);
+function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null): HeroSummary[] {
   if (!lists) return list;
   return list.map((h) => {
     if (!h.stat.hasStats) return h;
@@ -97,16 +103,22 @@ async function withCuratedTiers(list: HeroSummary[], rank: RankBucket): Promise<
   });
 }
 
-export async function getHeroes(rank: RankBucket = getRank()): Promise<HeroSummary[]> {
+async function loadHeroes(rank: RankBucket): Promise<HeroSummary[]> {
   if (!isSupabaseConfigured) return MOCK_HEROES;
-  const { data, error } = await supabase
-    .from("heroes")
-    .select(HERO_COLS)
-    .order("name", { ascending: true });
+  const [heroesRes, statMap, curated] = await Promise.all([
+    supabase.from("heroes").select(HERO_COLS).order("name", { ascending: true }),
+    fetchStatsByHeroId(null, rank),
+    getCuratedTierLists(rank),
+  ]);
+  const { data, error } = heroesRes;
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
   const rows = data as unknown as DbHeroRow[];
-  const statMap = await fetchStatsByHeroId(rows.map((h) => h.id), rank);
-  return withCuratedTiers(rows.map((row) => toSummary(row, statMap)), rank);
+  return applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
+}
+
+export function getHeroes(rank: RankBucket = getRank()): Promise<HeroSummary[]> {
+  // slice(): callers may sort the array in place; never hand out the cached instance itself
+  return cached(`heroes:${rank}`, CACHE_TTL_MS, () => loadHeroes(rank)).then((list) => list.slice());
 }
 
 function fallbackDetail(summary: HeroSummary, description: string | null, strengths: string[] | null, weaknesses: string[] | null): Omit<HeroDetail, "abilities" | "counteredBy" | "countersAgainst" | "synergies"> {
@@ -125,7 +137,7 @@ function byStrength(a: CounterEntry, b: CounterEntry) {
   return STRENGTH_ORDER[a.strength] - STRENGTH_ORDER[b.strength] || a.reason.localeCompare(b.reason);
 }
 
-export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()): Promise<HeroDetail | null> {
+async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetail | null> {
   if (!isSupabaseConfigured) {
     const summary = MOCK_HEROES.find((h) => h.slug === slug);
     if (!summary) return null;
@@ -152,16 +164,19 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   if (!row) return null;
 
   const heroRow = row as unknown as DbHeroRow;
-  const statMap = await fetchStatsByHeroId([heroRow.id], rank);
-  const [summary] = await withCuratedTiers([toSummary(heroRow, statMap)], rank);
-  const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);
 
-  const [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
+  // everything below only needs the hero id, so run it all at once
+  const [statMap, curated, abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes] = await Promise.all([
+    fetchStatsByHeroId([heroRow.id], rank),
+    getCuratedTierLists(rank),
     supabase.from("hero_abilities").select("slot, name, description, icon_url, effect_tags").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
     supabase.from("hero_counters").select("strength, reason, lane_tip, counter_hero:heroes!hero_counters_counter_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
     supabase.from("hero_counters").select("strength, reason, lane_tip, hero:heroes!hero_counters_hero_id_fkey(slug, name, icon_url)").eq("counter_hero_id", heroRow.id),
     supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
   ]);
+
+  const [summary] = applyCuratedTiers([toSummary(heroRow, statMap)], curated);
+  const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);
 
   const abilities: HeroAbility[] = (abilitiesRes.data ?? []).map((a: any) => ({
     slot: a.slot,
@@ -201,4 +216,8 @@ export async function getHeroBySlug(slug: string, rank: RankBucket = getRank()):
   }));
 
   return { ...base, abilities, counteredBy, countersAgainst, synergies };
+}
+
+export function getHeroBySlug(slug: string, rank: RankBucket = getRank()): Promise<HeroDetail | null> {
+  return cached(`hero:${slug}:${rank}`, CACHE_TTL_MS, () => loadHeroBySlug(slug, rank)).then((d) => (d ? { ...d } : d));
 }
