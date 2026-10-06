@@ -1,4 +1,4 @@
-// Draft Series engine (Phase 1): Series / Game state + per-team Global Ban Pick.
+// Draft Series engine: Series / Game state + per-team Global Ban Pick.
 // Pure functions, no React/Supabase. Existing analyzeTeam/recommendPicks are untouched.
 //
 // Rules (see brief):
@@ -158,4 +158,82 @@ export function resetGame(series: DraftSeries, gameNumber: number): DraftSeries 
 /** Reset Series: clears every game (UI must confirm first). */
 export function resetSeries(series: DraftSeries): DraftSeries {
   return createSeries(series.format, { globalBanPick: series.globalBanPick, game7Rule: series.game7Rule });
+}
+
+// ---------- format / config updaters ----------
+
+/** UI cap for bans per team per game. Tournament rulesets differ, so the engine itself does not enforce it. */
+export const MAX_BANS = 5;
+
+export const isGameEmpty = (g: DraftGame): boolean =>
+  g.mine.bans.length + g.enemy.bans.length === 0 &&
+  g.mine.picks.every((p) => p === null) &&
+  g.enemy.picks.every((p) => p === null);
+
+/** How many games with data would be lost by switching to `format` (UI asks for confirmation when > 0). */
+export function droppedGameCount(series: DraftSeries, format: SeriesFormat): number {
+  return series.games.filter((g) => g.gameNumber > GAME_COUNT[format] && !isGameEmpty(g)).length;
+}
+
+/** Switch format keeping existing games by number. single -> series turns Global BP on (brief default). */
+export function changeFormat(series: DraftSeries, format: SeriesFormat): DraftSeries {
+  const next = createSeries(format, {
+    globalBanPick: series.format === "single" ? true : series.globalBanPick,
+    game7Rule: series.game7Rule,
+  });
+  return { ...next, games: next.games.map((g) => series.games.find((o) => o.gameNumber === g.gameNumber) ?? g) };
+}
+
+export const setGlobalBanPick = (series: DraftSeries, on: boolean): DraftSeries =>
+  series.format === "single" ? series : { ...series, globalBanPick: on };
+
+export const setGame7Rule = (series: DraftSeries, rule: Game7Rule): DraftSeries => ({ ...series, game7Rule: rule });
+
+/** Game 1 picks as slug arrays: kept in saved_drafts.my_team / enemy_team for backward compatibility. */
+export function legacyTeams(series: DraftSeries): { myTeam: HeroKey[]; enemyTeam: HeroKey[] } {
+  const g = series.games[0];
+  const keep = (p: (HeroKey | null)[]) => p.filter((h): h is HeroKey => h !== null);
+  return { myTeam: g ? keep(g.mine.picks) : [], enemyTeam: g ? keep(g.enemy.picks) : [] };
+}
+
+// ---------- untrusted input ----------
+
+const FORMATS: SeriesFormat[] = ["single", "bo3", "bo5", "bo7"];
+const RULES: Game7Rule[] = ["normal", "global", "ultimate"];
+const asKey = (v: unknown): HeroKey | null => (typeof v === "string" && v.length > 0 && v.length <= 64 ? v : null);
+
+function parseTeam(raw: unknown): TeamDraft {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rawPicks = Array.isArray(o.picks) ? o.picks : [];
+  const picks = Array.from({ length: TEAM_SIZE }, (_, i) => asKey(rawPicks[i]));
+  // a hero can only occupy one slot
+  const seen = new Set<HeroKey>();
+  const dedup = picks.map((h) => (h && !seen.has(h) ? (seen.add(h), h) : null));
+  const bans = Array.isArray(o.bans)
+    ? [...new Set(o.bans.map(asKey).filter((h): h is HeroKey => h !== null))].slice(0, MAX_BANS)
+    : [];
+  return { bans, picks: dedup };
+}
+
+/**
+ * Validate a series coming from the database / a community snapshot / sessionStorage.
+ * Never trust its shape: returns a well-formed DraftSeries, or null when the format is unusable.
+ */
+export function parseSeries(raw: unknown): DraftSeries | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const format = FORMATS.find((f) => f === r.format);
+  if (!format) return null;
+  const base = createSeries(format, {
+    globalBanPick: r.globalBanPick === true,
+    game7Rule: RULES.find((x) => x === r.game7Rule) ?? "normal",
+  });
+  const rawGames = Array.isArray(r.games) ? r.games : [];
+  return {
+    ...base,
+    games: base.games.map((g, i) => {
+      const src = rawGames[i] && typeof rawGames[i] === "object" ? (rawGames[i] as Record<string, unknown>) : {};
+      return { gameNumber: g.gameNumber, mine: parseTeam(src.mine), enemy: parseTeam(src.enemy) };
+    }),
+  };
 }
