@@ -4,7 +4,6 @@ import { getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
-import { RankFilterRow } from "@/features/heroes/RankFilterRow";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { StatBarRow } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -67,7 +66,6 @@ export function Stats() {
       </div>
 
       <div className="space-y-2">
-        <RankFilterRow />
         <RoleFilterRow value={role} onChange={setRole} />
         <LaneFilterRow value={lane} onChange={setLane} />
       </div>
