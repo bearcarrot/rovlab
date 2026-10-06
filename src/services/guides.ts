@@ -1,6 +1,7 @@
 import { GUIDES, GUIDE_DETAILS, GUIDE_CATEGORIES } from "@/data/guides.mock";
 import type { GuideCategory, GuideDetail, GuideSummary } from "@/types/guide";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
 
 // คู่มือดึงจาก Supabase (ตาราง guides + guide_categories) ถ้าตั้งค่า Supabase แล้ว
 // ถ้ายังไม่ได้ตั้งค่า (เช่นรัน dev โดยไม่มี .env) จะใช้ข้อมูลตัวอย่างจาก guides.mock แทน
@@ -10,6 +11,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 // guides.hero_refs เก็บเป็น uuid ของฮีโร่ จึงแปลงเป็น slug + ชื่อตอนเปิดหน้ารายละเอียด
 // ตารางยังไม่มีคอลัมน์ excerpt จึงตัดจากย่อหน้าแรกที่ไม่ใช่หัวข้อของ content ให้
 // sort_id (guides และ guide_categories) = ลำดับที่แอดมินตั้ง เล็ก = ก่อน (ต้องรัน migration 20261004_guides_sort_id.sql)
+// ผลลัพธ์ที่ดึงจาก DB cache ในหน่วยความจำ (แอดมินข้าม cache เห็นที่แก้ทันที) ดู lib/ttlCache
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -81,9 +83,7 @@ function toSummary(row: DbGuideRow): GuideSummary {
   };
 }
 
-// เรียง sort_id น้อย → มาก แล้วใหม่สุดก่อน (หน้า Learn เอาไปเรียงต่อด้วยระดับความยากในกลุ่ม sort_id เดียวกัน)
-export async function getGuides(): Promise<GuideSummary[]> {
-  if (!isSupabaseConfigured) return delay(GUIDES);
+async function loadGuides(): Promise<GuideSummary[]> {
   const { data, error } = await supabase
     .from("guides")
     .select(GUIDE_COLS)
@@ -93,8 +93,14 @@ export async function getGuides(): Promise<GuideSummary[]> {
   return ((data ?? []) as unknown as DbGuideRow[]).map(toSummary);
 }
 
-export async function getGuideCategories(): Promise<GuideCategory[]> {
-  if (!isSupabaseConfigured) return delay(GUIDE_CATEGORIES);
+// เรียง sort_id น้อย → มาก แล้วใหม่สุดก่อน (หน้า Learn เอาไปเรียงต่อด้วยระดับความยากในกลุ่ม sort_id เดียวกัน)
+export function getGuides(): Promise<GuideSummary[]> {
+  if (!isSupabaseConfigured) return delay(GUIDES);
+  // slice(): callers may sort in place; never hand out the cached array itself
+  return cached("guides", CACHE_TTL_MS, loadGuides).then((list) => list.slice());
+}
+
+async function loadGuideCategories(): Promise<GuideCategory[]> {
   const { data, error } = await supabase
     .from("guide_categories")
     .select("slug, name_th")
@@ -107,6 +113,11 @@ export async function getGuideCategories(): Promise<GuideCategory[]> {
   }));
 }
 
+export function getGuideCategories(): Promise<GuideCategory[]> {
+  if (!isSupabaseConfigured) return delay(GUIDE_CATEGORIES);
+  return cached("guide-categories", CACHE_TTL_MS, loadGuideCategories).then((list) => list.slice());
+}
+
 function fallbackGuideDetail(summary: GuideSummary): GuideDetail {
   return {
     ...summary,
@@ -116,13 +127,7 @@ function fallbackGuideDetail(summary: GuideSummary): GuideDetail {
   };
 }
 
-export async function getGuideBySlug(slug: string): Promise<GuideDetail | null> {
-  if (!isSupabaseConfigured) {
-    const summary = GUIDES.find((g) => g.slug === slug);
-    if (!summary) return delay(null);
-    return delay(GUIDE_DETAILS[slug] ?? fallbackGuideDetail(summary));
-  }
-
+async function loadGuideBySlug(slug: string): Promise<GuideDetail | null> {
   const { data, error } = await supabase
     .from("guides")
     .select(GUIDE_COLS)
@@ -156,4 +161,15 @@ export async function getGuideBySlug(slug: string): Promise<GuideDetail | null> 
     heroNames,
     isMock: false,
   };
+}
+
+export async function getGuideBySlug(slug: string): Promise<GuideDetail | null> {
+  if (!isSupabaseConfigured) {
+    const summary = GUIDES.find((g) => g.slug === slug);
+    if (!summary) return delay(null);
+    return delay(GUIDE_DETAILS[slug] ?? fallbackGuideDetail(summary));
+  }
+  // not-found (null) is not cached, so a guide an admin publishes later shows up straight away
+  const d = await cached(`guide:${slug}`, CACHE_TTL_MS, () => loadGuideBySlug(slug), (v) => v !== null);
+  return d ? { ...d } : null;
 }
