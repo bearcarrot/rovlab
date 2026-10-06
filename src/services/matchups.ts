@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // ลำดับการหาข้อมูลของคู่ A vs B:
 //  1) ตาราง matchups (แผนเล่นที่แอดมินเขียนไว้ source = curated) ดูได้ทั้งสองทิศทางของคู่
+//     แผนเขียนจากมุมมองของ hero_a เสมอ ถ้ามีแค่ทิศตรงข้ามกับที่ผู้ใช้เลือก จะคืน planFor บอกมุมมองจริง
 //  2) ถ้าไม่มี → สร้างผลแบบ heuristic ที่มีเฉพาะสิ่งที่มีจริง: Win Rate รวมของแต่ละตัว + ความสัมพันธ์ชนะทางจาก hero_counters
 //     (ช่อง early/mid/late/winCondition/tips ปล่อยว่าง หน้าเว็บจะไม่แสดงหัวข้อที่ไม่มีข้อมูล แทนการเขียนว่า "ยังไม่มีข้อมูล" ซ้ำหลายบรรทัด)
 // ความสัมพันธ์ชนะทางแนบมากับผลทุกแบบ ใช้แสดงบนหน้าและส่งให้ Coach AI เป็นข้อมูลอ้างอิง
@@ -71,7 +72,8 @@ const STRENGTH_ORDER: Record<MatchupCounterNote["strength"], number> = { best: 0
 
 export async function getMatchup(a: HeroSummary, b: HeroSummary): Promise<MatchupDetail> {
   if (!isSupabaseConfigured) {
-    return delay(MOCK_MATCHUPS[key(a.slug, b.slug)] ?? heuristicMatchup(a, b, []));
+    const mock = MOCK_MATCHUPS[key(a.slug, b.slug)];
+    return delay(mock ? { ...mock, planFor: mock.heroA } : heuristicMatchup(a, b, []));
   }
 
   const [matchupRes, counterRes] = await Promise.all([
@@ -116,6 +118,8 @@ export async function getMatchup(a: HeroSummary, b: HeroSummary): Promise<Matchu
     winCondition: row.win_condition ?? "",
     tips: row.tips ?? "",
     source: row.source,
+    // แผนเขียนจากมุมมองของ hero_a ของแถวนั้น
+    planFor: row.hero_a_id === a.id ? a.slug : b.slug,
     counterNotes,
   };
 }
