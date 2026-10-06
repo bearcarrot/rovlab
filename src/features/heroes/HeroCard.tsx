@@ -18,55 +18,55 @@ export function HeroCard({
 }) {
   const { roleLabel } = useFilterLabels();
 
+  // ปุ่มหัวใจวางเป็นพี่น้องของ <Link> (ไม่ใช่ลูก) เพราะ <button> ซ้อนใน <a> เป็น HTML ที่ไม่ถูกต้องและกระทบ screen reader/คีย์บอร์ด
   return (
-    <Link
-      to={`/heroes/${hero.slug}`}
-      className="group flex flex-col overflow-hidden rounded-card border border-border bg-bg-surface transition-colors hover:border-accent/40"
-    >
-      <div className="relative aspect-square bg-bg-raised">
-        <div className="absolute left-1.5 top-1.5">
-          {hero.stat.hasStats ? <Badge tier={hero.stat.tier}>{hero.stat.tier}</Badge> : <Badge>N/A</Badge>}
-        </div>
-        <FavoriteButton heroSlug={hero.slug} className="absolute right-1.5 top-1.5" />
-        <div className="flex h-full items-center justify-center text-2xl font-display text-text-faint">
-          {hero.icon ? (
-    <img
-      src={hero.icon}
-      alt={hero.nameTh}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className="h-full w-full object-cover"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-      }}
-    />
-  ) : null}
+    <div className="group relative flex flex-col overflow-hidden rounded-card border border-border bg-bg-surface transition-colors hover:border-accent/40">
+      <Link to={`/heroes/${hero.slug}`} className="flex flex-1 flex-col">
+        <div className="relative aspect-square bg-bg-raised">
+          <div className="absolute left-1.5 top-1.5">
+            {hero.stat.hasStats ? <Badge tier={hero.stat.tier}>{hero.stat.tier}</Badge> : <Badge>N/A</Badge>}
+          </div>
+          <div className="flex h-full items-center justify-center text-2xl font-display text-text-faint">
+            {hero.icon ? (
+              <img
+                src={hero.icon}
+                alt={hero.nameTh}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                }}
+              />
+            ) : null}
 
-  <span className={`text-2xl font-display text-text-faint ${hero.icon ? "hidden" : ""}`}>
-    {hero.name.slice(0, 2).toUpperCase()}
-  </span>
+            <span className={`text-2xl font-display text-text-faint ${hero.icon ? "hidden" : ""}`}>
+              {hero.name.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+          {/* ขวาล่างเหมือนทุกหน้า (การ์ด overflow-hidden จึงวางชิดใน) */}
+          <HeroBalanceBadge heroId={hero.id} size="md" inside />
         </div>
-        {/* ขวาล่างเหมือนทุกหน้า (การ์ด overflow-hidden จึงวางชิดใน) */}
-        <HeroBalanceBadge heroId={hero.id} size="md" inside />
-      </div>
-      {compact ? (
-        <div className="p-2">
-          <p className="truncate text-center font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-        </div>
-      ) : (
-        <div className="space-y-1 p-2.5">
-          <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-          <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
-          <p className="text-xs text-text-muted">
-            {hero.stat.hasStats
-              ? metric === "banRate"
-                ? `BR ${hero.stat.banRate.toFixed(1)}%`
-                : `WR ${hero.stat.winRate.toFixed(1)}%`
-              : "ยังไม่มีสถิติ"}
-          </p>
-        </div>
-      )}
-    </Link>
+        {compact ? (
+          <div className="p-2">
+            <p className="truncate text-center font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+          </div>
+        ) : (
+          <div className="space-y-1 p-2.5">
+            <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+            <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
+            <p className="text-xs text-text-muted">
+              {hero.stat.hasStats
+                ? metric === "banRate"
+                  ? `BR ${hero.stat.banRate.toFixed(1)}%`
+                  : `WR ${hero.stat.winRate.toFixed(1)}%`
+                : "ยังไม่มีสถิติ"}
+            </p>
+          </div>
+        )}
+      </Link>
+      <FavoriteButton heroSlug={hero.slug} className="absolute right-1.5 top-1.5 z-10" />
+    </div>
   );
 }
