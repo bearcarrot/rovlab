@@ -10,6 +10,7 @@ export function FavoriteButton({ heroSlug, className }: { heroSlug: string; clas
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -20,6 +21,7 @@ export function FavoriteButton({ heroSlug, className }: { heroSlug: string; clas
         toggle(heroSlug);
       }}
       aria-label={active ? "เอาออกจากรายการโปรด" : "เพิ่มในรายการโปรด"}
+      aria-pressed={active}
       className={cn(
         "flex h-7 w-7 items-center justify-center rounded-full bg-bg/80 backdrop-blur transition-colors",
         active ? "text-loss" : "text-text-faint hover:text-text",
