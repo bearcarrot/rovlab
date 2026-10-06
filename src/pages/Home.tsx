@@ -1,21 +1,25 @@
 import { Link } from "react-router-dom";
-import { Swords, GitCompareArrows, Users, BookOpen, BarChart3 } from "lucide-react";
+import { Swords, GitCompareArrows, Users, ListOrdered } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDashboardInsights } from "@/services/insights";
 import { useAsync } from "@/hooks/useAsync";
 import { HeroCard } from "@/features/heroes/HeroCard";
 import { InsightCard } from "@/features/dashboard/InsightCard";
+import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroSummary } from "@/types/hero";
 
+// ทางลัด 4 อัน เรียงตามที่ผู้ใช้น่าจะกดบ่อย/เป็นจุดขายของเว็บ:
+// Tier List (เมต้า) → Draft Assist (ฟีเจอร์เด่น) → Counter Pick → ฮีโร่ทั้งหมด
+// สถิติ/คู่มือ ยังเข้าได้จากเมนูหลัก (Sidebar / BottomNav)
 const QUICK_ACTIONS = [
+  { to: "/tier-list", label: "Tier List", icon: ListOrdered, desc: "อันดับฮีโร่ตามเมต้า" },
   { to: "/draft", label: "Draft Assist", icon: Users, desc: "ประเมินทีมระหว่างดราฟต์" },
-  { to: "/counter-pick", label: "Counter ที่ควรรู้", icon: GitCompareArrows, desc: "หาฮีโร่ที่ชนะทางศัตรู" },
-  { to: "/learn", label: "คู่มือ", icon: BookOpen, desc: "Macro / Micro" },
-  { to: "/stats", label: "สถิติ", icon: BarChart3, desc: "ดูสถิติฮีโร่และแพตช์" },
+  { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows, desc: "หาฮีโร่ที่ชนะทางศัตรู" },
+  { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon, desc: "ดูข้อมูลและสถิติรายตัว" },
 ];
 
 export function Home() {
