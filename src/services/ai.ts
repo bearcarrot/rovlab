@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { trackActivity } from "@/services/activity";
 
 export async function askCoach(prompt: string, context?: unknown): Promise<string> {
   if (!isSupabaseConfigured) throw new Error("Supabase not configured");
@@ -14,5 +15,6 @@ export async function askCoach(prompt: string, context?: unknown): Promise<strin
     }
     throw error;
   }
+  void trackActivity("ai_coach_used"); // only successful answers count; fire-and-forget
   return (data?.text as string) ?? "";
 }
