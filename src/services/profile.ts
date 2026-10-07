@@ -18,6 +18,8 @@ type ProfileRow = {
   created_at?: string;
 };
 
+// gameName: on the public view it is the verified in-game name (from game_identities); on the owner's own row
+// (getProfile) it is the legacy free-text column, which is no longer shown or edited.
 function toProfile(row: ProfileRow): Profile {
   return {
     id: row.id,
@@ -52,20 +54,19 @@ export async function updatePreferredRoles(userId: string, roles: string[]) {
 export interface ProfileEdit {
   displayName: string;
   bio: string;
-  gameName: string;
   contactLinks: ContactLink[];
   preferredRoles: string[];
   preferredHeroes: string[]; // hero ids
 }
 
 // avatar_url is intentionally not editable here: it can only be changed through the moderated `avatar` Edge Function.
+// The in-game name is not editable either: it is looked up from the game by the `game-id` Edge Function.
 export async function updateProfile(userId: string, edit: ProfileEdit): Promise<void> {
   const displayName = edit.displayName.trim();
   if (displayName.length < PROFILE_LIMITS.displayNameMin || displayName.length > PROFILE_LIMITS.displayNameMax) {
     throw new Error(`ชื่อที่แสดงต้องยาว ${PROFILE_LIMITS.displayNameMin}–${PROFILE_LIMITS.displayNameMax} ตัวอักษร`);
   }
   if (edit.bio.trim().length > PROFILE_LIMITS.bio) throw new Error(`แนะนำตัวได้ไม่เกิน ${PROFILE_LIMITS.bio} ตัวอักษร`);
-  if (edit.gameName.trim().length > PROFILE_LIMITS.gameName) throw new Error(`ชื่อในเกมได้ไม่เกิน ${PROFILE_LIMITS.gameName} ตัวอักษร`);
   const heroes = Array.from(new Set(edit.preferredHeroes));
   if (heroes.length > PROFILE_LIMITS.favoriteHeroes) throw new Error(`เลือกฮีโร่ที่ถนัดได้สูงสุด ${PROFILE_LIMITS.favoriteHeroes} ตัว`);
 
@@ -85,7 +86,6 @@ export async function updateProfile(userId: string, edit: ProfileEdit): Promise<
     .update({
       display_name: displayName,
       bio: edit.bio.trim() || null,
-      game_name: edit.gameName.trim() || null,
       contact_links: links,
       preferred_roles: edit.preferredRoles,
       preferred_heroes: heroes,
@@ -110,7 +110,7 @@ export async function removeAvatar(): Promise<void> {
 }
 
 // Public view of any user's profile (RPC: profiles RLS only lets you read your own row).
-// gameName / contactLinks come back empty unless the caller is signed in.
+// gameName (verified in-game name) / contactLinks come back empty unless the caller is signed in.
 export async function getPublicProfile(id: string): Promise<PublicProfile | null> {
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.rpc("get_public_profile", { p_id: id });
