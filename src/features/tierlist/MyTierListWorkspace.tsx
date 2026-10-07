@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/features/community/Modal";
+import { confirmDialog } from "@/features/community/confirm";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
 import type { HeroSummary } from "@/types/hero";
 import { CustomTierBoard } from "./CustomTierBoard";
@@ -80,19 +81,25 @@ export function MyTierListWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incoming]);
 
-  const confirmReplace = () =>
-    !editorHasUnsavedWork() || window.confirm("Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่เลือกหรือไม่?");
+  const confirmReplace = async () =>
+    !editorHasUnsavedWork() ||
+    (await confirmDialog({
+      title: "แทนที่ Tier List ปัจจุบัน?",
+      message: "Tier List ปัจจุบันยังไม่ได้บันทึก ถ้าแทนที่ การจัดอันดับที่ทำอยู่จะหายไป",
+      confirmLabel: "แทนที่",
+      danger: true,
+    }));
 
-  function openSaved(l: MyTierList) {
-    if (!confirmReplace()) return;
+  async function openSaved(l: MyTierList) {
+    if (!(await confirmReplace())) return;
     const { list, cloud: c } = fromMyList(l);
     replaceBoard(list, c);
     setShowSaved(false);
     toast.success("โหลด Tier List แล้ว");
   }
 
-  function startNew() {
-    if (!confirmReplace()) return;
+  async function startNew() {
+    if (!(await confirmReplace())) return;
     clearCustom();
     replaceBoard(createDefault(patch), EMPTY_CLOUD);
   }
@@ -155,7 +162,7 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
-        <button type="button" onClick={startNew} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
+        <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
           ใหม่
         </button>
@@ -168,7 +175,7 @@ export function MyTierListWorkspace({
             heroes={heroes}
             currentId={cloud.id}
             refreshKey={refreshKey}
-            onOpen={openSaved}
+            onOpen={(l) => void openSaved(l)}
             onDeleted={(id) => {
               if (id === cloud.id) setCloud({ ...EMPTY_CLOUD }); // content stays in the editor, now unsaved
             }}
