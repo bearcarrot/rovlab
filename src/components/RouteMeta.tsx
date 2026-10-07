@@ -12,7 +12,7 @@ const DEFAULT: PageMeta = {
   description: "RoV LAB: วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV ด้วยข้อมูลจริง",
 };
 
-// หน้า static: ตั้ง title/description แยกรายหน้า (หน้า /heroes/:slug ให้ HeroDetail ตั้งเอง)
+// หน้า static: ตั้ง title/description แยกรายหน้า (หน้า /heroes/:slug และ /learn/:slug ให้หน้านั้นตั้งเอง)
 const PAGES: Record<string, PageMeta> = {
   "/": DEFAULT,
   "/heroes": {
@@ -48,12 +48,12 @@ const PAGES: Record<string, PageMeta> = {
 export function RouteMeta() {
   const { pathname } = useLocation();
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
-  const isHeroDetail = /^\/heroes\/[^/]+$/.test(path);
+  const isDynamicDetail = /^\/(heroes|learn)\/[^/]+$/.test(path);
 
   useEffect(() => {
-    if (isHeroDetail) return; // HeroDetail ตั้ง meta เองหลังโหลดข้อมูล
+    if (isDynamicDetail) return; // HeroDetail / GuideDetail ตั้ง meta เองหลังโหลดข้อมูล
     applyDocumentMeta({ ...(PAGES[path] ?? DEFAULT), path });
-  }, [path, isHeroDetail]);
+  }, [path, isDynamicDetail]);
 
   return null;
 }
