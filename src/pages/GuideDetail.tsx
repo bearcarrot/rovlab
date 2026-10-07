@@ -21,7 +21,7 @@ export function GuideDetail() {
   useDocumentMeta(
     loaded
       ? {
-          title: `${loaded.title} | RovLab`,
+          title: `${loaded.title} | RoV LAB`,
           description: `${loaded.title} — คู่มือ RoV สำหรับผู้เล่น อ่านประมาณ ${loaded.readingMinutes} นาที`,
           path: `/learn/${slug}`,
           breadcrumbs: [

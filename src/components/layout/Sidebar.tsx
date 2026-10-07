@@ -59,8 +59,8 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-bg-surface lg:flex lg:flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <img src="/logo.png" alt="RovLab" width={36} height={36} className="h-9 w-9 shrink-0" />
-        <span className="font-display text-lg font-semibold tracking-tight">RovLab</span>
+        <img src="/logo.png" alt="RoV LAB" width={36} height={36} className="h-9 w-9 shrink-0" />
+        <span className="font-display text-lg font-semibold tracking-tight">RoV LAB</span>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
         {groups.map((group) => (
