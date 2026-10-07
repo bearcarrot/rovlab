@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -8,7 +8,9 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
-import { CustomTierBoard } from "@/features/tierlist/CustomTierBoard";
+import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
+import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
+import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
 import { formatGeneratedDate, makeFilename, preloadImages, tierListTemplate, type TierListImageData } from "@/lib/share-image";
@@ -21,6 +23,8 @@ import type { HeroLane, HeroRole, Tier } from "@/types/hero";
 
 const TIER_ORDER: Tier[] = TIER_OPTIONS;
 
+export type TierMode = "official" | "mine" | "community";
+
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
@@ -28,8 +32,10 @@ export function TierList() {
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
   const [storedTier, setTier] = usePersistedState<Tier | null>("rovlab:filter:tier:tier", null);
-  // โหมดหน้า: Tier List ทางการ / Tier List ของฉัน (จัดเอง เก็บใน localStorage)
-  const [mode, setMode] = usePersistedState<"official" | "mine">("rovlab:tier:mode", "official");
+  // โหมดหน้า: Tier List ทางการ / Tier List ของฉัน (จัดเอง + บันทึกบนบัญชีได้) / Community (ของคนอื่นที่เผยแพร่)
+  const [mode, setMode] = usePersistedState<TierMode>("rovlab:tier:mode", "official");
+  // Tier List ที่โหลดมาจาก Community รอให้ตัวจัดอันดับรับไป
+  const [incoming, setIncoming] = useState<IncomingPreset | null>(null);
   const { roleLabel, laneLabel } = useFilterLabels();
   // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น "ทุก Tier"
   const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
@@ -86,6 +92,19 @@ export function TierList() {
     preloadImages([...grouped.values()].flatMap((l) => l.map((h) => h.icon)));
   }, [mode, grouped]);
 
+  // Load Preset จาก Community: สำเนาถูกสร้างแล้ว → เปิดในตัวจัดอันดับ (ต้นฉบับไม่ถูกแก้)
+  const loadPreset = useCallback(
+    (p: PresetLoad) => {
+      setIncoming({ ...p, nonce: Date.now() });
+      setMode("mine");
+    },
+    [setMode]
+  );
+  const canReplace = useCallback(
+    () => !editorHasUnsavedWork() || window.confirm("Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่โหลดหรือไม่?"),
+    []
+  );
+
   return (
     <div className="space-y-4">
       <div>
@@ -100,12 +119,13 @@ export function TierList() {
         )}
       </div>
 
-      <div className="flex gap-2" role="tablist" aria-label="โหมด Tier List">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="โหมด Tier List">
         <Chip active={mode === "official"} onClick={() => setMode("official")} label="Tier List ทางการ" />
         <Chip active={mode === "mine"} onClick={() => setMode("mine")} label="Tier List ของฉัน" />
+        <Chip active={mode === "community"} onClick={() => setMode("community")} label="Community" />
       </div>
 
-      {mode === "mine" && (
+      {(mode === "mine" || mode === "community") && (
         <>
           {heroes.status === "loading" && (
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
@@ -113,7 +133,12 @@ export function TierList() {
             </div>
           )}
           {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
-          {heroes.status === "success" && <CustomTierBoard heroes={heroes.data} patch={patchLabel === "—" ? "" : patchLabel} />}
+          {heroes.status === "success" && mode === "mine" && (
+            <MyTierListWorkspace heroes={heroes.data} patch={patchLabel === "—" ? "" : patchLabel} incoming={incoming} />
+          )}
+          {heroes.status === "success" && mode === "community" && (
+            <CommunityTierLists heroes={heroes.data} canReplace={canReplace} onLoadPreset={loadPreset} />
+          )}
         </>
       )}
 

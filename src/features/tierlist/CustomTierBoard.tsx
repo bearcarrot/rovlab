@@ -31,9 +31,24 @@ import {
 
 const DRAG_TYPE = "text/rovlab-hero";
 
-export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patch: string }) {
+export function CustomTierBoard({
+  heroes,
+  patch,
+  initial,
+  onChange,
+  onReset,
+}: {
+  heroes: HeroSummary[];
+  patch: string;
+  /** เริ่มจาก Tier List นี้แทนค่าที่ค้างในเครื่อง (ใช้ตอนโหลดจาก "รายการของฉัน" / Community) */
+  initial?: CustomTierList | null;
+  /** แจ้ง Tier List ปัจจุบันทุกครั้งที่แก้ (ให้ปุ่ม "บันทึก" ด้านบนเอาไปเก็บบนบัญชี) */
+  onChange?: (list: CustomTierList) => void;
+  /** ผู้ใช้กดรีเซ็ต: ตัวห่อจะเลิกผูกกับรายการที่บันทึกไว้ เพื่อไม่ให้บันทึกทับด้วยลิสต์ว่าง */
+  onReset?: () => void;
+}) {
   const toast = useToast();
-  const [list, setList] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
+  const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -43,9 +58,11 @@ export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patc
 
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
 
-  // เก็บลง localStorage ทุกครั้งที่แก้ (ไม่มีการส่งขึ้น Server)
+  // เก็บร่างลง localStorage ทุกครั้งที่แก้ (การเก็บบนบัญชีทำเมื่อกด "บันทึก" เท่านั้น)
   useEffect(() => {
     saveCustom(list);
+    onChange?.(list);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list]);
   useEffect(() => () => clearTimeout(resetTimer.current), []);
 
@@ -77,6 +94,7 @@ export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patc
     setList(createDefault(patch));
     setSelected(null);
     setConfirmReset(false);
+    onReset?.();
     toast.success("รีเซ็ต Tier List ของฉันแล้ว");
   }
 
@@ -136,7 +154,7 @@ export function CustomTierBoard({ heroes, patch }: { heroes: HeroSummary[]; patc
       </div>
 
       <p className="text-xs text-text-faint">
-        แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · เก็บไว้ในเครื่องนี้เท่านั้น ไม่ส่งขึ้นเซิร์ฟเวอร์
+        แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
       </p>
 
       <div className="space-y-2">
