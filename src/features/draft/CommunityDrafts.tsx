@@ -41,8 +41,8 @@ export function CommunityDrafts({
   heroes: HeroSummary[];
   /** Called with a brand-new copy for the user; the original snapshot is never modified. */
   onOpenCopy: (c: { series: DraftSeries; name: string; description: string; draftId: string | null }) => void;
-  /** Asks the user before unsaved editor work is replaced; return false to cancel the load. */
-  canReplace: () => boolean;
+  /** Asks the user before unsaved editor work is replaced; resolve false to cancel the load. */
+  canReplace: () => Promise<boolean>;
 }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -78,7 +78,7 @@ export function CommunityDrafts({
   }
 
   async function loadPreset(item: CommunityDraftSummary) {
-    if (!canReplace()) return;
+    if (!(await canReplace())) return;
     try {
       const full = await getCommunityDraft(item.id);
       const name = copyName(full.title, DRAFT_NAME_MAX);
