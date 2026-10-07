@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
+import { GoogleIcon } from "@/components/GoogleIcon";
+import { outlineBtnCls } from "@/features/auth/styles";
 
 /** Google OAuth Client ID (Web) */
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -44,7 +46,7 @@ function loadGis(): Promise<void> {
   return gisPromise;
 }
 
-/** nonce ดิบ (ส่งให้ Supabase) + แบบ SHA-256 hex (ส่งให้ Google) */
+/** raw nonce (sent to Supabase) + SHA-256 hex of it (sent to Google) */
 async function createNonce() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   const raw = btoa(String.fromCharCode(...bytes));
@@ -55,21 +57,28 @@ async function createNonce() {
   return { raw, hashed };
 }
 
+// Google's size="large" button is always 40px tall
+const GIS_BUTTON_HEIGHT = 40;
+
 interface Props {
   onBusyChange?: (busy: boolean) => void;
   onError?: (code?: string) => void;
-  /** ข้อความบนปุ่ม: signin_with = ลงชื่อเข้าใช้ด้วย Google, signup_with = ลงทะเบียนด้วย Google */
+  /** signin_with = login label, signup_with = register label */
   text?: "signin_with" | "signup_with";
 }
 
 /**
- * ปุ่ม Google Sign-In (Google Identity Services) → signInWithIdToken
- * ไม่ redirect ไป supabase.co จึงไม่มีโดเมน supabase.co โผล่ในหน้าเลือกบัญชี
- * (signInWithIdToken สร้างบัญชีให้อัตโนมัติหากยังไม่มี จึงใช้ทั้งหน้า Login และ Register)
+ * Google Sign-In (Google Identity Services) -> signInWithIdToken, no redirect to supabase.co.
+ *
+ * The visible button is the site's own outline button. Google's real button (an iframe, which
+ * cannot be restyled) is rendered on top of it with near-zero opacity and stretched to cover it,
+ * so clicks land on Google's iframe while users only see the site-styled button.
  */
 export function GoogleIdTokenButton({ onBusyChange, onError, text = "signin_with" }: Props) {
   const { signInWithGoogleIdToken } = useAuth();
+  const wrapRef = useRef<HTMLDivElement>(null);
   const holderRef = useRef<HTMLDivElement>(null);
+  const [busy, setBusy] = useState(false);
   const handlers = useRef({ onBusyChange, onError, signInWithGoogleIdToken });
   handlers.current = { onBusyChange, onError, signInWithGoogleIdToken };
 
@@ -80,28 +89,35 @@ export function GoogleIdTokenButton({ onBusyChange, onError, text = "signin_with
     (async () => {
       try {
         const [{ raw, hashed }] = await Promise.all([createNonce(), loadGis()]);
+        const wrap = wrapRef.current;
         const holder = holderRef.current;
-        if (cancelled || !holder || !window.google) return;
+        if (cancelled || !wrap || !holder || !window.google) return;
 
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           nonce: hashed,
           use_fedcm_for_prompt: true,
           callback: async (res) => {
+            setBusy(true);
             handlers.current.onBusyChange?.(true);
             const { error, code } = await handlers.current.signInWithGoogleIdToken(res.credential, raw);
             if (error) {
               handlers.current.onError?.(code);
               handlers.current.onBusyChange?.(false);
+              setBusy(false);
             }
-            // สำเร็จ: onAuthStateChange จะอัปเดต session แล้วหน้านั้นจะ navigate เอง
+            // success: onAuthStateChange updates the session and the page navigates by itself
           },
         });
 
-        const width = Math.min(400, Math.max(200, Math.round(holder.clientWidth || 320)));
+        const width = Math.min(400, Math.max(200, Math.round(wrap.clientWidth || 320)));
+        const height = wrap.clientHeight || GIS_BUTTON_HEIGHT;
+        // stretch the iframe vertically so it covers the whole site button
+        holder.style.transformOrigin = "top left";
+        holder.style.transform = `scaleY(${height / GIS_BUTTON_HEIGHT})`;
         window.google.accounts.id.renderButton(holder, {
           type: "standard",
-          theme: "filled_black",
+          theme: "outline",
           size: "large",
           text,
           shape: "rectangular",
@@ -120,6 +136,22 @@ export function GoogleIdTokenButton({ onBusyChange, onError, text = "signin_with
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // color-scheme: light — iframe ของ Google เป็น light; ถ้าหน้าเว็บเป็น dark จะมีพื้นหลังขาวล้อมปุ่ม
-  return <div ref={holderRef} className="flex w-full justify-center" style={{ colorScheme: "light" }} />;
+  const label = text === "signup_with" ? "สมัครด้วย Google" : "เข้าสู่ระบบด้วย Google";
+
+  return (
+    <div ref={wrapRef} className="relative w-full">
+      {/* visible site-styled button; not clickable itself */}
+      <button type="button" tabIndex={-1} aria-hidden disabled={busy} className={`${outlineBtnCls} pointer-events-none`}>
+        <GoogleIcon />
+        {label}
+      </button>
+      {/* Google's real button, invisible, laid over the site button */}
+      <div
+        className={`absolute inset-0 overflow-hidden opacity-[0.01] ${busy ? "pointer-events-none" : ""}`}
+        style={{ colorScheme: "light" }}
+      >
+        <div ref={holderRef} />
+      </div>
+    </div>
+  );
 }
