@@ -4,6 +4,7 @@ import { LogIn, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { GoogleIcon } from "@/components/GoogleIcon";
+import { GOOGLE_CLIENT_ID, GoogleIdTokenButton } from "@/components/GoogleIdTokenButton";
 import { useToast } from "@/components/ui/toast";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
@@ -58,6 +59,7 @@ export function Login() {
     }
   }
 
+  // Fallback: redirect flow เดิม (ใช้เมื่อไม่ได้ตั้ง VITE_GOOGLE_CLIENT_ID)
   async function handleGoogle() {
     setError(null);
     setBusy(true);
@@ -123,10 +125,17 @@ export function Login() {
         ลืมรหัสผ่าน?
       </Link>
 
-      <button type="button" onClick={handleGoogle} disabled={busy} className={outlineBtnCls}>
-        <GoogleIcon />
-        เข้าสู่ระบบด้วย Google
-      </button>
+      {GOOGLE_CLIENT_ID ? (
+        <GoogleIdTokenButton
+          onBusyChange={setBusy}
+          onError={(code) => setError(authErrorMessage(code))}
+        />
+      ) : (
+        <button type="button" onClick={handleGoogle} disabled={busy} className={outlineBtnCls}>
+          <GoogleIcon />
+          เข้าสู่ระบบด้วย Google
+        </button>
+      )}
 
       <Link to={withNext("/register", next)} className={`block ${linkBtnCls}`}>
         ยังไม่มีบัญชี? สมัครสมาชิก

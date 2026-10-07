@@ -23,6 +23,8 @@ interface AuthContextValue {
     next?: string | null,
   ) => Promise<AuthResult & { needsVerification: boolean }>;
   signInWithGoogle: (next?: string | null) => Promise<AuthResult>;
+  /** ล็อกอิน Google ด้วย ID token จาก Google Identity Services (ไม่ redirect ผ่าน supabase.co) */
+  signInWithGoogleIdToken: (idToken: string, nonce: string) => Promise<AuthResult>;
   resendVerification: (email: string, next?: string | null) => Promise<AuthResult>;
   sendPasswordReset: (email: string) => Promise<AuthResult>;
   updatePassword: (password: string) => Promise<AuthResult>;
@@ -79,6 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: authCallbackUrl(next) },
+      });
+      return { error: error?.message ?? null, code: error?.code };
+    },
+    async signInWithGoogleIdToken(idToken, nonce) {
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+        nonce,
       });
       return { error: error?.message ?? null, code: error?.code };
     },
