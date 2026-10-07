@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroLane, HeroRole, Tier } from "@/types/hero";
 
@@ -28,6 +29,7 @@ export type TierMode = "official" | "mine" | "community";
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
+  const confirm = useConfirm();
   // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรงก์สลับที่ปุ่มบน Header
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
@@ -100,10 +102,15 @@ export function TierList() {
     },
     [setMode]
   );
-  const canReplace = useCallback(
-    () => !editorHasUnsavedWork() || window.confirm("Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่โหลดหรือไม่?"),
-    []
-  );
+  const canReplace = useCallback(async () => {
+    if (!editorHasUnsavedWork()) return true;
+    return confirm({
+      title: "แทนที่ Tier List ปัจจุบัน?",
+      message: "Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่โหลดหรือไม่?",
+      confirmLabel: "แทนที่",
+      danger: true,
+    });
+  }, [confirm]);
 
   return (
     <div className="space-y-4">
