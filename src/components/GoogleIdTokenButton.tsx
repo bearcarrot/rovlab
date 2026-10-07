@@ -58,13 +58,16 @@ async function createNonce() {
 interface Props {
   onBusyChange?: (busy: boolean) => void;
   onError?: (code?: string) => void;
+  /** ข้อความบนปุ่ม: signin_with = ลงชื่อเข้าใช้ด้วย Google, signup_with = ลงทะเบียนด้วย Google */
+  text?: "signin_with" | "signup_with";
 }
 
 /**
  * ปุ่ม Google Sign-In (Google Identity Services) → signInWithIdToken
  * ไม่ redirect ไป supabase.co จึงไม่มีโดเมน supabase.co โผล่ในหน้าเลือกบัญชี
+ * (signInWithIdToken สร้างบัญชีให้อัตโนมัติหากยังไม่มี จึงใช้ทั้งหน้า Login และ Register)
  */
-export function GoogleIdTokenButton({ onBusyChange, onError }: Props) {
+export function GoogleIdTokenButton({ onBusyChange, onError, text = "signin_with" }: Props) {
   const { signInWithGoogleIdToken } = useAuth();
   const holderRef = useRef<HTMLDivElement>(null);
   const handlers = useRef({ onBusyChange, onError, signInWithGoogleIdToken });
@@ -91,7 +94,7 @@ export function GoogleIdTokenButton({ onBusyChange, onError }: Props) {
               handlers.current.onError?.(code);
               handlers.current.onBusyChange?.(false);
             }
-            // สำเร็จ: onAuthStateChange จะอัปเดต session แล้วหน้า Login จะ navigate เอง
+            // สำเร็จ: onAuthStateChange จะอัปเดต session แล้วหน้านั้นจะ navigate เอง
           },
         });
 
@@ -100,7 +103,7 @@ export function GoogleIdTokenButton({ onBusyChange, onError }: Props) {
           type: "standard",
           theme: "filled_black",
           size: "large",
-          text: "signin_with",
+          text,
           shape: "rectangular",
           logo_alignment: "left",
           locale: "th",
@@ -114,6 +117,7 @@ export function GoogleIdTokenButton({ onBusyChange, onError }: Props) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // color-scheme: light — iframe ของ Google เป็น light; ถ้าหน้าเว็บเป็น dark จะมีพื้นหลังขาวล้อมปุ่ม

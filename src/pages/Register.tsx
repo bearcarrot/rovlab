@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Mail, UserPlus, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { GoogleIcon } from "@/components/GoogleIcon";
+import { GOOGLE_CLIENT_ID, GoogleIdTokenButton } from "@/components/GoogleIdTokenButton";
 import { useToast } from "@/components/ui/toast";
 import { safeNext, withNext } from "@/features/auth/nav";
 import { authErrorMessage } from "@/features/auth/errors";
@@ -13,7 +13,7 @@ import { useCooldown } from "@/features/auth/useCooldown";
 import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/auth/styles";
 
 export function Register() {
-  const { user, signUpWithEmail, signInWithGoogle, resendVerification, isConfigured } = useAuth();
+  const { user, signUpWithEmail, resendVerification, isConfigured } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [params] = useSearchParams();
@@ -76,16 +76,6 @@ export function Register() {
       setDone(true);
     } else {
       navigate(next ?? "/profile", { replace: true });
-    }
-  }
-
-  async function handleGoogle() {
-    setError(null);
-    setBusy(true);
-    const { error: err, code } = await signInWithGoogle(next);
-    if (err) {
-      setError(authErrorMessage(code));
-      setBusy(false);
     }
   }
 
@@ -186,10 +176,13 @@ export function Register() {
         </button>
       </form>
 
-      <button type="button" onClick={handleGoogle} disabled={busy} className={outlineBtnCls}>
-        <GoogleIcon />
-        สมัครด้วย Google
-      </button>
+      {GOOGLE_CLIENT_ID && (
+        <GoogleIdTokenButton
+          text="signup_with"
+          onBusyChange={setBusy}
+          onError={(code) => setError(authErrorMessage(code))}
+        />
+      )}
 
       <Link to={withNext("/login", next)} className={`block ${linkBtnCls}`}>
         มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
