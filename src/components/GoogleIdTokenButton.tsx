@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
 
-/** Google OAuth Client ID (Web) — ถ้าไม่ตั้งค่า Login จะ fallback ไปใช้ redirect flow เดิมของ Supabase */
+/** Google OAuth Client ID (Web) */
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 interface CredentialResponse {
@@ -116,5 +116,6 @@ export function GoogleIdTokenButton({ onBusyChange, onError }: Props) {
     };
   }, []);
 
-  return <div ref={holderRef} className="flex w-full justify-center" />;
+  // color-scheme: light — iframe ของ Google เป็น light; ถ้าหน้าเว็บเป็น dark จะมีพื้นหลังขาวล้อมปุ่ม
+  return <div ref={holderRef} className="flex w-full justify-center" style={{ colorScheme: "light" }} />;
 }
