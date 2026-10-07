@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
+  Home,
   Users,
   GitCompareArrows,
   BarChart3,
@@ -19,7 +19,7 @@ type NavGroup = { label: string; items: NavItem[] };
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "หลัก",
-    items: [{ to: "/", label: "แดชบอร์ด", icon: LayoutDashboard, end: true }],
+    items: [{ to: "/", label: "หน้าแรก", icon: Home, end: true }],
   },
   {
     label: "ฮีโร่",

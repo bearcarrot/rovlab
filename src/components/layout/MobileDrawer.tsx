@@ -6,7 +6,7 @@ import {
   Users,
   BookOpen,
   Heart,
-  LayoutDashboard,
+  Home,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -17,7 +17,7 @@ import { useIsAdmin } from "@/features/auth/useIsAdmin";
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
 const ALL_ITEMS: NavItem[] = [
-  { to: "/", label: "แดชบอร์ด", icon: LayoutDashboard, end: true },
+  { to: "/", label: "หน้าแรก", icon: Home, end: true },
   { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
   { to: "/tier-list", label: "Tier List", icon: BarChart3 },
   { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows },
