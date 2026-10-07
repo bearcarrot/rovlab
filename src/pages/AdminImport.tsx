@@ -14,13 +14,22 @@ type ImportRow = {
   pick_rate: number; // %
   ban_rate: number; // %
   matches: number; // heroPickCnt
+  tid: number | null; // Tier ID จาก API: 1=S+ 2=S 3=A 4=B 5=C (ไม่มี = null)
   w1: number | null; // id ของฮีโร่ที่ชนะทางอันดับ 1-3 (winrate1Hero..3Hero)
   w2: number | null;
   w3: number | null;
 };
 type DbHero = { id: string; name: string; name_th: string | null; hero_id: number | null };
 type Patch = { id: string; code: string };
-type Result = { stats: number; counters: number; unmatched: { id: number; name: string }[] };
+type Result = {
+  stats: number;
+  counters: number;
+  unmatched: { id: number; name: string }[];
+  // ฟิลด์ด้านล่างมาจาก RPC เวอร์ชันที่รู้จัก tid เท่านั้น (ยังไม่ apply migration = ไม่มี)
+  tiers?: number;
+  tierList?: number;
+  tierMode?: "tid" | "keep";
+};
 
 // ไฟล์ที่เซฟจากตัวดัก request มักมีหัว "POST https://... 200 / Request Headers ..." นำหน้า JSON ผลลัพธ์
 // รองรับทั้ง JSON ล้วน ๆ และไฟล์แบบมีหัว — อ่านบนเบราว์เซอร์เท่านั้น ส่งขึ้น DB เฉพาะตัวเลขสถิติ
@@ -55,6 +64,10 @@ function extractJson(text: string): any {
 
 const pct = (x: unknown) => Math.round(Number(x) * 10000) / 100; // 0.5222 -> 52.22
 const optId = (h: any) => (h?.id != null && h.id !== "" ? Number(h.id) : null);
+const optTid = (v: unknown) => {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+};
 
 function parseRankList(text: string): { rows: ImportRow[]; updated: Date | null } {
   const json = extractJson(text);
@@ -69,6 +82,7 @@ function parseRankList(text: string): { rows: ImportRow[]; updated: Date | null 
     pick_rate: pct(e?.heroPickRate),
     ban_rate: pct(e?.heroBanRate),
     matches: Number(e?.heroPickCnt) || 0,
+    tid: optTid(e?.tid ?? e?.tidu),
     w1: optId(e?.winrate1Hero),
     w2: optId(e?.winrate2Hero),
     w3: optId(e?.winrate3Hero),
@@ -141,6 +155,7 @@ export function AdminImport() {
   const unmatched = parsed ? parsed.rows.filter((r) => !known.has(r.id)) : [];
   const freeHeroes = heroes.filter((h) => h.hero_id == null);
   const patchCode = patches.find((p) => p.id === patchId)?.code ?? "?";
+  const withTid = parsed ? parsed.rows.filter((r) => r.tid != null).length : 0;
 
   async function link(r: ImportRow) {
     const uuid = linkSel[r.id];
@@ -176,7 +191,7 @@ export function AdminImport() {
       <section className={card}>
         <h2 className="font-display text-base font-semibold">1. เลือกไฟล์ getranklist.json</h2>
         <p className="text-xs text-text-muted">
-          อ่านไฟล์บนเครื่องคุณเท่านั้น ส่งขึ้นฐานข้อมูลเฉพาะตัวเลขสถิติ (หัวไฟล์/header ที่ติดมาจะถูกข้าม)
+          อ่านไฟล์บนเครื่องคุณเท่านั้น ส่งขึ้นฐานข้อมูลเฉพาะตัวเลขสถิติและเทียร์ (หัวไฟล์/header ที่ติดมาจะถูกข้าม)
         </p>
         <label className={`${btn} w-full cursor-pointer border border-border bg-bg-raised text-text hover:border-text-faint sm:w-auto`}>
           <FileUp className="h-4 w-4" /> {fileName || "เลือกไฟล์"}
@@ -185,8 +200,10 @@ export function AdminImport() {
         {parsed && (
           <p className="flex items-start gap-1.5 text-sm text-win">
             <Check className="mt-0.5 h-4 w-4 shrink-0" />
-            อ่านได้ {parsed.rows.length} ฮีโร่
-            {parsed.updated && ` · เกมอัปเดตล่าสุด ${parsed.updated.toLocaleDateString("th-TH", { dateStyle: "medium" })}`}
+            <span>
+              อ่านได้ {parsed.rows.length} ฮีโร่ · มีเทียร์จากเกม (tid) {withTid} ตัว
+              {parsed.updated && ` · เกมอัปเดตล่าสุด ${parsed.updated.toLocaleDateString("th-TH", { dateStyle: "medium" })}`}
+            </span>
           </p>
         )}
       </section>
@@ -288,10 +305,31 @@ export function AdminImport() {
           </label>
 
           <p className="rounded-lg border border-border bg-bg-raised p-3 text-xs text-text-muted">
-            <b className="text-text">ไม่แตะ Tier ที่จัดไว้แล้ว</b> — นำเข้าแล้วอัปเดตเฉพาะ Win/Pick/Ban Rate และจำนวนแมตช์
-            ฮีโร่ที่ยังไม่มีสถิติในแพตช์/แรงก์นี้จะได้ tier เริ่มต้นจาก Win Rate (S+ ≥ 52 · S ≥ 50.5 · A ≥ 49 · B ≥ 47.5 ·
-            น้อยกว่านั้น = C) แก้ได้ในแท็บสถิติ และ Tier List จัดเองในแท็บ Tier List (ไม่ถูกแตะ)
+            {rank === "all" ? (
+              <>
+                <b className="text-text">ทุกแรงก์ (all): เทียร์ตามที่เกมจัด (tid)</b> — ทับ tier ใน hero_stats และอัปเดต Tier List
+                ทางการของแรงก์ all (ลิสต์รวม ไม่แตะเหตุผลและลิสต์รายเลน) · ฮีโร่ที่ไฟล์ไม่มี tid จะคง tier เดิมไว้
+              </>
+            ) : (
+              <>
+                <b className="text-text">แรงก์สูง (high): แอดมินจัดเทียร์เอง</b> — ไม่ทับ tier ที่จัดไว้ และไม่แตะ Tier List
+                อัปเดตเฉพาะ Win/Pick/Ban Rate และจำนวนแมตช์
+              </>
+            )}
+            <span className="mt-1.5 block">
+              ฮีโร่ที่ยังไม่มีสถิติในแพตช์/แรงก์นี้จะได้ tier เริ่มต้นจาก tid ของเกม (ถ้าไม่มี tid ใช้ Win Rate: S+ ≥ 52 · S ≥ 50.5 · A ≥ 49 ·
+              B ≥ 47.5 · น้อยกว่านั้น = C) แก้ภายหลังได้ในแท็บสถิติ
+            </span>
           </p>
+
+          {rank === "all" && withTid < parsed.rows.length && (
+            <p className="flex items-start gap-1.5 text-xs text-loss">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {withTid === 0
+                ? "ไฟล์นี้ไม่มี tid เลย จะอัปเดตเฉพาะสถิติ และไม่เปลี่ยนเทียร์"
+                : `มี ${parsed.rows.length - withTid} ตัวที่ไม่มี tid จะคง tier เดิมของตัวเหล่านั้น`}
+            </p>
+          )}
 
           {!confirming ? (
             <button
@@ -306,7 +344,7 @@ export function AdminImport() {
             <div className="space-y-2 rounded-lg border border-accent/40 bg-bg-raised p-3">
               <p className="text-sm">
                 จะอัปเดตสถิติของ {parsed.rows.length - unmatched.length} ฮีโร่ ในแพตช์ <b>{patchCode}</b> · แรงก์ <b>{rank}</b>{" "}
-                (tier เดิมไม่ถูกแตะ)
+                {rank === "all" ? "(เทียร์ตาม tid ของเกม + อัปเดต Tier List ทางการ)" : "(tier เดิมไม่ถูกแตะ)"}
                 {counters && " และอัปเดตเคาน์เตอร์จากสถิติ"}
                 {unmatched.length > 0 && ` (ข้าม ${unmatched.length} ตัวที่ยังจับคู่ไม่ได้)`} ยืนยันหรือไม่?
               </p>
@@ -339,8 +377,19 @@ export function AdminImport() {
           </h2>
           <ul className="space-y-1 text-sm">
             <li>
-              อัปเดตสถิติ {result.stats} ฮีโร่ (แพตช์ {patchCode} · แรงก์ {rank}) · tier เดิมไม่ถูกแตะ
+              อัปเดตสถิติ {result.stats} ฮีโร่ (แพตช์ {patchCode} · แรงก์ {rank})
+              {result.tierMode === "keep" && " · tier เดิมไม่ถูกแตะ"}
             </li>
+            {result.tierMode === "tid" && (
+              <li>
+                เปลี่ยน tier ตามเกม {result.tiers ?? 0} ตัว · Tier List ทางการ {result.tierList ?? 0} แถว
+              </li>
+            )}
+            {result.tierMode === undefined && rank === "all" && (
+              <li className="text-loss">
+                ฐานข้อมูลยังเป็นเวอร์ชันเก่า (ยังไม่รู้จัก tid) เลยไม่ได้อัปเดตเทียร์ — รัน migration 20261007_import_rank_list_tid_tier ก่อน
+              </li>
+            )}
             {counters && <li>อัปเดตเคาน์เตอร์จากสถิติ {result.counters} แถว</li>}
             {result.unmatched.length > 0 && (
               <li className="text-loss">
