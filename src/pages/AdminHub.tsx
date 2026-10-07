@@ -1,20 +1,17 @@
 import { Admin } from "@/pages/Admin";
-import { AdminGameIdentities } from "@/pages/AdminGameIdentities";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "edit" | "import" | "balance" | "players";
+type Mode = "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["edit", "แก้ไขข้อมูล"],
   ["import", "นำเข้าสถิติ"],
   ["balance", "นำเข้าปรับสมดุล"],
-  ["players", "ไอดีเกม"],
 ];
 
-// หน้า /admin: สลับระหว่าง "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json), "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
-// และ "ไอดีเกม" (ค้นหา/ปลด OpenID ที่ผูกไว้)
+// หน้า /admin: สลับระหว่าง "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
@@ -29,7 +26,7 @@ export function AdminHub() {
       <div
         role="tablist"
         aria-label="โหมดแอดมิน"
-        className="grid grid-cols-4 gap-1 rounded-lg border border-border bg-bg-surface p-1 sm:max-w-2xl"
+        className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg-surface p-1 sm:max-w-2xl"
       >
         {MODES.map(([k, label]) => (
           <button
@@ -46,15 +43,7 @@ export function AdminHub() {
           </button>
         ))}
       </div>
-      {mode === "edit" ? (
-        <Admin />
-      ) : mode === "import" ? (
-        <AdminImport />
-      ) : mode === "balance" ? (
-        <AdminImportBalance />
-      ) : (
-        <AdminGameIdentities />
-      )}
+      {mode === "edit" ? <Admin /> : mode === "import" ? <AdminImport /> : <AdminImportBalance />}
     </div>
   );
 }
