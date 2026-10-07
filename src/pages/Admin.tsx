@@ -4,11 +4,11 @@ import { Link } from "react-router-dom";
 import { AlertCircle, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
-import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
-import { clearFilterIconsCache } from "@/services/filterIcons";
+import { clearFilterIconsCache, sortByOrder } from "@/services/filterIcons";
 import { clearEffectTagStylesCache } from "@/services/effectTagStyles";
 import { useToast } from "@/components/ui/toast";
 import type { HeroLane, HeroRole } from "@/types/hero";
@@ -40,6 +40,7 @@ type Col = {
   k: string;
   label?: string;
   type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | "tags" | "color" | RefType;
+  // multi: รายการสำรองใช้เมื่อยังโหลด hero_roles / hero_lanes ไม่ได้ (ปกติรหัส/ชื่อ/ไอคอน/ลำดับมาจาก DB)
   opts?: string[];
   // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
   ro?: boolean;
@@ -126,6 +127,7 @@ const CFG: Record<string, Cfg> = {
       { k: "name" },
       { k: "name_th" },
       // แตะเลือกได้หลายตัว ตัวแรกที่เลือก (★) = ตำแหน่ง/เลนหลัก ระบบซิงค์ไปที่คอลัมน์ role / lane ให้เอง
+      // ชื่อ/ไอคอน/ลำดับของปุ่มมาจาก hero_roles / hero_lanes (ดู MultiPicker) — opts คือรายการสำรองเท่านั้น
       { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "carry", "support", "tank"] },
       { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
@@ -135,27 +137,30 @@ const CFG: Record<string, Cfg> = {
       { k: "weaknesses", type: "arr" },
     ],
   },
-  // ไอคอนของปุ่มตัวกรองตำแหน่ง/เลน (ทุกหน้าใช้ชุดเดียวกัน) ว่าง = แสดงเฉพาะข้อความ
+  // ชื่อ ไอคอน และลำดับของตำแหน่ง/เลน (ทุกหน้าใช้ชุดเดียวกันจาก DB) ว่าง = แสดงเฉพาะข้อความ
+  // รหัส (code) แก้ไม่ได้: ถูกอ้างจากฮีโร่ / สถิติ / Tier / ตัวกรอง
   roleIcons: {
-    label: "ไอคอนตำแหน่ง",
+    label: "ตำแหน่ง (Role)",
     table: "hero_roles",
     order: "sort_order",
     noDelete: true,
     cols: [
-      { k: "label", label: "ตำแหน่ง", ro: true },
-      { k: "code", label: "รหัส", ro: true },
+      { k: "label", label: "ชื่อที่แสดง" },
+      { k: "code", label: "รหัส (แก้ไม่ได้)", ro: true },
       { k: "icon_url", label: "ไอคอน (เว้นว่าง = แสดงเฉพาะข้อความ)", type: "img" },
+      { k: "sort_order", label: "ลำดับ (เล็ก = แสดงก่อน)", type: "num" },
     ],
   },
   laneIcons: {
-    label: "ไอคอนเลน",
+    label: "เลน (Lane)",
     table: "hero_lanes",
     order: "sort_order",
     noDelete: true,
     cols: [
-      { k: "label", label: "เลน", ro: true },
-      { k: "code", label: "รหัส", ro: true },
+      { k: "label", label: "ชื่อที่แสดง" },
+      { k: "code", label: "รหัส (แก้ไม่ได้)", ro: true },
       { k: "icon_url", label: "ไอคอน (เว้นว่าง = แสดงเฉพาะข้อความ)", type: "img" },
+      { k: "sort_order", label: "ลำดับ (เล็ก = แสดงก่อน)", type: "num" },
     ],
   },
   abilities: {
@@ -557,6 +562,65 @@ async function uploadImage(file: File, folder: string): Promise<string> {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+// ปุ่มเลือกตำแหน่ง/เลนของฮีโร่ (ไอคอน + ชื่อจาก DB): รายการรหัส ชื่อ ไอคอน ลำดับ มาจาก hero_roles / hero_lanes (แก้ได้ในแท็บ "ตำแหน่ง"/"เลน")
+// รหัสไม่แสดงให้แอดมินเห็น แต่ใช้เป็นค่าที่บันทึก — ตัวแรกที่เลือก (★) = ตัวหลัก
+function MultiPicker({ c, v, onChange }: { c: Col; v: unknown; onChange: (val: string) => void }) {
+  const fi = useFilterIcons();
+  const isRole = c.k === "roles";
+  const icons = isRole ? fi.roles : fi.lanes;
+  const labels = isRole ? fi.roleLabels : fi.laneLabels;
+  const order = isRole ? fi.roleOrder : fi.laneOrder;
+  const fallback = (isRole ? ROLE_OPTIONS : LANE_OPTIONS) as { value: string; label: string }[];
+  const sel = toArr(v);
+  // รายการคือรหัสจาก DB (เรียงตาม sort_order); DB ยังไม่โหลด/ว่างใช้ opts สำรอง และรหัสที่ฮีโร่มีอยู่แล้วแต่ไม่อยู่ในรายการก็ยังแสดง (จะได้กดเอาออกได้)
+  const base = order.length > 0 ? order : (c.opts ?? []);
+  const codes = sortByOrder(
+    [...base, ...sel.filter((x) => !base.includes(x))].map((value) => ({ value })),
+    order
+  ).map((o) => o.value);
+  const labelOf = (code: string) => labels[code] ?? fallback.find((o) => o.value === code)?.label ?? code;
+  const toggle = (code: string) => onChange((sel.includes(code) ? sel.filter((x) => x !== code) : [...sel, code]).join(","));
+  return (
+    <div className="flex flex-wrap gap-2">
+      {codes.map((code) => {
+        const idx = sel.indexOf(code);
+        const on = idx >= 0;
+        const icon = icons[code];
+        return (
+          <button
+            key={code}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(code)}
+            className={`flex h-11 items-center gap-2 rounded-full border px-4 text-sm transition ${
+              on
+                ? "border-accent bg-accent/15 font-medium text-accent"
+                : "border-border bg-bg-raised text-text-muted hover:border-text-faint"
+            }`}
+          >
+            {icon ? (
+              <img
+                src={icon}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-5 w-5 shrink-0 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            ) : null}
+            <span>
+              {labelOf(code)}
+              {on && idx === 0 ? " ★" : ""}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // onCommit: เรียกเมื่อแก้เสร็จ (select/อัปโหลด = ทันที, input = ตอนคลิกออก/กด Enter) ใช้บันทึกลง DB อัตโนมัติ
 function Cell({
   c,
@@ -590,35 +654,7 @@ function Cell({
         ))}
       </select>
     );
-  if (c.type === "multi") {
-    // ปุ่มสลับเลือก/ไม่เลือก เก็บลำดับตามที่กด ตัวแรก (★) = ตัวหลัก
-    const sel = toArr(v);
-    const toggle = (o: string) => change((sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o]).join(","));
-    return (
-      <div className="flex flex-wrap gap-2">
-        {c.opts?.map((o) => {
-          const idx = sel.indexOf(o);
-          const on = idx >= 0;
-          return (
-            <button
-              key={o}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(o)}
-              className={`h-11 rounded-full border px-4 text-sm transition ${
-                on
-                  ? "border-accent bg-accent/15 font-medium text-accent"
-                  : "border-border bg-bg-raised text-text-muted hover:border-text-faint"
-              }`}
-            >
-              {o}
-              {on && idx === 0 ? " ★" : ""}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  if (c.type === "multi") return <MultiPicker c={c} v={v} onChange={change} />;
   if (c.type === "tags") {
     // แท็กสกิล: แตะเปิด/ปิดแต่ละแท็ก (ป้ายใช้สีที่ตั้งไว้ในแท็บ "แท็กและสี") แท็กที่สกิลมีแต่ไม่อยู่ในรายการ (เช่นชื่อที่นำเข้าผิด) ก็แสดงให้กดปิดได้
     const sel = tagNames(v);
@@ -886,7 +922,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
       err(`บันทึกไม่สำเร็จ (${c.k}): ${error.message}`);
     } else {
       orig.current[row.id] = { ...orig.current[row.id], [c.k]: val };
-      // ไอคอนตัวกรองตำแหน่ง/เลนถูกแคชไว้ในแอป ล้างเพื่อให้หน้าถัดไปเห็นไอคอนใหม่
+      // ชื่อ/ไอคอน/ลำดับของตำแหน่ง/เลนถูกแคชไว้ในแอป ล้างเพื่อให้หน้าถัดไปเห็นข้อมูลใหม่
       if (cfg.table === "hero_roles" || cfg.table === "hero_lanes") clearFilterIconsCache();
       // สีแท็กสกิลก็ถูกแคชไว้เช่นกัน
       if (cfg.table === TAG_STYLES_TABLE) clearEffectTagStylesCache();
