@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Redo2, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/features/community/confirm";
 import type { DraftSessionApi } from "./useDraftSession";
 import { droppedGameCount, findRestrictionConflicts, isGameEmpty, type Game7Rule, type SeriesFormat } from "./series";
 
@@ -16,21 +17,36 @@ export function SeriesBar({ ds, heroName }: { ds: DraftSessionApi; heroName: (sl
   const isSeries = series.format !== "single";
   const conflicts = useMemo(() => findRestrictionConflicts(series), [series]);
 
-  function onFormat(next: SeriesFormat) {
+  async function onFormat(next: SeriesFormat) {
     const dropped = droppedGameCount(series, next);
-    if (dropped > 0 && !window.confirm(`เปลี่ยนเป็น ${FORMAT_LABEL[next]} จะลบ Draft ของ ${dropped} เกมที่เกินจำนวน ต้องการดำเนินการต่อหรือไม่?`)) return;
+    if (
+      dropped > 0 &&
+      !(await confirmDialog({
+        title: `เปลี่ยนเป็น ${FORMAT_LABEL[next]}?`,
+        message: `Draft ของ ${dropped} เกมที่เกินจำนวนจะถูกลบ (ย้อนกลับได้ด้วยปุ่มเลิกทำ)`,
+        confirmLabel: "เปลี่ยนรูปแบบ",
+        danger: true,
+      }))
+    )
+      return;
     ds.setFormat(next);
   }
 
-  function onResetSeries() {
-    if (window.confirm("ล้าง Draft ทุกเกมในซีรีส์นี้ใช่หรือไม่? (ย้อนกลับได้ด้วยปุ่มเลิกทำ)")) ds.resetSeries();
+  async function onResetSeries() {
+    const ok = await confirmDialog({
+      title: "ล้างทุกเกมในซีรีส์นี้?",
+      message: "Pick และ Ban ของทุกเกมจะถูกล้าง (ย้อนกลับได้ด้วยปุ่มเลิกทำ)",
+      confirmLabel: "ล้างซีรีส์",
+      danger: true,
+    });
+    if (ok) ds.resetSeries();
   }
 
   return (
     <section className="space-y-2" aria-label="ตั้งค่าซีรีส์">
       <div className="flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="draft-format">รูปแบบ Draft</label>
-        <select id="draft-format" value={series.format} onChange={(e) => onFormat(e.target.value as SeriesFormat)} className={selectCls}>
+        <select id="draft-format" value={series.format} onChange={(e) => void onFormat(e.target.value as SeriesFormat)} className={selectCls}>
           {(Object.keys(FORMAT_LABEL) as SeriesFormat[]).map((f) => (
             <option key={f} value={f}>{FORMAT_LABEL[f]}</option>
           ))}
@@ -74,7 +90,7 @@ export function SeriesBar({ ds, heroName }: { ds: DraftSessionApi; heroName: (sl
             {isSeries ? "ล้างเกมนี้" : "ล้าง"}
           </button>
           {isSeries && (
-            <button type="button" className={cn(iconBtn, "hover:text-loss")} onClick={onResetSeries}>
+            <button type="button" className={cn(iconBtn, "hover:text-loss")} onClick={() => void onResetSeries()}>
               <Trash2 className="h-3.5 w-3.5" />
               ล้างซีรีส์
             </button>
