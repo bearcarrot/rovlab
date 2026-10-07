@@ -27,9 +27,9 @@ export const TIER_COLORS: Record<string, { bg: string; fg: string }> = {
 export const FONT_DISPLAY = '"Kanit", "IBM Plex Sans Thai", sans-serif';
 export const FONT_BODY = '"IBM Plex Sans Thai", "Inter", sans-serif';
 
-export const SITE_LABEL = "RovLab";
+export const SITE_LABEL = "RoV LAB";
 export const SITE_URL = "rovlab.vercel.app";
 // โลโก้อยู่ใน public/ (same-origin) จึงวาดลง Canvas แล้ว export ได้โดยไม่ติด CORS
 export const LOGO_URL = "/logo.png";
 export const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
-export const CREDIT_TH = "ชื่อและไอคอนฮีโร่เป็นลิขสิทธิ์ของเจ้าของเกม · RovLab เป็นโปรเจกต์ชุมชนอิสระ";
+export const CREDIT_TH = "ชื่อและไอคอนฮีโร่เป็นลิขสิทธิ์ของเจ้าของเกม · RoV LAB เป็นโปรเจกต์ชุมชนอิสระ";
