@@ -14,11 +14,12 @@ export const COLORS = {
   loss: "#E5484D",
 } as const;
 
+// ตัวอักษรป้าย Tier เป็นสีขาวทุกระดับ (ให้ตรงกับ components/ui/badge.tsx)
 export const TIER_COLORS: Record<string, { bg: string; fg: string }> = {
   "S+": { bg: "#EF4444", fg: "#FFFFFF" },
-  S: { bg: "#F97316", fg: "#0A0B0E" },
-  A: { bg: "#EAB308", fg: "#0A0B0E" },
-  B: { bg: "#22C55E", fg: "#0A0B0E" },
+  S: { bg: "#F97316", fg: "#FFFFFF" },
+  A: { bg: "#EAB308", fg: "#FFFFFF" },
+  B: { bg: "#22C55E", fg: "#FFFFFF" },
   C: { bg: "#3B82F6", fg: "#FFFFFF" },
 };
 
