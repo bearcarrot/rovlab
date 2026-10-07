@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { HandleCard } from "@/features/community/HandleCard";
 import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
 import { ContactLinksEditor } from "@/features/profile/ContactLinksEditor";
+import { GameIdentityCard } from "@/features/profile/GameIdentityCard";
 import { RoleMultiSelect } from "@/features/profile/RoleChips";
 import { fileToAvatarBase64 } from "@/lib/image";
 import { cn } from "@/lib/utils";
@@ -44,7 +45,6 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
   const [displayName, setDisplayName] = useState(profile.displayName ?? "");
   const [savedName, setSavedName] = useState(profile.displayName ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
-  const [gameName, setGameName] = useState(profile.gameName ?? "");
   const [contactLinks, setContactLinks] = useState<ContactLink[]>(profile.contactLinks);
   const [roles, setRoles] = useState<string[]>(profile.preferredRoles);
   const [heroIds, setHeroIds] = useState<string[]>(
@@ -69,7 +69,6 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
       await updateProfile(profile.id, {
         displayName,
         bio,
-        gameName,
         contactLinks,
         preferredRoles: roles,
         preferredHeroes: heroIds,
@@ -188,14 +187,9 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
             className={cn(INPUT_CLASS, "resize-none")}
           />
         </Field>
-        <Field label="ชื่อในเกม (RoV)" counter={`${gameName.length}/${PROFILE_LIMITS.gameName}`}>
-          <input
-            value={gameName}
-            onChange={(e) => setGameName(e.target.value)}
-            maxLength={PROFILE_LIMITS.gameName}
-            className={INPUT_CLASS}
-          />
-        </Field>
+
+        <GameIdentityCard userId={profile.id} />
+
         <Field
           label="ช่องทางติดต่อ"
           hint="แสดงเฉพาะผู้ที่ล็อกอินเท่านั้น รับเฉพาะลิงก์ทางการของแอปที่เลือก และคนที่กดจะเห็นคำเตือนก่อนเปิดลิงก์"
