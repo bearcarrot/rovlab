@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
+import { RouteMeta } from "@/components/RouteMeta";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { Home } from "@/pages/Home";
 import { Heroes } from "@/pages/Heroes";
@@ -42,6 +43,8 @@ function WithNav({ crumbs, fallback = "/", children }: { crumbs: Crumb[]; fallba
 
 export default function App() {
   return (
+    <>
+    <RouteMeta />
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Home />} />
@@ -128,5 +131,6 @@ export default function App() {
         <Route path="*" element={<WithNav crumbs={[HOME, { label: "ไม่พบหน้า" }]}><NotFound /></WithNav>} />
       </Route>
     </Routes>
+    </>
   );
 }
