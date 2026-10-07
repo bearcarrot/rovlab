@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 // S+ แดง · S ส้ม · A เหลือง · B เขียว · C ฟ้า (ชื่อคลาสเขียนเต็มเพื่อให้ Tailwind สแกนเจอ)
 const TIER_STYLES: Record<string, string> = {
   "S+": "bg-tier-sp text-white",
-  S: "bg-tier-s text-accent-fg",
-  A: "bg-tier-a text-accent-fg",
-  B: "bg-tier-b text-accent-fg",
+  S: "bg-tier-s text-white",
+  A: "bg-tier-a text-white",
+  B: "bg-tier-b text-white",
   C: "bg-tier-c text-white",
 };
 
