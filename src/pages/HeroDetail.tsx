@@ -36,7 +36,7 @@ export function HeroDetail() {
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
   const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
 
-  // SEO: title/description/canonical รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
+  // SEO: title/description/canonical/breadcrumb รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
   const loaded = hero.status === "success" ? hero.data : null;
   useDocumentMeta(
     loaded
@@ -44,6 +44,11 @@ export function HeroDetail() {
           title: `${loaded.nameTh} (${loaded.name}) RoV — วิธีเล่น สถิติ คู่แพ้ทาง | RovLab`,
           description: `${loaded.nameTh} (${loaded.name}) ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
           path: `/heroes/${loaded.slug}`,
+          breadcrumbs: [
+            { name: "หน้าแรก", path: "/" },
+            { name: "ฮีโร่ทั้งหมด", path: "/heroes" },
+            { name: loaded.nameTh, path: `/heroes/${loaded.slug}` },
+          ],
         }
       : null,
   );

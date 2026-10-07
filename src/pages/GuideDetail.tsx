@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { Clock, BookOpen } from "lucide-react";
 import { getGuideBySlug } from "@/services/guides";
 import { useAsync } from "@/hooks/useAsync";
+import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -14,6 +15,23 @@ const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium:
 export function GuideDetail() {
   const { slug = "" } = useParams();
   const guide = useAsync(() => getGuideBySlug(slug), [slug]);
+
+  // SEO: title/description/canonical/breadcrumb รายบทความ (ต้องเรียกก่อน early return ทั้งหมด)
+  const loaded = guide.status === "success" ? guide.data : null;
+  useDocumentMeta(
+    loaded
+      ? {
+          title: `${loaded.title} | RovLab`,
+          description: `${loaded.title} — คู่มือ RoV สำหรับผู้เล่น อ่านประมาณ ${loaded.readingMinutes} นาที`,
+          path: `/learn/${slug}`,
+          breadcrumbs: [
+            { name: "หน้าแรก", path: "/" },
+            { name: "คู่มือ", path: "/learn" },
+            { name: loaded.title, path: `/learn/${slug}` },
+          ],
+        }
+      : null,
+  );
 
   if (guide.status === "loading") {
     return (
