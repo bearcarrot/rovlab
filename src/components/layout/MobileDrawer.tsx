@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   X,
   BarChart3,
+  ListOrdered,
   GitCompareArrows,
   Users,
   BookOpen,
@@ -19,7 +20,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 const ALL_ITEMS: NavItem[] = [
   { to: "/", label: "หน้าแรก", icon: Home, end: true },
   { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
-  { to: "/tier-list", label: "Tier List", icon: BarChart3 },
+  { to: "/tier-list", label: "Tier List", icon: ListOrdered },
   { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows },
   { to: "/matchup", label: "Matchup", icon: GitCompareArrows },
   { to: "/draft", label: "Draft Assistant", icon: Users },

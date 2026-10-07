@@ -4,6 +4,7 @@ import {
   Users,
   GitCompareArrows,
   BarChart3,
+  ListOrdered,
   BookOpen,
   Heart,
   ShieldCheck,
@@ -25,7 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "ฮีโร่",
     items: [
       { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
-      { to: "/tier-list", label: "Tier List", icon: BarChart3 },
+      { to: "/tier-list", label: "Tier List", icon: ListOrdered },
       { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows },
       { to: "/matchup", label: "Matchup", icon: GitCompareArrows },
     ],
