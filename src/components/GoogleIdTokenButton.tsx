@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { GoogleIcon } from "@/components/GoogleIcon";
-import { outlineBtnCls } from "@/features/auth/styles";
 
 /** Google OAuth Client ID (Web) */
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+/** Solid white button (same sizing as the site's other auth buttons) */
+const whiteBtnCls =
+  "flex w-full items-center justify-center gap-2 rounded-lg border border-white bg-white py-2.5 text-sm font-medium text-neutral-900 disabled:opacity-60";
 
 interface CredentialResponse {
   credential: string;
@@ -70,7 +73,7 @@ interface Props {
 /**
  * Google Sign-In (Google Identity Services) -> signInWithIdToken, no redirect to supabase.co.
  *
- * The visible button is the site's own outline button. Google's real button (an iframe, which
+ * The visible button is the site's own white button. Google's real button (an iframe, which
  * cannot be restyled) is rendered on top of it with near-zero opacity and stretched to cover it,
  * so clicks land on Google's iframe while users only see the site-styled button.
  */
@@ -141,7 +144,7 @@ export function GoogleIdTokenButton({ onBusyChange, onError, text = "signin_with
   return (
     <div ref={wrapRef} className="relative w-full">
       {/* visible site-styled button; not clickable itself */}
-      <button type="button" tabIndex={-1} aria-hidden disabled={busy} className={`${outlineBtnCls} pointer-events-none`}>
+      <button type="button" tabIndex={-1} aria-hidden disabled={busy} className={`${whiteBtnCls} pointer-events-none`}>
         <GoogleIcon />
         {label}
       </button>
