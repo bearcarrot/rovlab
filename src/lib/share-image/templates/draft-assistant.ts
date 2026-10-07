@@ -1,4 +1,5 @@
 import { drawBackground, drawEmptySlot, drawHeroIcon, drawStars, fillRound, font, text, wrapLines } from "../draw";
+import { drawLogo } from "../logo";
 import { COLORS, CREDIT_TH, DISCLAIMER_TH, SITE_LABEL, SITE_URL } from "../theme";
 import type { ImageTemplate, ShareHero } from "../types";
 
@@ -21,6 +22,8 @@ const H = 1350;
 const PAD = 40;
 const COL_GAP = 32;
 const COL_W = (W - PAD * 2 - COL_GAP) / 2;
+const LOGO_SIZE = 58;
+const BRAND_X = PAD + LOGO_SIZE + 16;
 
 // HEURISTIC ต้องอยู่บนรูปเสมอ (ไม่ขึ้นกับ AI Coach)
 const HEURISTIC_NOTE = "คำแนะนำเบื้องต้นจากข้อมูล Role, Team Composition และข้อมูลในระบบ — ไม่ใช่การวิเคราะห์ข้อมูลการแข่งขันหรือระดับสกิลแบบเรียลไทม์";
@@ -42,10 +45,10 @@ export const draftAssistantTemplate: ImageTemplate<DraftImageData> = {
     const rowH = ai ? 70 : 82;
     const icon = rowH - 10;
 
-    // Header
-    fillRound(ctx, PAD, 36, 6, 52, 3, COLORS.accent);
-    text(ctx, SITE_LABEL, PAD + 20, 62, { font: font(700, 30, "display"), color: COLORS.accent });
-    text(ctx, "DRAFT ASSISTANT", PAD + 20, 90, { font: font(500, 20, "display"), color: COLORS.muted });
+    // Header: โลโก้ + ชื่อแบรนด์
+    drawLogo(ctx, images, PAD, 34, LOGO_SIZE);
+    text(ctx, SITE_LABEL, BRAND_X, 62, { font: font(700, 30, "display"), color: COLORS.accent });
+    text(ctx, "DRAFT ASSISTANT", BRAND_X, 90, { font: font(500, 20, "display"), color: COLORS.muted });
     text(ctx, d.modeLabel, W - PAD, 90, { font: font(500, 22), color: COLORS.muted, align: "right" });
 
     // Teams

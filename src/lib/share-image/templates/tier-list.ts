@@ -1,4 +1,5 @@
 import { drawBackground, drawHeroIcon, fillRound, fitFontSize, font, text } from "../draw";
+import { drawLogo } from "../logo";
 import { COLORS, CREDIT_TH, DISCLAIMER_TH, SITE_LABEL, SITE_URL, TIER_COLORS } from "../theme";
 import type { ImageTemplate, ShareHero } from "../types";
 
@@ -24,6 +25,8 @@ const GAP = 6;
 const ROW_GAP = 12;
 const ROW_PAD = 12;
 const MIN_ROW_H = 72;
+const LOGO_SIZE = 58;
+const BRAND_X = PAD + LOGO_SIZE + 16;
 
 function layout(tiers: TierListImageData["tiers"]) {
   const areaW = W - PAD * 2 - LABEL_W - ROW_PAD * 2;
@@ -44,10 +47,10 @@ export const tierListTemplate: ImageTemplate<TierListImageData> = {
   draw({ ctx, images }, d) {
     drawBackground(ctx, W, H);
 
-    // Header
-    fillRound(ctx, PAD, 36, 6, 52, 3, COLORS.accent);
-    text(ctx, SITE_LABEL, PAD + 20, 62, { font: font(700, 30, "display"), color: COLORS.accent });
-    text(ctx, "TIER LIST", PAD + 20, 90, { font: font(500, 20, "display"), color: COLORS.muted });
+    // Header: โลโก้ + ชื่อแบรนด์
+    drawLogo(ctx, images, PAD, 34, LOGO_SIZE);
+    text(ctx, SITE_LABEL, BRAND_X, 62, { font: font(700, 30, "display"), color: COLORS.accent });
+    text(ctx, "TIER LIST", BRAND_X, 90, { font: font(500, 20, "display"), color: COLORS.muted });
     const maxTitleW = W - PAD * 2;
     const size = fitFontSize(ctx, d.title, maxTitleW, 700, 64, 30);
     text(ctx, d.title, PAD, 160, { font: font(700, size, "display"), color: COLORS.text, maxWidth: maxTitleW });
