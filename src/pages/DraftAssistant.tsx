@@ -44,6 +44,7 @@ import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraf
 import { MyDrafts } from "@/features/draft/MyDrafts";
 import { CommunityDrafts } from "@/features/draft/CommunityDrafts";
 import { Modal } from "@/features/community/Modal";
+import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -250,18 +251,24 @@ export function DraftAssistant() {
 
   // ---- บันทึก / โหลด ----
   // Draft ที่ยังไม่บันทึกจะไม่ถูกแทนที่เงียบๆ
-  const canReplace = () =>
-    !(ds.dirty && !ds.isBlank) || window.confirm("Draft ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วย Draft ที่เลือกหรือไม่?");
+  const canReplace = async () =>
+    !(ds.dirty && !ds.isBlank) ||
+    (await confirmDialog({
+      title: "แทนที่ Draft ปัจจุบัน?",
+      message: "Draft ปัจจุบันยังไม่ได้บันทึก ถ้าแทนที่ สิ่งที่ทำอยู่จะหายไป",
+      confirmLabel: "แทนที่",
+      danger: true,
+    }));
 
-  function onNew() {
-    if (!canReplace()) return;
+  async function onNew() {
+    if (!(await canReplace())) return;
     ds.startNew();
     setActive(firstPick());
     setCoachText("");
   }
 
-  function openMyDraft(d: MyDraft) {
-    if (!canReplace()) return;
+  async function openMyDraft(d: MyDraft) {
+    if (!(await canReplace())) return;
     ds.load({ series: d.series, draftId: d.id, title: d.name, description: d.description, visibility: d.visibility });
     setActive(firstPick());
     setCoachText("");
@@ -322,7 +329,7 @@ export function DraftAssistant() {
         <Chip active={tab === "community"} onClick={() => setTab("community")} label="Community" />
       </div>
 
-      {tab === "my" && <MyDrafts currentId={ds.draftId} onOpen={openMyDraft} onDeleted={(id) => id === ds.draftId && ds.detach()} />}
+      {tab === "my" && <MyDrafts currentId={ds.draftId} onOpen={(d) => void openMyDraft(d)} onDeleted={(id) => id === ds.draftId && ds.detach()} />}
       {tab === "community" && <CommunityDrafts heroes={heroes} canReplace={canReplace} onOpenCopy={openCopy} />}
 
       {tab === "editor" && (
@@ -342,7 +349,7 @@ export function DraftAssistant() {
             </button>
             <button
               type="button"
-              onClick={onNew}
+              onClick={() => void onNew()}
               className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text"
             >
               <FilePlus2 className="h-4 w-4" />
@@ -557,6 +564,7 @@ export function DraftAssistant() {
           </div>
         </Modal>
       )}
+      <ConfirmHost />
     </div>
   );
 }
