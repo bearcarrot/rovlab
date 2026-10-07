@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { LogIn, UserRound } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { GoogleIcon } from "@/components/GoogleIcon";
 import { GOOGLE_CLIENT_ID, GoogleIdTokenButton } from "@/components/GoogleIdTokenButton";
 import { useToast } from "@/components/ui/toast";
 import { safeNext, withNext } from "@/features/auth/nav";
@@ -13,7 +12,7 @@ import { useCooldown } from "@/features/auth/useCooldown";
 import { inputCls, linkBtnCls, outlineBtnCls, primaryBtnCls } from "@/features/auth/styles";
 
 export function Login() {
-  const { user, signInWithEmail, signInWithGoogle, resendVerification, isConfigured } = useAuth();
+  const { user, signInWithEmail, resendVerification, isConfigured } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [params] = useSearchParams();
@@ -56,18 +55,6 @@ export function Login() {
     if (err) {
       if (code === "email_not_confirmed") setUnverified(true);
       setError(authErrorMessage(code));
-    }
-  }
-
-  // Fallback: redirect flow เดิม (ใช้เมื่อไม่ได้ตั้ง VITE_GOOGLE_CLIENT_ID)
-  async function handleGoogle() {
-    setError(null);
-    setBusy(true);
-    const { error: err, code } = await signInWithGoogle(next);
-    // สำเร็จ: เบราว์เซอร์จะถูก redirect ไป Google เอง
-    if (err) {
-      setError(authErrorMessage(code));
-      setBusy(false);
     }
   }
 
@@ -125,16 +112,11 @@ export function Login() {
         ลืมรหัสผ่าน?
       </Link>
 
-      {GOOGLE_CLIENT_ID ? (
+      {GOOGLE_CLIENT_ID && (
         <GoogleIdTokenButton
           onBusyChange={setBusy}
           onError={(code) => setError(authErrorMessage(code))}
         />
-      ) : (
-        <button type="button" onClick={handleGoogle} disabled={busy} className={outlineBtnCls}>
-          <GoogleIcon />
-          เข้าสู่ระบบด้วย Google
-        </button>
       )}
 
       <Link to={withNext("/register", next)} className={`block ${linkBtnCls}`}>
