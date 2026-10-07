@@ -11,14 +11,14 @@ export function StatBarRow({ hero, metric }: { hero: HeroSummary; metric: number
       className="flex items-center gap-3 rounded-lg border border-border bg-bg-surface p-2.5 hover:border-accent/40"
     >
       {/* ไม่ใส่ overflow-hidden ที่กรอบ เพราะ HeroBalanceBadge ต้องโผล่ขอบขวาล่าง → ตัดมุมที่ตัวรูปแทน */}
-      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-bg-raised font-display text-xs text-text-faint">
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
         {hero.icon ? (
           <img
             src={hero.icon}
             alt={hero.nameTh}
             loading="lazy"
             referrerPolicy="no-referrer"
-            className="h-full w-full rounded-xl object-cover"
+            className="h-full w-full rounded-md object-cover"
             onError={(e) => {
               e.currentTarget.style.display = "none";
               e.currentTarget.nextElementSibling?.classList.remove("hidden");
