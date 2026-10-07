@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Users, MessageCircle } from "lucide-react";
 import { getHeroBySlug } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
+import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -34,6 +35,18 @@ export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
   const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
+
+  // SEO: title/description/canonical รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
+  const loaded = hero.status === "success" ? hero.data : null;
+  useDocumentMeta(
+    loaded
+      ? {
+          title: `${loaded.nameTh} (${loaded.name}) RoV — วิธีเล่น สถิติ คู่แพ้ทาง | RovLab`,
+          description: `${loaded.nameTh} (${loaded.name}) ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
+          path: `/heroes/${loaded.slug}`,
+        }
+      : null,
+  );
 
   if (hero.status === "loading") {
     return (
