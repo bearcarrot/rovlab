@@ -4,6 +4,7 @@ import { FolderOpen } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -34,6 +35,7 @@ export function MyDrafts({
 }) {
   const { user, loading: authLoading } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const list = useAsync(() => (user ? listMyDrafts() : Promise.resolve([] as MyDraftSummary[])), [user?.id]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -59,6 +61,20 @@ export function MyDrafts({
     } finally {
       setBusy(null);
     }
+  }
+
+  async function askDelete(d: MyDraftSummary, isPublic: boolean) {
+    const ok = await confirm({
+      title: "ลบ Draft?",
+      message: `ลบ “${d.name || "Draft"}” ใช่หรือไม่?${isPublic ? " (จะถูกเอาออกจาก Community ด้วย)" : ""}`,
+      confirmLabel: "ลบ",
+      danger: true,
+    });
+    if (!ok) return;
+    await run(d.id, "ลบ Draft แล้ว", async () => {
+      await deleteDraft(d.id);
+      onDeleted(d.id);
+    });
   }
 
   if (authLoading) return <Skeleton className="h-24" />;
@@ -125,18 +141,7 @@ export function MyDrafts({
                   เผยแพร่
                 </button>
               )}
-              <button
-                type="button"
-                disabled={disabled}
-                className={`${btn} text-loss`}
-                onClick={() => {
-                  if (!window.confirm(`ลบ “${d.name || "Draft"}” ใช่หรือไม่?${isPublic ? " (จะถูกเอาออกจาก Community ด้วย)" : ""}`)) return;
-                  void run(d.id, "ลบ Draft แล้ว", async () => {
-                    await deleteDraft(d.id);
-                    onDeleted(d.id);
-                  });
-                }}
-              >
+              <button type="button" disabled={disabled} className={`${btn} text-loss`} onClick={() => void askDelete(d, isPublic)}>
                 ลบ
               </button>
             </div>
