@@ -3,6 +3,7 @@ import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
 import { parseTierData, type TierData } from "@/features/tierlist/tierData";
 import type { Visibility } from "@/services/draftSeries";
+import { trackActivity } from "@/services/activity";
 
 // My Tier Lists (public.user_tier_lists, own rows only via RLS) and Community Tier Lists
 // (public.community_tier_lists snapshots, read through the list_community_tier_lists RPC).
@@ -104,7 +105,9 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
   }
   const { data, error } = await supabase.from("user_tier_lists").insert({ ...row, user_id: input.userId }).select("id").single();
   check(error);
-  return data!.id as string;
+  const newId = data!.id as string;
+  void trackActivity("tier_list_created", { tier_list_id: newId });
+  return newId;
 }
 
 /** New private list owned by the user (Duplicate and Load Preset). Original is never touched. */
@@ -136,6 +139,7 @@ export async function setTierListVisibility(id: string, visibility: Visibility):
 export async function publishTierList(id: string): Promise<void> {
   const { error } = await supabase.rpc("publish_tier_list", { p_id: id });
   check(error);
+  void trackActivity("tier_list_shared", { tier_list_id: id });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

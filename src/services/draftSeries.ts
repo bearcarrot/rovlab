@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
 import { createSeries, legacyTeams, parseSeries, type DraftSeries, type SeriesFormat } from "@/features/draft/series";
+import { trackActivity } from "@/services/activity";
 
 // My Drafts (public.saved_drafts, own rows only via RLS) and Community Drafts
 // (public.community_drafts snapshots, read through the list_community_drafts RPC).
@@ -72,6 +73,7 @@ export async function listMyDrafts(): Promise<MyDraftSummary[]> {
 export async function getMyDraft(id: string): Promise<MyDraft> {
   const { data, error } = await supabase.from("saved_drafts").select(`${SUMMARY_COLS}, series`).eq("id", id).single();
   check(error);
+  void trackActivity("draft_loaded", { draft_id: id }, { once: true });
   return { ...toSummary(data), series: parseSeries(data?.series) ?? createSeries("single") };
 }
 
@@ -105,7 +107,9 @@ export async function saveDraft(input: SaveDraftInput): Promise<string> {
   }
   const { data, error } = await supabase.from("saved_drafts").insert({ ...row, user_id: input.userId }).select("id").single();
   check(error);
-  return data!.id as string;
+  const newId = data!.id as string;
+  void trackActivity("draft_created", { draft_id: newId });
+  return newId;
 }
 
 /** New private draft owned by the user with the same series (used by Duplicate and Load Preset). */
@@ -138,6 +142,7 @@ export async function setDraftVisibility(id: string, visibility: Visibility): Pr
 export async function publishDraft(id: string): Promise<void> {
   const { error } = await supabase.rpc("publish_draft", { p_id: id });
   check(error);
+  void trackActivity("draft_shared", { draft_id: id });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
