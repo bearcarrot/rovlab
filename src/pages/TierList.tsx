@@ -77,7 +77,7 @@ export function TierList() {
       })),
       generatedDate: formatGeneratedDate(),
     };
-    return { data, filename: makeFilename("rovlab-tier-list"), title: "RoV LAB Tier List" };
+    return { data, filename: makeFilename("rovlab-tier-list"), title: "RovLab Tier List" };
   }, [grouped, patchLabel, rank, role, lane, roleLabel, laneLabel]);
   const share = useShareImage(tierListTemplate, buildShare);
 
