@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { timeAgo } from "@/features/community/format";
+import { confirmDialog } from "@/features/community/confirm";
 import {
   createTierListCopy,
   deleteTierList,
@@ -117,9 +118,15 @@ export function MyTierLists({
                 type="button"
                 disabled={disabled}
                 className={`${btn} text-loss`}
-                onClick={() => {
-                  if (!window.confirm(`ลบ “${l.name}” ใช่หรือไม่?${isPublic ? " (จะถูกเอาออกจาก Community ด้วย)" : ""}`)) return;
-                  void run(l.id, "ลบ Tier List แล้ว", async () => {
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: `ลบ “${l.name}”?`,
+                    message: isPublic ? "Tier List นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
+                    confirmLabel: "ลบ",
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  await run(l.id, "ลบ Tier List แล้ว", async () => {
                     await deleteTierList(l.id);
                     onDeleted(l.id);
                   });

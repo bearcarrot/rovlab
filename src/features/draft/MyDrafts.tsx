@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { timeAgo } from "@/features/community/format";
+import { confirmDialog } from "@/features/community/confirm";
 import {
   deleteDraft,
   duplicateDraft,
@@ -129,9 +130,15 @@ export function MyDrafts({
                 type="button"
                 disabled={disabled}
                 className={`${btn} text-loss`}
-                onClick={() => {
-                  if (!window.confirm(`ลบ “${d.name || "Draft"}” ใช่หรือไม่?${isPublic ? " (จะถูกเอาออกจาก Community ด้วย)" : ""}`)) return;
-                  void run(d.id, "ลบ Draft แล้ว", async () => {
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: `ลบ “${d.name || "Draft"}”?`,
+                    message: isPublic ? "Draft นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
+                    confirmLabel: "ลบ",
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  await run(d.id, "ลบ Draft แล้ว", async () => {
                     await deleteDraft(d.id);
                     onDeleted(d.id);
                   });
