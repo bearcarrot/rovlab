@@ -16,7 +16,7 @@ export function Footer() {
         <div className="grid gap-6 lg:grid-cols-12">
           <section aria-labelledby="footer-about" className="space-y-2 lg:col-span-7">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
+              <img src="/logo.webp" alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
               <div>
                 <h2 id="footer-about" className="font-display text-base font-semibold leading-tight">
                   {SITE.name}
