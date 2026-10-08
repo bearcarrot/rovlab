@@ -36,6 +36,9 @@ const ADMIN_ITEM: NavItem = { to: "/admin", label: "แอดมิน", icon: S
 export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { isAdmin } = useIsAdmin();
   const items = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
+  // PSI/axe (aria-hidden-focus): ตอนลิ้นชักปิดอยู่ตัว wrapper เป็น aria-hidden="true" ดังนั้นลิงก์/ปุ่มข้างในต้องโฟกัสด้วยคีย์บอร์ดไม่ได้
+  // ใช้ tabIndex=-1 แทน visibility:hidden เพื่อไม่ให้แอนิเมชันปิดลิ้นชักหาย
+  const tabIndex = open ? undefined : -1;
 
   return (
     <div
@@ -64,7 +67,12 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
             <img src="/logo-64.webp" alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
             <span className="font-display text-lg font-semibold">RoV LAB</span>
           </div>
-          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted" aria-label="ปิดเมนู">
+          <button
+            onClick={onClose}
+            tabIndex={tabIndex}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted"
+            aria-label="ปิดเมนู"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -74,6 +82,7 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
               key={to}
               to={to}
               end={end}
+              tabIndex={tabIndex}
               onClick={onClose}
               className={({ isActive }) =>
                 cn(
