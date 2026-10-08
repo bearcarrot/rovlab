@@ -38,12 +38,14 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
   const items = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
 
   return (
+    // PSI/axe (aria-hidden-focus): ไม่ใช้ aria-hidden กับ wrapper ที่มีลิงก์/ปุ่มข้างใน
+    // ใช้ visibility:hidden ตอนปิดแทน — ถอดออกจาก accessibility tree และ tab order ทั้งหมดในที-เดียว
+    // transition-[visibility] ทำให้ visibility เปลี่ยนเป็น hidden หลังแอนิเมชันปิด (200ms) จบ ส่วนตอนเปิดจะเป็น visible ทันที
     <div
       className={cn(
-        "fixed inset-0 z-40 lg:hidden",
-        open ? "pointer-events-auto" : "pointer-events-none"
+        "fixed inset-0 z-40 transition-[visibility] duration-200 lg:hidden",
+        open ? "pointer-events-auto visible" : "pointer-events-none invisible"
       )}
-      aria-hidden={!open}
     >
       <div
         onClick={onClose}
@@ -64,7 +66,11 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
             <img src="/logo-64.webp" alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
             <span className="font-display text-lg font-semibold">RoV LAB</span>
           </div>
-          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted" aria-label="ปิดเมนู">
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted"
+            aria-label="ปิดเมนู"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
