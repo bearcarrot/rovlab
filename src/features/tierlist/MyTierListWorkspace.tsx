@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, FolderOpen, Save } from "lucide-react";
+import { Bookmark, FilePlus2, FolderOpen } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
@@ -130,7 +130,7 @@ export function MyTierListWorkspace({
       setRefreshKey((k) => k + 1);
       setSaveOpen(false);
       if (v.visibility !== "public") toast.success("บันทึก Tier List แล้ว");
-      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต Community” ที่รายการของฉันเพื่อเผยแพร่เวอร์ชันนี้");
+      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต” ที่รายการของฉันเพื่อเผยแพร่เวอร์ชันนี้");
       else toast.success("บันทึกและเผยแพร่ไปยัง Community แล้ว");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
@@ -150,7 +150,7 @@ export function MyTierListWorkspace({
           {dirty && cloud.id && <span className="ml-2 text-xs text-amber-400">ยังไม่ได้บันทึกการแก้ไข</span>}
         </p>
         <button type="button" onClick={onSaveClick} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg">
-          <Save className="h-4 w-4" />
+          <Bookmark className="h-4 w-4" />
           บันทึก
         </button>
         <button
