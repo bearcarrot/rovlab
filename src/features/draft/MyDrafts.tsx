@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen } from "lucide-react";
+import { Copy, FolderOpen, Globe, Lock, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { timeAgo } from "@/features/community/format";
 import { confirmDialog } from "@/features/community/confirm";
+import { Switch } from "@/features/community/Switch";
 import {
   deleteDraft,
   duplicateDraft,
@@ -22,7 +23,7 @@ import {
 } from "@/services/draftSeries";
 import { FORMAT_LABEL } from "./SeriesBar";
 
-const btn = "rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50";
+const btn = "inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50";
 
 export function MyDrafts({
   currentId,
@@ -105,47 +106,59 @@ export function MyDrafts({
                 {d.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{d.description}</p>}
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <button type="button" disabled={disabled} className={btn} onClick={() => void open(d.id)}>
-                เปิดแก้ไข
-              </button>
-              <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "ทำสำเนา Draft แล้ว", () => duplicateDraft(user.id, d.id))}>
-                ทำสำเนา
-              </button>
-              {isPublic ? (
-                <>
-                  <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "อัปเดต Community เป็นเวอร์ชันล่าสุดแล้ว", () => publishDraft(d.id))}>
-                    อัปเดต Community
-                  </button>
-                  <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "เอาออกจาก Community แล้ว", () => setDraftVisibility(d.id, "private"))}>
-                    ทำเป็นส่วนตัว
-                  </button>
-                </>
-              ) : (
-                <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "เผยแพร่ไปยัง Community แล้ว", () => publishDraft(d.id))}>
-                  เผยแพร่
-                </button>
-              )}
-              <button
-                type="button"
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <Switch
+                checked={isPublic}
                 disabled={disabled}
-                className={`${btn} text-loss`}
-                onClick={async () => {
-                  const ok = await confirmDialog({
-                    title: `ลบ “${d.name || "Draft"}”?`,
-                    message: isPublic ? "Draft นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
-                    confirmLabel: "ลบ",
-                    danger: true,
-                  });
-                  if (!ok) return;
-                  await run(d.id, "ลบ Draft แล้ว", async () => {
-                    await deleteDraft(d.id);
-                    onDeleted(d.id);
-                  });
-                }}
-              >
-                ลบ
-              </button>
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    {isPublic ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                    {isPublic ? "เผยแพร่ใน Community" : "ส่วนตัว"}
+                  </span>
+                }
+                onChange={(on) =>
+                  run(d.id, on ? "เผยแพร่ไปยัง Community แล้ว" : "เอาออกจาก Community แล้ว", () =>
+                    on ? publishDraft(d.id) : setDraftVisibility(d.id, "private")
+                  )
+                }
+              />
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" disabled={disabled} className={btn} onClick={() => void open(d.id)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  แก้ไข
+                </button>
+                <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "คัดลอกแล้ว", () => duplicateDraft(user.id, d.id))}>
+                  <Copy className="h-3.5 w-3.5" />
+                  คัดลอก
+                </button>
+                {isPublic && (
+                  <button type="button" disabled={disabled} className={btn} onClick={() => run(d.id, "อัปเดตเป็นเวอร์ชันล่าสุดแล้ว", () => publishDraft(d.id))}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    อัปเดต
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={`${btn} text-loss`}
+                  onClick={async () => {
+                    const ok = await confirmDialog({
+                      title: `ลบ “${d.name || "Draft"}”?`,
+                      message: isPublic ? "Draft นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
+                      confirmLabel: "ลบ",
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    await run(d.id, "ลบแล้ว", async () => {
+                      await deleteDraft(d.id);
+                      onDeleted(d.id);
+                    });
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  ลบ
+                </button>
+              </div>
             </div>
           </li>
         );

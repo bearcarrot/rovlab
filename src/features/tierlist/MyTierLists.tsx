@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen } from "lucide-react";
+import { Copy, FolderOpen, Globe, Lock, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { timeAgo } from "@/features/community/format";
 import { confirmDialog } from "@/features/community/confirm";
+import { Switch } from "@/features/community/Switch";
 import {
   createTierListCopy,
   deleteTierList,
@@ -21,7 +22,7 @@ import {
 import type { HeroSummary } from "@/types/hero";
 import { TierRows } from "./TierRows";
 
-const btn = "rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50";
+const btn = "inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50";
 
 export function MyTierLists({
   heroes,
@@ -93,47 +94,59 @@ export function MyTierLists({
               {l.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{l.description}</p>}
             </div>
             <TierRows data={l.data} byId={byId} size="sm" maxPerTier={10} />
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" disabled={disabled} className={btn} onClick={() => onOpen(l)}>
-                เปิดแก้ไข
-              </button>
-              <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "ทำสำเนา Tier List แล้ว", () => createTierListCopy(user.id, l))}>
-                ทำสำเนา
-              </button>
-              {isPublic ? (
-                <>
-                  <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "อัปเดต Community เป็นเวอร์ชันล่าสุดแล้ว", () => publishTierList(l.id))}>
-                    อัปเดต Community
-                  </button>
-                  <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "เอาออกจาก Community แล้ว", () => setTierListVisibility(l.id, "private"))}>
-                    ทำเป็นส่วนตัว
-                  </button>
-                </>
-              ) : (
-                <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "เผยแพร่ไปยัง Community แล้ว", () => publishTierList(l.id))}>
-                  เผยแพร่
-                </button>
-              )}
-              <button
-                type="button"
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Switch
+                checked={isPublic}
                 disabled={disabled}
-                className={`${btn} text-loss`}
-                onClick={async () => {
-                  const ok = await confirmDialog({
-                    title: `ลบ “${l.name}”?`,
-                    message: isPublic ? "Tier List นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
-                    confirmLabel: "ลบ",
-                    danger: true,
-                  });
-                  if (!ok) return;
-                  await run(l.id, "ลบ Tier List แล้ว", async () => {
-                    await deleteTierList(l.id);
-                    onDeleted(l.id);
-                  });
-                }}
-              >
-                ลบ
-              </button>
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    {isPublic ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                    {isPublic ? "เผยแพร่ใน Community" : "ส่วนตัว"}
+                  </span>
+                }
+                onChange={(on) =>
+                  run(l.id, on ? "เผยแพร่ไปยัง Community แล้ว" : "เอาออกจาก Community แล้ว", () =>
+                    on ? publishTierList(l.id) : setTierListVisibility(l.id, "private")
+                  )
+                }
+              />
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" disabled={disabled} className={btn} onClick={() => onOpen(l)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  แก้ไข
+                </button>
+                <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "คัดลอกแล้ว", () => createTierListCopy(user.id, l))}>
+                  <Copy className="h-3.5 w-3.5" />
+                  คัดลอก
+                </button>
+                {isPublic && (
+                  <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "อัปเดตเป็นเวอร์ชันล่าสุดแล้ว", () => publishTierList(l.id))}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    อัปเดต
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={`${btn} text-loss`}
+                  onClick={async () => {
+                    const ok = await confirmDialog({
+                      title: `ลบ “${l.name}”?`,
+                      message: isPublic ? "Tier List นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
+                      confirmLabel: "ลบ",
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    await run(l.id, "ลบแล้ว", async () => {
+                      await deleteTierList(l.id);
+                      onDeleted(l.id);
+                    });
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  ลบ
+                </button>
+              </div>
             </div>
           </li>
         );
