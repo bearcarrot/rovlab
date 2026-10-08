@@ -4,7 +4,7 @@ import {
   GitCompareArrows,
   Swords,
   Scale,
-  PencilSparkles,
+  NotebookPen,
   BarChart3,
   ListOrdered,
   BookOpen,
@@ -35,7 +35,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "ดราฟต์",
-    items: [{ to: "/draft", label: "Draft Assistant", icon: PencilSparkles }],
+    items: [{ to: "/draft", label: "Draft Assistant", icon: NotebookPen }],
   },
   {
     label: "สถิติ",
