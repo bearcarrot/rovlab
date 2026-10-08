@@ -1,9 +1,12 @@
 import { NavLink } from "react-router-dom";
 import {
   Home,
-  Users,
   GitCompareArrows,
+  Swords,
+  Scale,
+  NotebookPen,
   BarChart3,
+  ListOrdered,
   BookOpen,
   Heart,
   ShieldCheck,
@@ -25,14 +28,14 @@ const NAV_GROUPS: NavGroup[] = [
     label: "ฮีโร่",
     items: [
       { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
-      { to: "/tier-list", label: "Tier List", icon: BarChart3 },
-      { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows },
-      { to: "/matchup", label: "Matchup", icon: GitCompareArrows },
+      { to: "/tier-list", label: "Tier List", icon: ListOrdered },
+      { to: "/counter-pick", label: "Counter Pick", icon: Swords },
+      { to: "/matchup", label: "Matchup", icon: Scale },
     ],
   },
   {
     label: "ดราฟต์",
-    items: [{ to: "/draft", label: "Draft Assistant", icon: Users }],
+    items: [{ to: "/draft", label: "Draft Assistant", icon: NotebookPen }],
   },
   {
     label: "สถิติ",
