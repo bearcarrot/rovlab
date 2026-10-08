@@ -118,7 +118,7 @@ function HeroRow({
       {state.status === "success" && heroes.length > 0 && (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {heroes.map((h) => (
-            <HeroCard key={h.id} hero={h} metric={metric} />
+            <HeroCard key={h.id} hero={h} metric={metric} hideRoles />
           ))}
         </div>
       )}
