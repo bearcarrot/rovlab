@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
@@ -27,10 +27,13 @@ export function AppShell() {
           {/* key={rank}: switching the all/high toggle remounts the page so every
               useAsync refetches stats for the new bucket (page-local UI state resets).
               max-w-6xl: ไม่ให้เนื้อหายืดเต็มจอในหน้าจอกว้างมาก
-              ErrorBoundary: หน้าไหนพังตอน render จะขึ้นข้อความ error แทนจอดำ และล้างเมื่อเปลี่ยน route */}
+              ErrorBoundary: หน้าไหนพังตอน render จะขึ้นข้อความ error แทนจอดำ และล้างเมื่อเปลี่ยน route
+              Suspense: หน้าอื่นโหลดแบบ lazy ระหว่างโหลดให้ shell (เมนู/หัว/ท้าย) ยังอยู่คงที่ */}
           <div key={rank} className="mx-auto w-full max-w-6xl">
             <ErrorBoundary resetKey={pathname}>
-              <Outlet />
+              <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
+                <Outlet />
+              </Suspense>
             </ErrorBoundary>
           </div>
         </main>

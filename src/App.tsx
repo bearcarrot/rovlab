@@ -1,32 +1,46 @@
-import type { ReactNode } from "react";
+import { lazy, type ComponentType, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
 import { RouteMeta } from "@/components/RouteMeta";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+// Home เป็นหน้าแรก/LCP จึง import แบบปกติ (ไม่ lazy) เพื่อไม่ให้เกิด request ซ้อนกัน
 import { Home } from "@/pages/Home";
-import { Heroes } from "@/pages/Heroes";
-import { HeroDetail } from "@/pages/HeroDetail";
-import { TierList } from "@/pages/TierList";
-import { CounterPick } from "@/pages/CounterPick";
-import { DraftAssistant } from "@/pages/DraftAssistant";
-import { Matchup } from "@/pages/Matchup";
-import { Favorites } from "@/pages/Favorites";
-import { Profile } from "@/pages/Profile";
-import { PlayerProfile } from "@/pages/PlayerProfile";
-import { Login } from "@/pages/Login";
-import { Register } from "@/pages/Register";
-import { ForgotPassword } from "@/pages/ForgotPassword";
-import { ResetPassword } from "@/pages/ResetPassword";
-import { Stats } from "@/pages/Stats";
-import { Learn } from "@/pages/Learn";
-import { GuideDetail } from "@/pages/GuideDetail";
-import { AdminHub } from "@/pages/AdminHub";
-import { Notifications } from "@/pages/Notifications";
-import { Feed } from "@/pages/Feed";
-import { UserByHandle } from "@/pages/UserByHandle";
-import { NotFound } from "@/pages/NotFound";
-import { PrivacyPolicy, TermsOfUse, Disclaimer, DataSources, CommunityGuidelines } from "@/pages/Legal";
+
+// หน้าอื่นทั้งหมดโหลดตามเส้นทาง (route-level code splitting) เพื่อลด JS ที่ไม่ได้ใช้ในหน้าแรก
+// หน้าเหล่านี้ export แบบ named export จึงแปลงเป็น default ให้ React.lazy
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyNamed<M extends Record<string, any>, K extends keyof M>(load: () => Promise<M>, name: K) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return lazy(() => load().then((m) => ({ default: m[name] as ComponentType<any> })));
+}
+
+const Heroes = lazyNamed(() => import("@/pages/Heroes"), "Heroes");
+const HeroDetail = lazyNamed(() => import("@/pages/HeroDetail"), "HeroDetail");
+const TierList = lazyNamed(() => import("@/pages/TierList"), "TierList");
+const CounterPick = lazyNamed(() => import("@/pages/CounterPick"), "CounterPick");
+const DraftAssistant = lazyNamed(() => import("@/pages/DraftAssistant"), "DraftAssistant");
+const Matchup = lazyNamed(() => import("@/pages/Matchup"), "Matchup");
+const Favorites = lazyNamed(() => import("@/pages/Favorites"), "Favorites");
+const Profile = lazyNamed(() => import("@/pages/Profile"), "Profile");
+const PlayerProfile = lazyNamed(() => import("@/pages/PlayerProfile"), "PlayerProfile");
+const Login = lazyNamed(() => import("@/pages/Login"), "Login");
+const Register = lazyNamed(() => import("@/pages/Register"), "Register");
+const ForgotPassword = lazyNamed(() => import("@/pages/ForgotPassword"), "ForgotPassword");
+const ResetPassword = lazyNamed(() => import("@/pages/ResetPassword"), "ResetPassword");
+const Stats = lazyNamed(() => import("@/pages/Stats"), "Stats");
+const Learn = lazyNamed(() => import("@/pages/Learn"), "Learn");
+const GuideDetail = lazyNamed(() => import("@/pages/GuideDetail"), "GuideDetail");
+const AdminHub = lazyNamed(() => import("@/pages/AdminHub"), "AdminHub");
+const Notifications = lazyNamed(() => import("@/pages/Notifications"), "Notifications");
+const Feed = lazyNamed(() => import("@/pages/Feed"), "Feed");
+const UserByHandle = lazyNamed(() => import("@/pages/UserByHandle"), "UserByHandle");
+const NotFound = lazyNamed(() => import("@/pages/NotFound"), "NotFound");
+const PrivacyPolicy = lazyNamed(() => import("@/pages/Legal"), "PrivacyPolicy");
+const TermsOfUse = lazyNamed(() => import("@/pages/Legal"), "TermsOfUse");
+const Disclaimer = lazyNamed(() => import("@/pages/Legal"), "Disclaimer");
+const DataSources = lazyNamed(() => import("@/pages/Legal"), "DataSources");
+const CommunityGuidelines = lazyNamed(() => import("@/pages/Legal"), "CommunityGuidelines");
 
 const HOME: Crumb = { label: "หน้าแรก", to: "/" };
 
