@@ -16,13 +16,18 @@ const ALL_ITEMS = [
 ];
 
 export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // React 18 does not support the boolean `inert` prop, so set it as an empty-string
+  // attribute while closed. `inert` removes the subtree from the accessibility tree
+  // AND from the tab order, which `aria-hidden` alone does not (links inside stayed focusable).
+  const inertProps = open ? {} : { inert: "" };
+
   return (
     <div
       className={cn(
         "fixed inset-0 z-40 lg:hidden",
         open ? "pointer-events-auto" : "pointer-events-none"
       )}
-      aria-hidden={!open}
+      {...inertProps}
     >
       <div
         onClick={onClose}
