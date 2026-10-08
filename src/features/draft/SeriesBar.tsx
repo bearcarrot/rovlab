@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Redo2, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/features/community/confirm";
+import { Switch } from "@/features/community/Switch";
 import type { DraftSessionApi } from "./useDraftSession";
 import { droppedGameCount, findRestrictionConflicts, isGameEmpty, type Game7Rule, type SeriesFormat } from "./series";
 
@@ -34,9 +35,9 @@ export function SeriesBar({ ds, heroName }: { ds: DraftSessionApi; heroName: (sl
 
   async function onResetSeries() {
     const ok = await confirmDialog({
-      title: "ล้างทุกเกมในซีรีส์นี้?",
+      title: "รีเซ็ตทุกเกมในซีรีส์นี้?",
       message: "Pick และ Ban ของทุกเกมจะถูกล้าง (ย้อนกลับได้ด้วยปุ่มเลิกทำ)",
-      confirmLabel: "ล้างซีรีส์",
+      confirmLabel: "รีเซ็ตทั้งหมด",
       danger: true,
     });
     if (ok) ds.resetSeries();
@@ -53,18 +54,9 @@ export function SeriesBar({ ds, heroName }: { ds: DraftSessionApi; heroName: (sl
         </select>
 
         {isSeries && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={series.globalBanPick}
-            onClick={() => ds.setGlobal(!series.globalBanPick)}
-            className={cn(
-              "rounded-lg border px-2.5 py-1.5 text-sm",
-              series.globalBanPick ? "border-accent bg-accent/10 text-text" : "border-border text-text-muted"
-            )}
-          >
-            Global BP {series.globalBanPick ? "ON" : "OFF"}
-          </button>
+          <span className="rounded-lg border border-border px-2.5 py-1.5">
+            <Switch checked={series.globalBanPick} onChange={(on) => ds.setGlobal(on)} label="Global BP" />
+          </span>
         )}
 
         {series.format === "bo7" && series.globalBanPick && (
@@ -87,12 +79,12 @@ export function SeriesBar({ ds, heroName }: { ds: DraftSessionApi; heroName: (sl
           </button>
           <button type="button" className={iconBtn} onClick={ds.resetGame}>
             <RotateCcw className="h-3.5 w-3.5" />
-            {isSeries ? "ล้างเกมนี้" : "ล้าง"}
+            {isSeries ? "รีเซ็ตเกมนี้" : "รีเซ็ต"}
           </button>
           {isSeries && (
             <button type="button" className={cn(iconBtn, "hover:text-loss")} onClick={() => void onResetSeries()}>
               <Trash2 className="h-3.5 w-3.5" />
-              ล้างซีรีส์
+              รีเซ็ตทั้งหมด
             </button>
           )}
         </div>
