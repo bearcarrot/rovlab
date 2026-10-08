@@ -10,11 +10,14 @@ export function HeroCard({
   hero,
   metric = "winRate",
   compact = false,
+  hideRoles = false,
 }: {
   hero: HeroSummary;
   metric?: "winRate" | "banRate";
   /** โหมดย่อ: โชว์แค่ชื่อฮีโร่ (ไม่แสดงตำแหน่งและ WR/BR) */
   compact?: boolean;
+  /** ซ่อนบรรทัดตำแหน่ง แต่ยังแสดงชื่อและ WR/BR (ใช้ในหน้าหลัก) */
+  hideRoles?: boolean;
 }) {
   const { roleLabel } = useFilterLabels();
 
@@ -55,7 +58,9 @@ export function HeroCard({
         ) : (
           <div className="space-y-1 p-2.5">
             <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
-            <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
+            {!hideRoles && (
+              <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
+            )}
             <p className="text-xs text-text-muted">
               {hero.stat.hasStats
                 ? metric === "banRate"

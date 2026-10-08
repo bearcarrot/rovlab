@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { AlertCircle, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
-import { LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
@@ -35,13 +35,18 @@ type RefOpt = {
 // text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch/guideCat(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
+// | choice(ปุ่มชิปจาก choices ค่าเดียว หรือหลายค่าถ้า multiChoice แตะซ้ำเพื่อเอาออก)
 // | tags(แท็กสกิล: jsonb [{type,name}] แตะเลือกจากรายการในแท็บ "แท็กและสี") | color(สี hex)
 type Col = {
   k: string;
   label?: string;
-  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | "tags" | "color" | RefType;
+  type?: "text" | "num" | "date" | "sel" | "area" | "arr" | "img" | "multi" | "choice" | "tags" | "color" | RefType;
   // multi: รายการสำรองใช้เมื่อยังโหลด hero_roles / hero_lanes ไม่ได้ (ปกติรหัส/ชื่อ/ไอคอน/ลำดับมาจาก DB)
   opts?: string[];
+  // choice: รายการ {ค่าที่บันทึก, ชื่อที่แสดง}; multiChoice = คอลัมน์อาร์เรย์เลือกได้หลายค่า; num = แปลงเป็นตัวเลขก่อนบันทึก
+  choices?: { value: string; label: string }[];
+  multiChoice?: boolean;
+  num?: boolean;
   // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
   ro?: boolean;
   // รูปแบบวงกลม (border-radius 50%) ใช้กับไอคอนสกิลและรูน
@@ -95,6 +100,23 @@ const SLOT_COLORS = [
   { k: "green", label: "เขียว", hex: "#22c55e" },
 ] as const;
 const DIFFICULTY_TH: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
+// ไอเทม: ระดับ (items.tier = 1–3) และประเภท (ค่าใน items.role_tags เลือกได้หลายประเภทต่อไอเทม) — ใช้ทั้งชิปกรองและช่องแก้ไข
+const ITEM_TIER_CHOICES = [
+  { value: "1", label: "T1" },
+  { value: "2", label: "T2" },
+  { value: "3", label: "T3" },
+];
+// "none" = ยังไม่ได้ใส่ tier (ไอเทมเดิมยังไม่มีค่า) ช่วยให้ไล่ใส่ให้ครบ
+const ITEM_TIER_FILTERS = [...ITEM_TIER_CHOICES, { value: "none", label: "ยังไม่ระบุ" }];
+const ITEM_TYPE_CHOICES = [
+  { value: "physical", label: "โจมตี" },
+  { value: "magic", label: "เวท" },
+  { value: "defense", label: "ป้องกัน" },
+  { value: "boots", label: "เคลื่อนที่" },
+  { value: "jungle", label: "ป่า" },
+  { value: "support", label: "ซัพพอร์ต" },
+];
+const ITEM_TYPE_LABEL: Record<string, string> = Object.fromEntries(ITEM_TYPE_CHOICES.map((o) => [o.value, o.label]));
 // ไอคอนสกิลและรูนเป็นวงกลม ส่วนฮีโร่/ไอเทมเป็นสี่เหลี่ยมมุมมน
 const ROUND = "rounded-[50%]";
 // แอดมินเลือกฮีโร่ด้วยชื่ออังกฤษ (ตรงกับเกม) ใช้ชื่อไทยเป็นตัวสำรองเท่านั้น
@@ -239,9 +261,11 @@ const CFG: Record<string, Cfg> = {
       { k: "name" },
       { k: "name_th" },
       { k: "cost", type: "num" },
+      // ระดับ T1–T3 (ว่าง = ยังไม่ระบุ แตะซ้ำที่ปุ่มที่เลือกอยู่เพื่อเอาออก) และประเภท (เก็บในคอลัมน์ role_tags เดิม)
+      { k: "tier", label: "ระดับ (Tier)", type: "choice", choices: ITEM_TIER_CHOICES, num: true },
+      { k: "role_tags", label: "ประเภท (เลือกได้หลายตัว)", type: "choice", choices: ITEM_TYPE_CHOICES, multiChoice: true },
       { k: "stats", type: "arr" },
       { k: "passive", type: "area" },
-      { k: "role_tags", type: "arr" },
       { k: "icon_url", label: "ไอคอน", type: "img" },
     ],
   },
@@ -420,7 +444,13 @@ function Field({ label, children, className = "" }: { label: string; children: R
 // ฟอร์มแก้ไข/เพิ่ม: จอ ≥ sm จัดช่องสั้นเป็น 2 คอลัมน์ ช่องยาว (ข้อความหลายบรรทัด ปุ่มหลายตัว รูป ลิสต์) เต็มความกว้าง
 const fieldGrid = "grid gap-3 sm:grid-cols-2";
 const fieldSpan = (c: Col) =>
-  c.type === "area" || c.type === "multi" || c.type === "img" || c.type === "arr" || c.type === "tags" || c.type === "color"
+  c.type === "area" ||
+  c.type === "multi" ||
+  c.type === "choice" ||
+  c.type === "img" ||
+  c.type === "arr" ||
+  c.type === "tags" ||
+  c.type === "color"
     ? "sm:col-span-2"
     : "";
 
@@ -433,7 +463,7 @@ const toArr = (v: unknown): string[] =>
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-const isArrCol = (c: Col) => c.type === "arr" || c.type === "multi";
+const isArrCol = (c: Col) => c.type === "arr" || c.type === "multi" || (c.type === "choice" && !!c.multiChoice);
 const norm = (c: Col, v: unknown) =>
   c.type === "tags" ? tagNames(v).join("|") : isArrCol(c) ? toArr(v).join("|") : String(v ?? "");
 // refs / prev ใช้กับช่องแท็ก: หา type ของแท็กจากรายการแท็ก และคง type เดิมของแท็กที่สกิลมีอยู่แล้ว (แท็กชื่อซ้ำบางตัวมีหลาย type)
@@ -450,12 +480,16 @@ const clean = (c: Col, v: unknown, refs?: Record<string, RefOpt[]>, prev?: unkno
     }
     return tagNames(v).map((name) => ({ type: typeOf.get(name) ?? 0, name }));
   }
-  return isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" ? Number(v) : v;
+  return isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" || c.num ? Number(v) : v;
 };
 
 const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
   if (v == null || v === "" || c.type === "img") return "";
   if (c.type === "tags") return tagNames(v).join(", ");
+  if (c.type === "choice") {
+    const names = new Map((c.choices ?? []).map((o) => [o.value, o.label]));
+    return (c.multiChoice ? toArr(v) : [String(v)]).map((x) => names.get(x) ?? x).join(", ");
+  }
   if (c.type && REF_TYPES.includes(c.type)) return refs[c.type]?.find((o) => o.id === v)?.label ?? "";
   if (Array.isArray(v)) return v.join(", ");
   return String(v);
@@ -498,6 +532,11 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
       tags.push({ text: `${labels.lane(l)}${i === 0 ? " ★" : ""}`, kind: "lane" })
     );
     if (row.difficulty) tags.push({ text: `ความยาก ${DIFFICULTY_TH[row.difficulty] ?? row.difficulty}`, kind: "diff" });
+  }
+  // แท็บไอเทม: โชว์ Tier และประเภทที่หน้าการ์ด (ไม่ต้องกดขยาย)
+  if (cfg.table === "items") {
+    if (row.tier != null && row.tier !== "") tags.push({ text: `T${row.tier}`, kind: "role" });
+    toArr(row.role_tags).forEach((t) => tags.push({ text: ITEM_TYPE_LABEL[t] ?? t, kind: "lane" }));
   }
   // แท็บ "แท็กและสี": ช่องสีตัวอย่างหน้าการ์ด
   const swatch = cfg.table === TAG_STYLES_TABLE ? (safeHex(row.color) ?? undefined) : undefined;
@@ -560,6 +599,41 @@ async function uploadImage(file: File, folder: string): Promise<string> {
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
   if (error) throw new Error(error.message);
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+// ปุ่มชิปจากรายการคงที่ (Tier ไอเทม / ประเภทไอเทม): ค่าเดียว แตะซ้ำเพื่อเอาออก / หลายค่า (multiChoice) แตะสลับเลือก
+// ค่าใน DB ที่ไม่อยู่ใน choices (เช่น role_tags เก่า) ยังแสดงให้กดเอาออกได้ ไม่ถูกลบเงียบ ๆ
+function ChoicePicker({ c, v, onChange }: { c: Col; v: unknown; onChange: (val: string) => void }) {
+  const sel = c.multiChoice ? toArr(v) : v == null || v === "" ? [] : [String(v)];
+  const choices = c.choices ?? [];
+  const known = new Set(choices.map((o) => o.value));
+  const all = [...choices, ...sel.filter((x) => !known.has(x)).map((value) => ({ value, label: value }))];
+  const toggle = (val: string) =>
+    c.multiChoice
+      ? onChange((sel.includes(val) ? sel.filter((x) => x !== val) : [...sel, val]).join(","))
+      : onChange(sel[0] === val ? "" : val);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {all.map((o) => {
+        const on = sel.includes(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(o.value)}
+            className={`h-11 rounded-full border px-4 text-sm transition ${
+              on
+                ? "border-accent bg-accent/15 font-medium text-accent"
+                : "border-border bg-bg-raised text-text-muted hover:border-text-faint"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // ปุ่มเลือกตำแหน่ง/เลนของฮีโร่ (ไอคอน + ชื่อจาก DB): รายการรหัส ชื่อ ไอคอน ลำดับ มาจาก hero_roles / hero_lanes (แก้ได้ในแท็บ "ตำแหน่ง"/"เลน")
@@ -655,6 +729,7 @@ function Cell({
       </select>
     );
   if (c.type === "multi") return <MultiPicker c={c} v={v} onChange={change} />;
+  if (c.type === "choice") return <ChoicePicker c={c} v={v} onChange={change} />;
   if (c.type === "tags") {
     // แท็กสกิล: แตะเปิด/ปิดแต่ละแท็ก (ป้ายใช้สีที่ตั้งไว้ในแท็บ "แท็กและสี") แท็กที่สกิลมีแต่ไม่อยู่ในรายการ (เช่นชื่อที่นำเข้าผิด) ก็แสดงให้กดปิดได้
     const sel = tagNames(v);
@@ -845,7 +920,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const [showAdd, setShowAdd] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  // ค่าที่จำไว้ (sessionStorage) รีเฟรชแล้วไม่หาย: ชิปตำแหน่ง/เลน, แรงก์/แพตช์/เลนของ Tier List, ตัวเลือกใน dropdown
+  // ค่าที่จำไว้ (sessionStorage) รีเฟรชแล้วไม่หาย: ชิปตำแหน่ง/เลน, แรงก์/แพตช์/เลนของ Tier List, ตัวเลือกใน dropdown, Tier/ประเภทไอเทม
   const [roleSaved, setRole] = usePersistedState<HeroRole | null>(`admin:${id}:role`, null);
   const [laneSaved, setLane] = usePersistedState<HeroLane | null>(`admin:${id}:lane`, null);
   const tl = cfg.filter?.tierList;
@@ -853,6 +928,8 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const [patchSaved, setPatchSaved] = usePersistedState<string>(`admin:${id}:patch`, "");
   const [listLaneSaved, setListLane] = usePersistedState<HeroLane | null>(`admin:${id}:listlane`, null);
   const [fvSaved, setFvSaved] = usePersistedState<string>(`admin:${id}:fv`, "");
+  const [itemTier, setItemTier] = usePersistedState<string | null>(`admin:${id}:itemtier`, null);
+  const [itemType, setItemType] = usePersistedState<string | null>(`admin:${id}:itemtype`, null);
   // ค่าที่จำไว้อาจเก่า (เช่นรหัสตำแหน่ง/เลนที่เปลี่ยนชื่อไปแล้ว) ใช้เฉพาะค่าที่ยังมีอยู่ ไม่งั้นกลับไปค่าเริ่มต้น
   const role = ROLE_OPTIONS.some((o) => o.value === roleSaved) ? roleSaved : null;
   const lane = LANE_OPTIONS.some((o) => o.value === laneSaved) ? laneSaved : null;
@@ -993,6 +1070,13 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         return !!a && (!role || a.roles.includes(role)) && (!laneChip || !lane || a.lanes.includes(lane));
       });
     }
+    // ไอเทม: กรองตาม Tier (T1–T3 / ยังไม่ระบุ) และประเภท (ไอเทมที่มีประเภทนั้นอยู่ใน role_tags)
+    if (cfg.table === "items") {
+      if (itemTier) {
+        list = list.filter(({ row }) => (itemTier === "none" ? row.tier == null : String(row.tier ?? "") === itemTier));
+      }
+      if (itemType) list = list.filter(({ row }) => toArr(row.role_tags).includes(itemType));
+    }
     if (!cfg.clientSearch) return list;
     const needle = squash(q);
     const hit = needle ? list.filter(({ row }) => searchText(cfg, row, refs).includes(needle)) : list;
@@ -1087,6 +1171,40 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           {tl && <p className="text-xs font-medium text-text-muted">กรองตำแหน่งฮีโร่</p>}
           <RoleFilterRow value={role} onChange={setRole} />
           {cfg.heroChips === true && <LaneFilterRow value={lane} onChange={setLane} />}
+        </div>
+      )}
+
+      {/* ไอเทม: ชิปกรอง Tier (T1–T3) และ ประเภท (โจมตี/เวท/ป้องกัน/เคลื่อนที่/ป่า/ซัพพอร์ต) แตะซ้ำเพื่อยกเลิก */}
+      {cfg.table === "items" && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-text-muted">ระดับ (Tier)</p>
+            <div role="group" aria-label="Tier ไอเทม" className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <Chip active={itemTier === null} onClick={() => setItemTier(null)} label="ทั้งหมด" />
+              {ITEM_TIER_FILTERS.map((o) => (
+                <Chip
+                  key={o.value}
+                  active={itemTier === o.value}
+                  onClick={() => setItemTier(itemTier === o.value ? null : o.value)}
+                  label={o.label}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-text-muted">ประเภท</p>
+            <div role="group" aria-label="ประเภทไอเทม" className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <Chip active={itemType === null} onClick={() => setItemType(null)} label="ทั้งหมด" />
+              {ITEM_TYPE_CHOICES.map((o) => (
+                <Chip
+                  key={o.value}
+                  active={itemType === o.value}
+                  onClick={() => setItemType(itemType === o.value ? null : o.value)}
+                  label={o.label}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1377,7 +1495,7 @@ export function Admin() {
       .catch(() => toast.error("โหลดตัวเลือกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองรีเฟรชหน้านี้"));
   }, [isAdmin, tab, toast]);
 
-  if (loading || checking) return <p className="text-text-muted">กำลังตรวจสิทธิ์...</p>;
+  if (loading || checking) return <p className="text-text-muted">กำลังตรวจสอบสิทธิ์...</p>;
   if (!user)
     return (
       <p>

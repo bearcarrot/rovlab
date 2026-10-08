@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Swords, GitCompareArrows, Users, ListOrdered } from "lucide-react";
+import { Swords, GitCompareArrows, NotebookPen, ListOrdered } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDashboardInsights } from "@/services/insights";
 import { useAsync } from "@/hooks/useAsync";
@@ -17,8 +17,8 @@ import type { HeroSummary } from "@/types/hero";
 // สถิติ/คู่มือ ยังเข้าได้จากเมนูหลัก (Sidebar / BottomNav)
 const QUICK_ACTIONS = [
   { to: "/tier-list", label: "Tier List", icon: ListOrdered, desc: "อันดับฮีโร่ตามเมต้า" },
-  { to: "/draft", label: "Draft Assist", icon: Users, desc: "ประเมินทีมระหว่างดราฟต์" },
-  { to: "/counter-pick", label: "Counter Pick", icon: GitCompareArrows, desc: "หาฮีโร่ที่ชนะทางศัตรู" },
+  { to: "/draft", label: "Draft Assist", icon: NotebookPen, desc: "ประเมินทีมระหว่างดราฟต์" },
+  { to: "/counter-pick", label: "Counter Pick", icon: Swords, desc: "หาฮีโร่ที่ชนะทางศัตรู" },
   { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon, desc: "ดูข้อมูลและสถิติรายตัว" },
 ];
 
@@ -118,7 +118,7 @@ function HeroRow({
       {state.status === "success" && heroes.length > 0 && (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {heroes.map((h) => (
-            <HeroCard key={h.id} hero={h} metric={metric} />
+            <HeroCard key={h.id} hero={h} metric={metric} hideRoles />
           ))}
         </div>
       )}
