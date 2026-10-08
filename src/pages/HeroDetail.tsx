@@ -38,16 +38,18 @@ export function HeroDetail() {
 
   // SEO: title/description/canonical/breadcrumb รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
   const loaded = hero.status === "success" ? hero.data : null;
+  // ชื่อที่ใช้ใน title: ถ้าชื่อไทยกับชื่ออังกฤษเหมือนกัน (เช่น Airi) ใส่แค่ครั้งเดียว
+  const seoName = loaded ? (loaded.nameTh && loaded.nameTh !== loaded.name ? `${loaded.nameTh} (${loaded.name})` : loaded.name) : "";
   useDocumentMeta(
     loaded
       ? {
-          title: `${loaded.nameTh} (${loaded.name}) RoV — วิธีเล่น สถิติ คู่แพ้ทาง | RoV LAB`,
-          description: `${loaded.nameTh} (${loaded.name}) ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
+          title: `${seoName} — รายละเอียดฮีโร่ RoV สถิติ สกิล คู่แพ้ทาง | RoV LAB`,
+          description: `รายละเอียดฮีโร่ ${seoName} ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
           path: `/heroes/${loaded.slug}`,
           breadcrumbs: [
             { name: "หน้าแรก", path: "/" },
             { name: "ฮีโร่ทั้งหมด", path: "/heroes" },
-            { name: loaded.nameTh, path: `/heroes/${loaded.slug}` },
+            { name: loaded.nameTh || loaded.name, path: `/heroes/${loaded.slug}` },
           ],
         }
       : null,
