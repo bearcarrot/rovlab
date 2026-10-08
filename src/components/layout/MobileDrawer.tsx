@@ -61,8 +61,8 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
       >
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="RovLab" width={32} height={32} className="h-8 w-8 shrink-0" />
-            <span className="font-display text-lg font-semibold">RovLab</span>
+            <img src="/logo.png" alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
+            <span className="font-display text-lg font-semibold">RoV LAB</span>
           </div>
           <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted" aria-label="ปิดเมนู">
             <X className="h-5 w-5" />

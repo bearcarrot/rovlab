@@ -1,7 +1,7 @@
 // Site-wide constants used by the footer and legal pages.
 // Brand name lives here so it can be changed in one place.
 export const SITE = {
-  name: "RovLab",
+  name: "RoV LAB",
   taglineTh: "เครื่องมือและข้อมูลชุมชนสำหรับผู้เล่น RoV",
   taglineEn: "Community tools & data for RoV players",
   // First year of the project; the footer shows a range once the year passes.
