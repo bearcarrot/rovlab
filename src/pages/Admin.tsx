@@ -79,6 +79,8 @@ type Cfg = {
   // ชิปกรองฮีโร่ (ค่าที่เลือกจำไว้ตามแท็บ รีเฟรชแล้วไม่หาย)
   // true = ตำแหน่ง + เลน, "role" = เฉพาะตำแหน่ง (แท็บที่เลนถูกใช้เลือกลิสต์ไปแล้ว)
   heroChips?: boolean | "role";
+  // ชิปกรองแรงก์จากคอลัมน์ rank_tier ของแถวเอง (สถิติฮีโร่): กรองรายการ และใช้เป็นค่าเริ่มต้นตอนเพิ่มแถวใหม่
+  rankChips?: { value: string; label: string }[];
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
   slots?: boolean;
@@ -90,6 +92,11 @@ const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
 const REF_TYPES: string[] = ["hero", "item", "arcana", "patch", "guideCat"];
 const BUCKET = "hero-icons";
+// แรงก์ที่ใช้ใน DB (hero_stats.rank_tier / tier_lists.rank_tier): all = ทั้งหมด, high = Commander ขึ้นไป — ชุดเดียวกันทั้งแท็บสถิติและ Tier List
+const RANK_CHIPS = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "high", label: "Commander+" },
+];
 // ตารางสีแท็กสกิล: แก้แล้วต้องล้างแคชสีที่หน้าเว็บโหลดไว้
 const TAG_STYLES_TABLE = "effect_tag_styles";
 // หน้ารูนในเกมมี 30 ช่อง = แดง 10 + ม่วง 10 + เขียว 10
@@ -325,6 +332,8 @@ const CFG: Record<string, Cfg> = {
     add: true,
     clientSearch: true,
     heroChips: true,
+    // ชิปแรงก์ (ทั้งหมด / Commander+) เหมือนแท็บ Tier List: กรองแถวสถิติตาม rank_tier และใช้เป็นค่าตอนเพิ่มแถวใหม่
+    rankChips: RANK_CHIPS,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "rank_tier" },
@@ -354,12 +363,7 @@ const CFG: Record<string, Cfg> = {
       sel: "id,rank_tier,lane,patch_id,patches(code)",
       label: (r, labels) =>
         `${r.patches?.code ?? "?"} · ${r.lane ? (labels?.lane(r.lane) ?? r.lane) : "ทุกเลน"}`,
-      tierList: {
-        ranks: [
-          { value: "all", label: "ทั้งหมด" },
-          { value: "high", label: "Commander+" },
-        ],
-      },
+      tierList: { ranks: RANK_CHIPS },
     },
   },
   patches: {
@@ -924,7 +928,9 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const [roleSaved, setRole] = usePersistedState<HeroRole | null>(`admin:${id}:role`, null);
   const [laneSaved, setLane] = usePersistedState<HeroLane | null>(`admin:${id}:lane`, null);
   const tl = cfg.filter?.tierList;
-  const [rankSaved, setRankV] = usePersistedState<string>(`admin:${id}:rank`, tl?.ranks[0]?.value ?? "");
+  // ชิปแรงก์: Tier List (เลือกลิสต์) หรือแท็บสถิติ (กรองแถวตาม rank_tier) ใช้สถานะจำค่าตัวเดียวกันต่อแท็บ
+  const rankOpts = tl?.ranks ?? cfg.rankChips;
+  const [rankSaved, setRankV] = usePersistedState<string>(`admin:${id}:rank`, rankOpts?.[0]?.value ?? "");
   const [patchSaved, setPatchSaved] = usePersistedState<string>(`admin:${id}:patch`, "");
   const [listLaneSaved, setListLane] = usePersistedState<HeroLane | null>(`admin:${id}:listlane`, null);
   const [fvSaved, setFvSaved] = usePersistedState<string>(`admin:${id}:fv`, "");
@@ -934,7 +940,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   const role = ROLE_OPTIONS.some((o) => o.value === roleSaved) ? roleSaved : null;
   const lane = LANE_OPTIONS.some((o) => o.value === laneSaved) ? laneSaved : null;
   const listLane = LANE_OPTIONS.some((o) => o.value === listLaneSaved) ? listLaneSaved : null;
-  const rankV = tl?.ranks.some((r) => r.value === rankSaved) ? rankSaved : (tl?.ranks[0]?.value ?? "");
+  const rankV = rankOpts?.some((r) => r.value === rankSaved) ? rankSaved : (rankOpts?.[0]?.value ?? "");
   // ค่าที่บันทึกลง DB ล่าสุด ใช้เทียบว่ามีการแก้จริงหรือไม่
   const orig = useRef<Record<string, Row>>({});
 
@@ -1030,6 +1036,8 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
       if (val !== null && !(Array.isArray(val) && val.length === 0)) body[c.k] = val;
     }
     if (cfg.filter) body[cfg.filter.col] = fv;
+    // สถิติ: ถ้าไม่ได้กรอกแรงก์ ใช้แรงก์ที่ชิปเลือกอยู่
+    if (cfg.rankChips && body.rank_tier == null && rankV) body.rank_tier = rankV;
     const { error } = await db.from(cfg.table).insert(body);
     if (error) err(error.message);
     else {
@@ -1070,6 +1078,8 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         return !!a && (!role || a.roles.includes(role)) && (!laneChip || !lane || a.lanes.includes(lane));
       });
     }
+    // สถิติ: แสดงเฉพาะแถวของแรงก์ที่ชิปเลือก
+    if (cfg.rankChips) list = list.filter(({ row }) => row.rank_tier === rankV);
     // ไอเทม: กรองตาม Tier (T1–T3 / ยังไม่ระบุ) และประเภท (ไอเทมที่มีประเภทนั้นอยู่ใน role_tags)
     if (cfg.table === "items") {
       if (itemTier) {
@@ -1130,19 +1140,37 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
               </select>
             </>
           ) : (
-            cfg.filter && (
-              <select
-                className={`${inp} sm:w-auto sm:min-w-[18rem] sm:max-w-full`}
-                value={fv}
-                onChange={(e) => setFvSaved(e.target.value)}
-              >
-                {opts.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {cfg.filter!.label(o, labels)}
-                  </option>
-                ))}
-              </select>
-            )
+            <>
+              {cfg.filter && (
+                <select
+                  className={`${inp} sm:w-auto sm:min-w-[18rem] sm:max-w-full`}
+                  value={fv}
+                  onChange={(e) => setFvSaved(e.target.value)}
+                >
+                  {opts.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {cfg.filter!.label(o, labels)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {/* สถิติ: ชิปแรงก์ (ทั้งหมด / Commander+) หน้าตาเหมือนแท็บ Tier List */}
+              {cfg.rankChips && (
+                <div role="group" aria-label="แรงก์" className="flex flex-wrap gap-2">
+                  {cfg.rankChips.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={rankV === o.value}
+                      onClick={() => setRankV(o.value)}
+                      className={chip(rankV === o.value)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
           {(cfg.search || cfg.clientSearch) && (
             <input
