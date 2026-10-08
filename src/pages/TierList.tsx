@@ -11,6 +11,7 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
 import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
 import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
+import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
 import { formatGeneratedDate, makeFilename, preloadImages, tierListTemplate, type TierListImageData } from "@/lib/share-image";
@@ -83,7 +84,7 @@ export function TierList() {
       })),
       generatedDate: formatGeneratedDate(),
     };
-    return { data, filename: makeFilename("rovlab-tier-list"), title: "RovLab Tier List" };
+    return { data, filename: makeFilename("rovlab-tier-list"), title: "RoV LAB Tier List" };
   }, [grouped, patchLabel, rank, role, lane, roleLabel, laneLabel]);
   const share = useShareImage(tierListTemplate, buildShare);
 
@@ -101,7 +102,14 @@ export function TierList() {
     [setMode]
   );
   const canReplace = useCallback(
-    () => !editorHasUnsavedWork() || window.confirm("Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่โหลดหรือไม่?"),
+    async () =>
+      !editorHasUnsavedWork() ||
+      (await confirmDialog({
+        title: "แทนที่ Tier List ปัจจุบัน?",
+        message: "Tier List ปัจจุบันยังไม่ได้บันทึก ถ้าโหลดรายการนี้ การจัดอันดับที่ทำอยู่จะหายไป",
+        confirmLabel: "โหลดแทน",
+        danger: true,
+      })),
     []
   );
 
@@ -216,6 +224,7 @@ export function TierList() {
           )}
         </>
       )}
+      <ConfirmHost />
     </div>
   );
 }

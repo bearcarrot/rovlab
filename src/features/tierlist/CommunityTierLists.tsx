@@ -46,8 +46,8 @@ export function CommunityTierLists({
   onLoadPreset,
 }: {
   heroes: HeroSummary[];
-  /** Asks the user before unsaved editor work is replaced; return false to cancel the load. */
-  canReplace: () => boolean;
+  /** Asks the user before unsaved editor work is replaced; resolve false to cancel the load. */
+  canReplace: () => Promise<boolean>;
   /** Receives a brand-new copy for the user; the published original is never modified. */
   onLoadPreset: (p: PresetLoad) => void;
 }) {
@@ -86,7 +86,7 @@ export function CommunityTierLists({
   }
 
   async function loadPreset(id: string) {
-    if (!canReplace()) return;
+    if (!(await canReplace())) return;
     try {
       const full = await getCommunityTierList(id);
       if (!user) {

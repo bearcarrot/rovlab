@@ -41,8 +41,8 @@ export function CommunityDrafts({
   heroes: HeroSummary[];
   /** Called with a brand-new copy for the user; the original snapshot is never modified. */
   onOpenCopy: (c: { series: DraftSeries; name: string; description: string; draftId: string | null }) => void;
-  /** Asks the user before unsaved editor work is replaced; return false to cancel the load. */
-  canReplace: () => boolean;
+  /** Asks the user before unsaved editor work is replaced; resolve false to cancel the load. */
+  canReplace: () => Promise<boolean>;
 }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -78,7 +78,7 @@ export function CommunityDrafts({
   }
 
   async function loadPreset(item: CommunityDraftSummary) {
-    if (!canReplace()) return;
+    if (!(await canReplace())) return;
     try {
       const full = await getCommunityDraft(item.id);
       const name = copyName(full.title, DRAFT_NAME_MAX);
@@ -204,12 +204,12 @@ function DraftViewModal({
                   <div key={t} className="space-y-1">
                     <p className="text-xs text-text-faint">{t === "mine" ? "ทีมผู้สร้าง" : "ทีมคู่แข่ง"}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {g[t].picks.map((s, i) => (s ? <MiniHero key={`${s}-${i}`} hero={bySlug.get(s)} fallback={s} /> : null))}
+                      {g[t].picks.map((s, i) => (s ? <MiniHero key={`${s}-${i}`} hero={bySlug.get(s)} fallback={s} showName={false} /> : null))}
                     </div>
                     {g[t].bans.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-xs text-text-faint">แบน</span>
-                        {g[t].bans.map((s) => <MiniHero key={s} hero={bySlug.get(s)} fallback={s} className="opacity-70" />)}
+                        {g[t].bans.map((s) => <MiniHero key={s} hero={bySlug.get(s)} fallback={s} className="opacity-70" showName={false} />)}
                       </div>
                     )}
                   </div>

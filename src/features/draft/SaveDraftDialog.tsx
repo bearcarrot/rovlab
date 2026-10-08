@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "@/features/community/Modal";
+import { Switch } from "@/features/community/Switch";
 import { DRAFT_DESC_MAX, DRAFT_NAME_MAX, type Visibility } from "@/services/draftSeries";
 
 export interface SaveDraftValues {
@@ -58,19 +59,16 @@ export function SaveDraftDialog({
             className="w-full resize-none rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent/60"
           />
         </label>
-        <fieldset>
-          <legend className="mb-1 text-xs text-text-faint">การมองเห็น</legend>
-          <div className="space-y-1.5 text-sm">
-            <label className="flex items-start gap-2">
-              <input type="radio" name="vis" checked={v.visibility === "private"} onChange={() => setV({ ...v, visibility: "private" })} className="mt-1" />
-              <span>Private <span className="text-xs text-text-faint">— เห็นเฉพาะคุณ</span></span>
-            </label>
-            <label className="flex items-start gap-2">
-              <input type="radio" name="vis" checked={v.visibility === "public"} onChange={() => setV({ ...v, visibility: "public" })} className="mt-1" />
-              <span>Public <span className="text-xs text-text-faint">— แสดงใน Community Draft (เป็นสำเนา ณ เวลาที่เผยแพร่)</span></span>
-            </label>
-          </div>
-        </fieldset>
+        <div className="space-y-1">
+          <Switch
+            checked={v.visibility === "public"}
+            onChange={(on) => setV({ ...v, visibility: on ? "public" : "private" })}
+            label="เผยแพร่ใน Community"
+          />
+          <p className="text-xs text-text-faint">
+            {v.visibility === "public" ? "แสดงใน Community Draft (เป็นสำเนา ณ เวลาที่เผยแพร่)" : "ส่วนตัว — เห็นเฉพาะคุณ"}
+          </p>
+        </div>
         {error && <p role="alert" className="text-xs text-loss">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           <button type="button" disabled={busy} onClick={onCancel} className="rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text">

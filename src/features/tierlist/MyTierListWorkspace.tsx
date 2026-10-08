@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, FolderOpen, Save } from "lucide-react";
+import { Bookmark, FilePlus2, FolderOpen } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/features/community/Modal";
+import { confirmDialog } from "@/features/community/confirm";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
 import type { HeroSummary } from "@/types/hero";
 import { CustomTierBoard } from "./CustomTierBoard";
@@ -80,19 +81,25 @@ export function MyTierListWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incoming]);
 
-  const confirmReplace = () =>
-    !editorHasUnsavedWork() || window.confirm("Tier List ปัจจุบันยังไม่ได้บันทึก ต้องการแทนที่ด้วยรายการที่เลือกหรือไม่?");
+  const confirmReplace = async () =>
+    !editorHasUnsavedWork() ||
+    (await confirmDialog({
+      title: "แทนที่ Tier List ปัจจุบัน?",
+      message: "Tier List ปัจจุบันยังไม่ได้บันทึก ถ้าแทนที่ การจัดอันดับที่ทำอยู่จะหายไป",
+      confirmLabel: "แทนที่",
+      danger: true,
+    }));
 
-  function openSaved(l: MyTierList) {
-    if (!confirmReplace()) return;
+  async function openSaved(l: MyTierList) {
+    if (!(await confirmReplace())) return;
     const { list, cloud: c } = fromMyList(l);
     replaceBoard(list, c);
     setShowSaved(false);
     toast.success("โหลด Tier List แล้ว");
   }
 
-  function startNew() {
-    if (!confirmReplace()) return;
+  async function startNew() {
+    if (!(await confirmReplace())) return;
     clearCustom();
     replaceBoard(createDefault(patch), EMPTY_CLOUD);
   }
@@ -123,7 +130,7 @@ export function MyTierListWorkspace({
       setRefreshKey((k) => k + 1);
       setSaveOpen(false);
       if (v.visibility !== "public") toast.success("บันทึก Tier List แล้ว");
-      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต Community” ที่รายการของฉันเพื่อเผยแพร่เวอร์ชันนี้");
+      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต” ที่รายการของฉันเพื่อเผยแพร่เวอร์ชันนี้");
       else toast.success("บันทึกและเผยแพร่ไปยัง Community แล้ว");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
@@ -143,7 +150,7 @@ export function MyTierListWorkspace({
           {dirty && cloud.id && <span className="ml-2 text-xs text-amber-400">ยังไม่ได้บันทึกการแก้ไข</span>}
         </p>
         <button type="button" onClick={onSaveClick} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg">
-          <Save className="h-4 w-4" />
+          <Bookmark className="h-4 w-4" />
           บันทึก
         </button>
         <button
@@ -155,7 +162,7 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
-        <button type="button" onClick={startNew} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
+        <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
           ใหม่
         </button>
@@ -168,7 +175,7 @@ export function MyTierListWorkspace({
             heroes={heroes}
             currentId={cloud.id}
             refreshKey={refreshKey}
-            onOpen={openSaved}
+            onOpen={(l) => void openSaved(l)}
             onDeleted={(id) => {
               if (id === cloud.id) setCloud({ ...EMPTY_CLOUD }); // content stays in the editor, now unsaved
             }}
