@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FilePlus2, Link2, Save, Search, Swords, Users } from "lucide-react";
+import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
 import { getAllAbilities } from "@/services/abilities";
@@ -37,6 +37,7 @@ import {
   isGlobalRuleActive,
   type TeamKey,
 } from "@/features/draft/series";
+import { collectLanes, filterByMissingLanes, getMissingLanes } from "@/features/draft/laneCoverage";
 import { SeriesBar } from "@/features/draft/SeriesBar";
 import { GlobalRestrictionPanel } from "@/features/draft/GlobalRestrictionPanel";
 import { BanRow } from "@/features/draft/BanRow";
@@ -46,9 +47,10 @@ import { CommunityDrafts } from "@/features/draft/CommunityDrafts";
 import { Modal } from "@/features/community/Modal";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
-import { Chip } from "@/features/heroes/HeroFilters";
+import { Chip, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { heroLanes } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
-import type { HeroSummary } from "@/types/hero";
+import type { HeroLane, HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
 
 type Tab = "editor" | "my" | "community";
@@ -128,6 +130,7 @@ export function DraftAssistant() {
   const [saving, setSaving] = useState(false);
   const [loginNotice, setLoginNotice] = useState(false);
   const filters = useHeroFilters();
+  const { laneLabel } = useFilterLabels();
 
   const heroes = useMemo(() => (heroesQ.status === "success" ? heroesQ.data : []), [heroesQ.status, heroesQ.data]);
   const bySlug = useMemo(() => new Map(heroes.map((h) => [h.slug, h])), [heroes]);
@@ -172,12 +175,28 @@ export function DraftAssistant() {
 
   // คำนวณทุกตัวครั้งเดียว แล้วแยกเป็น: ภาพรวม 5 อันดับ / คอมโบ / ชนะทาง
   // (คอมโบ/ชนะทางต้องไม่ถูกตัดด้วยอันดับ 5 เพราะคะแนนเติมจุดที่ขาดของตัวอื่นอาจสูงกว่า)
-  const allRecs = useMemo(
+  const rawRecs = useMemo(
     () =>
       minePool.length
         ? recommendPicks(myTeam, minePool, { enemyTeam, relations, kits, limit: minePool.length })
         : [],
     [myTeam, enemyTeam, minePool, relations, kits]
+  );
+  // ระบบแนะนำรู้เลน: เลนที่ทีมเรามีฮีโร่ครอบแล้วจะไม่แนะนำตัวเลนเดียวกันอีก (เช่น มี Dolia ที่ Roaming แล้ว ไม่แนะนำ Thane ที่ Roaming)
+  // ให้แนะนำเฉพาะตัวที่เล่นเลนที่ยังขาดได้ — ใช้กับทุกรายการแนะนำ (ภาพรวม / ชนะทาง / คอมโบ)
+  const missingLanes = useMemo(
+    () =>
+      mineList.length === 0
+        ? []
+        : getMissingLanes(
+            mineList.map((h) => heroLanes(h) as string[]),
+            collectLanes(heroes.map((h) => heroLanes(h) as string[]))
+          ),
+    [mineList, heroes]
+  );
+  const allRecs = useMemo(
+    () => filterByMissingLanes(rawRecs, (r) => heroLanes(r.hero) as string[], missingLanes),
+    [rawRecs, missingLanes]
   );
   const recs = allRecs.slice(0, 5);
   const synergyRecs = useMemo(
@@ -307,7 +326,7 @@ export function DraftAssistant() {
       ds.markSaved({ draftId: id, title: v.name.trim(), description: v.description.trim(), visibility: v.visibility });
       setSaveOpen(false);
       if (v.visibility !== "public") toast.success("บันทึก Draft แล้ว");
-      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต Community” ที่ Draft ของฉันเพื่อเผยแพร่เวอร์ชันนี้");
+      else if (wasPublic) toast.success("บันทึกแล้ว — Community ยังเป็นเวอร์ชันเดิม กด “อัปเดต” ที่ Draft ของฉันเพื่อเผยแพร่เวอร์ชันนี้");
       else toast.success("บันทึกและเผยแพร่ไปยัง Community แล้ว");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
@@ -344,7 +363,7 @@ export function DraftAssistant() {
               onClick={onSaveClick}
               className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg"
             >
-              <Save className="h-4 w-4" />
+              <Bookmark className="h-4 w-4" />
               บันทึก
             </button>
             <button
@@ -520,6 +539,11 @@ export function DraftAssistant() {
               <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป (ภาพรวม)</h2>
             </div>
             <p className="mb-2 text-xs text-text-muted">{MODE_TEXT[mode]} · เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ</p>
+            {mineList.length > 0 && !teamFull && missingLanes.length > 0 && (
+              <p className="mb-2 text-xs text-text-muted">
+                เลนที่ยังขาด: {missingLanes.map((l) => laneLabel(l as HeroLane)).join(" · ")} — แนะนำเฉพาะฮีโร่ที่เล่นเลนเหล่านี้ได้
+              </p>
+            )}
             {teamFull ? (
               <p className="text-sm text-text-faint">ทีมของคุณครบ 5 ฮีโร่แล้ว</p>
             ) : recs.length === 0 ? (
