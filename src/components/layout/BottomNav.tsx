@@ -1,12 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, BarChart3, Menu } from "lucide-react";
+import { Home, NotebookPen, BarChart3, Menu } from "lucide-react";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { to: "/", label: "หน้าแรก", icon: Home, end: true },
   { to: "/heroes", label: "ฮีโร่", icon: HeroHelmetIcon },
-  { to: "/draft", label: "ดราฟต์", icon: Users },
+  { to: "/draft", label: "ดราฟต์", icon: NotebookPen },
   { to: "/stats", label: "สถิติ", icon: BarChart3 },
 ];
 
