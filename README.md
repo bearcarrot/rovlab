@@ -1,502 +1,894 @@
-# RoV LAB
+RoV LAB
 
-RoV LAB คือเว็บเครื่องมือสำหรับผู้เล่น RoV / Arena of Valor ที่เน้น **การวิเคราะห์เกม การเลือกฮีโร่ Matchup, Counter, Draft และข้อมูลจากชุมชน** มากกว่าการทำระบบ Build/Rune แข่งกับข้อมูลภายในเกม
+RoV LAB คือเว็บเครื่องมือสำหรับผู้เล่น RoV / Arena of Valor ที่เน้นการวิเคราะห์เกมและช่วยตัดสินใจก่อนและระหว่าง Draft โดยใช้ข้อมูลจริงจากเกมและฐานข้อมูลของระบบ มากกว่าการเป็นเว็บแจก Build แบบทั่วไป
 
-> **Current Status:** Development / Release Hardening
+Status: Development / Release Hardening
 
----
+🌐 Production: https://rovlab.vercel.app
+📦 Repository: https://github.com/bearcarrot/rovlab
 
-## 🎯 Product Direction
+⸻
 
-RoV LAB ตั้งใจเป็นเครื่องมือช่วยตัดสินใจก่อนและระหว่าง Draft โดยเน้นข้อมูลที่ช่วยตอบคำถาม เช่น
+🎯 Product Direction
 
-- ฮีโร่ตัวนี้แพ้/ชนะทางใคร?
-- ถ้าเจอศัตรูชุดนี้ ควรเลือกฮีโร่อะไร?
-- ฮีโร่สองตัวนี้ Matchup กันอย่างไร?
-- ตัวไหนเหมาะกับทีมของเรา?
-- Tier List ของเราควรจัดอย่างไร?
-- ข้อมูลจาก Community และผู้เล่นคนอื่นมีความคิดเห็นอย่างไร?
+RoV LAB ถูกออกแบบมาเพื่อช่วยตอบคำถามสำคัญระหว่างการเล่น เช่น
 
-### สิ่งที่ RoV LAB ไม่จำเป็นต้องทำซ้ำ
+* ฮีโร่ตัวนี้เหมาะกับตำแหน่ง/เลนไหน?
+* ถ้าเจอศัตรูชุดนี้ ควรเลือกฮีโร่อะไร?
+* ฮีโร่สองตัวนี้ Matchup กันอย่างไร?
+* ทีมของเราขาดอะไร?
+* Pick นี้เข้ากับทีมมากน้อยแค่ไหน?
+* Draft ทั้งชุดควรวางแผนอย่างไร?
+* Tier List ของเราควรจัดอย่างไร?
+* ผู้เล่นคนอื่นจัด Draft หรือ Tier List ไว้อย่างไร?
 
-ในเกมมีระบบ **Preset ของ Top Server** สำหรับ:
+หลักสำคัญของโปรเจกต์คือ
 
-- Item
-- Rune / Arcana
-- พลังแฝง
+ใช้ข้อมูลที่ตรวจสอบได้ และไม่สร้างตัวเลข Gameplay ขึ้นมาเองเพื่อให้ระบบดูสมบูรณ์
 
-ข้อมูลเหล่านี้มีโอกาสอัปเดตกว่าและตรงกับ Meta ปัจจุบันมากกว่าการที่ RoV LAB จะต้องสร้างและดูแลฐานข้อมูลเอง
+⸻
 
-ดังนั้น:
+⚔️ Core Features
 
-> **RoV LAB ไม่ได้มีเป้าหมายเป็นเว็บแจก Build / Rune / พลังแฝง**
+🦸 Hero
 
-หากในอนาคตมี source หรือ API ที่สามารถดึง Preset Top Server ได้อย่างน่าเชื่อถือ อาจนำมาแสดงแบบ dynamic ได้ แต่ไม่ควรสร้างข้อมูล preset เองโดยไม่มีแหล่งข้อมูลที่เชื่อถือได้
+ระบบข้อมูลฮีโร่ประกอบด้วย
 
----
+* Hero List
+* Hero Detail
+* Hero abilities / Skills
+* Skill effect tags
+* Role
+* Lane
+* Hero statistics
+* Win Rate
+* Pick Rate
+* Ban Rate
+* Tier
+* Counter
+* Synergy
+* Hero balance information
 
-# 🚀 Core Features
+ข้อมูลฮีโร่ถูกนำไปใช้ร่วมกับ Tier List, Matchup, Counter Pick, Draft Assistant และ Coach AI
 
-## Hero
+⸻
 
-- Hero List
-- Hero Detail
-- Hero abilities
-- Ability effect tags
-- Role / Lane
-- Hero statistics
-- Counter information
-- Synergy information
+🏆 Tier List
 
-## Draft Assistant
+หน้า Tier List มี 3 โหมดหลัก
 
-ช่วยวิเคราะห์ Draft จากฮีโร่ที่เลือก/ศัตรูที่พบ
+Official Tier List
+
+Tier ที่ระบบแสดงให้ผู้ใช้ทั่วไป
+
+รองรับ:
+
+* Rank
+* Role
+* Lane
+* Tier
+* Patch
+* Hero statistics
+* Admin-curated Tier List
+* Fallback ไปใช้สถิติ Hero เมื่อไม่มี curated list
+
+ฮีโร่ภายในแต่ละ Tier เรียงตามชื่อ ไม่ใช้ลำดับการแสดงผลเพื่อสื่อว่าใครแข็งแกร่งกว่าใคร
+
+My Tier List
+
+ผู้ใช้สามารถสร้าง Tier List ของตัวเอง
+
+รองรับ:
+
+* สร้าง Tier List
+* เพิ่ม/ลบ Hero
+* จัด Hero ลง Tier
+* ย้าย Hero
+* บันทึก
+* แก้ไข
+* แชร์
+* โหลดกลับมาแก้ไข
+* สร้าง Share Image
+
+Community Tier List
+
+แสดง Tier List ที่ผู้ใช้อื่นเผยแพร่
 
 รองรับแนวคิด:
 
-- Counter
-- Synergy
-- Role
-- Lane
-- Tier
-- Risk
-- Recommendation
-- Team composition
+* Public Tier List
+* ผู้สร้าง
+* รายละเอียด
+* ดูรายการ
+* Load Preset
+* โหลดเป็นสำเนาเพื่อไม่แก้ต้นฉบับ
+* Community interaction
 
-เป้าหมายคือให้ recommendation ใช้ **ข้อมูลจริง** เป็นหลัก ไม่ใช่สร้างคำแนะนำจากข้อมูลสมมติ
+⸻
 
----
+⚔️ Matchup
 
-# ⚔️ Matchup
-
-ระบบ Matchup ใช้สำหรับดูความสัมพันธ์ระหว่างฮีโร่สองตัว
+ระบบ Matchup ใช้ข้อมูลความสัมพันธ์ระหว่างฮีโร่สองตัว
 
 รองรับ:
 
-- Hero A vs Hero B
-- Hero B vs Hero A
-- Matchup data โดยตรง
-- Counter data
-- Overall Win Rate
+* Hero A vs Hero B
+* Hero B vs Hero A
+* Direct Matchup
+* Counter data
+* Overall Win Rate
+* Lane information
+* Coach AI context
 
-### Data Rule
+Data Rule
 
-หากมีข้อมูล Matchup โดยตรง:
+หากมี Direct Matchup
 
-> แสดง Matchup โดยตรง
+แสดง Direct Matchup
 
-หากไม่มี Matchup โดยตรง:
+หากไม่มี Direct Matchup
 
-> แสดงเฉพาะข้อมูลที่มีจริง เช่น Overall Win Rate และ Counter
+แสดงเฉพาะข้อมูลที่มีจริง เช่น Counter หรือ Overall Win Rate
 
-**Overall Win Rate ห้ามถูกนำเสนอว่าเป็น Head-to-Head Win Rate**
+Overall Win Rate ห้ามถูกนำเสนอว่าเป็น Head-to-Head Win Rate
 
-หากข้อมูลบางส่วนไม่มี:
+ห้ามสร้าง Matchup statistics จากการเดา
 
-> ไม่จำเป็นต้องแสดงหัวข้อ placeholder ว่า “ยังไม่มีข้อมูล”
+⸻
 
----
+🎯 Counter Pick
 
-# 🏆 Custom Tier List
+Counter Pick ใช้สำหรับค้นหาฮีโร่ที่เหมาะกับศัตรูที่กำหนด
 
-มีระบบสร้าง Tier List ของตัวเอง
+ข้อมูลที่สามารถนำมาพิจารณาได้ เช่น
+
+* Counter relationship
+* Role
+* Lane
+* Tier
+* Hero statistics
+* Team composition
+
+เป้าหมายคือให้ผู้ใช้สามารถหาตัวเลือกสำหรับ Draft ได้รวดเร็ว โดยไม่สร้างสถิติปลอมขึ้นมาเพื่อเพิ่มจำนวนผลลัพธ์
+
+⸻
+
+🧠 Draft Assistant
+
+Draft Assistant เป็นหนึ่งในฟีเจอร์หลักของ RoV LAB
+
+ระบบวิเคราะห์ Draft จาก
+
+* Hero statistics
+* Counter
+* Synergy
+* Role
+* Lane
+* Tier
+* Skill / Ability
+* Team composition
+* Team gaps
+* Enemy composition
+
+ระบบสามารถแนะนำ Pick ตามสถานการณ์ เช่น
+
+* First Pick
+* Counter
+* Composition
+* Synergy
+* เติมจุดที่ทีมขาด
+
+พร้อมแสดงข้อมูลประกอบ Recommendation แทนการให้เพียงคะแนนโดยไม่มีเหตุผล
+
+⸻
+
+🎮 Draft Series
+
+Draft Assistant รองรับการจำลอง Draft แบบ Series
+
+รองรับ Format:
+
+* Single Game
+* Best of 3
+* Best of 5
+* Best of 7
+
+ข้อมูลของแต่ละเกมสามารถเก็บ Pick / Ban แยกกันภายใน Series ได้
+
+⸻
+
+🌐 Global Ban Pick
+
+Draft Series รองรับกฎ Global Ban Pick
+
+แนวคิดคือ Hero ที่ทีมเคย Pick ในเกมก่อนหน้าของ Series จะถูกจำกัดไม่ให้ทีมเดิม Pick ซ้ำในเกมถัดไป
+
+ระบบจะแยกข้อจำกัดของแต่ละทีมออกจากกัน
+
+* Hero ที่ทีมเราเคย Pick → จำกัดสำหรับทีมเรา
+* Hero ที่ทีมศัตรูเคย Pick → จำกัดสำหรับทีมศัตรู
+* Ban ไม่ถือเป็น Pick สำหรับกฎนี้
+
+ระบบ Recommendation และ Hero Pool จะคำนึงถึงข้อจำกัดดังกล่าวด้วย
+
+⸻
+
+💾 My Draft
+
+ผู้ใช้สามารถบันทึก Draft ของตัวเอง
 
 รองรับ:
 
-- สร้าง Tier List
-- เพิ่ม Hero
-- จัดลำดับ
-- ย้าย Hero
-- แก้ไข
-- บันทึก
-- แชร์
-- สร้าง Share Image
+* Save Draft
+* Edit Draft
+* Delete Draft
+* Duplicate Draft
+* Private / Public
+* Draft description
+* Draft Series
+* Global Ban Pick
+* Load Draft
+* Load เป็นสำเนา
 
-Feature นี้มี implementation แล้ว ไม่ควรถูกรื้อหรือสร้างใหม่โดยไม่มีเหตุผล
+Draft ที่โหลดจาก Community จะไม่แก้ไขต้นฉบับโดยตรง
 
----
+⸻
 
-# 🖼️ Share Image
+👥 Community Draft
 
-สามารถสร้างภาพสำหรับแชร์ข้อมูล เช่น:
+Community Draft เป็นพื้นที่สำหรับแชร์ Draft ให้ผู้เล่นคนอื่นนำไปศึกษาและทดลองต่อ
 
-- Custom Tier List
-- Draft
-- ข้อมูลที่เหมาะสมสำหรับการแชร์
+รองรับ:
 
-ต้องรองรับ:
+* Public Draft
+* Search
+* Sort
+* Latest
+* Popular
+* Most liked
+* Like
+* Dislike
+* View Draft
+* Load Preset
+* Author profile / handle
+* Draft version
+* Draft description
 
-- Hero icon
-- ภาษาไทย
-- ชื่อยาว
-- Mobile
-- Desktop
-- Image loading fallback
+ระบบใช้ Snapshot สำหรับ Draft ที่เผยแพร่ เพื่อให้การแก้ไข Draft ของเจ้าของในภายหลังไม่ทำให้ข้อมูลที่ Community เคยเห็นเปลี่ยนโดยไม่ตั้งใจ
 
----
+⸻
 
-# 👥 Community
+📊 Statistics
 
-ระบบ Community มีแนวทางรองรับ:
+หน้า Stats ใช้ข้อมูลสถิติของฮีโร่ตาม Rank
 
-- Profile
-- Handle
-- Comments
-- Replies
-- Mentions
-- Reactions
-- Follow
-- Notifications
-- Moderation
+รองรับ:
 
-Community data ต้องคำนึงถึง:
+* Win Rate
+* Pick Rate
+* Ban Rate
+* Role filter
+* Lane filter
+* Rank filter
+* Patch information
 
-- Spam
-- Abuse
-- Rate limit
-- Banned words
-- RLS
-- Admin permissions
+ปัจจุบันมี Rank bucket สำหรับ
 
----
+* All
+* High
 
-# 📊 Current Database
+ข้อมูลสถิติจะแสดงเฉพาะ Hero ที่มีข้อมูลจริงในช่วง Rank ที่เลือก
 
-ข้อมูลที่ตรวจพบจาก Supabase live database โดยประมาณ:
+⸻
 
-| Dataset | Records |
-|---|---:|
-| Heroes | 129 |
-| Hero abilities | 606 |
-| Items | 122 |
-| Item builds | 107 |
-| Item build items | 640 |
-| Arcana | 30 |
-| Banned words | 42 |
-| Image URL backup | 871 |
+🤖 Coach AI
 
-> จำนวน records สามารถเปลี่ยนแปลงได้ตาม migration/data update ล่าสุด
+RoV LAB มีระบบ Coach AI สำหรับช่วยวิเคราะห์สถานการณ์ Draft
 
-### สำคัญ
+AI สามารถได้รับ context เช่น
 
-การมีข้อมูลอยู่ใน Database ไม่ได้หมายความว่าข้อมูลทุก row ผ่านการตรวจสอบ gameplay quality แล้ว
+* Hero ในทีมเรา
+* Hero ฝั่งศัตรู
+* Hero abilities
+* Skill information
+* Counter / Matchup
+* Team composition
+* Team gaps
 
-โดยเฉพาะข้อมูลที่สำคัญต่อ recommendation:
+หลักการสำคัญของ Prompt:
 
-- Matchup
-- Counter
-- Synergy
+AI ต้องใช้เฉพาะข้อมูลที่ระบบส่งให้ และไม่ควรแต่งชื่อสกิล ตัวเลข หรือ Gameplay statistics ที่ไม่มีอยู่ในข้อมูล
 
-ต้องเน้น **คุณภาพและความถูกต้องของข้อมูล** มากกว่าการเพิ่มจำนวน rows อย่างเดียว
+หากข้อมูลไม่เพียงพอ ควรระบุว่าไม่มีข้อมูลเพียงพอแทนการเดา
 
----
+⸻
 
-# 📌 Current Data Priorities
+🖼️ Share Image
 
-## P0 — Matchup / Counter / Synergy
+RoV LAB รองรับการสร้างภาพสำหรับแชร์ข้อมูล
 
-เพิ่มและตรวจสอบ:
+ปัจจุบันมีการใช้งานกับ เช่น
 
-- Matchup coverage
-- Counter coverage
-- Synergy coverage
-- Duplicate relationships
-- Reverse relationships
-- Invalid/self relationships
-- Data consistency
+* Tier List
+* Custom Tier List
+* Draft
 
-ห้าม fabricate gameplay statistics
+ระบบต้องรองรับ:
 
-หากไม่มีข้อมูลที่น่าเชื่อถือ:
+* Hero icons
+* ภาษาไทย
+* ชื่อยาว
+* Image loading fallback
+* Mobile
+* Desktop
+* การโหลดรูปก่อนสร้างภาพ
+* Download
+* Share
 
-> ให้ไม่มีข้อมูล ดีกว่าสร้างตัวเลขขึ้นมาเอง
+⸻
 
----
+👤 User & Community
 
-## P1 — Draft Quality
+ระบบบัญชีผู้ใช้รองรับฟีเจอร์ Community เช่น
 
-ปรับ Draft Assistant ให้ใช้ข้อมูลจริงมากขึ้น:
+* Register
+* Login
+* Email verification
+* Profile
+* Handle
+* Public profile
+* Follow
+* Feed
+* Notifications
+* Comments
+* Replies
+* Mentions
+* Reactions
+* Community content
 
-- Counter
-- Synergy
-- Role
-- Lane
-- Tier
-- Risk
-- Team composition
+Community features ต้องทำงานร่วมกับระบบ authorization และ RLS ของ Supabase
 
-ไม่ควรเพิ่ม heuristic ที่ไม่มีเหตุผลเพียงเพื่อให้ผลลัพธ์ดูเยอะขึ้น
+⸻
 
----
+🛡️ Security
 
-## P1 — Security
+โปรเจกต์มีการทำ Security Hardening แล้วหลายส่วน
 
-ตรวจ:
+ครอบคลุมแนวทาง เช่น
 
-- Authentication
-- Email verification
-- Handle
-- RLS
-- SECURITY DEFINER
-- Admin RPC
-- Function search_path
-- Supabase Auth security settings
+* Supabase Auth
+* Email verification
+* Row Level Security (RLS)
+* Admin authorization
+* SECURITY DEFINER functions
+* Function search_path
+* Security headers
+* Content Security Policy
+* AI Coach quota
+* Database policy optimization
+* Public / private data separation
 
-ต้องไม่ทำให้ public gameplay data ที่ตั้งใจเปิดใช้งานกลายเป็น inaccessible โดยไม่จำเป็น
+หลักการคือ
 
----
+ไม่ปิด Security เพื่อให้ Feature ทำงานได้ง่ายขึ้น
 
-## P1 — Asset Infrastructure
+และต้องระวังไม่ให้การเพิ่ม RLS ทำให้ Public Gameplay Data ที่ตั้งใจให้ผู้ใช้ทั่วไปอ่านได้ถูกบล็อกโดยไม่จำเป็น
 
-ตรวจ:
+⸻
 
-- Hero images
-- Ability images
-- Item images
-- Arcana images
-- External CDN
-- Supabase Storage
-- Image backup
-- Migration functions
+⚡ Performance
 
-เป้าหมายคือให้ image assets เสถียรและลด dependency ที่ไม่จำเป็นจาก external CDN
+RoV LAB มีการปรับ Performance สำหรับ Production แล้วหลายส่วน
 
----
+Route-level Code Splitting
 
-## P1 — QA / Release
+หน้า Home ถูกโหลดแบบ eager เพื่อรักษา First Contentful Paint ส่วนหน้าอื่นใช้ route-level lazy loading
 
-ตรวจ:
+ตัวอย่างหน้าที่แยกโหลด:
 
-- Build
-- TypeScript
-- Browser
-- Mobile
-- Desktop
-- Auth
-- Matchup
-- Draft
-- Tier List
-- Share Image
-- Community
-- Notifications
+* Heroes
+* Hero Detail
+* Tier List
+* Counter Pick
+* Matchup
+* Draft
+* Stats
+* Learn
+* Profile
+* Admin
+* Community
+* Legal pages
 
----
+Database / Request Optimization
 
-# 🧩 Data Philosophy
+มีการปรับปรุง เช่น
 
-RoV LAB ให้ความสำคัญกับ **Data Honesty**
+* Database indexes
+* RLS initplan optimization
+* Parallel hero queries
+* In-memory TTL cache
+* Cache เฉพาะข้อมูลที่อ่านสำเร็จ
+* ลด duplicate requests
 
-### ห้าม
+Initial Paint
 
-- Fabricate win rate
-- Fabricate matchup statistics
-- Fabricate synergy score
-- ใช้ overall win rate เป็น head-to-head
-- สร้างข้อมูลจากการเดาแล้วนำเสนอเหมือนเป็น official data
+มีการปรับปรุงเพิ่มเติมสำหรับ PageSpeed / Lighthouse เช่น
 
-### ควร
+* Supabase preconnect
+* Non-blocking Google Fonts
+* Inline entry CSS
+* Static boot shell
+* Route code splitting
 
-- ระบุแหล่งข้อมูล
-- แยกข้อมูลจริงกับ heuristic
-- ซ่อนส่วนที่ไม่มีข้อมูล
-- แสดง confidence เมื่อเหมาะสม
-- เก็บข้อมูลให้อัปเดตได้ง่าย
+Performance ยังถือเป็นงานที่ต้องติดตามต่อเนื่อง ไม่ถือว่าคะแนน Lighthouse เป็นสิ่งที่รับประกันตายตัว
 
----
+⸻
 
-# 🔄 Item / Rune / Arcana / Enchantment Strategy
+🗃️ Data Philosophy
 
-RoV LAB มีข้อมูล Item และ Arcana ในฐานข้อมูลเพื่อรองรับข้อมูลเกม/ระบบที่จำเป็น แต่ **ไม่ควรสร้างระบบแข่งขันกับ Preset Top Server ของเกม**
+RoV LAB ให้ความสำคัญกับ Data Honesty
 
-สำหรับ:
+ห้าม
 
-- Item Preset
-- Rune / Arcana Preset
-- พลังแฝง Preset
+* Fabricate Win Rate
+* Fabricate Pick Rate
+* Fabricate Ban Rate
+* Fabricate Matchup statistics
+* Fabricate Counter statistics
+* Fabricate Synergy score
+* ใช้ Overall Win Rate เป็น Head-to-Head
+* สร้างข้อมูลจากการเดาแล้วนำเสนอเหมือนเป็น Official Data
 
-ให้ถือว่า **ข้อมูลจากเกมเป็นแหล่งข้อมูลหลัก**
+ควร
 
-หากอนาคตสามารถดึง Preset Top Server ได้:
+* ระบุแหล่งข้อมูล
+* แยกข้อมูลจริงออกจาก heuristic
+* แสดงเฉพาะข้อมูลที่มี
+* ไม่แสดง placeholder ที่ทำให้เข้าใจว่ามีข้อมูล
+* ตรวจสอบความสัมพันธ์ของข้อมูล
+* ตรวจสอบ duplicate / reverse relationship
+* ทำให้ source และ data pipeline ตรวจสอบย้อนหลังได้
 
-```text
-RoV Game / Official Source
-        ↓
-   Dynamic Data
-        ↓
-      RoV LAB
-```
+ข้อมูลน้อยแต่ถูกต้อง ดีกว่าข้อมูลเยอะแต่แต่งขึ้นมา
 
-ดีกว่าการ hard-code preset แล้วต้องคอยแก้เองทุกครั้งที่ Meta เปลี่ยน
+⸻
 
----
+🧱 Item / Rune / Arcana Strategy
 
-# 🏗️ Tech Stack
+RoV LAB ไม่ได้ตั้งใจแข่งขันกับระบบ Preset ภายในเกม
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- Lucide
-- Supabase
-- Vercel
-- GitHub
+เกมมีข้อมูล Top Server Preset สำหรับ:
 
-Repository:
+* Item
+* Rune / Arcana
+* Enchantment / พลังแฝง
 
-`bearcarrot/rovlab`
+ข้อมูลเหล่านี้มีโอกาสอัปเดตกว่า และตรงกับ Meta ปัจจุบันมากกว่าการที่ RoV LAB จะต้องดูแล Preset เอง
 
-Production:
+ดังนั้น RoV LAB จึงไม่ควร hard-code Build/Rune/Enchantment recommendation โดยไม่มี source ที่น่าเชื่อถือ
 
-`rovlab.vercel.app`
+หากอนาคตมี API หรือ Source ที่สามารถดึง Top Server Preset ได้:
 
----
+RoV Game / Reliable Source
+          ↓
+     Dynamic Data
+          ↓
+       RoV LAB
 
-# 👨‍💻 Development Workflow
+จะเหมาะสมกว่าการสร้าง Preset ขึ้นมาเอง
 
-โปรเจกต์สามารถแบ่งงานให้ Claude หลายตัวทำพร้อมกันได้ แต่แต่ละ agent ต้องมี scope ชัดเจน
+ข้อมูล Item / Arcana ที่มีอยู่ใน Database สามารถใช้เป็น เกมเพลย์ reference / supporting data สำหรับระบบอื่นได้ แต่ไม่ควรนำไปสร้างระบบ Build ที่ต้องแข่งขันกับ Preset ในเกมโดยไม่มีข้อมูลที่เชื่อถือได้
 
-## Claude #1 — Gameplay Data
+⸻
+
+🗂️ Current Routes
+
+Route หลักที่มีอยู่ในระบบ เช่น
+
+/
+├── /heroes
+├── /heroes/:slug
+├── /tier-list
+├── /counter-pick
+├── /matchup
+├── /draft
+├── /stats
+├── /learn
+├── /learn/:slug
+├── /favorites
+├── /feed
+├── /notifications
+├── /profile
+├── /players/:id
+├── /u/:handle
+├── /admin
+├── /login
+├── /register
+├── /forgot-password
+├── /reset-password
+├── /privacy
+├── /terms
+├── /disclaimer
+├── /data-sources
+└── /community-guidelines
+
+Legacy /build ถูก redirect กลับหน้าแรก เนื่องจากไม่ได้เป็น Product Priority ในปัจจุบัน
+
+⸻
+
+🏗️ Tech Stack
+
+Frontend
+
+* React 18
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* shadcn/ui style components
+* Radix UI
+* Lucide React
+
+Backend / Data
+
+* Supabase
+* PostgreSQL
+* Supabase Auth
+* Row Level Security
+* RPC / Database Functions
+* Supabase Storage
+
+Deployment
+
+* GitHub
+* Vercel
+
+Repository
+
+bearcarrot/rovlab
+
+Production
+
+https://rovlab.vercel.app
+
+⸻
+
+📦 Development
+
+Requirements
+
+* Node.js
+* npm
+* Supabase project
+* Environment variables สำหรับ Supabase
+
+ติดตั้ง dependencies:
+
+npm install
+
+รัน Development:
+
+npm run dev
+
+Build:
+
+npm run build
+
+TypeScript check:
+
+npm run typecheck
+
+Lint:
+
+npm run lint
+
+Preview Production Build:
+
+npm run preview
+
+⸻
+
+🔄 Development Workflow
+
+การพัฒนา RoV LAB ควรแบ่ง Scope ให้ชัดเจนเมื่อทำงานหลาย Agent / Claude พร้อมกัน
+
+Gameplay / Data
 
 รับผิดชอบ:
 
-- Matchup
-- Counter
-- Synergy
-- Draft data quality
+* Hero data
+* Matchup
+* Counter
+* Synergy
+* Draft recommendation
+* Statistics
+* Data quality
 
-ไม่รับผิดชอบ:
-
-- Item Build
-- Rune
-- พลังแฝง
-- UI redesign
-
----
-
-## Claude #2 — Auth + Security
+Auth / Security
 
 รับผิดชอบ:
 
-- Auth
-- Email verification
-- Handle
-- RLS
-- SECURITY DEFINER
-- Admin authorization
-- Supabase security
+* Auth
+* Email verification
+* Handle
+* RLS
+* RPC
+* SECURITY DEFINER
+* Admin permissions
+* Security headers
+* AI quota
 
----
-
-## Claude #3 — Assets
-
-รับผิดชอบ:
-
-- Image migration
-- Image verification
-- Storage
-- External CDN cleanup
-- Migration function cleanup
-
----
-
-## Claude #4 — QA
+Community
 
 รับผิดชอบ:
 
-- Build
-- TypeScript
-- Browser QA
-- Responsive QA
-- Regression
-- Release blockers
+* My Draft
+* Community Draft
+* My Tier List
+* Community Tier List
+* Reactions
+* Follow
+* Feed
+* Notifications
+* Moderation
 
----
+Assets
 
-# 🚫 Development Guardrails
+รับผิดชอบ:
 
-ก่อนแก้ feature ที่มีอยู่แล้ว:
+* Hero images
+* Skill images
+* Item images
+* Arcana images
+* Supabase Storage
+* External CDN
+* Image fallback
+* Asset migration
+
+Performance / QA
+
+รับผิดชอบ:
+
+* Lighthouse
+* FCP
+* LCP
+* Bundle size
+* Route splitting
+* Request count
+* Build
+* TypeScript
+* Browser QA
+* Mobile QA
+* Desktop QA
+* Regression
+
+⸻
+
+🚫 Development Guardrails
+
+ก่อนแก้ Feature ที่มีอยู่แล้ว:
 
 1. อ่าน implementation ปัจจุบันก่อน
 2. ตรวจ database/schema ที่เกี่ยวข้อง
 3. ตรวจว่า feature ถูกใช้งานที่ไหนบ้าง
-4. หลีกเลี่ยง breaking changes
-5. อย่าแก้ไฟล์นอก scope โดยไม่จำเป็น
-6. อย่าลบข้อมูลโดยไม่มี backup
-7. อย่าปิด security เพื่อให้ test ผ่าน
-8. อย่าสร้างข้อมูล gameplay ที่ไม่มี source
-9. อย่ารื้อ UI ที่ทำเสร็จแล้วเพื่อเปลี่ยน design โดยไม่มี requirement
+4. ตรวจ PR / migration ที่เกี่ยวข้อง
+5. หลีกเลี่ยง breaking changes
+6. อย่าแก้ไฟล์นอก scope โดยไม่จำเป็น
+7. อย่าลบข้อมูลโดยไม่มี backup
+8. อย่าปิด security เพื่อให้ test ผ่าน
+9. อย่าสร้าง Gameplay Data ที่ไม่มี source
+10. อย่าเปลี่ยน UI ที่ทำเสร็จแล้วโดยไม่มี requirement
+11. ถ้า Feature มีอยู่แล้ว ให้แก้ต่อจาก implementation เดิมแทนการสร้างระบบใหม่
+12. ทุก Recommendation ที่มีตัวเลขต้องสามารถอธิบาย source ได้
 
----
+⸻
 
-# ✅ Release Definition
+🧪 QA / Release
 
-RoV LAB พร้อม Release เมื่อ:
+ก่อน Release ควรตรวจอย่างน้อย:
 
-- [ ] Auth ทำงานถูกต้อง
-- [ ] Email verification ถูกต้อง
-- [ ] Handle ทำงานถูกต้อง
-- [ ] RLS ผ่านการ audit
-- [ ] Admin functions ปลอดภัย
-- [ ] ไม่มี critical security issue
-- [ ] Matchup data มี coverage ที่ใช้งานได้
-- [ ] Counter data มีคุณภาพ
-- [ ] Synergy data มี coverage ที่ใช้งานได้
-- [ ] Draft Assistant ใช้ข้อมูลจริงเป็นหลัก
-- [ ] Image assets ผ่าน verification
-- [ ] Build ผ่าน
-- [ ] TypeScript ผ่าน
-- [ ] Mobile QA ผ่าน
-- [ ] Desktop QA ผ่าน
-- [ ] Matchup ผ่าน
-- [ ] Draft ผ่าน
-- [ ] Tier List ผ่าน
-- [ ] Share Image ผ่าน
-- [ ] Community ผ่าน
-- [ ] ไม่มี critical console error
-- [ ] ไม่มี obvious broken image
-- [ ] ไม่มี infinite request
+Authentication
 
----
+* [ ]	Register
+* [ ]	Login
+* [ ]	Email verification
+* [ ]	Password reset
+* [ ]	Google OAuth
+* [ ]	Protected routes
+* [ ]	Handle
 
-# 📝 Known Scope Decisions
+Gameplay
 
-### Build Page
+* [ ]	Heroes
+* [ ]	Hero Detail
+* [ ]	Tier List
+* [ ]	Counter Pick
+* [ ]	Matchup
+* [ ]	Stats
+* [ ]	Draft Assistant
+* [ ]	Draft Series
+* [ ]	Global Ban Pick
+* [ ]	Coach AI
 
-ข้อมูล Build ที่มีอยู่สามารถนำไปใช้กับ feature อื่นได้ แต่ **ไม่จำเป็นต้องรีบสร้าง standalone `/build` page**
+User Content
 
-ลำดับความสำคัญของ RoV LAB อยู่ที่:
+* [ ]	My Tier List
+* [ ]	Community Tier List
+* [ ]	My Draft
+* [ ]	Community Draft
+* [ ]	Save / Edit / Delete
+* [ ]	Public / Private
+* [ ]	Load Preset
+* [ ]	Like / Dislike
+* [ ]	Share Image
 
-> Matchup → Counter → Synergy → Draft → Tier → Community
+Community
 
-มากกว่าการทำเว็บ Build อีกเว็บหนึ่ง
+* [ ]	Profile
+* [ ]	Handle
+* [ ]	Follow
+* [ ]	Feed
+* [ ]	Notifications
+* [ ]	Comments
+* [ ]	Replies
+* [ ]	Mentions
+* [ ]	Moderation
 
-### Top Server Preset
+Security
 
-ไม่ต้อง maintain Item/Rune/พลังแฝง preset เอง หากเกมมีข้อมูล Top Server ที่อัปเดตกว่า
+* [ ]	RLS
+* [ ]	Admin authorization
+* [ ]	RPC permissions
+* [ ]	SECURITY DEFINER audit
+* [ ]	Function search_path
+* [ ]	Security headers
+* [ ]	AI quota
 
-### Community Tier List
+Performance
 
-ไม่จำเป็นต้องสร้างระบบ Community Tier Ranking ที่ซับซ้อนก่อน
+* [ ]	Build passes
+* [ ]	TypeScript passes
+* [ ]	No critical console errors
+* [ ]	No obvious broken images
+* [ ]	No infinite requests
+* [ ]	Mobile QA
+* [ ]	Desktop QA
+* [ ]	Lighthouse regression check
 
-ลำดับปัจจุบันเน้น:
+⸻
 
-- สร้าง Tier List ของตัวเอง
-- บันทึก
-- แชร์เป็นภาพ
+📌 Current Product Priorities
 
-ก่อน
+ลำดับความสำคัญของ RoV LAB ปัจจุบันคือ
 
----
+1. Data Quality
+2. Draft / Matchup / Counter / Synergy
+3. Community Tier List / Draft
+4. Auth + Security
+5. Performance
+6. QA / Release
 
-# 📅 Project Status
+ไม่ใช่การเพิ่ม Feature จำนวนมากอย่างต่อเนื่อง
 
-**Last verified:** 2026-10-06
+เป้าหมายคือ
 
-สถานะโดยรวม:
+ทำให้ Feature ที่มีอยู่ใช้งานจริง ข้อมูลถูกต้อง ระบบปลอดภัย และประสบการณ์ใช้งานดี
 
-> Core product implemented → Data / Security / Assets → QA → Release
+⸻
 
-เป้าหมายถัดไปไม่ใช่การเพิ่ม feature จำนวนมาก แต่คือ:
+📝 Important Scope Decisions
 
-> **ทำให้ข้อมูลถูกต้อง ระบบปลอดภัย และ feature ที่มีอยู่พร้อมใช้งานจริง**
+Build Page
+
+Standalone /build ไม่ใช่ Product Priority ในปัจจุบัน
+
+ข้อมูล Build ที่มีอยู่สามารถนำไปใช้กับระบบอื่นได้ แต่ไม่จำเป็นต้องสร้างเว็บ Build แยกอีกระบบหนึ่ง
+
+⸻
+
+Top Server Preset
+
+ไม่ควร maintain Item / Rune / Enchantment Preset เอง หากเกมมีข้อมูล Top Server ที่ใหม่กว่า
+
+⸻
+
+Matchup
+
+หากไม่มี Direct Matchup:
+
+อย่าแสดง Overall Win Rate เหมือนเป็น Head-to-Head
+
+⸻
+
+Community Content
+
+Community Draft / Tier List ที่โหลดมา ต้องทำงานแบบ Copy / Preset
+
+ไม่ควรแก้ต้นฉบับของผู้สร้างโดยตรง
+
+⸻
+
+Gameplay Data
+
+หากไม่มีข้อมูลที่น่าเชื่อถือ:
+
+ไม่มีข้อมูล ดีกว่าสร้างตัวเลขขึ้นมาเอง
+
+⸻
+
+📜 Legal / Disclaimer
+
+RoV LAB เป็นโปรเจกต์ชุมชนที่สร้างขึ้นเพื่อช่วยผู้เล่นวิเคราะห์เกมและจัดการ Draft
+
+RoV LAB ไม่ใช่เว็บไซต์หรือบริการอย่างเป็นทางการของผู้พัฒนา/ผู้ให้บริการเกม
+
+ข้อมูล Gameplay, Statistics, Tier, Matchup และ Recommendation อาจมีความคลาดเคลื่อนหรือเปลี่ยนแปลงตาม Patch และแหล่งข้อมูล
+
+ผู้ใช้ควรใช้ข้อมูลจาก RoV LAB เป็นข้อมูลประกอบการตัดสินใจ ไม่ใช่คำรับประกันผลการแข่งขัน
+
+รายละเอียดเพิ่มเติม:
+
+* Privacy Policy
+* Terms of Use
+* Disclaimer
+* Data Sources
+* Community Guidelines
+
+สามารถเข้าถึงได้จากหน้า Legal ภายในเว็บไซต์
+
+⸻
+
+📅 Project Status
+
+Last verified: 2026-10-08
+
+สถานะปัจจุบัน:
+
+Core Product Implemented → Feature Expansion → Security / Performance Hardening → QA → Release
+
+Recent development milestones include:
+
+* Draft Series Engine
+* Global Ban Pick
+* My Draft
+* Community Draft
+* Community reactions
+* Community Tier List
+* Custom Tier List Share Image
+* Real Matchup Data
+* Supabase Auth / Security Hardening
+* Database / RLS Performance Optimization
+* AI Coach quota / security hardening
+* Route-level Code Splitting
+* Initial paint / font / Supabase connection optimization
+* Admin Statistics improvements
+
+ล่าสุดยังมีงาน Release Hardening / QA ที่ดำเนินต่อเนื่อง
+
+⸻
+
+🚀 Vision
+
+RoV LAB ไม่ได้ตั้งเป้าเป็นเพียงเว็บไซต์ที่รวมข้อมูลฮีโร่
+
+เป้าหมายคือการเป็น เครื่องมือวิเคราะห์ RoV สำหรับผู้เล่นจริง
+
+ตั้งแต่
+
+Hero Data
+    ↓
+Statistics
+    ↓
+Matchup / Counter / Synergy
+    ↓
+Draft Analysis
+    ↓
+Draft Series
+    ↓
+Coach AI
+    ↓
+Community Knowledge
+
+โดยมีหลักการเดียวกันตลอดทั้งระบบ:
+
+Reliable Data → Explainable Analysis → Better Decisions
