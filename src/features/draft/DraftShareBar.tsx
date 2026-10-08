@@ -68,7 +68,7 @@ export function DraftShareBar({
       aiCoach: includeAi && hasCoach ? coachText : null,
       generatedDate: formatGeneratedDate(),
     };
-    return { data, filename: makeFilename("rovlab-draft"), title: "RovLab Draft Assistant" };
+    return { data, filename: makeFilename("rovlab-draft"), title: "RoV LAB Draft Assistant" };
   }, [myTeam, enemyTeam, recs, analysis, mode, includeAi, hasCoach, coachText]);
 
   const share = useShareImage(draftAssistantTemplate, build);
