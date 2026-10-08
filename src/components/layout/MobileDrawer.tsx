@@ -36,17 +36,16 @@ const ADMIN_ITEM: NavItem = { to: "/admin", label: "แอดมิน", icon: S
 export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { isAdmin } = useIsAdmin();
   const items = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
-  // PSI/axe (aria-hidden-focus): ตอนลิ้นชักปิดอยู่ตัว wrapper เป็น aria-hidden="true" ดังนั้นลิงก์/ปุ่มข้างในต้องโฟกัสด้วยคีย์บอร์ดไม่ได้
-  // ใช้ tabIndex=-1 แทน visibility:hidden เพื่อไม่ให้แอนิเมชันปิดลิ้นชักหาย
-  const tabIndex = open ? undefined : -1;
 
   return (
+    // PSI/axe (aria-hidden-focus): ไม่ใช้ aria-hidden กับ wrapper ที่มีลิงก์/ปุ่มข้างใน
+    // ใช้ visibility:hidden ตอนปิดแทน — ถอดออกจาก accessibility tree และ tab order ทั้งหมดในที-เดียว
+    // transition-[visibility] ทำให้ visibility เปลี่ยนเป็น hidden หลังแอนิเมชันปิด (200ms) จบ ส่วนตอนเปิดจะเป็น visible ทันที
     <div
       className={cn(
-        "fixed inset-0 z-40 lg:hidden",
-        open ? "pointer-events-auto" : "pointer-events-none"
+        "fixed inset-0 z-40 transition-[visibility] duration-200 lg:hidden",
+        open ? "pointer-events-auto visible" : "pointer-events-none invisible"
       )}
-      aria-hidden={!open}
     >
       <div
         onClick={onClose}
@@ -69,7 +68,6 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
           </div>
           <button
             onClick={onClose}
-            tabIndex={tabIndex}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted"
             aria-label="ปิดเมนู"
           >
@@ -82,7 +80,6 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
               key={to}
               to={to}
               end={end}
-              tabIndex={tabIndex}
               onClick={onClose}
               className={({ isActive }) =>
                 cn(
