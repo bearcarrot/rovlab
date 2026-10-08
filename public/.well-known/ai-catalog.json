@@ -1,0 +1,25 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "RoV LAB",
+    "identifier": "rovlab.vercel.app",
+    "documentationUrl": "https://rovlab.vercel.app/data-sources",
+    "logoUrl": "https://rovlab.vercel.app/logo.png"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:rovlab.vercel.app:knowledge:llms-txt",
+      "displayName": "RoV LAB llms.txt",
+      "type": "text/plain",
+      "url": "https://rovlab.vercel.app/llms.txt",
+      "description": "Curated index of public RoV LAB pages: heroes, tier list, counter pick, matchup, draft, stats and learning resources."
+    },
+    {
+      "identifier": "urn:air:rovlab.vercel.app:knowledge:sitemap",
+      "displayName": "RoV LAB sitemap",
+      "type": "application/xml",
+      "url": "https://rovlab.vercel.app/sitemap.xml",
+      "description": "XML sitemap listing all public pages, including one page per hero."
+    }
+  ]
+}
