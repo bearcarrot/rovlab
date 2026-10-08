@@ -37,7 +37,7 @@ export function TierList() {
   // Tier List ที่โหลดมาจาก Community รอให้ตัวจัดอันดับรับไป
   const [incoming, setIncoming] = useState<IncomingPreset | null>(null);
   const { roleLabel, laneLabel } = useFilterLabels();
-  // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น “ทุก Tier”
+  // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น "ทุก Tier"
   const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
   // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
   const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
