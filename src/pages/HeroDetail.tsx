@@ -43,7 +43,7 @@ export function HeroDetail() {
   useDocumentMeta(
     loaded
       ? {
-          title: `${seoName} — รายละเอียดฮีโร่ RoV สถิติ สกิล คู่แพ้ทาง | RoV LAB`,
+          title: `${seoName} — รายละเอียดฮีโร่ RoV สถิติ สกิล คู่แพ้ทาง | RovLab`,
           description: `รายละเอียดฮีโร่ ${seoName} ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
           path: `/heroes/${loaded.slug}`,
           breadcrumbs: [
