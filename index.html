@@ -25,6 +25,8 @@
     <script type="application/ld+json">
       {"@context":"https://schema.org","@type":"WebSite","name":"RoV LAB","url":"https://rovlab.vercel.app/","inLanguage":"th"}
     </script>
+    <!-- PSI: เปิดการเชื่อมต่อ (DNS+TLS) ไปยัง Supabase ล่วงหน้า ระหว่างที่ JS ยังโหลดอยู่ เพื่อลดเวลา request ข้อมูลชุดแรก (ต้องมี crossorigin เพราะ supabase-js ใช้ fetch แบบ CORS) -->
+    <link rel="preconnect" href="https://mttcdaiwuasnkqlxbeqs.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Fonts load without blocking first paint: the stylesheet is fetched as print-only, then switched to all media once loaded. display=swap keeps text visible meanwhile. -->
@@ -37,9 +39,16 @@
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet" />
     </noscript>
+    <!-- PSI: สไตล์ขั้นต่ำสำหรับหน้าจอเริ่มต้น (#boot) ให้เบราว์เซอร์ paint ได้ทันทีที่ parse HTML เสร็จ โดยไม่ต้องรอ JS/CSS หลัก
+         CSS หลักของแอปถูก inline เข้า <head> ตอน build (ดู vite.config.ts) -->
+    <style>
+      html,body{margin:0;background:#0a0b0e;color:#f2f3f5}
+      #boot{display:flex;align-items:center;justify-content:center;min-height:100vh;font:600 20px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- React (createRoot) จะแทนที่เนื้อหาใน #root ทั้งหมดเมื่อแอปเริ่มทำงาน -->
+    <div id="root"><div id="boot" aria-hidden="true">RoV LAB</div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
