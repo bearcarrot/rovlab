@@ -81,11 +81,11 @@ export function CoachFab() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        {/* เด่น: ขอบ cyan 2px + เงา cyan glow, ไอคอน 56px ใน 64px (87%), hover = ขยาย + glow แรงขึ้น + ไอคอนเอียงเล็กน้อย */}
+        {/* เด่น: ขอบ cyan 2px + glow cyan บางๆ ชั้นเดียว, ไอคอน 56px ใน 64px (87%), hover = ขยาย + glow เข้มขึ้นเล็กน้อย + ไอคอนเอียงเล็กน้อย */}
         <button
           type="button"
           aria-label="เปิดแชทโค้ช AI"
-          className="group fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full border-2 border-cyan-400 bg-bg-surface shadow-[0_0_14px_2px_rgba(34,211,238,0.55),0_0_30px_6px_rgba(34,211,238,0.25)] transition-all duration-200 ease-out hover:scale-110 hover:border-cyan-300 hover:shadow-[0_0_20px_4px_rgba(34,211,238,0.8),0_0_44px_10px_rgba(34,211,238,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 lg:bottom-6 lg:right-6"
+          className="group fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full border-2 border-cyan-400 bg-bg-surface shadow-[0_0_8px_1px_rgba(34,211,238,0.45)] transition-all duration-200 ease-out hover:scale-110 hover:border-cyan-300 hover:shadow-[0_0_12px_2px_rgba(34,211,238,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 lg:bottom-6 lg:right-6"
         >
           <Mascot className="h-14 w-14 transition-transform duration-200 ease-out group-hover:-rotate-6 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:rotate-0 motion-reduce:group-hover:scale-100" />
         </button>
