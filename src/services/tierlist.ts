@@ -23,23 +23,22 @@ async function loadCuratedTierLists(rank: RankBucket): Promise<Loaded> {
     const patch = await getLatestPatch();
     if (!patch) return { lists: null, ok: false };
 
+    // lists + their entries in ONE request (embedded tier_list_entries via the FK) instead of two sequential ones
     const { data: lists, error: listErr } = await db
       .from("tier_lists")
-      .select("id, lane")
+      .select("id, lane, tier_list_entries(hero_id, tier)")
       .eq("patch_id", patch.id)
       .eq("rank_tier", rank);
     if (listErr) return { lists: null, ok: false };
     if (!lists || lists.length === 0) return { lists: null, ok: true };
 
-    const { data: entries, error } = await db
-      .from("tier_list_entries")
-      .select("tier_list_id, hero_id, tier")
-      .in(
-        "tier_list_id",
-        lists.map((l: any) => l.id)
-      );
-    if (error) return { lists: null, ok: false };
-    if (!entries || entries.length === 0) return { lists: null, ok: true };
+    const entries: { tier_list_id: string; hero_id: string; tier: string }[] = [];
+    for (const l of lists as any[]) {
+      for (const e of (l.tier_list_entries ?? []) as any[]) {
+        entries.push({ tier_list_id: l.id as string, hero_id: e.hero_id as string, tier: e.tier as string });
+      }
+    }
+    if (entries.length === 0) return { lists: null, ok: true };
 
     const laneOfList = new Map<string, string>(lists.map((l: any) => [l.id as string, (l.lane as string | null) ?? ALL_LANES]));
     const out: CuratedTierLists = new Map();
