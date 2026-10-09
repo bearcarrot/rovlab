@@ -9,6 +9,8 @@ export type QuickChat = {
   prompt: string;
   /** ข้อมูลของหน้านั้นที่ส่งให้ AI อ้างอิง */
   context?: unknown;
+  /** เรียกเมื่อได้คำตอบจากโค้ช (เช่น หน้า Draft เอาไปใส่ในรูปแชร์) ไม่นับรวมใน signature จึงไม่ทำให้ลงทะเบียนซ้ำ */
+  onAnswer?: (text: string) => void;
 };
 
 type Registration = { chats: QuickChat[]; resetKey: string };
@@ -45,13 +47,14 @@ export function useCoachChatState() {
  * - resetKey: เปลี่ยนค่านี้ (เช่น slug ฮีโร่) เพื่อล้างบทสนทนาเก่า
  * - ส่ง chats เป็น [] ระหว่างข้อมูลยังโหลดไม่เสร็จได้ FAB จะยังไม่แสดง
  * - ออกจากหน้า (unmount) แล้วลงทะเบียนถูกล้างให้เอง
+ * - ถ้า chats ถูก memo ไว้ (reference คงที่) จะไม่ต้อง stringify ใหม่ทุก render
  */
 export function useCoachQuickChats(chats: QuickChat[], resetKey: string) {
   const { register, clear } = useContext(ActionsCtx);
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
   // เทียบด้วยเนื้อหา ไม่ใช่ reference: array ใหม่ทุก render จะไม่ทำให้ลงทะเบียนซ้ำ
-  const signature = JSON.stringify(chats);
+  const signature = useMemo(() => JSON.stringify(chats), [chats]);
 
   useEffect(() => {
     if (chatsRef.current.length === 0) return undefined;
