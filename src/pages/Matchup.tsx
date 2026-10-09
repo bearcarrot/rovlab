@@ -6,7 +6,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { AskCoach } from "@/components/AskCoach";
+import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -144,6 +144,21 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
     counterNotes: notes.map((n) => ({ winner: nameOf(n.winner), loser: nameOf(n.loser), reason: n.reason, laneTip: n.laneTip })),
   };
 
+  // FAB โค้ช AI: ลงทะเบียนเมื่อโหลดสกิลของทั้งสองตัวเสร็จ (โหลดไม่สำเร็จก็ยังถามได้ แค่ไม่มีข้อมูลสกิล)
+  useCoachQuickChats(
+    coachReady
+      ? [
+          {
+            id: "matchup-plan",
+            label: "แผนเล่นคู่นี้",
+            prompt: `ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค อ้างอิงจากสกิล สถิติ และข้อมูลชนะทางที่ให้เท่านั้น ถ้าข้อมูลส่วนไหนไม่พอให้บอกตรงๆ`,
+            context: { me: heroContext(a, detailA, laneLabel), enemy: heroContext(b, detailB, laneLabel), matchup: matchupContext },
+          },
+        ]
+      : [],
+    `${a.slug}-${b.slug}`,
+  );
+
   return (
     <div className="space-y-3">
       {m.source === "heuristic" && (
@@ -188,15 +203,6 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
 
         {!hasAnything && <p className="text-text-muted">ยังไม่มีข้อมูลเฉพาะคู่นี้ในระบบ</p>}
       </div>
-
-      {coachReady && (
-        <AskCoach
-          resetKey={`${a.slug}-${b.slug}`}
-          label="ถามโค้ช AI: แผนเล่นคู่นี้"
-          prompt={`ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค อ้างอิงจากสกิล สถิติ และข้อมูลชนะทางที่ให้เท่านั้น ถ้าข้อมูลส่วนไหนไม่พอให้บอกตรงๆ`}
-          context={{ me: heroContext(a, detailA, laneLabel), enemy: heroContext(b, detailB, laneLabel), matchup: matchupContext }}
-        />
-      )}
     </div>
   );
 }

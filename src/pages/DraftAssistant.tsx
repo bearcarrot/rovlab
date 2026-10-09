@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -11,7 +11,7 @@ import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
-import { AskCoach } from "@/components/AskCoach";
+import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
 import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { TeamGaps } from "@/features/draft/TeamGaps";
@@ -66,11 +66,24 @@ const MODE_TEXT: Record<DraftMode, string> = {
 // จำนวนสูงสุดของรายการคอมโบ/ชนะทางที่แสดงแยก (รายการภาพรวมยังแสดง 5 อันดับแรก)
 const RELATION_LIMIT = 6;
 
+// จำนวนฮีโร่ที่แนะนำสูงสุดที่จะมีปุ่ม "ถามเรื่อง ..." ใน FAB โค้ช AI (เรียงตามภาพรวม แล้วชนะทาง แล้วคอมโบ)
+const PICK_CHAT_LIMIT = 5;
+
 const DRAFT_PROMPT =
   "ประเมินดราฟต์นี้เป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ: 1) จุดแข็งของทีมเรา 2) จุดที่ทีมยังขาด " +
   "3) คอมโบของสกิลในทีมเรา (อ้างชื่อสกิลจริงจาก heroes[].skills และใช้ teamCombos ถ้ามี) " +
   "4) สกิลศัตรูที่อันตรายที่สุดและวิธีหลบ/ตัดจังหวะด้วยสกิลของเรา (ใช้ matchups ถ้ามี) 5) แผนเล่นช่วงต้น-กลาง-ท้ายเกม " +
   "ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
+
+// prompt ถามโค้ชเรื่องฮีโร่ที่ระบบแนะนำตัวหนึ่ง (เดิมอยู่ในปุ่มบนการ์ดแนะนำ)
+const pickPrompt = (name: string) =>
+  `ตอบเป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ เรื่องการเลือก ${name} ในดราฟต์นี้: ` +
+  `1) ควรใช้สกิลไหนก่อน/หลัง และใช้ตอนไหน (อ้างชื่อสกิลจริงจาก heroes[].skills) ` +
+  `2) ถ้ามี combos: อธิบายว่าสกิลของสองตัวเสริมกันยังไง (ใช้ข้อความ reason ถ้ามี และสกิลจริงประกอบ) ` +
+  `3) ถ้ามี counters: direction=wins ให้บอกว่าศัตรูมีสกิลไหนที่ต้องหลบหรือตัดจังหวะ และเราใช้สกิลไหนสู้; ` +
+  `direction=loses ให้บอกวิธีลดความเสียเปรียบ ` +
+  `4) จุดที่ต้องระวัง ` +
+  `ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลสกิลไม่พอให้บอกตรงๆ`;
 
 const TEAM_LABEL: Record<TeamKey, string> = { mine: "ทีมของคุณ", enemy: "ทีมศัตรู" };
 
@@ -79,14 +92,12 @@ function PickSection({
   title,
   hint,
   recs,
-  coachContext,
   onPick,
 }: {
   icon: React.ReactNode;
   title: string;
   hint: string;
   recs: Recommendation[];
-  coachContext: (rec: Recommendation) => unknown;
   onPick: (hero: HeroSummary) => void;
 }) {
   return (
@@ -98,7 +109,7 @@ function PickSection({
       <p className="mb-2 text-xs text-text-muted">{hint}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {recs.map((r) => (
-          <RecommendedPickCard key={r.hero.id} rec={r} coachContext={coachContext} onPick={() => onPick(r.hero)} />
+          <RecommendedPickCard key={r.hero.id} rec={r} onPick={() => onPick(r.hero)} />
         ))}
       </div>
     </section>
@@ -198,7 +209,7 @@ export function DraftAssistant() {
     () => filterByMissingLanes(rawRecs, (r) => heroLanes(r.hero) as string[], missingLanes),
     [rawRecs, missingLanes]
   );
-  const recs = allRecs.slice(0, 5);
+  const recs = useMemo(() => allRecs.slice(0, 5), [allRecs]);
   const synergyRecs = useMemo(
     () => allRecs.filter((r) => r.tags.includes("synergy")).slice(0, RELATION_LIMIT),
     [allRecs]
@@ -215,6 +226,11 @@ export function DraftAssistant() {
     }),
     [myTeam, enemyTeam]
   );
+  // เปลี่ยนทีมที่เลือก = ดราฟต์เปลี่ยน: ล้างบทสนทนาใน FAB (resetKey) และล้างคำตอบที่เคยใส่ในรูปแชร์
+  const draftKey = JSON.stringify(draftCtx);
+  useEffect(() => {
+    setCoachText("");
+  }, [draftKey]);
   // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
@@ -223,8 +239,6 @@ export function DraftAssistant() {
     () => buildDraftContext({ ...draftCtx, analysis, ...relationCtx }, { mine: mineList, enemies: enemyList, skills }),
     [draftCtx, analysis, relationCtx, mineList, enemyList, skills]
   );
-  // context ของปุ่มถามโค้ชบนการ์ด: สกิลของฮีโร่ที่แนะนำ + คู่คอมโบ + ศัตรูที่เกี่ยวข้อง
-  const pickCoachCtx = (rec: Recommendation) => buildPickContext(rec, { mine: mineList, enemies: enemyList, skills });
 
   // พูลของตัวเลือกฮีโร่: pick = ไม่ซ้ำในเกมนี้ + ไม่ผิดกฎ Global BP ของทีมที่กำลังเลือก / ban = ไม่ซ้ำในเกมนี้
   const takenNow = useMemo(() => getCurrentGameTaken(ds.game), [ds.game]);
@@ -267,6 +281,32 @@ export function DraftAssistant() {
   }
 
   const teamFull = analysis.filledSlots === 5;
+
+  // FAB โค้ช AI: "ประเมินดราฟต์" (คำตอบถูกส่งไปใส่ในรูปแชร์ด้วย) + "ถามเรื่อง ..." ของฮีโร่ที่ระบบแนะนำ (เดิมเป็นปุ่มบนการ์ดแต่ละใบ)
+  // memo ไว้เพื่อไม่ต้องสร้าง context/stringify ใหม่ทุกครั้งที่พิมพ์ค้นหา
+  const coachChats = useMemo<QuickChat[]>(() => {
+    if (analysis.filledSlots === 0) return [];
+    const chats: QuickChat[] = [
+      { id: "draft-eval", label: "ประเมินดราฟต์", prompt: DRAFT_PROMPT, context: draftCoachCtx, onAnswer: setCoachText },
+    ];
+    if (!teamFull) {
+      const seen = new Set<string>();
+      for (const r of [...recs, ...counterRecs, ...synergyRecs]) {
+        if (seen.size >= PICK_CHAT_LIMIT) break;
+        if (seen.has(r.hero.id)) continue;
+        seen.add(r.hero.id);
+        chats.push({
+          id: `pick-${r.hero.slug}`,
+          label: `ถามเรื่อง ${r.hero.nameTh}`,
+          prompt: pickPrompt(r.hero.nameTh),
+          // context ของฮีโร่ที่แนะนำ: สกิลจริงของตัวนั้น + คู่คอมโบ + ศัตรูที่เกี่ยวข้อง
+          context: buildPickContext(r, { mine: mineList, enemies: enemyList, skills }),
+        });
+      }
+    }
+    return chats;
+  }, [analysis.filledSlots, teamFull, recs, counterRecs, synergyRecs, draftCoachCtx, mineList, enemyList, skills]);
+  useCoachQuickChats(coachChats, draftKey);
 
   // ---- บันทึก / โหลด ----
   // Draft ที่ยังไม่บันทึกจะไม่ถูกแทนที่เงียบๆ
@@ -497,18 +537,6 @@ export function DraftAssistant() {
                 ))}
               </div>
             )}
-
-            {analysis.filledSlots > 0 && (
-              <div className="mt-2">
-                <AskCoach
-                  resetKey={JSON.stringify(draftCtx)}
-                  label="ถามโค้ช AI: ประเมินดราฟต์"
-                  prompt={DRAFT_PROMPT}
-                  context={draftCoachCtx}
-                  onAdvice={setCoachText}
-                />
-              </div>
-            )}
           </section>
 
           {/* ตัวที่ชนะทางศัตรู / คอมโบกับทีม: แสดงแยก ไม่ถูกตัดด้วย 5 อันดับภาพรวม */}
@@ -518,7 +546,6 @@ export function DraftAssistant() {
               title="ชนะทางศัตรู"
               hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
               recs={counterRecs}
-              coachContext={pickCoachCtx}
               onPick={pickForMyTeam}
             />
           )}
@@ -528,7 +555,6 @@ export function DraftAssistant() {
               title="คอมโบกับทีมของคุณ"
               hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
               recs={synergyRecs}
-              coachContext={pickCoachCtx}
               onPick={pickForMyTeam}
             />
           )}
@@ -551,12 +577,7 @@ export function DraftAssistant() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {recs.map((r) => (
-                  <RecommendedPickCard
-                    key={r.hero.id}
-                    rec={r}
-                    coachContext={pickCoachCtx}
-                    onPick={() => pickForMyTeam(r.hero)}
-                  />
+                  <RecommendedPickCard key={r.hero.id} rec={r} onPick={() => pickForMyTeam(r.hero)} />
                 ))}
               </div>
             )}
