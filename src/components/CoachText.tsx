@@ -1,12 +1,13 @@
 import { type ReactNode } from "react";
 
-// แสดงคำตอบของ Coach AI: AI มักตอบเป็น Markdown (**ตัวหนา**, 1. รายการ, - bullet, # หัวข้อ)
-// แต่หน้าเว็บแสดงเป็นข้อความธรรมดา จึงเห็นเครื่องหมาย ** โผล่ — คอมโพเนนต์นี้แปลงส่วนที่ใช้บ่อยให้แสดงผลถูกต้อง
+// แสดงคำตอบของ Coach AI: AI มักตอบเป็น Markdown (**ตัวหนา**, *ตัวเอียง*, 1. รายการ, - bullet, # หัวข้อ)
+// แต่หน้าเว็บแสดงเป็นข้อความธรรมดา จึงเห็นเครื่องหมาย * โผล่ — คอมโพเนนต์นี้แปลงส่วนที่ใช้บ่อยให้แสดงผลถูกต้อง
 // (ไม่ใช้ dangerouslySetInnerHTML จึงปลอดภัยแม้ AI ตอบ HTML มา)
 
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`/g;
+  // ลำดับสำคัญ: **ตัวหนา** ก่อน *ตัวเอียง* (กลุ่ม 4) ตัวเอียงต้องไม่ขึ้นต้น/ลงท้ายด้วยช่องว่าง กันชนกับ "2 * 3" หรือ * ที่ไม่ได้ปิด
+  const re = /\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*/g;
   const plain = (s: string) => s.replace(/\*\*/g, ""); // ** ที่เปิดไว้แต่ไม่ปิด (เช่น คำตอบถูกตัด) ไม่ให้ค้างบนจอ
   let last = 0;
   let key = 0;
@@ -18,6 +19,12 @@ function inline(text: string): ReactNode[] {
         <code key={key++} className="rounded bg-bg-raised px-1 text-[0.9em]">
           {m[3]}
         </code>
+      );
+    } else if (m[4] !== undefined) {
+      out.push(
+        <em key={key++} className="italic">
+          {m[4]}
+        </em>
       );
     } else {
       out.push(
