@@ -15,9 +15,11 @@ type Props = {
   resetKey?: string;
   /** แจ้งคำตอบล่าสุดให้หน้าแม่ (ส่ง "" เมื่อล้างคำตอบ) — ใช้กับการใส่ผล AI ในรูปแชร์ */
   onAdvice?: (text: string) => void;
+  /** ใช้รูป CoachAi แทนไอคอน Sparkles (ทดสอบเฉพาะบางหน้า) */
+  imageIcon?: boolean;
 };
 
-export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey, onAdvice }: Props) {
+export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey, onAdvice, imageIcon }: Props) {
   const { user, loading } = useAuth();
   const toast = useToast();
   const [advice, setAdvice] = useState("");
@@ -54,7 +56,11 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
   if (!user) {
     return (
       <p className="text-xs text-text-faint">
-        <Sparkles className="mr-1 inline h-3.5 w-3.5" />
+        {imageIcon ? (
+          <CoachIcon busy={false} image className="mr-1 inline-block h-4 w-4 align-text-bottom" />
+        ) : (
+          <Sparkles className="mr-1 inline h-3.5 w-3.5" />
+        )}
         <Link to="/login" className="text-accent underline">เข้าสู่ระบบ</Link> เพื่อถามโค้ช AI
       </p>
     );
@@ -68,7 +74,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
         aria-busy={busy}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface py-2 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
       >
-        <CoachIcon busy={busy} className="h-4 w-4" />
+        <CoachIcon busy={busy} image={imageIcon} className={imageIcon ? "h-5 w-5" : "h-4 w-4"} />
         <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}</span>
       </button>
       {advice && (
