@@ -30,6 +30,7 @@ export function HeroIcon({ icon, name, fallback, className }: Props) {
           src={icon}
           alt={name}
           loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}

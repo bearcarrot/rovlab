@@ -166,7 +166,8 @@ export function HeroDetail() {
             <img
               src={h.icon}
               alt={h.nameTh}
-              loading="lazy"
+              loading="eager"
+              decoding="async"
               referrerPolicy="no-referrer"
               className="h-full w-full rounded-lg object-cover"
               onError={(e) => {

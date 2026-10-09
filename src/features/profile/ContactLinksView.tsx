@@ -28,10 +28,10 @@ export function ContactLinksView({ links }: { links: ContactLink[] }) {
               onClick={() => setPending(l)}
               aria-label={`เปิดลิงก์ ${app.label}`}
               title={app.label}
-              className="flex flex-col items-center gap-1"
+              className="flex min-w-12 flex-col items-center gap-1 py-1"
             >
               <ContactAppIcon app={l.app} className="h-11 w-11" />
-              <span className="text-[11px] text-text-muted">{app.label}</span>
+              <span className="text-xs text-text-muted">{app.label}</span>
             </button>
           );
         })}

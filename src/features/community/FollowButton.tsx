@@ -55,15 +55,15 @@ export function FollowButton({ targetId }: { targetId: string }) {
   }
 
   return (
-    <div className="mt-2 flex items-center gap-3">
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
       <button
         type="button"
         onClick={toggle}
         disabled={busy}
         className={
           following
-            ? "rounded-lg border border-border px-4 py-1.5 text-xs text-text-muted disabled:opacity-60"
-            : "rounded-lg bg-accent px-4 py-1.5 text-xs font-medium text-accent-fg disabled:opacity-60"
+            ? "min-h-10 rounded-lg border border-border px-4 py-2 text-sm text-text-muted disabled:opacity-60"
+            : "min-h-10 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60"
         }
       >
         {following ? "กำลังติดตาม" : "ติดตาม"}

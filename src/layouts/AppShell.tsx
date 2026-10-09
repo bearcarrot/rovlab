@@ -21,7 +21,7 @@ export function AppShell() {
 
   return (
     <CoachChatProvider>
-      <div className="flex min-h-screen bg-bg">
+      <div className="flex min-h-screen min-h-dvh bg-bg">
         <ScrollToTop />
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
