@@ -38,7 +38,7 @@ export function Heroes() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหาชื่อฮีโร่ (ไทย/อังกฤษ)"
+          placeholder="ค้นหาชื่อฮีโร่"
           className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
         />
       </div>
