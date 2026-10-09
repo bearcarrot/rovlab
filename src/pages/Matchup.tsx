@@ -36,18 +36,18 @@ function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label:
               key={h.id}
               onClick={() => onChange(h)}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border p-2 text-center",
+                "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
                 value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
               )}
             >
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised text-xs font-display text-text-faint sm:h-11 sm:w-11">
+              <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
                 {h.icon ? (
                   <img
                     src={h.icon}
                     alt={h.nameTh}
                     loading="lazy"
                     referrerPolicy="no-referrer"
-                    className="h-full w-full rounded-md object-cover"
+                    className="h-full w-full object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
                       e.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -60,7 +60,7 @@ function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label:
                 </span>
                 <HeroBalanceBadge heroId={h.id} />
               </div>
-              <span className="w-full truncate text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
+              <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
             </button>
           ))}
         </div>
