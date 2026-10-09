@@ -68,7 +68,11 @@ export function CoachFab() {
     setBusy(true);
     try {
       const text = await askCoach(q.prompt, q.context);
-      if (id === reqId.current) push("coach", text || "ยังไม่ได้คำตอบ ลองกดถามใหม่อีกครั้ง");
+      if (id === reqId.current) {
+        push("coach", text || "ยังไม่ได้คำตอบ ลองกดถามใหม่อีกครั้ง");
+        // ให้หน้าที่ลงทะเบียนรับคำตอบไปใช้ต่อ (เช่น ใส่ในรูปแชร์ของ Draft)
+        if (text) q.onAnswer?.(text);
+      }
     } catch (e) {
       if (id === reqId.current) push("error", e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
     } finally {
