@@ -57,7 +57,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
     return (
       <p className="text-xs text-text-faint">
         {imageIcon ? (
-          <CoachIcon busy={false} image className="mr-1 inline-block h-4 w-4 align-text-bottom" />
+          <CoachIcon busy={false} image className="mr-1 inline-block h-5 w-5 align-text-bottom" />
         ) : (
           <Sparkles className="mr-1 inline h-3.5 w-3.5" />
         )}
@@ -72,9 +72,10 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
         onClick={ask}
         disabled={busy}
         aria-busy={busy}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface py-2 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-bg-surface py-2 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
       >
-        <CoachIcon busy={busy} image={imageIcon} className={imageIcon ? "h-5 w-5" : "h-4 w-4"} />
+        {/* รูป mascot ละเอียดกว่าไอคอนเส้น: ต้องใหญ่ ~36px ถึงจะอ่านออกบนมือถือ */}
+        <CoachIcon busy={busy} image={imageIcon} className={imageIcon ? "h-9 w-9" : "h-4 w-4"} />
         <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}</span>
       </button>
       {advice && (
