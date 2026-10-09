@@ -5,6 +5,8 @@ import { AlertCircle, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-rea
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { ImageSelect } from "@/features/admin/ImageSelect";
+import { ArcanaSlots, ItemSlots } from "@/features/admin/BuildSlots";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
@@ -51,6 +53,8 @@ type Col = {
   ro?: boolean;
   // รูปแบบวงกลม (border-radius 50%) ใช้กับไอคอนสกิลและรูน
   round?: boolean;
+  // ขอบสีทอง 1px รอบรูป (ใช้กับไอคอนสกิล)
+  gold?: boolean;
 };
 type Labels = { role: (code: string) => string; lane: (code: string) => string };
 type FilterCfg = {
@@ -59,6 +63,8 @@ type FilterCfg = {
   sel: string;
   order?: string;
   label: (r: Row, labels?: Labels) => string;
+  // ไอคอนที่โชว์ใน dropdown ตัวกรอง (เช่น ไอคอนฮีโร่)
+  icon?: (r: Row) => string | undefined;
   // เลือก "ลิสต์" ของ Tier List จาก 3 ตัวเลือกแยกกัน แทน dropdown เดียว:
   // แรงก์ = ชิป, แพตช์ = dropdown (ทุกแพตช์ในตาราง patches แม้ยังไม่มีลิสต์), เลน = ชิป (ทุกเลน = ลิสต์ที่ lane เป็น null)
   // ถ้ายังไม่มีลิสต์ของชุดที่เลือก มีปุ่มสร้างให้ ต้องมีคอลัมน์ rank_tier / patch_id / lane ใน sel
@@ -84,6 +90,8 @@ type Cfg = {
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
   slots?: boolean;
+  // มุมมองแบบช่อง (เหมือน TeamSlots ใน Draft Assistant) เหนือรายการการ์ด: items = ไอเทมตามช่วงเกม, arcana = ช่องรูน 3 สี
+  slotsView?: "items" | "arcana";
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: FilterCfg;
 };
@@ -131,16 +139,18 @@ const heroName = (r?: Row) => r?.name || r?.name_th || "?";
 const heroFilter = (col: string): FilterCfg => ({
   col,
   table: "heroes",
-  sel: "id,name,name_th",
+  sel: "id,name,name_th,icon_url",
   order: "name",
   label: (r) => heroName(r),
+  icon: (r) => r.icon_url ?? undefined,
 });
 // ตัวเลือกบิลด์ (ใช้กับแท็บไอเทมในบิลด์และรูนในบิลด์)
 const buildFilter: FilterCfg = {
   col: "build_id",
   table: "item_builds",
-  sel: "id,source,heroes(name,name_th),patches(code),arcana(name)",
+  sel: "id,source,heroes(name,name_th,icon_url),patches(code),arcana(name)",
   label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
+  icon: (r) => r.heroes?.icon_url ?? undefined,
 };
 
 const CFG: Record<string, Cfg> = {
@@ -201,7 +211,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "slot" },
       { k: "name" },
-      { k: "icon_url", label: "ไอคอน", type: "img", round: true },
+      { k: "icon_url", label: "ไอคอน", type: "img", round: true, gold: true },
       { k: "description", type: "area" },
       // แตะเพื่อเปิด/ปิดแท็กของสกิล (บันทึกทันที) รายการแท็กและสีจัดการที่แท็บ "แท็กและสี"
       { k: "effect_tags", label: "แท็กสกิล (แตะเพื่อเปิด/ปิด)", type: "tags" },
@@ -304,6 +314,7 @@ const CFG: Record<string, Cfg> = {
     table: "item_build_items",
     order: "sort_order",
     add: true,
+    slotsView: "items",
     filter: buildFilter,
     cols: [
       { k: "item_id", label: "ไอเทม", type: "item" },
@@ -318,6 +329,7 @@ const CFG: Record<string, Cfg> = {
     order: "sort_order",
     add: true,
     slots: true,
+    slotsView: "arcana",
     filter: buildFilter,
     cols: [
       { k: "arcana_id", label: "รูน", type: "arcana" },
@@ -512,6 +524,7 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
   const imgCol = cfg.cols.find((c) => c.type === "img");
   let img = imgCol ? (row[imgCol.k] as string | null) : null;
   let round = !!imgCol?.round;
+  const gold = !!imgCol?.gold;
   if (!imgCol) {
     // แท็บที่อ้างอิงฮีโร่/ไอเทม/รูน: ใช้ไอคอนของตัวที่เลือกไว้
     for (const c of cfg.cols) {
@@ -549,6 +562,7 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
     sub: parts.slice(1, 3).join(" · "),
     img,
     round,
+    gold,
     tags,
     swatch,
   };
@@ -818,26 +832,14 @@ function Cell({
     );
   }
   if (c.type && REF_TYPES.includes(c.type)) {
-    // ฮีโร่/ไอเทม/รูนที่เลือกไว้ แสดงไอคอนข้างช่องเลือก
-    const icon = refs[c.type]?.find((o) => o.id === v)?.icon;
+    // ฮีโร่/ไอเทม/รูน/แพตช์/หมวด: dropdown แบบมีรูปในรายการ (ไม่มีรูป = แสดงตัวอักษรย่อ)
     return (
-      <div className="flex items-center gap-2">
-        {icon ? (
-          <img
-            src={icon}
-            alt=""
-            className={`h-11 w-11 shrink-0 border border-border object-cover ${c.type === "arcana" ? ROUND : "rounded-lg"}`}
-          />
-        ) : null}
-        <select className={inp} value={v ?? ""} onChange={(e) => change(e.target.value)}>
-          <option value="">— เลือก —</option>
-          {(refs[c.type] ?? []).map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ImageSelect
+        value={v ?? ""}
+        options={refs[c.type] ?? []}
+        round={c.type === "arcana"}
+        onChange={change}
+      />
     );
   }
   if (c.type === "img")
@@ -848,7 +850,9 @@ function Cell({
             <img
               src={v}
               alt=""
-              className={`h-11 w-11 shrink-0 border border-border object-cover ${c.round ? ROUND : "rounded-lg"}`}
+              className={`h-11 w-11 shrink-0 border object-cover ${c.gold ? "border-accent" : "border-border"} ${
+                c.round ? ROUND : "rounded-lg"
+              }`}
             />
           ) : null}
           <input
@@ -1049,6 +1053,41 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     }
   }
 
+  // ---------- มุมมองช่อง (ไอเทม/รูนในบิลด์) ----------
+  const nextSort = () => rows.reduce((m, r) => Math.max(m, Number(r.sort_order) || 0), 0) + 1;
+
+  // ไอเทมในบิลด์: เพิ่มแถวใหม่ในช่วงเกมที่เลือก (เหตุผลแก้ภายหลังในการ์ด)
+  async function addBuildItem(itemId: string, phase: string) {
+    if (!fv) return;
+    const { error } = await db
+      .from(cfg.table)
+      .insert({ [cfg.filter!.col]: fv, item_id: itemId, phase, reason: "", sort_order: nextSort() });
+    if (error) err(error.message);
+    else void load();
+  }
+
+  // รูนในบิลด์: รูนที่มีอยู่แล้วในบิลด์ = จำนวน +1, ยังไม่มี = เพิ่มแถวใหม่จำนวน 1
+  async function addArcana(arcanaId: string) {
+    if (!fv) return;
+    const existing = rows.find((r) => r.arcana_id === arcanaId);
+    const { error } = existing
+      ? await db.from(cfg.table).update({ quantity: (Number(existing.quantity) || 0) + 1 }).eq("id", existing.id)
+      : await db.from(cfg.table).insert({ [cfg.filter!.col]: fv, arcana_id: arcanaId, quantity: 1, sort_order: nextSort() });
+    if (error) err(error.message);
+    else void load();
+  }
+
+  // ลดจำนวนรูนทีละ 1 ถึง 0 = ลบแถว
+  async function decArcana(row: Row) {
+    const n = Number(row.quantity) || 0;
+    const { error } =
+      n <= 1
+        ? await db.from(cfg.table).delete().eq("id", row.id)
+        : await db.from(cfg.table).update({ quantity: n - 1 }).eq("id", row.id);
+    if (error) err(error.message);
+    else void load();
+  }
+
   // Tier List: สร้างลิสต์เปล่าของ แรงก์ + แพตช์ + เลน ที่เลือกอยู่ (ยังไม่มีในตาราง tier_lists)
   async function createList() {
     if (!patchV) return;
@@ -1142,17 +1181,19 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           ) : (
             <>
               {cfg.filter && (
-                <select
-                  className={`${inp} sm:w-auto sm:min-w-[18rem] sm:max-w-full`}
+                // ตัวกรองหลัก (ฮีโร่/บิลด์/แพตช์): dropdown มีไอคอนฮีโร่ในรายการ ไม่ให้ล้างค่า (ต้องมีตัวเลือกเสมอ)
+                <ImageSelect
+                  className="sm:min-w-[18rem] sm:max-w-full"
+                  clearable={false}
                   value={fv}
-                  onChange={(e) => setFvSaved(e.target.value)}
-                >
-                  {opts.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {cfg.filter!.label(o, labels)}
-                    </option>
-                  ))}
-                </select>
+                  options={opts.map((o) => ({
+                    id: o.id as string,
+                    label: cfg.filter!.label(o, labels),
+                    icon: cfg.filter!.icon?.(o),
+                    alt: o.name_th ?? o.heroes?.name_th,
+                  }))}
+                  onChange={setFvSaved}
+                />
               )}
               {/* สถิติ: ชิปแรงก์ (ทั้งหมด / Commander+) หน้าตาเหมือนแท็บ Tier List */}
               {cfg.rankChips && (
@@ -1277,6 +1318,27 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         </section>
       )}
 
+      {/* มุมมองช่องแบบ TeamSlots ของ Draft Assistant: ไอเทมตามช่วงเกม / รูน 3 สี สีละ 10 ช่อง */}
+      {cfg.slotsView === "items" && fv && (
+        <ItemSlots
+          rows={rows}
+          items={refs.item ?? []}
+          onAdd={(itemId, phase) => void addBuildItem(itemId, phase)}
+          onRemove={(row) => void remove(row)}
+          onOpen={(row) => setOpenId(row.id)}
+        />
+      )}
+      {cfg.slotsView === "arcana" && fv && (
+        <ArcanaSlots
+          rows={rows}
+          arcana={refs.arcana ?? []}
+          colors={SLOT_COLORS}
+          max={MAX_SLOTS}
+          onAdd={(arcanaId) => void addArcana(arcanaId)}
+          onDec={(row) => void decArcana(row)}
+        />
+      )}
+
       {/* เพิ่มรายการ */}
       {cfg.add &&
         (showAdd ? (
@@ -1332,7 +1394,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           ))}
         {view.map(({ row, i, info }) => {
           const open = openId === row.id;
-          const { title, sub, img, round, tags, swatch } = info;
+          const { title, sub, img, round, gold, tags, swatch } = info;
           return (
             <article
               key={row.id}
@@ -1360,7 +1422,9 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
                   <img
                     src={img}
                     alt=""
-                    className={`h-9 w-9 shrink-0 border border-border object-cover ${round ? ROUND : "rounded-lg"}`}
+                    className={`h-9 w-9 shrink-0 border object-cover ${gold ? "border-accent" : "border-border"} ${
+                      round ? ROUND : "rounded-lg"
+                    }`}
                   />
                 ) : null}
                 <span className="min-w-0 flex-1">
