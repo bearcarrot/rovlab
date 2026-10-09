@@ -238,7 +238,7 @@ export function HeroDetail() {
                       alt={a.name}
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      className="h-9 w-9 shrink-0 rounded-[50%] object-cover sm:h-10 sm:w-10"
+                      className="h-9 w-9 shrink-0 rounded-[50%] border border-accent object-cover sm:h-10 sm:w-10"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
