@@ -6,21 +6,20 @@ import { useState } from "react";
 function HeroSlotIcon({ hero }: { hero: HeroSummary }) {
   const [imageError, setImageError] = useState(false);
 
-  // ขนาดไอคอนไล่ตามความกว้างช่อง: จอแคบ (5 ช่องเรียงแถวเดียว) เล็กลงไม่ให้ล้นช่อง,
-  // sm = ทีมละแถวเต็มจอ ช่องกว้าง, md+ = สองทีมวางคู่กัน ช่องแคบลงอีกครั้ง, xl กว้างพอให้ใหญ่ขึ้น
+  // ไอคอนเต็มช่อง (ช่องเป็นสี่เหลี่ยมจัตุรัสไล่ตามความกว้างจอ) ไม่แสดงชื่อในช่อง
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg-raised sm:h-12 sm:w-12 md:h-10 md:w-10 xl:h-12 xl:w-12">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-bg-raised">
       {hero.icon && !imageError ? (
         <img
           src={hero.icon}
           alt={hero.nameTh}
           loading="lazy"
           referrerPolicy="no-referrer"
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           onError={() => setImageError(true)}
         />
       ) : (
-        <span className="text-xs font-display text-text-faint sm:text-sm">
+        <span className="text-sm font-display text-text-faint sm:text-base">
           {hero.name.slice(0, 2).toUpperCase()}
         </span>
       )}
@@ -50,8 +49,10 @@ export function TeamSlots({
           <button
             key={i}
             onClick={() => onSelectSlot(i)}
+            title={hero?.nameTh}
+            aria-label={hero?.nameTh}
             className={cn(
-              "relative flex aspect-square flex-col items-center justify-center gap-1 overflow-visible rounded-lg border text-center",
+              "relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border text-center",
               activeIndex === i
                 ? "border-accent bg-accent/10"
                 : "border-border bg-bg-surface",
@@ -62,16 +63,12 @@ export function TeamSlots({
               <>
                 <HeroSlotIcon hero={hero} />
 
-                <span className="max-w-full truncate px-1 text-[10px] font-medium leading-tight sm:text-xs">
-                  {hero.nameTh}
-                </span>
-
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
                     onClearSlot(i);
                   }}
-                  className="absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-loss text-white"
+                  className="absolute right-0.5 top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-loss text-white"
                 >
                   <X className="h-2.5 w-2.5" />
                 </span>
