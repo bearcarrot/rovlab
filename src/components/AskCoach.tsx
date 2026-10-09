@@ -5,6 +5,7 @@ import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
 import { CoachIcon } from "@/components/CoachIcon";
 import { CoachText } from "@/components/CoachText";
+import { EllipsisJump } from "@/components/EllipsisJump";
 import { useToast } from "@/components/ui/toast";
 
 type Props = {
@@ -76,7 +77,14 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
       >
         {/* รูป mascot ละเอียดกว่าไอคอนเส้น: ต้องใหญ่ ~36px ถึงจะอ่านออกบนมือถือ */}
         <CoachIcon busy={busy} image={imageIcon} className={imageIcon ? "h-9 w-9" : "h-4 w-4"} />
-        <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}</span>
+        {busy && imageIcon ? (
+          <span className="inline-flex items-baseline">
+            กำลังคิด
+            <EllipsisJump className="ml-1" />
+          </span>
+        ) : (
+          <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : label}</span>
+        )}
       </button>
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
