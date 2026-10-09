@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { ImageSelect } from "@/features/admin/ImageSelect";
-import { ArcanaSlots, ItemSlots } from "@/features/admin/BuildSlots";
+import { ArcanaSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
@@ -1088,6 +1088,22 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     else void load();
   }
 
+  // ลากย้ายช่อง: BuildSlots คำนวณว่าแถวไหนต้องเปลี่ยน phase / sort_order แล้วส่งมาที่นี่
+  // อัปเดตหน้าจอทันที (ไม่ต้องรอ DB) แล้วบันทึกทุกแถวพร้อมกัน ถ้าพลาดโหลดจาก DB ใหม่ให้ตรงกับของจริง
+  async function applyMoves(moves: RowMove[]) {
+    if (moves.length === 0) return;
+    const byId = new Map(moves.map((m) => [m.id, m.patch]));
+    setRows((rs) =>
+      rs
+        .map((r) => (byId.has(r.id) ? { ...r, ...byId.get(r.id) } : r))
+        .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+    );
+    const res = await Promise.all(moves.map((m) => db.from(cfg.table).update(m.patch).eq("id", m.id)));
+    const bad = res.find((x: { error: { message: string } | null }) => x.error);
+    if (bad) err(`ย้ายไม่สำเร็จ: ${bad.error.message}`);
+    void load();
+  }
+
   // Tier List: สร้างลิสต์เปล่าของ แรงก์ + แพตช์ + เลน ที่เลือกอยู่ (ยังไม่มีในตาราง tier_lists)
   async function createList() {
     if (!patchV) return;
@@ -1318,7 +1334,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         </section>
       )}
 
-      {/* มุมมองช่องแบบ TeamSlots ของ Draft Assistant: ไอเทมตามช่วงเกม / รูน 3 สี สีละ 10 ช่อง */}
+      {/* มุมมองช่องแบบ TeamSlots ของ Draft Assistant: ไอเทมตามช่วงเกม / รูน 3 สี สีละ 10 ช่อง (ลากย้ายช่องได้) */}
       {cfg.slotsView === "items" && fv && (
         <ItemSlots
           rows={rows}
@@ -1326,6 +1342,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           onAdd={(itemId, phase) => void addBuildItem(itemId, phase)}
           onRemove={(row) => void remove(row)}
           onOpen={(row) => setOpenId(row.id)}
+          onMoves={(m) => void applyMoves(m)}
         />
       )}
       {cfg.slotsView === "arcana" && fv && (
@@ -1336,6 +1353,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           max={MAX_SLOTS}
           onAdd={(arcanaId) => void addArcana(arcanaId)}
           onDec={(row) => void decArcana(row)}
+          onMoves={(m) => void applyMoves(m)}
         />
       )}
 
