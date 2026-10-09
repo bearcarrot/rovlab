@@ -2,18 +2,20 @@ import { Admin } from "@/pages/Admin";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
+import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
+  ["users", "ผู้ใช้"],
   ["edit", "แก้ไขข้อมูล"],
   ["import", "นำเข้าสถิติ"],
   ["balance", "นำเข้าปรับสมดุล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
@@ -28,7 +30,7 @@ export function AdminHub() {
       <div
         role="tablist"
         aria-label="โหมดแอดมิน"
-        className="grid grid-cols-4 gap-1 rounded-lg border border-border bg-bg-surface p-1 sm:max-w-2xl"
+        className="grid grid-cols-5 gap-1 rounded-lg border border-border bg-bg-surface p-1 sm:max-w-3xl"
       >
         {MODES.map(([k, label]) => (
           <button
@@ -37,7 +39,7 @@ export function AdminHub() {
             role="tab"
             aria-selected={mode === k}
             onClick={() => setMode(k)}
-            className={`min-h-[44px] rounded-md px-1 text-xs leading-tight transition sm:text-sm ${
+            className={`min-h-[44px] rounded-md px-1 text-[11px] leading-tight transition sm:text-sm ${
               mode === k ? "bg-accent font-medium text-accent-fg" : "text-text-muted hover:text-text"
             }`}
           >
@@ -47,6 +49,8 @@ export function AdminHub() {
       </div>
       {mode === "dashboard" ? (
         <AdminDashboard />
+      ) : mode === "users" ? (
+        <AdminUsers />
       ) : mode === "edit" ? (
         <Admin />
       ) : mode === "import" ? (
