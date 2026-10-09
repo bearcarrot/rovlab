@@ -6,9 +6,9 @@ import { useState } from "react";
 function HeroSlotIcon({ hero }: { hero: HeroSummary }) {
   const [imageError, setImageError] = useState(false);
 
-  // ไอคอนเต็มพื้นที่ช่อง (ช่องเป็นสี่เหลี่ยมจัตุรัสไล่ตามความกว้างจอ) ชื่อฮีโร่อยู่แถบล่างสุด
+  // ไอคอนเต็มช่อง (ช่องเป็นสี่เหลี่ยมจัตุรัสไล่ตามความกว้างจอ) ไม่แสดงชื่อในช่อง
   return (
-    <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden bg-bg-raised">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-bg-raised">
       {hero.icon && !imageError ? (
         <img
           src={hero.icon}
@@ -49,9 +49,10 @@ export function TeamSlots({
           <button
             key={i}
             onClick={() => onSelectSlot(i)}
+            title={hero?.nameTh}
+            aria-label={hero?.nameTh}
             className={cn(
-              "relative flex aspect-square flex-col overflow-hidden rounded-lg border text-center",
-              hero ? "items-stretch" : "items-center justify-center",
+              "relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border text-center",
               activeIndex === i
                 ? "border-accent bg-accent/10"
                 : "border-border bg-bg-surface",
@@ -61,10 +62,6 @@ export function TeamSlots({
             {hero ? (
               <>
                 <HeroSlotIcon hero={hero} />
-
-                <span className="w-full shrink-0 truncate px-1 py-0.5 text-[10px] font-medium leading-tight sm:text-xs">
-                  {hero.nameTh}
-                </span>
 
                 <span
                   onClick={(e) => {
