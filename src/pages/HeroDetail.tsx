@@ -16,6 +16,8 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
+import { HeroPager } from "@/features/heroes/HeroPager";
+import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { MOCK_HEROES } from "@/data/heroes.mock";
@@ -119,9 +121,26 @@ export function HeroDetail() {
     loaded?.slug ?? "",
   );
 
+  // ปุ่ม < > ไปฮีโร่ตัวก่อนหน้า/ถัดไป ตามตัวกรองตำแหน่ง/เลนที่เลือกไว้ในหน้ารายชื่อฮีโร่ (ต้องเรียกก่อน early return)
+  // คำนวณจาก slug ใน URL จึงแสดงได้ทันทีแม้ฮีโร่ตัวใหม่ยังโหลดอยู่ (กดต่อเนื่องได้)
+  const neighbors = useHeroNeighbors(slug);
+  const pager = neighbors ? (
+    <HeroPager
+      neighbors={neighbors}
+      caption={[
+        `${neighbors.index + 1}/${neighbors.total}`,
+        neighbors.role ? roleName(neighbors.role) : null,
+        neighbors.lane ? laneName(neighbors.lane) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
+    />
+  ) : null;
+
   if (hero.status === "loading") {
     return (
       <div className="space-y-4">
+        {pager}
         <Skeleton className="h-24" />
         <Skeleton className="h-40" />
       </div>
@@ -140,6 +159,7 @@ export function HeroDetail() {
 
   return (
     <div className="space-y-5 pb-4">
+      {pager}
       <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4 sm:items-center sm:gap-5 sm:p-5">
         <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           {h.icon ? (
