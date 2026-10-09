@@ -35,8 +35,8 @@ const fmtTime = (iso: string) =>
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-card border border-border bg-bg-surface p-3.5">
-      <p className="text-xs text-text-faint">{label}</p>
+    <div className="min-w-0 rounded-card border border-border bg-bg-surface p-3.5">
+      <p className="truncate text-xs text-text-faint">{label}</p>
       <p className="mt-1 font-display text-2xl font-semibold">{value.toLocaleString()}</p>
     </div>
   );
@@ -79,7 +79,8 @@ function FeatureUsage({ summary }: { summary: ActivitySummary }) {
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      {/* จอแคบ: หัวข้อกับชิปช่วงเวลาตกลงบรรทัดใหม่ได้ ไม่ล้นจอ */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-base font-semibold">Feature Usage</h2>
         <div className="flex gap-1">
           {RANGES.map(([k, label]) => (
@@ -88,7 +89,7 @@ function FeatureUsage({ summary }: { summary: ActivitySummary }) {
               type="button"
               onClick={() => setRange(k)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium",
+                "min-h-[36px] rounded-full border px-3 py-1 text-xs font-medium",
                 range === k ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted"
               )}
             >
@@ -131,8 +132,8 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-2">
-        <div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold">Dashboard</h1>
           <p className="mt-1 text-xs text-text-faint">นับจากกิจกรรมของผู้ใช้ที่ล็อกอินเท่านั้น · วันนี้ = วันตามเวลาไทย · เก็บย้อนหลังเป้าหมาย 90 วัน</p>
         </div>
@@ -194,7 +195,7 @@ export function AdminDashboard() {
                 <li key={a.id} className="flex gap-3 px-3 py-2.5">
                   <span className="w-24 shrink-0 text-xs text-text-faint">{fmtTime(a.createdAt)}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm">
+                    <p className="break-words text-sm">
                       <span className="font-medium">{meta?.feature ?? a.eventType}</span>
                       <span className="text-text-muted"> · {who} {meta ? meta.text : ""}</span>
                     </p>
