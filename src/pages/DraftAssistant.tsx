@@ -39,7 +39,7 @@ import {
 } from "@/features/draft/series";
 import { collectLanes, filterByMissingLanes, getMissingLanes } from "@/features/draft/laneCoverage";
 import { SeriesBar } from "@/features/draft/SeriesBar";
-import { GlobalRestrictionPanel } from "@/features/draft/GlobalRestrictionPanel";
+import { GlobalRestrictionPanel, type RestrictedByGame } from "@/features/draft/GlobalRestrictionPanel";
 import { BanRow } from "@/features/draft/BanRow";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
 import { MyDrafts } from "@/features/draft/MyDrafts";
@@ -169,13 +169,16 @@ export function DraftAssistant() {
   const mineList = useMemo(() => myTeam.filter((h): h is HeroSummary => h !== null), [myTeam]);
   const enemyList = useMemo(() => enemyTeam.filter((h): h is HeroSummary => h !== null), [enemyTeam]);
 
-  // Global Ban Pick: ฮีโร่ที่ "ทีมนั้น" เคย Pick ในเกมก่อนหน้า (แยกทีม, แบนไม่นับ)
+  // Global Ban Pick: ฮีโร่ที่ "ทีมนั้น" เคย Pick ในเกมก่อนหน้า แยกเป็นแถวต่อเกม (แยกทีม, แบนไม่นับ)
   const restricted = useMemo(() => {
-    const toHeroes = (team: TeamKey) =>
-      [...getGlobalRestrictedHeroes({ series: ds.series, gameNumber: ds.gameNumber, team })]
-        .map((s) => bySlug.get(s))
-        .filter((h): h is HeroSummary => !!h);
-    return { mine: toHeroes("mine"), enemy: toHeroes("enemy") };
+    const rows = (team: TeamKey): RestrictedByGame[] =>
+      ds.series.games
+        .filter((g) => g.gameNumber < ds.gameNumber)
+        .map((g) => ({
+          gameNumber: g.gameNumber,
+          heroes: g[team].picks.map((s) => (s ? bySlug.get(s) : undefined)).filter((h): h is HeroSummary => !!h),
+        }));
+    return { mine: rows("mine"), enemy: rows("enemy") };
   }, [ds.series, ds.gameNumber, bySlug]);
 
   // พูลที่ระบบแนะนำใช้: ตัดตัวที่ถูกใช้/แบนในเกมนี้ และตัวที่ทีมเราถูกห้ามซ้ำ แล้วค่อยคำนวณคำแนะนำ
@@ -240,11 +243,16 @@ export function DraftAssistant() {
     [draftCtx, analysis, relationCtx, mineList, enemyList, skills]
   );
 
-  // พูลของตัวเลือกฮีโร่: pick = ไม่ซ้ำในเกมนี้ + ไม่ผิดกฎ Global BP ของทีมที่กำลังเลือก / ban = ไม่ซ้ำในเกมนี้
+  // พูลของตัวเลือกฮีโร่: pick = ไม่ซ้ำในเกมนี้ + ไม่ผิดกฎ Global BP ของทีมที่กำลังเลือก
+  // ban = ไม่ซ้ำในเกมนี้ + ตัดตัวที่ "ทีมตรงข้าม" ใช้ไปแล้วในเกมก่อนหน้า (Global BP: ทีมนั้นเลือกซ้ำไม่ได้อยู่แล้ว จึงไม่ต้องแบนซ้ำ)
   const takenNow = useMemo(() => getCurrentGameTaken(ds.game), [ds.game]);
   const activePool = useMemo(() => {
     if (!active) return heroes;
-    if (active.kind === "ban") return heroes.filter((h) => !takenNow.has(h.slug));
+    if (active.kind === "ban") {
+      const opponent: TeamKey = active.team === "mine" ? "enemy" : "mine";
+      const opponentUsed = getGlobalRestrictedHeroes({ series: ds.series, gameNumber: ds.gameNumber, team: opponent });
+      return heroes.filter((h) => !takenNow.has(h.slug) && !opponentUsed.has(h.slug));
+    }
     return getAvailableHeroes({ heroes, series: ds.series, gameNumber: ds.gameNumber, team: active.team });
   }, [active, heroes, takenNow, ds.series, ds.gameNumber]);
   const filteredPool = activePool.filter(
