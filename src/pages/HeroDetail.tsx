@@ -197,6 +197,7 @@ export function HeroDetail() {
 
       <AskCoach
         resetKey={h.slug}
+        imageIcon
         label="ถามโค้ช AI: เล่นตัวนี้ยังไง"
         prompt={`สรุปวิธีเล่น ${h.nameTh} ให้ผู้เล่นมือใหม่ถึงกลาง ไม่เกิน 4 ประโยค`}
         context={{
