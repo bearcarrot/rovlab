@@ -23,7 +23,8 @@ export function BanRow({
       <span className="text-xs text-text-faint">{label}</span>
       {bans.map((b) => (
         <span key={b.slug} className="inline-flex items-center gap-0.5 rounded-md bg-bg-raised pr-1">
-          <MiniHero hero={b.hero} fallback={b.slug} className="bg-transparent pr-1" />
+          {/* ไอคอนล้วน สีเทา (ชื่อดูได้จาก tooltip) */}
+          <MiniHero hero={b.hero} fallback={b.slug} showName={false} grayscale size="md" className="bg-transparent pr-1" />
           <button type="button" aria-label="เอาแบนออก" onClick={() => onRemove(b.slug)} className="text-text-faint hover:text-loss">
             <X className="h-3.5 w-3.5" />
           </button>
