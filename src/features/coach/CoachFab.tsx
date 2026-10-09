@@ -15,7 +15,7 @@ type Msg = { id: number; role: "user" | "coach" | "error"; text: string };
 function Mascot({ className }: { className?: string }) {
   return (
     <img
-      src="/CoachAi-64.webp"
+      src="/CoachAi.webp"
       alt=""
       aria-hidden
       width={64}
