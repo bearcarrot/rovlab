@@ -1,11 +1,7 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIcon } from "@/components/HeroIcon";
-import { CoachIcon } from "@/components/CoachIcon";
-import { CoachText } from "@/components/CoachText";
-import { askCoach } from "@/services/ai";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
 const TAG_LABEL: Record<RecommendTag, string> = {
@@ -14,58 +10,11 @@ const TAG_LABEL: Record<RecommendTag, string> = {
   synergy: "คอมโบ",
 };
 
-export function RecommendedPickCard({
-  rec,
-  onPick,
-  coachContext,
-}: {
-  rec: Recommendation;
-  onPick: () => void;
-  // สร้าง context ให้ Coach AI (มีสกิลจริงของฮีโร่ที่เกี่ยวข้อง) — ดู coachContext.ts
-  coachContext?: (rec: Recommendation) => unknown;
-}) {
-  const [advice, setAdvice] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
+// การ์ดฮีโร่ที่ระบบแนะนำ — การถามโค้ช AI ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
+export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPick: () => void }) {
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);
   const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
-
-  async function ask() {
-    setBusy(true);
-    setError("");
-    try {
-      const text = await askCoach(
-        `ตอบเป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ เรื่องการเลือก ${rec.hero.nameTh} ในดราฟต์นี้: ` +
-          `1) ควรใช้สกิลไหนก่อน/หลัง และใช้ตอนไหน (อ้างชื่อสกิลจริงจาก heroes[].skills) ` +
-          `2) ถ้ามี combos: อธิบายว่าสกิลของสองตัวเสริมกันยังไง (ใช้ข้อความ reason ถ้ามี และสกิลจริงประกอบ) ` +
-          `3) ถ้ามี counters: direction=wins ให้บอกว่าศัตรูมีสกิลไหนที่ต้องหลบหรือตัดจังหวะ และเราใช้สกิลไหนสู้; ` +
-          `direction=loses ให้บอกวิธีลดความเสียเปรียบ ` +
-          `4) จุดที่ต้องระวัง ` +
-          `ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลสกิลไม่พอให้บอกตรงๆ`,
-        coachContext
-          ? coachContext(rec)
-          : {
-              hero: rec.hero.nameTh,
-              // ไม่ส่ง Tier/Win Rate ถ้าฮีโร่ยังไม่มีสถิติจริง (ค่าเริ่มต้นเป็น Tier C ซึ่งเป็นค่าสมมติ)
-              stat: rec.hero.stat.hasStats
-                ? { tier: rec.hero.stat.tier, winRate: rec.hero.stat.winRate, patch: rec.hero.stat.patch }
-                : null,
-              risk: rec.risk,
-              reasons: rec.reasons,
-              warnings: rec.warnings,
-              combos: rec.details.combos,
-              counters: rec.details.counters,
-            },
-      );
-      setAdvice(text);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <Card>
@@ -112,7 +61,7 @@ export function RecommendedPickCard({
             ))}
             {missingCombos.map((c) => (
               <p key={c.partner} className="text-text-faint">
-                {rec.hero.nameTh} + {c.partner}: ยังไม่มีคำอธิบายกลไกในระบบ (ถามโค้ช AI ให้วิเคราะห์จากสกิลได้)
+                {rec.hero.nameTh} + {c.partner}: ยังไม่มีคำอธิบายกลไกในระบบ
               </p>
             ))}
           </div>
@@ -129,30 +78,12 @@ export function RecommendedPickCard({
           </ul>
         )}
 
-        {advice && (
-          <div className="rounded-lg bg-bg-raised p-2">
-            <CoachText text={advice} className="text-text" />
-          </div>
-        )}
-        {error && <p className="text-xs text-red-400">{error}</p>}
-
-        <div className="flex gap-2">
-          <button
-            onClick={ask}
-            disabled={busy}
-            aria-busy={busy}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border py-1.5 text-sm text-text hover:bg-bg-raised disabled:cursor-wait disabled:opacity-80"
-          >
-            <CoachIcon busy={busy} className="h-3.5 w-3.5" />
-            <span className={busy ? "animate-pulse" : undefined}>{busy ? "กำลังคิด..." : advice ? "ถามใหม่" : "ถามโค้ช AI"}</span>
-          </button>
-          <button
-            onClick={onPick}
-            className="flex-1 rounded-lg bg-bg-raised py-1.5 text-sm font-medium text-text hover:bg-border"
-          >
-            เลือกฮีโร่นี้
-          </button>
-        </div>
+        <button
+          onClick={onPick}
+          className="w-full rounded-lg bg-bg-raised py-1.5 text-sm font-medium text-text hover:bg-border"
+        >
+          เลือกฮีโร่นี้
+        </button>
       </CardContent>
     </Card>
   );

@@ -5,7 +5,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { AskCoach } from "@/components/AskCoach";
+import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { CounterList } from "@/features/heroes/CounterList";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -36,6 +36,27 @@ export function CounterPick() {
 
   const selectedHero = selected ? heroes.status === "success" ? heroes.data.find((h) => h.slug === selected) : undefined : undefined;
   const counters = detailQ.status === "success" && detailQ.data ? detailQ.data.counteredBy : [];
+
+  // FAB โค้ช AI: ถามได้เมื่อเลือกศัตรูแล้วและข้อมูลของตัวที่เลือกโหลดครบ (ตรวจ slug กันข้อมูลของตัวก่อนหน้าค้าง)
+  const coachReady =
+    !!selected &&
+    !!selectedHero &&
+    detailQ.status === "success" &&
+    detailQ.data?.slug === selected &&
+    counters.length > 0;
+  useCoachQuickChats(
+    coachReady && selectedHero
+      ? [
+          {
+            id: "how-to-face",
+            label: `เจอ ${selectedHero.nameTh} ต้องเล่นยังไง`,
+            prompt: `ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นให้ชนะทางและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`,
+            context: { enemy: selectedHero.nameTh, counteredBy: counters },
+          },
+        ]
+      : [],
+    selected ?? "",
+  );
 
   return (
     <div className="space-y-4">
@@ -113,15 +134,7 @@ export function CounterPick() {
           {detailQ.status === "loading" && <Skeleton className="h-40" />}
           {detailQ.status === "error" && <ErrorState message={detailQ.message} onRetry={detailQ.refetch} />}
           {detailQ.status === "success" && counters.length > 0 && (
-            <>
-              <CounterList entries={counters} emptyText="" icons={iconBySlug} grid />
-              <AskCoach
-                resetKey={selected}
-                label="ถามโค้ช AI: เจอตัวนี้ต้องเล่นยังไง"
-                prompt={`ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นให้ชนะทางและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`}
-                context={{ enemy: selectedHero.nameTh, counteredBy: counters }}
-              />
-            </>
+            <CounterList entries={counters} emptyText="" icons={iconBySlug} grid />
           )}
           {detailQ.status === "success" && counters.length === 0 && (
             <EmptyState
