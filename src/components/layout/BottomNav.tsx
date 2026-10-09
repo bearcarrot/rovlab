@@ -23,7 +23,7 @@ export function BottomNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
           end={end}
           className={({ isActive }) =>
             cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] text-text-faint",
+              "flex flex-1 flex-col items-center justify-center gap-1 text-xs text-text-faint",
               isActive && "text-accent"
             )
           }
@@ -34,7 +34,7 @@ export function BottomNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
       ))}
       <button
         onClick={onOpenDrawer}
-        className="flex flex-1 flex-col items-center justify-center gap-1 text-[11px] text-text-faint"
+        className="flex flex-1 flex-col items-center justify-center gap-1 text-xs text-text-faint"
       >
         <Menu className="h-5 w-5" strokeWidth={2} />
         เพิ่มเติม

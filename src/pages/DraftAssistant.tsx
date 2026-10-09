@@ -361,7 +361,7 @@ export function DraftAssistant() {
             <button
               type="button"
               onClick={onSaveClick}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg"
+              className="flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-fg"
             >
               <Bookmark className="h-4 w-4" />
               บันทึก
@@ -369,7 +369,7 @@ export function DraftAssistant() {
             <button
               type="button"
               onClick={() => void onNew()}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text"
+              className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text"
             >
               <FilePlus2 className="h-4 w-4" />
               Draft ใหม่
@@ -429,7 +429,7 @@ export function DraftAssistant() {
                       ? `เลือกฮีโร่ที่จะแบน (${TEAM_LABEL[active.team]})`
                       : `เลือกฮีโร่สำหรับ ${TEAM_LABEL[active.team]} ช่อง ${active.index + 1}`
                   }
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
+                  className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
                 />
               </div>
               <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />

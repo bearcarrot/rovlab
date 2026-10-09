@@ -8,11 +8,14 @@ export function UserAvatar({
   url,
   className,
   fallback,
+  eager = false,
 }: {
   name: string;
   url?: string | null;
   className?: string;
   fallback?: ReactNode;
+  /** above-the-fold avatar (likely LCP): load immediately instead of lazily */
+  eager?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -32,7 +35,10 @@ export function UserAvatar({
         <img
           src={url!}
           alt={name}
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          width={160}
+          height={160}
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}

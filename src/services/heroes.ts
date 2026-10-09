@@ -116,6 +116,31 @@ async function loadHeroes(rank: RankBucket): Promise<HeroSummary[]> {
   return applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
 }
 
+// Minimal hero fields for places that only show a few icons (e.g. a public profile's favourite heroes).
+// One small query on `heroes` instead of loading every hero + stats + tier lists.
+export type HeroChip = { id: string; slug: string; name: string; icon: string };
+
+export async function getHeroChipsByIds(ids: string[]): Promise<HeroChip[]> {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return [];
+  if (!isSupabaseConfigured) {
+    return unique
+      .map((id) => MOCK_HEROES.find((h) => h.id === id))
+      .filter((h): h is HeroSummary => !!h)
+      .map((h) => ({ id: h.id, slug: h.slug, name: h.name, icon: h.icon }));
+  }
+  return cached(`heroChips:${[...unique].sort().join(",")}`, CACHE_TTL_MS, async () => {
+    const { data, error } = await supabase.from("heroes").select("id, slug, name, icon_url").in("id", unique);
+    if (error) throw new Error(error.message);
+    const byId = new Map((data ?? []).map((r: any) => [r.id as string, r]));
+    // keep the profile's own order
+    return unique
+      .map((id) => byId.get(id))
+      .filter((r): r is any => !!r)
+      .map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, icon: (r.icon_url as string | null) ?? "" }));
+  });
+}
+
 export function getHeroes(rank: RankBucket = getRank()): Promise<HeroSummary[]> {
   // slice(): callers may sort the array in place; never hand out the cached instance itself
   return cached(`heroes:${rank}`, CACHE_TTL_MS, () => loadHeroes(rank)).then((list) => list.slice());

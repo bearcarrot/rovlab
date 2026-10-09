@@ -22,7 +22,7 @@ import type { ContactLink, Profile as ProfileData } from "@/types/profile";
 import type { HeroSummary } from "@/types/hero";
 
 const INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none placeholder:text-text-faint focus:border-accent/60";
+  "w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-base outline-none placeholder:text-text-faint focus:border-accent/60 sm:py-2 sm:text-sm";
 
 function Field({ label, hint, counter, children }: { label: string; hint?: string; counter?: string; children: ReactNode }) {
   return (
@@ -130,7 +130,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={avatarBusy !== null}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-bg-raised disabled:opacity-50"
+              className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm hover:bg-bg-raised disabled:opacity-50"
             >
               <ImagePlus className="h-3.5 w-3.5" />
               {avatarBusy === "upload" ? "กำลังตรวจสอบรูป..." : "เปลี่ยนรูป"}
@@ -140,7 +140,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
                 type="button"
                 onClick={onRemoveAvatar}
                 disabled={avatarBusy !== null}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-loss hover:bg-bg-raised disabled:opacity-50"
+                className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-loss hover:bg-bg-raised disabled:opacity-50"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 ลบรูป
@@ -153,7 +153,7 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
         รูปจะถูกตรวจสอบอัตโนมัติก่อนแสดง ไม่รับรูปโป๊ รุนแรง หรือไม่เหมาะสม (ระบบตรวจด้วย AI อาจผิดพลาดได้)
       </p>
 
-      <Link to={`/players/${profile.id}`} className="block text-sm text-accent">
+      <Link to={`/players/${profile.id}`} className="flex min-h-10 items-center text-sm text-accent">
         ดูโปรไฟล์สาธารณะของฉัน →
       </Link>
 
