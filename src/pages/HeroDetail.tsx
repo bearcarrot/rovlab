@@ -7,13 +7,13 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { AskCoach } from "@/components/AskCoach";
 import { HeroIcon } from "@/components/HeroIcon";
 import { EffectTagList } from "@/components/EffectTagList";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
 import { HeroBalance } from "@/features/balance/HeroBalance";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
@@ -21,6 +21,58 @@ import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
+
+type HeroFull = NonNullable<Awaited<ReturnType<typeof getHeroBySlug>>>;
+
+const GROUNDED = " ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
+
+// คำถามด่วนของ FAB โค้ช AI บนหน้าฮีโร่ (ผู้ใช้พิมพ์เองไม่ได้ เลือกได้เฉพาะรายการนี้)
+function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string): QuickChat[] {
+  const context = {
+    hero: h.nameTh,
+    role: roleLabel,
+    lane: laneLabel,
+    difficulty: DIFFICULTY_LABEL[h.difficulty],
+    stats: h.stat.hasStats
+      ? { winRate: h.stat.winRate, pickRate: h.stat.pickRate, banRate: h.stat.banRate, tier: h.stat.tier }
+      : null,
+    strengths: h.strengths,
+    weaknesses: h.weaknesses,
+    abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name, description: a.description })),
+  };
+  return [
+    {
+      id: "how-to-play",
+      label: "เล่นตัวนี้ยังไง",
+      prompt: `สรุปวิธีเล่น ${h.nameTh} ให้ผู้เล่นมือใหม่ถึงกลาง ไม่เกิน 4 ประโยค`,
+      context,
+    },
+    {
+      id: "skills",
+      label: "ใช้สกิลยังไง",
+      prompt: `อธิบายการใช้สกิลของ ${h.nameTh} ทีละสกิลว่าควรใช้เมื่อไหร่ ไม่เกิน 5 ข้อ สั้นกระชับ อ้างชื่อสกิลจริงจาก abilities` + GROUNDED,
+      context,
+    },
+    {
+      id: "pros-cons",
+      label: "จุดแข็ง จุดอ่อน",
+      prompt: `สรุปจุดแข็งและจุดอ่อนของ ${h.nameTh} พร้อมวิธีเล่นเพื่อปิดจุดอ่อน ไม่เกิน 4 ประโยค` + GROUNDED,
+      context,
+    },
+    {
+      id: "who-fits",
+      label: "เหมาะกับใคร",
+      prompt: `${h.nameTh} เหมาะกับผู้เล่นสไตล์ไหน และควรเล่นบทบาทหรือเลนอะไร ไม่เกิน 3 ประโยค`,
+      context,
+    },
+    {
+      id: "game-phase",
+      label: "แผนต้น-กลาง-ท้ายเกม",
+      prompt: `วางแผนการเล่น ${h.nameTh} ช่วงต้นเกม กลางเกม และท้ายเกม อย่างละ 1-2 ประโยค` + GROUNDED,
+      context,
+    },
+  ];
+}
 
 function StatBlock({ label, value, valueClassName = "" }: { label: string; value: string; valueClassName?: string }) {
   return (
@@ -53,6 +105,18 @@ export function HeroDetail() {
           ],
         }
       : null,
+  );
+
+  // FAB โค้ช AI: ลงทะเบียน Quick Chat ของฮีโร่ตัวนี้ (ยังโหลดไม่เสร็จ = ไม่แสดงปุ่ม) ต้องเรียกก่อน early return
+  useCoachQuickChats(
+    loaded
+      ? buildHeroQuickChats(
+          loaded,
+          heroRoles(loaded).map((r) => roleName(r)).join(" / "),
+          heroLanes(loaded).map((l) => laneName(l)).join(" / "),
+        )
+      : [],
+    loaded?.slug ?? "",
   );
 
   if (hero.status === "loading") {
@@ -194,25 +258,6 @@ export function HeroDetail() {
           </Card>
         </div>
       )}
-
-      <AskCoach
-        resetKey={h.slug}
-        imageIcon
-        label="ถามโค้ช AI: เล่นตัวนี้ยังไง"
-        prompt={`สรุปวิธีเล่น ${h.nameTh} ให้ผู้เล่นมือใหม่ถึงกลาง ไม่เกิน 4 ประโยค`}
-        context={{
-          hero: h.nameTh,
-          role: roleLabel,
-          lane: laneLabel,
-          difficulty: DIFFICULTY_LABEL[h.difficulty],
-          stats: h.stat.hasStats
-            ? { winRate: h.stat.winRate, pickRate: h.stat.pickRate, banRate: h.stat.banRate, tier: h.stat.tier }
-            : null,
-          strengths: h.strengths,
-          weaknesses: h.weaknesses,
-          abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name, description: a.description })),
-        }}
-      />
 
       {/* lg+ วางการ์ดแพ้ทาง/ชนะทางคู่กัน ลดความยาวหน้าบนจอกว้าง */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
