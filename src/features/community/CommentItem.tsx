@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/features/auth/AuthContext";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/components/ui/toast";
 import { CommentComposer } from "./CommentComposer";
 import { MentionText } from "./MentionText";
@@ -43,6 +44,8 @@ interface Props {
   comment: CommentRow;
   heroSlug: string;
   isAdmin: boolean;
+  // moderator or above: may pin/hide comments (the database enforces this; delete stays admin-only)
+  isModerator?: boolean;
   canPost: boolean; // logged in AND email verified
   isReply?: boolean;
   highlightId?: string | null;
@@ -56,6 +59,7 @@ export function CommentItem({
   comment,
   heroSlug,
   isAdmin,
+  isModerator = false,
   canPost,
   isReply = false,
   highlightId,
@@ -78,6 +82,7 @@ export function CommentItem({
   const ref = useRef<HTMLDivElement>(null);
   const mine = user?.id === c.userId;
   const name = c.authorName?.trim() || "ผู้เล่นนิรนาม";
+  const canModerate = isAdmin || isModerator;
 
   useEffect(() => {
     setC(comment);
@@ -231,10 +236,13 @@ export function CommentItem({
       </Link>
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-          <Link to={`/players/${c.userId}`} className="min-w-0 truncate font-display text-sm font-medium hover:text-accent">
-            {name}
-            {mine && <span className="ml-1.5 text-[11px] font-normal text-accent">(คุณ)</span>}
-          </Link>
+          <span className="flex min-w-0 items-center gap-1">
+            <Link to={`/players/${c.userId}`} className="min-w-0 truncate font-display text-sm font-medium hover:text-accent">
+              {name}
+              {mine && <span className="ml-1.5 text-[11px] font-normal text-accent">(คุณ)</span>}
+            </Link>
+            <VerifiedBadge category={c.verifiedCategory} />
+          </span>
           <span className="text-text-faint">@{c.handle}</span>
           {c.isAdmin && <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-fg">แอดมิน</span>}
           {c.pinned && (
@@ -329,7 +337,7 @@ export function CommentItem({
                 </button>
               </>
             )}
-            {isAdmin && (
+            {canModerate && (
               <>
                 {!isReply && (
                   <button onClick={() => adminToggle({ pinned: !c.pinned })} className="flex items-center gap-1 text-accent">
@@ -339,12 +347,12 @@ export function CommentItem({
                 <button onClick={() => adminToggle({ hidden: !c.hidden })} className="flex items-center gap-1 text-accent">
                   <EyeOff className="h-3 w-3" /> {c.hidden ? "เลิกซ่อน" : "ซ่อน"}
                 </button>
-                {!mine && (
-                  <button onClick={remove} className="flex items-center gap-1 text-loss">
-                    <Trash2 className="h-3 w-3" /> ลบ (แอดมิน)
-                  </button>
-                )}
               </>
+            )}
+            {isAdmin && !mine && (
+              <button onClick={remove} className="flex items-center gap-1 text-loss">
+                <Trash2 className="h-3 w-3" /> ลบ (แอดมิน)
+              </button>
             )}
           </div>
         )}
@@ -405,6 +413,7 @@ export function CommentItem({
                 comment={r}
                 heroSlug={heroSlug}
                 isAdmin={isAdmin}
+                isModerator={isModerator}
                 canPost={canPost}
                 isReply
                 highlightId={highlightId}
