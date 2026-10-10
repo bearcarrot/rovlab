@@ -2,7 +2,7 @@
   "redirects": [
     { "source": "/ai-catalog.json", "destination": "/.well-known/ai-catalog.json", "permanent": false }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",

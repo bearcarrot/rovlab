@@ -49,6 +49,28 @@
   <body>
     <!-- React (createRoot) จะแทนที่เนื้อหาใน #root ทั้งหมดเมื่อแอปเริ่มทำงาน -->
     <div id="root"><div id="boot" aria-hidden="true">RoV LAB</div></div>
+    <script>
+      // กู้จอค้างที่ "RoV LAB": ถ้าแอปไม่ขึ้นใน 8 วิ (เช่น ไฟล์ JS เก่า/แคชเสีย หลัง deploy ใหม่) โหลดหน้าใหม่ 1 ครั้ง
+      // ถ้ายังไม่ขึ้นอีก แสดงปุ่มโหลดใหม่แทนจอดำ
+      (function () {
+        function reloadOnce() {
+          try {
+            if (sessionStorage.getItem("boot-reload")) return false;
+            sessionStorage.setItem("boot-reload", "1");
+          } catch (e) { return false; }
+          location.reload();
+          return true;
+        }
+        window.addEventListener("vite:preloadError", function () { reloadOnce(); });
+        setTimeout(function () {
+          var boot = document.getElementById("boot");
+          if (!boot) { try { sessionStorage.removeItem("boot-reload"); } catch (e) {} return; }
+          if (reloadOnce()) return;
+          boot.innerHTML = '<div style="text-align:center">RoV LAB<br><a href="/" style="font-size:14px;color:inherit">โหลดหน้าใหม่</a></div>';
+          boot.removeAttribute("aria-hidden");
+        }, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
