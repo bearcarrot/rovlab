@@ -2,23 +2,25 @@ import { useEffect, useRef } from "react";
 import { Admin } from "@/pages/Admin";
 import { AdminCoachFeedback } from "@/pages/AdminCoachFeedback";
 import { AdminDashboard } from "@/pages/AdminDashboard";
+import { AdminGameData } from "@/pages/AdminGameData";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
 import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "coach" | "game" | "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
   ["coach", "รีวิว Coach Ai"],
+  ["game", "ฐานข้อมูลเกม"],
   ["edit", "แก้ไขข้อมูล"],
   ["import", "นำเข้าสถิติ"],
   ["balance", "นำเข้าปรับสมดุล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
@@ -66,6 +68,8 @@ export function AdminHub() {
         <AdminUsers />
       ) : mode === "coach" ? (
         <AdminCoachFeedback />
+      ) : mode === "game" ? (
+        <AdminGameData />
       ) : mode === "edit" ? (
         <Admin />
       ) : mode === "import" ? (
