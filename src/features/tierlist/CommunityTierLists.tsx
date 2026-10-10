@@ -8,6 +8,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { Modal } from "@/features/community/Modal";
 import { ReactionButtons } from "@/features/community/ReactionButtons";
 import { useCommunityList } from "@/features/community/useCommunityList";
@@ -144,9 +145,19 @@ export function CommunityTierLists({
                 {it.heroCount} ฮีโร่ · เผยแพร่ {timeAgo(it.publishedAt)}
                 {it.version > 1 ? ` · อัปเดต v${it.version}` : ""}
               </p>
-              <p className="text-xs text-text-muted">
-                โดย{" "}
-                {it.handle ? <Link to={`/u/${it.handle}`} className="text-accent hover:underline">@{it.handle}</Link> : it.authorName || "ผู้ใช้"}
+              <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted">
+                <span>โดย</span>
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  {it.handle ? (
+                    <Link to={`/u/${it.handle}`} className="truncate text-accent hover:underline">
+                      {it.authorName || `@${it.handle}`}
+                    </Link>
+                  ) : (
+                    <span>{it.authorName || "ผู้ใช้"}</span>
+                  )}
+                  <VerifiedBadge category={it.verifiedCategory} />
+                </span>
+                {it.handle && it.authorName && <span className="text-text-faint">@{it.handle}</span>}
               </p>
               {it.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{it.description}</p>}
               {it.preview.length > 0 && (
