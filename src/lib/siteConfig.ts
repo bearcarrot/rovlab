@@ -3,7 +3,7 @@
 export const SITE = {
   name: "RoV LAB",
   taglineTh: "เครื่องมือและข้อมูลชุมชนสำหรับผู้เล่น RoV",
-  taglineEn: "Community tools & data for RoV players",
+  taglineEn: "Community Tools & Data for RoV Players",
   // First year of the project; the footer shows a range once the year passes.
   startYear: 2026,
   // Public contact address for privacy / takedown requests. Leave empty until a
