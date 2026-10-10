@@ -15,7 +15,7 @@ import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
-import { StatBarRow } from "@/features/stats/StatBarRow";
+import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -222,7 +222,7 @@ export function Home() {
         />
 
         <div className="grid gap-5 md:grid-cols-3">
-          <StatSnapshot title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} metric="winRate" />
+          <StatSnapshot title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} metric="winRate" tone="success" />
           <StatSnapshot title="Pick Rate สูงสุด" state={heroes} heroes={meta.topPickRate} metric="pickRate" />
           <StatSnapshot
             title="Ban Rate สูงสุด"
@@ -371,7 +371,7 @@ function StatSnapshot({
   state: FetchState;
   heroes: HeroSummary[];
   metric: "winRate" | "pickRate" | "banRate";
-  tone?: "default" | "danger";
+  tone?: StatTone;
 }) {
   return (
     <div>
