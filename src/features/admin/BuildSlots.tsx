@@ -153,8 +153,8 @@ export function planItemMove(rows: Row[], fromId: string, toId: string): RowMove
 }
 
 // รูน: ย้ายได้เฉพาะในสีเดียวกัน (สีเป็นของรูนเอง) รูนที่ quantity > 1 ย้ายทั้งกลุ่ม ปล่อยที่ช่องว่างของสีนั้น = ต่อท้ายสี
-export function planArcanaMove(rows: Row[], arcana: ColorOpt[], fromId: string, toId: string): RowMove[] {
-  const colorOf = (r: Row) => arcana.find((a) => a.id === r.arcana_id)?.color;
+export function planRuneMove(rows: Row[], rune: ColorOpt[], fromId: string, toId: string): RowMove[] {
+  const colorOf = (r: Row) => rune.find((a) => a.id === r.rune_id)?.color;
   const src = rows.find((r) => r.id === fromId);
   const color = src ? colorOf(src) : undefined;
   if (!src || !color) return [];
@@ -337,9 +337,9 @@ export function ItemSlots({
 // รูนในบิลด์: 3 แถวตามสี (แดง/ม่วง/เขียว) แถวละ max ช่อง รูน quantity = n กิน n ช่อง
 // แตะช่องว่าง = เปิดกริดเลือกรูนสีนั้น (เพิ่มทีละ 1) / X บนช่อง = ลดทีละ 1 (ถึง 0 = ลบแถว)
 // ลากช่องเพื่อเรียงลำดับในสีเดียวกัน (รูนที่มีหลายช่องย้ายทั้งกลุ่ม) ย้ายข้ามสีไม่ได้
-export function ArcanaSlots({
+export function RuneSlots({
   rows,
-  arcana,
+  rune,
   colors,
   max,
   onAdd,
@@ -347,28 +347,28 @@ export function ArcanaSlots({
   onMoves,
 }: {
   rows: Row[];
-  arcana: ColorOpt[];
+  rune: ColorOpt[];
   colors: readonly { k: string; label: string; hex: string }[];
   max: number;
-  onAdd: (arcanaId: string) => void;
+  onAdd: (runeId: string) => void;
   onDec: (row: Row) => void;
   onMoves: (moves: RowMove[]) => void;
 }) {
   const [picker, setPicker] = useState<string | null>(null);
-  const byId = useMemo(() => new Map(arcana.map((a) => [a.id, a])), [arcana]);
+  const byId = useMemo(() => new Map(rune.map((a) => [a.id, a])), [rune]);
   const dnd = useSlotDrag((from, to) => {
-    const m = planArcanaMove(rows, arcana, from, to);
+    const m = planRuneMove(rows, rune, from, to);
     if (m.length > 0) onMoves(m);
   });
   const dragRow = dnd.drag ? rows.find((r) => r.id === dnd.drag!.id) : undefined;
-  const dragOpt = dragRow ? byId.get(dragRow.arcana_id) : undefined;
+  const dragOpt = dragRow ? byId.get(dragRow.rune_id) : undefined;
   const hot = (id: string) => dnd.drag?.over === id && dnd.drag.id !== id;
   return (
     <section aria-label="ช่องรูน" className="space-y-4">
       {colors.map(({ k, label, hex }) => {
         const slots: { row: Row; opt: ColorOpt }[] = [];
         for (const r of rows) {
-          const opt = byId.get(r.arcana_id);
+          const opt = byId.get(r.rune_id);
           if (opt?.color !== k) continue;
           const n = Number(r.quantity) || 0;
           for (let i = 0; i < n; i++) slots.push({ row: r, opt });
@@ -440,7 +440,7 @@ export function ArcanaSlots({
       {picker && (
         <PickerGrid
           title={`เลือกรูน · ${colors.find((c) => c.k === picker)?.label}`}
-          options={arcana.filter((a) => a.color === picker)}
+          options={rune.filter((a) => a.color === picker)}
           round
           onPick={onAdd}
           onClose={() => setPicker(null)}
