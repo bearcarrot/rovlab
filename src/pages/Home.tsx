@@ -198,7 +198,7 @@ export function Home() {
           <StatSnapshot title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} metric="winRate" />
           <StatSnapshot
             title="Ban Rate สูงสุด"
-            hint="สีแดง = ควรแบน"
+            hint="ควรแบน"
             state={heroes}
             heroes={meta.mostBanned}
             metric="banRate"
