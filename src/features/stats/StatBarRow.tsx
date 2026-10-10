@@ -1,14 +1,28 @@
 import { Link } from "react-router-dom";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 
 // หลอดแสดงสัดส่วนจาก 100% (เช่น WR 54.8% = หลอด 54.8% ไม่ใช่เทียบกับอันดับ 1)
-export function StatBarRow({ hero, metric }: { hero: HeroSummary; metric: number }) {
+// tone="danger" ใช้กับ Ban Rate บนหน้า Home (สีแดง = ควรแบน)
+export function StatBarRow({
+  hero,
+  metric,
+  tone = "default",
+}: {
+  hero: HeroSummary;
+  metric: number;
+  tone?: "default" | "danger";
+}) {
   const pct = Math.min(100, Math.max(0, metric));
+  const danger = tone === "danger";
   return (
     <Link
       to={`/heroes/${hero.slug}`}
-      className="flex items-center gap-3 rounded-lg border border-border bg-bg-surface p-2.5 hover:border-accent/40"
+      className={cn(
+        "flex items-center gap-3 rounded-lg border border-border bg-bg-surface p-2.5",
+        danger ? "hover:border-loss/50" : "hover:border-accent/40"
+      )}
     >
       {/* ไม่ใส่ overflow-hidden ที่กรอบ เพราะ HeroBalanceBadge ต้องโผล่ขอบขวาล่าง → ตัดมุมที่ตัวรูปแทน */}
       <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
@@ -35,10 +49,12 @@ export function StatBarRow({ hero, metric }: { hero: HeroSummary; metric: number
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between gap-2">
           <p className="truncate text-sm font-medium">{hero.nameTh}</p>
-          <p className="shrink-0 text-xs text-text-muted">{metric.toFixed(1)}%</p>
+          <p className={cn("shrink-0 text-xs", danger ? "font-medium text-loss" : "text-text-muted")}>
+            {metric.toFixed(1)}%
+          </p>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-bg-raised">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+          <div className={cn("h-full rounded-full", danger ? "bg-loss" : "bg-accent")} style={{ width: `${pct}%` }} />
         </div>
       </div>
     </Link>
