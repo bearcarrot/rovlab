@@ -61,6 +61,11 @@ Typical tables:
 - `item_builds`
 - `item_build_items`
 - `item_build_arcana`
+- `item_build_enchantments` — พลังแฝงในบิลด์ (`selection_type` = `primary` | `secondary`, `sort_order` = ช่อง)
+  - สายหลัก: ช่อง 1–3 = พลังแฝง Tier 1–3 จากสายเดียวกัน
+  - สายรอง: ช่อง 1–2, Tier 1 สองอัน หรือ Tier 1 + Tier 2 สายเดียวกัน, ห้ามเป็นสายเดียวกับสายหลัก
+  - กติกาอยู่ที่ `src/lib/enchantmentRules.ts` และ trigger `item_build_enchantments_rules` (migration `20261011_build_enchantments_admin.sql`)
+- `item_builds.challenger_spell_id` — สกิลชาเลนเจอร์ของบิลด์ (1 บิลด์ต่อ 1 สกิล)
 
 ### Tier Lists
 

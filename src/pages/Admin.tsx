@@ -7,6 +7,8 @@ import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { ImageSelect } from "@/features/admin/ImageSelect";
 import { RuneSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots";
+import { BuildSpellEditor } from "@/features/admin/BuildSpellEditor";
+import { BuildEnchantmentEditor } from "@/features/admin/BuildEnchantmentEditor";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
@@ -1511,13 +1513,29 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   );
 }
 
+// แท็บที่มีหน้าจอของตัวเอง (ไม่ใช่ตารางแบบ CFG): แสดงต่อท้ายแถบแท็บ ถัดจาก "รูนในบิลด์" ตามลำดับด้านล่าง
+const CUSTOM_TABS: Record<string, { label: string; after: string; render: () => ReactNode }> = {
+  buildSpell: { label: "สกิลชาเลนเจอร์ในบิลด์", after: "buildRune", render: () => <BuildSpellEditor /> },
+  buildEnchant: { label: "พลังแฝงในบิลด์", after: "buildSpell", render: () => <BuildEnchantmentEditor /> },
+};
+const isCustomTab = (k: string) => Object.prototype.hasOwnProperty.call(CUSTOM_TABS, k);
+// ลำดับแท็บทั้งหมด: ตาราง CFG ตามเดิม โดยแท็บ custom แทรกต่อจากแท็บที่ระบุใน `after`
+const TAB_KEYS: string[] = (() => {
+  const keys = Object.keys(CFG);
+  for (const [k, c] of Object.entries(CUSTOM_TABS)) {
+    const at = keys.indexOf(c.after);
+    keys.splice(at < 0 ? keys.length : at + 1, 0, k);
+  }
+  return keys;
+})();
+
 export function Admin() {
   const { user, loading } = useAuth();
   const { isAdmin, checking, error } = useIsAdmin();
   const toast = useToast();
   // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
   const [savedTab, setTab] = usePersistedState<string>("admin:tab", "heroes");
-  const tab = Object.prototype.hasOwnProperty.call(CFG, savedTab) ? savedTab : "heroes";
+  const tab = Object.prototype.hasOwnProperty.call(CFG, savedTab) || isCustomTab(savedTab) ? savedTab : "heroes";
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
   const navRef = useRef<HTMLElement>(null);
 
@@ -1625,7 +1643,7 @@ export function Admin() {
         className="relative overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex w-max gap-2 md:w-auto md:flex-wrap">
-          {Object.entries(CFG).map(([k, c]) => (
+          {TAB_KEYS.map((k) => (
             <button
               key={k}
               type="button"
@@ -1637,13 +1655,13 @@ export function Admin() {
                   : "border-border bg-bg-surface text-text-muted hover:border-text-faint hover:text-text"
               }`}
             >
-              {c.label}
+              {isCustomTab(k) ? CUSTOM_TABS[k].label : CFG[k].label}
             </button>
           ))}
         </div>
       </nav>
 
-      <Editor key={tab} id={tab} cfg={CFG[tab]} refs={refs} />
+      {isCustomTab(tab) ? <div key={tab}>{CUSTOM_TABS[tab].render()}</div> : <Editor key={tab} id={tab} cfg={CFG[tab]} refs={refs} />}
     </div>
   );
 }
