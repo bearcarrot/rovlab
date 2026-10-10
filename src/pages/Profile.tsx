@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { UserAvatar } from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/components/ui/toast";
 import { HandleCard } from "@/features/community/HandleCard";
 import { FavoriteHeroesPicker } from "@/features/profile/FavoriteHeroesPicker";
@@ -121,7 +122,10 @@ function ProfileForm({ profile, heroes, email }: { profile: ProfileData; heroes:
         <UserAvatar name={shownName} url={avatarUrl} className="h-20 w-20 text-2xl" />
         <div className="min-w-0 flex-1 space-y-2">
           <div>
-            <p className="truncate font-display text-lg font-semibold">{shownName}</p>
+            <p className="flex min-w-0 items-center gap-1.5 font-display text-lg font-semibold">
+              <span className="truncate">{shownName}</span>
+              <VerifiedBadge category={profile.verifiedCategory} />
+            </p>
             <p className="truncate text-xs text-text-faint">{email}</p>
           </div>
           <div className="flex flex-wrap gap-2">
