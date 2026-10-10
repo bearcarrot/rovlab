@@ -1,4 +1,4 @@
--- RovLab Supabase schema (MVP)
+-- RoV LAB Supabase schema (MVP)
 -- Run in the Supabase SQL editor, or via `supabase db push` once the CLI is linked.
 
 create extension if not exists "pgcrypto";

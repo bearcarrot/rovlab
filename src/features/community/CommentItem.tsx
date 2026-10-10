@@ -209,7 +209,7 @@ export function CommentItem({
   }
 
   const shareUrl = `${window.location.origin}/heroes/${heroSlug}?c=${c.id}`;
-  const shareText = `ความคิดเห็นของ ${name} บน RovLab`;
+  const shareText = `ความคิดเห็นของ ${name} บน RoV LAB`;
   const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   async function copyLink() {
     try {

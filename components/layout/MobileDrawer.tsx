@@ -44,7 +44,7 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="flex h-14 items-center justify-between px-4">
-          <span className="font-display text-lg font-semibold">RovLab</span>
+          <span className="font-display text-lg font-semibold">RoV LAB</span>
           <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted" aria-label="ปิดเมนู">
             <X className="h-5 w-5" />
           </button>
