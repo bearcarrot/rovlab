@@ -95,7 +95,7 @@ function formatLane(raw: string, laneLabel: (code: string) => string): string {
     .join(" / ");
 }
 
-// ข้อมูลที่ส่งให้ Coach AI: เฉพาะข้อมูลจริงในระบบ (สกิล สถิติ ความสัมพันธ์ชนะทาง แผนเล่นถ้ามี)
+// ข้อมูลที่ส่งให้ Coach Ai: เฉพาะข้อมูลจริงในระบบ (สกิล สถิติ ความสัมพันธ์ชนะทาง แผนเล่นถ้ามี)
 // stat เป็น null = ยังไม่มีสถิติจริง (ai-coach ถูกสั่งไม่ให้อ้างตัวเลขในกรณีนี้)
 function heroContext(s: HeroSummary, d: HeroDetail | null, laneLabel: (code: string) => string) {
   return {
@@ -144,7 +144,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
     counterNotes: notes.map((n) => ({ winner: nameOf(n.winner), loser: nameOf(n.loser), reason: n.reason, laneTip: n.laneTip })),
   };
 
-  // FAB โค้ช AI: ลงทะเบียนเมื่อโหลดสกิลของทั้งสองตัวเสร็จ (โหลดไม่สำเร็จก็ยังถามได้ แค่ไม่มีข้อมูลสกิล)
+  // FAB Coach Ai: ลงทะเบียนเมื่อโหลดสกิลของทั้งสองตัวเสร็จ (โหลดไม่สำเร็จก็ยังถามได้ แค่ไม่มีข้อมูลสกิล)
   useCoachQuickChats(
     coachReady
       ? [
@@ -163,7 +163,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
     <div className="space-y-3">
       {m.source === "heuristic" && (
         <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-          * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถามโค้ช AI เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
+          * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถาม Coach Ai เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
         </p>
       )}
       {reversedPlan && (
@@ -212,7 +212,7 @@ export function Matchup() {
   const [a, setA] = useState<HeroSummary | null>(null);
   const [b, setB] = useState<HeroSummary | null>(null);
   const matchupQ = useAsync(() => (a && b ? getMatchup(a, b) : Promise.resolve(null)), [a?.slug, b?.slug]);
-  // สกิลของทั้งสองตัว ใช้เป็นข้อมูลให้ Coach AI (โหลดไม่สำเร็จก็ยังถามโค้ชได้ แค่ไม่มีข้อมูลสกิล)
+  // สกิลของทั้งสองตัว ใช้เป็นข้อมูลให้ Coach Ai (โหลดไม่สำเร็จก็ยังถาม Coach Ai ได้ แค่ไม่มีข้อมูลสกิล)
   const detailsQ = useAsync(
     () => (a && b ? Promise.all([getHeroBySlug(a.slug), getHeroBySlug(b.slug)]) : Promise.resolve(null)),
     [a?.slug, b?.slug]

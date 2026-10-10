@@ -7,7 +7,7 @@ const linkClass =
   "flex min-w-0 items-center gap-1 rounded-lg border border-border bg-bg-surface px-2 py-1.5 text-sm text-text-muted hover:bg-bg-raised hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 // ปุ่ม < > ไปฮีโร่ตัวก่อนหน้า/ถัดไป ใช้ replace เพื่อให้กดย้อนกลับครั้งเดียวกลับหน้ารายชื่อ (ไม่ไล่ย้อนทีละตัว)
-// เดสก์ท็อป: กดลูกศร ซ้าย/ขวา ได้ (ไม่ดักตอนพิมพ์ในช่องกรอก หรือมี dialog เปิดอยู่ เช่นแชทโค้ช)
+// เดสก์ท็อป: กดลูกศร ซ้าย/ขวา ได้ (ไม่ดักตอนพิมพ์ในช่องกรอก หรือมี dialog เปิดอยู่ เช่นแชท Coach Ai)
 export function HeroPager({ neighbors, caption }: { neighbors: HeroNeighbors; caption: string }) {
   const navigate = useNavigate();
   const { prev, next } = neighbors;

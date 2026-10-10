@@ -30,7 +30,7 @@ The project does not guarantee:
 - correctness of tier/counter/build recommendations
 - any particular gameplay outcome
 
-Features such as Tier List, Counter Pick, Matchup, Item Build, Draft Assistant, and AI Coach are analytical aids.
+Features such as Tier List, Counter Pick, Matchup, Item Build, Draft Assistant, and Coach Ai are analytical aids.
 
 ## Data Attribution
 

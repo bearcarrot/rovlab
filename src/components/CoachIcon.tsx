@@ -1,7 +1,7 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Icon for every "ask the AI coach" button: a spinner while the request is running, sparkles otherwise.
+// Icon for every "ask Coach Ai" button: a spinner while the request is running, sparkles otherwise.
 // `image` = ใช้รูป CoachAi แทน Sparkles (ทดสอบเฉพาะบางหน้า)
 // โหมดรูปแสดงรูปตลอด ไม่สลับเป็น spinner — ปุ่มบอกสถานะ busy เองด้วย <EllipsisJump /> ที่ข้อความ
 export function CoachIcon({ busy, className, image }: { busy: boolean; className?: string; image?: boolean }) {

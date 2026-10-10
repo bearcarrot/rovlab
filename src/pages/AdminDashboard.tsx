@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 // event_type -> feature group (for the usage summary) + readable text (for Recent Activity)
 const EVENT_META: Record<string, { feature: string; text: string }> = {
-  ai_coach_used: { feature: "AI Coach", text: "ใช้งาน AI Coach" },
+  ai_coach_used: { feature: "Coach Ai", text: "ใช้งาน Coach Ai" },
   draft_created: { feature: "Draft", text: "สร้าง Draft" },
   draft_loaded: { feature: "Draft", text: "เปิด Draft" },
   draft_shared: { feature: "Draft", text: "เผยแพร่ Draft" },
@@ -47,7 +47,7 @@ function RangeCard({ title, w }: { title: string; w: ActivityWindow }) {
     ["Active Users", w.activeUsers],
     ["ผู้ใช้ใหม่", w.newUsers],
     ["กิจกรรมทั้งหมด", w.activities],
-    ["AI Coach", w.aiCoach],
+    ["Coach Ai", w.aiCoach],
     ["Draft", w.draft],
     ["Tier List", w.tierList],
   ];
@@ -161,7 +161,7 @@ export function AdminDashboard() {
               <StatCard label="Active Users" value={summaryQ.data.today.activeUsers} />
               <StatCard label="ผู้ใช้ใหม่" value={summaryQ.data.today.newUsers} />
               <StatCard label="กิจกรรม" value={summaryQ.data.today.activities} />
-              <StatCard label="AI Coach" value={summaryQ.data.today.aiCoach} />
+              <StatCard label="Coach Ai" value={summaryQ.data.today.aiCoach} />
             </div>
           </section>
 

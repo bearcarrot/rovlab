@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { parseEffectTags } from "@/lib/effectTags";
 
 // คำอธิบายสกิลของฮีโร่ทั้งหมด (ประมาณ 500 แถว) โหลดครั้งเดียวต่อเซสชัน
-// ใช้เป็นข้อมูลอ้างอิงให้ Coach AI อธิบายการใช้สกิล / คอมโบ / วิธีแก้ทาง โดยไม่ต้องกรอกคู่คอมโบด้วยมือทุกคู่
+// ใช้เป็นข้อมูลอ้างอิงให้ Coach Ai อธิบายการใช้สกิล / คอมโบ / วิธีแก้ทาง โดยไม่ต้องกรอกคู่คอมโบด้วยมือทุกคู่
 // และใช้ effectTags (กายภาพ/เวท/ฮีล/สตั๊น ฯลฯ จากเกม) ให้ Draft Assistant ประเมินว่าทีมขาดอะไร
 
 export interface AbilityBrief {

@@ -67,7 +67,7 @@ const MODE_TEXT: Record<DraftMode, string> = {
 // จำนวนสูงสุดของรายการคอมโบ/ชนะทางที่แสดงแยก (รายการภาพรวมยังแสดง 5 อันดับแรก)
 const RELATION_LIMIT = 6;
 
-// จำนวนฮีโร่ที่แนะนำสูงสุดที่จะมีปุ่ม "ถามเรื่อง ..." ใน FAB โค้ช AI (เรียงตามภาพรวม แล้วชนะทาง แล้วคอมโบ)
+// จำนวนฮีโร่ที่แนะนำสูงสุดที่จะมีปุ่ม "ถามเรื่อง ..." ใน FAB Coach Ai (เรียงตามภาพรวม แล้วชนะทาง แล้วคอมโบ)
 const PICK_CHAT_LIMIT = 5;
 
 const DRAFT_PROMPT =
@@ -76,7 +76,7 @@ const DRAFT_PROMPT =
   "4) สกิลศัตรูที่อันตรายที่สุดและวิธีหลบ/ตัดจังหวะด้วยสกิลของเรา (ใช้ matchups ถ้ามี) 5) แผนเล่นช่วงต้น-กลาง-ท้ายเกม " +
   "ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
 
-// prompt ถามโค้ชเรื่องฮีโร่ที่ระบบแนะนำตัวหนึ่ง (เดิมอยู่ในปุ่มบนการ์ดแนะนำ)
+// prompt ถาม Coach Ai เรื่องฮีโร่ที่ระบบแนะนำตัวหนึ่ง (เดิมอยู่ในปุ่มบนการ์ดแนะนำ)
 const pickPrompt = (name: string) =>
   `ตอบเป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ เรื่องการเลือก ${name} ในดราฟต์นี้: ` +
   `1) ควรใช้สกิลไหนก่อน/หลัง และใช้ตอนไหน (อ้างชื่อสกิลจริงจาก heroes[].skills) ` +
@@ -121,7 +121,7 @@ export function DraftAssistant() {
   const heroesQ = useAsync(() => getHeroes(), []);
   // ข้อมูล counter/synergy: โหลดไม่ได้ก็ไม่เป็นไร ระบบแนะนำยังทำงานด้วยสถิติ + คอมโพสิชัน
   const relQ = useAsync(() => getDraftRelations(), []);
-  // สกิลของฮีโร่ทั้งหมด: ให้ Coach AI อธิบายการใช้สกิล/คอมโบ/วิธีแก้ทางจากข้อมูลจริง (โหลดไม่ได้ = AI เห็นแค่ชื่อฮีโร่)
+  // สกิลของฮีโร่ทั้งหมด: ให้ Coach Ai อธิบายการใช้สกิล/คอมโบ/วิธีแก้ทางจากข้อมูลจริง (โหลดไม่ได้ = AI เห็นแค่ชื่อฮีโร่)
   // และใช้แท็กชนิดสกิล (ฟีล/โล่/บัฟ) ประเมินว่าทีมขาดอะไร
   const skillsQ = useAsync(() => getAllAbilities(), []);
 
@@ -136,7 +136,7 @@ export function DraftAssistant() {
 
   const [active, setActive] = useState<Active | null>({ team: "mine", kind: "pick", index: 0 });
   const [query, setQuery] = useState("");
-  // คำตอบ AI Coach ล่าสุดของปุ่มประเมินดราฟต์ (ใช้ใส่ในรูปแชร์เมื่อผู้ใช้เลือก)
+  // คำตอบ Coach Ai ล่าสุดของปุ่มประเมินดราฟต์ (ใช้ใส่ในรูปแชร์เมื่อผู้ใช้เลือก)
   const [coachText, setCoachText] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -235,7 +235,7 @@ export function DraftAssistant() {
   useEffect(() => {
     setCoachText("");
   }, [draftKey]);
-  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach AI อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
+  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
   // context ของปุ่มประเมินดราฟต์: ข้อมูลภาพรวม + สกิลของทุกตัวที่เลือกไว้ (ย่อให้พอดีเพดาน 8000 ตัวอักษรของ edge function)
@@ -291,7 +291,7 @@ export function DraftAssistant() {
 
   const teamFull = analysis.filledSlots === 5;
 
-  // FAB โค้ช AI: "ประเมินดราฟต์" (คำตอบถูกส่งไปใส่ในรูปแชร์ด้วย) + "ถามเรื่อง ..." ของฮีโร่ที่ระบบแนะนำ (เดิมเป็นปุ่มบนการ์ดแต่ละใบ)
+  // FAB Coach Ai: "ประเมินดราฟต์" (คำตอบถูกส่งไปใส่ในรูปแชร์ด้วย) + "ถามเรื่อง ..." ของฮีโร่ที่ระบบแนะนำ (เดิมเป็นปุ่มบนการ์ดแต่ละใบ)
   // memo ไว้เพื่อไม่ต้องสร้าง context/stringify ใหม่ทุกครั้งที่พิมพ์ค้นหา
   const coachChats = useMemo<QuickChat[]>(() => {
     if (analysis.filledSlots === 0) return [];

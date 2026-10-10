@@ -28,7 +28,7 @@ type HeroFull = NonNullable<Awaited<ReturnType<typeof getHeroBySlug>>>;
 
 const GROUNDED = " ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
 
-// คำถามด่วนของ FAB โค้ช AI บนหน้าฮีโร่ (ผู้ใช้พิมพ์เองไม่ได้ เลือกได้เฉพาะรายการนี้)
+// คำถามด่วนของ FAB Coach Ai บนหน้าฮีโร่ (ผู้ใช้พิมพ์เองไม่ได้ เลือกได้เฉพาะรายการนี้)
 function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string): QuickChat[] {
   const context = {
     hero: h.nameTh,
@@ -109,7 +109,7 @@ export function HeroDetail() {
       : null,
   );
 
-  // FAB โค้ช AI: ลงทะเบียน Quick Chat ของฮีโร่ตัวนี้ (ยังโหลดไม่เสร็จ = ไม่แสดงปุ่ม) ต้องเรียกก่อน early return
+  // FAB Coach Ai: ลงทะเบียน Quick Chat ของฮีโร่ตัวนี้ (ยังโหลดไม่เสร็จ = ไม่แสดงปุ่ม) ต้องเรียกก่อน early return
   useCoachQuickChats(
     loaded
       ? buildHeroQuickChats(

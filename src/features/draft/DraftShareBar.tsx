@@ -45,10 +45,10 @@ export function DraftShareBar({
   recs: Recommendation[];
   analysis: TeamAnalysis;
   mode: DraftMode;
-  /** คำตอบ AI Coach ล่าสุดบนหน้า (ว่าง = ยังไม่ได้ถาม) */
+  /** คำตอบ Coach Ai ล่าสุดบนหน้า (ว่าง = ยังไม่ได้ถาม) */
   coachText: string;
 }) {
-  // AI Coach บนรูปปิดเป็นค่าเริ่มต้น ผู้ใช้ต้องเปิดเอง
+  // Coach Ai บนรูปปิดเป็นค่าเริ่มต้น ผู้ใช้ต้องเปิดเอง
   const [includeAi, setIncludeAi] = useState(false);
   const hasCoach = coachText.trim().length > 0;
   useEffect(() => {
@@ -90,7 +90,7 @@ export function DraftShareBar({
       {hasCoach && (
         <label className="flex items-center gap-2 text-xs text-text-muted">
           <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} className="h-4 w-4 accent-[#E8A33D]" />
-          ใส่ผล AI Coach ในรูป
+          ใส่ผล Coach Ai ในรูป
         </label>
       )}
       <p className="text-[11px] text-text-faint">รูปจะมีป้าย HEURISTIC เสมอ เพราะเป็นการประเมินเบื้องต้น ไม่ใช่ข้อมูลทางการของเกม</p>

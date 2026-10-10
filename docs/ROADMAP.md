@@ -21,7 +21,7 @@ The project includes or has been working toward:
 - Profiles
 - Comments
 - Admin tools
-- AI Coach
+- Coach Ai
 
 ## Known Gaps
 

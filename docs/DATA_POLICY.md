@@ -72,7 +72,7 @@ AI-generated output may:
 - produce incorrect conclusions
 - become outdated as the game changes
 
-AI Coach should therefore be treated as an analytical assistant, not an official source of game information.
+Coach Ai should therefore be treated as an analytical assistant, not an official source of game information.
 
 ## Community Content
 
