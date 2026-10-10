@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { ImageSelect } from "@/features/admin/ImageSelect";
-import { ArcanaSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots";
+import { RuneSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
@@ -19,7 +19,7 @@ import type { HeroLane, HeroRole } from "@/types/hero";
 const db: any = supabase;
 
 type Row = Record<string, any>;
-type RefType = "hero" | "item" | "arcana" | "patch" | "guideCat";
+type RefType = "hero" | "item" | "rune" | "patch" | "guideCat";
 // icon = ไอคอนของรายการที่เลือก (แสดงบนการ์ดและข้างช่องเลือก)
 // alt = ชื่อสำรองไว้ใช้ค้นหา (เช่น ชื่อไทยของฮีโร่) ไม่ได้แสดงบนหน้าจอ
 // roles / lanes = ตำแหน่งและเลนของฮีโร่ ใช้กับชิปกรองในแท็บสถิติ/Tier List
@@ -34,7 +34,7 @@ type RefOpt = {
   lanes?: string[];
   tagType?: number;
 };
-// text | num | date | sel(เลือกจาก opts) | hero/item/arcana/patch/guideCat(เลือกจากตารางอื่น)
+// text | num | date | sel(เลือกจาก opts) | hero/item/rune/patch/guideCat(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
 // | choice(ปุ่มชิปจาก choices ค่าเดียว หรือหลายค่าถ้า multiChoice แตะซ้ำเพื่อเอาออก)
@@ -90,15 +90,15 @@ type Cfg = {
   cols: Col[];
   // แสดงสรุปจำนวนช่องรูนต่อสี (แดง/ม่วง/เขียว สีละไม่เกิน 10) ใช้กับแท็บรูนในบิลด์
   slots?: boolean;
-  // มุมมองแบบช่อง (เหมือน TeamSlots ใน Draft Assistant) เหนือรายการการ์ด: items = ไอเทมตามช่วงเกม, arcana = ช่องรูน 3 สี
-  slotsView?: "items" | "arcana";
+  // มุมมองแบบช่อง (เหมือน TeamSlots ใน Draft Assistant) เหนือรายการการ์ด: items = ไอเทมตามช่วงเกม, rune = ช่องรูน 3 สี
+  slotsView?: "items" | "rune";
   // ตัวกรองด้านบน (เช่น เลือกฮีโร่/แพตช์/บิลด์) และตอนเพิ่มแถวจะใส่ค่านี้ให้อัตโนมัติ
   filter?: FilterCfg;
 };
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
-const REF_TYPES: string[] = ["hero", "item", "arcana", "patch", "guideCat"];
+const REF_TYPES: string[] = ["hero", "item", "rune", "patch", "guideCat"];
 const BUCKET = "hero-icons";
 // แรงก์ที่ใช้ใน DB (hero_stats.rank_tier / tier_lists.rank_tier): all = ทั้งหมด, high = Commander ขึ้นไป — ชุดเดียวกันทั้งแท็บสถิติและ Tier List
 const RANK_CHIPS = [
@@ -148,7 +148,7 @@ const heroFilter = (col: string): FilterCfg => ({
 const buildFilter: FilterCfg = {
   col: "build_id",
   table: "item_builds",
-  sel: "id,source,heroes(name,name_th,icon_url),patches(code),arcana(name)",
+  sel: "id,source,heroes(name,name_th,icon_url),patches(code),rune(name)",
   label: (r) => `${heroName(r.heroes)} · ${r.patches?.code ?? "?"} · ${r.source}`,
   icon: (r) => r.heroes?.icon_url ?? undefined,
 };
@@ -286,9 +286,9 @@ const CFG: Record<string, Cfg> = {
       { k: "icon_url", label: "ไอคอน", type: "img" },
     ],
   },
-  arcana: {
+  rune: {
     label: "รูน",
-    table: "arcana",
+    table: "rune",
     order: "name",
     add: true,
     cols: [
@@ -306,7 +306,7 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "patch_id", label: "แพตช์", type: "patch" },
       { k: "source", type: "sel", opts: SOURCES },
-      { k: "arcana_id", label: "รูนชุดเดียว (แบบเดิม)", type: "arcana" },
+      { k: "rune_id", label: "รูนชุดเดียว (แบบเดิม)", type: "rune" },
     ],
   },
   buildItems: {
@@ -323,16 +323,16 @@ const CFG: Record<string, Cfg> = {
       { k: "sort_order", type: "num" },
     ],
   },
-  buildArcana: {
+  buildRune: {
     label: "รูนในบิลด์",
-    table: "item_build_arcana",
+    table: "item_build_rune",
     order: "sort_order",
     add: true,
     slots: true,
-    slotsView: "arcana",
+    slotsView: "rune",
     filter: buildFilter,
     cols: [
-      { k: "arcana_id", label: "รูน", type: "arcana" },
+      { k: "rune_id", label: "รูน", type: "rune" },
       { k: "quantity", label: "จำนวน (x)", type: "num" },
       { k: "reason", type: "area" },
       { k: "sort_order", type: "num" },
@@ -532,7 +532,7 @@ const summary = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>, labels: Lab
       const icon = refs[c.type]?.find((o) => o.id === row[c.k])?.icon;
       if (icon) {
         img = icon;
-        round = c.type === "arcana";
+        round = c.type === "rune";
         break;
       }
     }
@@ -598,13 +598,13 @@ const searchText = (cfg: Cfg, row: Row, refs: Record<string, RefOpt[]>) =>
   );
 
 // รวมจำนวนช่องรูนต่อสีจากแถวของบิลด์ที่เลือก (อ่านจาก state จึงอัปเดตทันทีที่แก้จำนวน/เปลี่ยนรูน)
-function summarizeSlots(rows: Row[], arcana: RefOpt[]) {
-  const colorById = new Map(arcana.map((a) => [a.id, a.color]));
+function summarizeSlots(rows: Row[], rune: RefOpt[]) {
+  const colorById = new Map(rune.map((a) => [a.id, a.color]));
   const used: Record<string, number> = { red: 0, purple: 0, green: 0 };
   let uncolored = 0;
   for (const r of rows) {
     const n = Number(r.quantity) || 0;
-    const color = colorById.get(r.arcana_id);
+    const color = colorById.get(r.rune_id);
     if (color && color in used) used[color] += n;
     else uncolored += n;
   }
@@ -837,7 +837,7 @@ function Cell({
       <ImageSelect
         value={v ?? ""}
         options={refs[c.type] ?? []}
-        round={c.type === "arcana"}
+        round={c.type === "rune"}
         onChange={change}
       />
     );
@@ -1067,18 +1067,18 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   }
 
   // รูนในบิลด์: รูนที่มีอยู่แล้วในบิลด์ = จำนวน +1, ยังไม่มี = เพิ่มแถวใหม่จำนวน 1
-  async function addArcana(arcanaId: string) {
+  async function addRune(runeId: string) {
     if (!fv) return;
-    const existing = rows.find((r) => r.arcana_id === arcanaId);
+    const existing = rows.find((r) => r.rune_id === runeId);
     const { error } = existing
       ? await db.from(cfg.table).update({ quantity: (Number(existing.quantity) || 0) + 1 }).eq("id", existing.id)
-      : await db.from(cfg.table).insert({ [cfg.filter!.col]: fv, arcana_id: arcanaId, quantity: 1, sort_order: nextSort() });
+      : await db.from(cfg.table).insert({ [cfg.filter!.col]: fv, rune_id: runeId, quantity: 1, sort_order: nextSort() });
     if (error) err(error.message);
     else void load();
   }
 
   // ลดจำนวนรูนทีละ 1 ถึง 0 = ลบแถว
-  async function decArcana(row: Row) {
+  async function decRune(row: Row) {
     const n = Number(row.quantity) || 0;
     const { error } =
       n <= 1
@@ -1118,7 +1118,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
   }
 
   // รอให้โหลดรายชื่อรูนก่อนค่อยคำนวณ ไม่งั้นจะขึ้นเตือนว่าไม่มีสีชั่วครู่
-  const slotInfo = cfg.slots && (refs.arcana?.length ?? 0) > 0 ? summarizeSlots(rows, refs.arcana) : null;
+  const slotInfo = cfg.slots && (refs.rune?.length ?? 0) > 0 ? summarizeSlots(rows, refs.rune) : null;
 
   // รายการที่แสดง: กรองด้วยชิปตำแหน่ง/เลน (ถ้าแท็บเปิดใช้) → กรองด้วยคำค้นและเรียงชื่อ A→Z (ถ้าเปิด clientSearch)
   // ตารางอื่นเรียงตามที่ DB ส่งมา เก็บ i = ตำแหน่งเดิมใน rows ไว้ เพราะการแก้ไขอ้างอิงตำแหน่งนี้
@@ -1345,14 +1345,14 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           onMoves={(m) => void applyMoves(m)}
         />
       )}
-      {cfg.slotsView === "arcana" && fv && (
-        <ArcanaSlots
+      {cfg.slotsView === "rune" && fv && (
+        <RuneSlots
           rows={rows}
-          arcana={refs.arcana ?? []}
+          rune={refs.rune ?? []}
           colors={SLOT_COLORS}
           max={MAX_SLOTS}
-          onAdd={(arcanaId) => void addArcana(arcanaId)}
-          onDec={(row) => void decArcana(row)}
+          onAdd={(runeId) => void addRune(runeId)}
+          onDec={(row) => void decRune(row)}
           onMoves={(m) => void applyMoves(m)}
         />
       )}
@@ -1553,8 +1553,8 @@ export function Admin() {
           return (data ?? []).map((r) => ({ id: r.id as string, label: label(r), icon: icon?.(r), alt: alt?.(r), ...extra?.(r) }));
         });
     // รูนเก็บสีไว้ด้วย เพื่อใช้คำนวณจำนวนช่องต่อสีในแท็บ "รูนในบิลด์"
-    const arcanaOpts = db
-      .from("arcana")
+    const runeOpts = db
+      .from("rune")
       .select("id,name,color,icon_url")
       .order("name", { ascending: true })
       .then(({ data, error }: { data: Row[] | null; error: unknown }) => {
@@ -1581,7 +1581,7 @@ export function Admin() {
       ),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
       opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
-      arcanaOpts,
+      runeOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
       // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ" (เรียงตาม sort_id เหมือนที่แสดงบนเว็บ)
       opt("guide_categories", "id,name_th,slug,sort_id", "sort_id", true, (r) => r.name_th ?? r.slug ?? "?"),
@@ -1598,8 +1598,8 @@ export function Admin() {
         (r) => ({ color: (r.color ?? undefined) as string | undefined, tagType: (r.tag_type ?? undefined) as number | undefined })
       ),
     ])
-      .then(([hero, item, arcana, patch, guideCat, effectTag]) => {
-        setRefs({ hero, item, arcana, patch, guideCat, effectTag });
+      .then(([hero, item, rune, patch, guideCat, effectTag]) => {
+        setRefs({ hero, item, rune, patch, guideCat, effectTag });
         if (state.failed) toast.error("โหลดตัวเลือกบางรายการไม่สำเร็จ ลองรีเฟรชหน้านี้อีกครั้ง");
       })
       .catch(() => toast.error("โหลดตัวเลือกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองรีเฟรชหน้านี้"));
