@@ -26,7 +26,7 @@ export interface CommentRow {
   handle: string;
   avatarUrl: string | null;
   isAdmin: boolean;
-  verifiedCategory: string | null; // Verified Creator category (independent of isAdmin)
+  verifiedCategory?: string | null; // Verified Creator category (independent of isAdmin)
   replyToName: string | null;
   replyToHandle: string | null;
   body: string;
@@ -50,6 +50,7 @@ export interface NotificationItem {
   actorId: string;
   actorName: string | null;
   actorHandle: string;
+  actorVerifiedCategory?: string | null;
   commentId: string | null;
   heroSlug: string | null;
   createdAt: string;
@@ -61,7 +62,7 @@ export interface HandleSuggestion {
   handle: string;
   displayName: string | null;
   avatarUrl: string | null;
-  verifiedCategory: string | null;
+  verifiedCategory?: string | null;
 }
 
 export interface FeedItem {
@@ -74,5 +75,5 @@ export interface FeedItem {
   authorName: string | null;
   handle: string;
   avatarUrl: string | null;
-  verifiedCategory: string | null;
+  verifiedCategory?: string | null;
 }
