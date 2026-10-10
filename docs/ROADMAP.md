@@ -22,7 +22,7 @@ The project includes or has been working toward:
 - Comments
 - Admin tools
 - Coach Ai
-- Match analysis from scoreboard screenshots (`/matches`, see `docs/MATCH_OCR.md`)
+- Match analysis from scoreboard screenshots (`/matches` and a summary card on Home, see `docs/MATCH_OCR.md`)
 
 ## Known Gaps
 
@@ -36,7 +36,7 @@ Guide data has historically been incomplete/mock.
 
 ### Match Analysis
 
-The scoreboard OCR flow has not been build-checked or tested against real screenshots yet, so its accuracy is unmeasured. Items are not read from the screenshot, Coach Ai does not use saved matches, and there is no Home summary card yet. The screenshot has no per-minute data, so insights are match-level only. Details in `docs/MATCH_OCR.md`.
+The scoreboard OCR flow has not been build-checked or tested against real screenshots yet, so its accuracy is unmeasured. Items are not read from the screenshot and Coach Ai does not use saved matches. The screenshot has no per-minute data, so insights are match-level only. Details in `docs/MATCH_OCR.md`.
 
 ### Saved Builds / Drafts
 
