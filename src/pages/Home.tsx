@@ -11,13 +11,10 @@ import {
   Swords,
 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getDashboardInsights } from "@/services/insights";
 import { useAsync } from "@/hooks/useAsync";
-import { useAuth } from "@/features/auth/AuthContext";
-import { HeroCard } from "@/features/heroes/HeroCard";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
-import { InsightCard } from "@/features/dashboard/InsightCard";
+import { StatBarRow } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -59,8 +56,10 @@ const PREVIEW_METERS = [
 
 const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
 
+// สแนปช็อตหน้าสถิติ: โชว์แค่ 6 อันดับแรกของแต่ละตัวชี้วัด
+const SNAPSHOT_SIZE = 6;
+
 export function Home() {
-  const { user, loading: authLoading } = useAuth();
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
 
@@ -69,8 +68,8 @@ export function Home() {
   const meta = useMemo(() => {
     if (!data) return { topWinRate: [], mostBanned: [], patch: null };
     const withStats = data.filter((h) => h.stat.hasStats);
-    const topWinRate = [...withStats].sort((a, b) => b.stat.winRate - a.stat.winRate).slice(0, 6);
-    const mostBanned = [...withStats].sort((a, b) => b.stat.banRate - a.stat.banRate).slice(0, 6);
+    const topWinRate = [...withStats].sort((a, b) => b.stat.winRate - a.stat.winRate).slice(0, SNAPSHOT_SIZE);
+    const mostBanned = [...withStats].sort((a, b) => b.stat.banRate - a.stat.banRate).slice(0, SNAPSHOT_SIZE);
     const ref = withStats[0]?.stat;
     return {
       topWinRate,
@@ -189,14 +188,23 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Current meta */}
+      {/* 4. Current meta: snapshot of the Stats page (top 6 each) */}
       <section aria-labelledby="meta-heading" className="space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 id="meta-heading" className="font-display text-base font-semibold">เมต้าตอนนี้</h2>
           {metaLabel && <span className="text-xs text-text-faint">{metaLabel}</span>}
         </div>
-        <HeroRow title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} />
-        <HeroRow title="ถูกแบนมากสุด" state={heroes} heroes={meta.mostBanned} metric="banRate" />
+        <div className="grid gap-5 md:grid-cols-2">
+          <StatSnapshot title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} metric="winRate" />
+          <StatSnapshot
+            title="Ban Rate สูงสุด"
+            hint="สีแดง = ควรแบน"
+            state={heroes}
+            heroes={meta.mostBanned}
+            metric="banRate"
+            tone="danger"
+          />
+        </div>
         {heroes.status === "success" && meta.topWinRate.length > 0 && (
           <p className="text-[11px] text-text-faint">
             * Win Rate/Ban Rate เป็นสถิติภาพรวมของฮีโร่ ไม่ใช่ผลแมตช์ตัวต่อตัว
@@ -204,10 +212,7 @@ export function Home() {
         )}
       </section>
 
-      {/* 5. Personalized insights: mounted only when signed in, so guests make no extra request */}
-      {!authLoading && user && <PersonalInsights />}
-
-      {/* 6. More */}
+      {/* 5. More */}
       <section aria-labelledby="more-heading" className="space-y-3">
         <h2 id="more-heading" className="font-display text-base font-semibold">เรียนรู้และดูสถิติเพิ่ม</h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -240,52 +245,33 @@ function MoreLink({ to, icon: Icon, title, desc }: { to: string; icon: IconType;
   );
 }
 
-function PersonalInsights() {
-  const insights = useAsync(() => getDashboardInsights(), []);
-  return (
-    <section aria-labelledby="insights-heading">
-      <h2 id="insights-heading" className="mb-3 font-display text-base font-semibold">ควรปรับปรุงอะไรก่อน</h2>
-      {insights.status === "loading" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
-      )}
-      {insights.status === "error" && <ErrorState message={insights.message} onRetry={insights.refetch} />}
-      {insights.status === "success" && insights.data.length === 0 && (
-        <EmptyState icon={Swords} title="ยังไม่มีข้อมูลให้วิเคราะห์" description="เล่นแมตช์แล้วเชื่อมข้อมูลเพื่อรับคำแนะนำเฉพาะตัว" />
-      )}
-      {insights.status === "success" && insights.data.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {insights.data.map((i) => (
-            <InsightCard key={i.id} insight={i} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 type FetchState = { status: "loading" | "error" | "success"; refetch: () => void };
 
-function HeroRow({
+function StatSnapshot({
   title,
+  hint,
   state,
   heroes,
-  metric = "winRate",
+  metric,
+  tone = "default",
 }: {
   title: string;
+  hint?: string;
   state: FetchState;
   heroes: HeroSummary[];
-  metric?: "winRate" | "banRate";
+  metric: "winRate" | "banRate";
+  tone?: "default" | "danger";
 }) {
   return (
     <div>
-      <h3 className="mb-3 font-display text-sm font-medium text-text-muted">{title}</h3>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h3 className="font-display text-sm font-medium text-text-muted">{title}</h3>
+        {hint && <span className="text-[11px] font-medium text-loss">{hint}</span>}
+      </div>
       {state.status === "loading" && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[3/4]" />
+        <div className="grid gap-2">
+          {Array.from({ length: SNAPSHOT_SIZE }).map((_, i) => (
+            <Skeleton key={i} className="h-14" />
           ))}
         </div>
       )}
@@ -294,9 +280,9 @@ function HeroRow({
         <EmptyState icon={Swords} title="ยังไม่มีข้อมูลสถิติ" description="ข้อมูลจะแสดงเมื่อมีสถิติฮีโร่ในระบบ" />
       )}
       {state.status === "success" && heroes.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid gap-2">
           {heroes.map((h) => (
-            <HeroCard key={h.id} hero={h} metric={metric} hideRoles />
+            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} tone={tone} />
           ))}
         </div>
       )}
