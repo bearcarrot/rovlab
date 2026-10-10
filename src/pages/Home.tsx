@@ -11,13 +11,16 @@ import {
   Swords,
 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
+import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import { StatBarRow } from "@/features/stats/StatBarRow";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
@@ -58,25 +61,41 @@ const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
 
 // สแนปช็อตหน้าสถิติ: โชว์แค่ 6 อันดับแรกของแต่ละตัวชี้วัด
 const SNAPSHOT_SIZE = 6;
+// แถว Tier S+ โชว์สูงสุด 8 ตัว ที่เหลือรวมเป็นปุ่ม "+N" ไปหน้า Tier List
+const TOP_TIER_MAX = 8;
 
 export function Home() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
+  // Tier ที่ทีมงานจัด (ลิสต์รวมทุกเลน) — ถ้ายังไม่มี/อ่านไม่ได้ ใช้ tier จากสถิติเหมือนหน้า Tier List
+  const curated = useAsync(() => getCuratedTiers(rank, null), [rank]);
 
   // useAsync returns a new object every render, so memoize on the data itself.
   const data = heroes.status === "success" ? heroes.data : null;
+  const curatedTiers = curated.status === "success" ? curated.data : null;
+  const curatedLoading = curated.status === "loading";
+
   const meta = useMemo(() => {
-    if (!data) return { topWinRate: [], mostBanned: [], patch: null };
+    if (!data) return { topWinRate: [], topPickRate: [], mostBanned: [], patch: null };
     const withStats = data.filter((h) => h.stat.hasStats);
-    const topWinRate = [...withStats].sort((a, b) => b.stat.winRate - a.stat.winRate).slice(0, SNAPSHOT_SIZE);
-    const mostBanned = [...withStats].sort((a, b) => b.stat.banRate - a.stat.banRate).slice(0, SNAPSHOT_SIZE);
+    const top = (key: "winRate" | "pickRate" | "banRate") =>
+      [...withStats].sort((a, b) => b.stat[key] - a.stat[key]).slice(0, SNAPSHOT_SIZE);
     const ref = withStats[0]?.stat;
     return {
-      topWinRate,
-      mostBanned,
+      topWinRate: top("winRate"),
+      topPickRate: top("pickRate"),
+      mostBanned: top("banRate"),
       patch: ref && !PLACEHOLDER_PATCHES.has(ref.patch) ? ref.patch : null,
     };
   }, [data]);
+
+  // ฮีโร่ Tier S+ เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
+  const sPlus = useMemo(() => {
+    if (!data || curatedLoading) return null;
+    return data
+      .filter((h) => (curatedTiers ? curatedTiers.get(h.id) === "S+" : h.stat.hasStats && h.stat.tier === "S+"))
+      .sort((a, b) => a.name.localeCompare(b.name, "en"));
+  }, [data, curatedTiers, curatedLoading]);
 
   const metaLabel = [meta.patch ? `Patch ${meta.patch}` : null, RANK_LABEL[rank]].filter(Boolean).join(" · ");
 
@@ -188,14 +207,23 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Current meta: snapshot of the Stats page (top 6 each) */}
+      {/* 4. Current meta: snapshot of the Stats page (top 6 each) + Tier S+ */}
       <section aria-labelledby="meta-heading" className="space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 id="meta-heading" className="font-display text-base font-semibold">เมต้าตอนนี้</h2>
           {metaLabel && <span className="text-xs text-text-faint">{metaLabel}</span>}
         </div>
-        <div className="grid gap-5 md:grid-cols-2">
+
+        <TopTierRow
+          loading={heroes.status === "loading" || curatedLoading}
+          error={heroes.status === "error"}
+          heroes={sPlus}
+          curated={curatedTiers !== null}
+        />
+
+        <div className="grid gap-5 md:grid-cols-3">
           <StatSnapshot title="Win Rate สูงสุด" state={heroes} heroes={meta.topWinRate} metric="winRate" />
+          <StatSnapshot title="Pick Rate สูงสุด" state={heroes} heroes={meta.topPickRate} metric="pickRate" />
           <StatSnapshot
             title="Ban Rate สูงสุด"
             hint="ควรแบน"
@@ -207,7 +235,7 @@ export function Home() {
         </div>
         {heroes.status === "success" && meta.topWinRate.length > 0 && (
           <p className="text-[11px] text-text-faint">
-            * Win Rate/Ban Rate เป็นสถิติภาพรวมของฮีโร่ ไม่ใช่ผลแมตช์ตัวต่อตัว
+            * Win Rate/Pick Rate/Ban Rate เป็นสถิติภาพรวมของฮีโร่ ไม่ใช่ผลแมตช์ตัวต่อตัว
           </p>
         )}
       </section>
@@ -245,6 +273,89 @@ function MoreLink({ to, icon: Icon, title, desc }: { to: string; icon: IconType;
   );
 }
 
+// แถว Tier S+ : ไอคอนฮีโร่แบบเดียวกับหน้า Tier List (เรียง A–Z ไม่ใช่อันดับความแรง)
+function TopTierRow({
+  loading,
+  error,
+  heroes,
+  curated,
+}: {
+  loading: boolean;
+  error: boolean;
+  heroes: HeroSummary[] | null;
+  curated: boolean;
+}) {
+  if (error) return null; // ส่วนสถิติด้านล่างแสดงข้อความ error อยู่แล้ว
+  if (!loading && heroes && heroes.length === 0) return null;
+
+  const shown = heroes ? heroes.slice(0, TOP_TIER_MAX) : [];
+  const extra = heroes ? heroes.length - shown.length : 0;
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Badge tier="S+" className="px-2.5 py-1 text-sm">S+</Badge>
+        <h3 className="font-display text-sm font-medium text-text-muted">ฮีโร่ Tier S+</h3>
+        <span className="text-[11px] text-text-faint">
+          {curated ? "จัดโดยทีมงาน" : "คำนวณจาก Win Rate"} · เรียง A–Z
+        </span>
+      </div>
+      {loading || !heroes ? (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+          {Array.from({ length: TOP_TIER_MAX }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+          {shown.map((h) => (
+            <Link
+              key={h.id}
+              to={`/heroes/${h.slug}`}
+              aria-label={h.nameTh}
+              title={h.nameTh}
+              className={cn(
+                "relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-tier-sp/50",
+                FOCUS
+              )}
+            >
+              {h.icon ? (
+                <img
+                  src={h.icon}
+                  alt={h.nameTh}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full rounded-lg object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                  }}
+                />
+              ) : null}
+              <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                {h.name.slice(0, 2).toUpperCase()}
+              </span>
+              <HeroBalanceBadge heroId={h.id} />
+            </Link>
+          ))}
+          {extra > 0 && (
+            <Link
+              to="/tier-list"
+              className={cn(
+                "flex aspect-square w-full flex-col items-center justify-center rounded-lg border border-border bg-bg-surface text-center hover:border-accent/40",
+                FOCUS
+              )}
+            >
+              <span className="font-display text-sm font-semibold text-text">+{extra}</span>
+              <span className="text-[10px] text-text-muted">ดูทั้งหมด</span>
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type FetchState = { status: "loading" | "error" | "success"; refetch: () => void };
 
 function StatSnapshot({
@@ -259,7 +370,7 @@ function StatSnapshot({
   hint?: string;
   state: FetchState;
   heroes: HeroSummary[];
-  metric: "winRate" | "banRate";
+  metric: "winRate" | "pickRate" | "banRate";
   tone?: "default" | "danger";
 }) {
   return (
