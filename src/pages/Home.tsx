@@ -349,7 +349,7 @@ function TopTierRows({
                     <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
                       {h.name.slice(0, 2).toUpperCase()}
                     </span>
-                    <HeroBalanceBadge heroId={h.id} />
+                    <HeroBalanceBadge heroId={h.id} size="md" inside />
                   </Link>
                 ))}
                 {extra > 0 && (
