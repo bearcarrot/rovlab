@@ -31,6 +31,7 @@ export interface CommunityDraftSummary {
   authorName: string;
   handle: string | null;
   avatarUrl: string | null;
+  verifiedCategory: string | null; // Verified Creator badge for the author (null = not verified)
   title: string;
   description: string;
   format: SeriesFormat;
@@ -152,6 +153,7 @@ const toCommunity = (r: any): CommunityDraftSummary => ({
   authorName: r.author_name ?? "",
   handle: r.handle ?? null,
   avatarUrl: r.avatar_url ?? null,
+  verifiedCategory: r.verified_category ?? null,
   title: r.title,
   description: r.description ?? "",
   format: asFormat(r.format),
