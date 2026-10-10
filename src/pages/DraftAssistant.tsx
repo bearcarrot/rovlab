@@ -35,6 +35,7 @@ import {
   getAvailableHeroes,
   getCurrentGameTaken,
   getGlobalRestrictedHeroes,
+  isGameEmpty,
   isGlobalRuleActive,
   type TeamKey,
 } from "@/features/draft/series";
@@ -45,6 +46,8 @@ import { BanRow } from "@/features/draft/BanRow";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
 import { MyDrafts } from "@/features/draft/MyDrafts";
 import { CommunityDrafts } from "@/features/draft/CommunityDrafts";
+import { decodeSeries } from "@/features/share/linkCodec";
+import { useIncomingShare } from "@/features/share/useIncomingShare";
 import { Modal } from "@/features/community/Modal";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
@@ -351,6 +354,20 @@ export function DraftAssistant() {
     setTab("editor");
   }
 
+  // เปิดลิงก์แชร์ (/draft?s=...): โหลดทั้งซีรีส์เข้าตัวแก้ไขเป็น Draft ที่ยังไม่ได้บันทึก (ถามก่อนถ้ามีงานค้างอยู่)
+  useIncomingShare(async ({ code, name }) => {
+    const series = decodeSeries(code);
+    if (!series || series.games.every(isGameEmpty)) {
+      toast.error("ลิงก์ Draft ไม่ถูกต้องหรือเสียหาย");
+      return;
+    }
+    if (!(await canReplace())) return;
+    ds.load({ series, draftId: null, title: name || "Draft ที่แชร์มา", unsaved: true });
+    setActive(firstPick());
+    setCoachText("");
+    toast.success("เปิด Draft ที่แชร์มาแล้ว กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ");
+  });
+
   function onSaveClick() {
     if (!user) {
       setLoginNotice(true); // ไม่ล้าง Draft ปัจจุบัน: เก็บใน sessionStorage อยู่แล้ว
@@ -456,7 +473,7 @@ export function DraftAssistant() {
             ))}
           </div>
 
-          {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — แชร์เกมที่เปิดอยู่ */}
+          {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — แชร์เกมที่เปิดอยู่ / แชร์ลิงก์ = ทั้งซีรีส์ */}
           <DraftShareBar
             myTeam={myTeam}
             enemyTeam={enemyTeam}
@@ -464,6 +481,8 @@ export function DraftAssistant() {
             analysis={analysis}
             mode={mode}
             coachText={analysis.filledSlots > 0 ? coachText : ""}
+            series={ds.series}
+            title={ds.title}
           />
 
           {active && (
