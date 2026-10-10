@@ -58,17 +58,17 @@ export function getItems(): Promise<ItemSummary[]> {
   return itemsPromise;
 }
 
-type DbArcanaRow = { id: string; name: string; description: string | null; icon_url: string | null };
+type DbRuneRow = { id: string; name: string; description: string | null; icon_url: string | null };
 
 async function fetchArcana(): Promise<ArcanaSummary[]> {
-  const { data, error } = await supabase.from("arcana").select("id, name, description, icon_url").order("name", { ascending: true });
-  if (error || !data) throw new Error(error?.message ?? "โหลดรายการ Arcana ไม่สำเร็จ");
-  return (data as DbArcanaRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
+  const { data, error } = await supabase.from("rune").select("id, name, description, icon_url").order("name", { ascending: true });
+  if (error || !data) throw new Error(error?.message ?? "โหลดรายการรูนไม่สำเร็จ");
+  return (data as DbRuneRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
 }
 
 let arcanaPromise: Promise<ArcanaSummary[]> | null = null;
 
-// All arcana (30 rows, with icons). Offline/mock mode has none — the UI falls back to initials.
+// All runes (30 rows, with icons). Offline/mock mode has none — the UI falls back to initials.
 export function getArcana(): Promise<ArcanaSummary[]> {
   if (!isSupabaseConfigured) return Promise.resolve([]);
   if (!arcanaPromise) {
@@ -116,13 +116,13 @@ function genericBuildFor(hero: HeroSummary): HeroBuild {
 
 const COLOR_ORDER: Record<ArcanaColor, number> = { red: 0, purple: 1, green: 2 };
 
-// บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_arcana)
+// บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_rune)
 // เลือกอันที่เป็น curated ก่อน แล้วเอาแพตช์ใหม่สุด; ถ้าไม่มีหรือดึงไม่สำเร็จ คืน null เพื่อใช้ fallback เดิม
 async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
   const { data, error } = await supabase
     .from("item_builds")
     .select(
-      "source, patches(code, released_at), arcana(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_arcana(quantity, reason, sort_order, arcana(name, description, icon_url, color))"
+      "source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color))"
     )
     .eq("hero_id", hero.id);
   if (error || !data) return null;
@@ -143,23 +143,23 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
     .map((i) => ({ itemSlug: i.items.slug as string, reason: i.reason as string, phase: i.phase as HeroBuild["items"][number]["phase"] }));
   if (items.length === 0) return null;
 
-  // รูนหลายตัว (มีสี + จำนวน) จาก item_build_arcana; ถ้าไม่มีใช้รูนชุดเดียวแบบเดิมจาก item_builds.arcana_id
-  const multi: BuildArcanaEntry[] = [...(r.item_build_arcana ?? [])]
-    .filter((a) => a.arcana?.name)
+  // รูนหลายตัว (มีสี + จำนวน) จาก item_build_rune; ถ้าไม่มีใช้รูนชุดเดียวแบบเดิมจาก item_builds.rune_id
+  const multi: BuildArcanaEntry[] = [...(r.item_build_rune ?? [])]
+    .filter((a) => a.rune?.name)
     .sort(
       (a, b) =>
-        (COLOR_ORDER[a.arcana.color as ArcanaColor] ?? 9) - (COLOR_ORDER[b.arcana.color as ArcanaColor] ?? 9) ||
+        (COLOR_ORDER[a.rune.color as ArcanaColor] ?? 9) - (COLOR_ORDER[b.rune.color as ArcanaColor] ?? 9) ||
         (a.sort_order ?? 0) - (b.sort_order ?? 0)
     )
     .map((a) => ({
-      name: a.arcana.name as string,
-      reason: (a.reason ?? a.arcana.description ?? "") as string,
-      icon: a.arcana.icon_url ?? undefined,
-      color: (a.arcana.color ?? undefined) as ArcanaColor | undefined,
+      name: a.rune.name as string,
+      reason: (a.reason ?? a.rune.description ?? "") as string,
+      icon: a.rune.icon_url ?? undefined,
+      color: (a.rune.color ?? undefined) as ArcanaColor | undefined,
       quantity: a.quantity as number,
     }));
-  const legacy: BuildArcanaEntry[] = r.arcana
-    ? [{ name: r.arcana.name, reason: r.arcana.description ?? "", icon: r.arcana.icon_url ?? undefined, color: r.arcana.color ?? undefined }]
+  const legacy: BuildArcanaEntry[] = r.rune
+    ? [{ name: r.rune.name, reason: r.rune.description ?? "", icon: r.rune.icon_url ?? undefined, color: r.rune.color ?? undefined }]
     : [];
 
   return { heroSlug: hero.slug, items, arcana: multi.length > 0 ? multi : legacy, patch: r.patches?.code ?? "N/A", source: r.source };
