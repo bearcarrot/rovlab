@@ -155,7 +155,7 @@ export function Home() {
       {/* 3. What Draft Assistant evaluates (static, no extra requests) */}
       <section aria-labelledby="draft-heading" className="grid gap-4 md:grid-cols-2 md:items-center">
         <div className="space-y-3">
-          <h2 id="draft-heading" className="font-display text-base font-semibold">Draft Assist ช่วยตัดสินใจอะไรได้บ้าง</h2>
+          <h2 id="draft-heading" className="font-display text-base font-semibold">Draft Assistant ช่วยตัดสินใจอะไรได้บ้าง</h2>
           <ul className="space-y-2 text-sm text-text-muted">
             {DRAFT_POINTS.map((p) => (
               <li key={p} className="flex gap-2">
