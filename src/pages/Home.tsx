@@ -114,7 +114,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 2. Tools: Draft Assist leads, the rest follow in priority order */}
+      {/* 2. Tools: Draft Assistant leads, the rest follow in priority order */}
       <section aria-labelledby="tools-heading" className="space-y-3">
         <h2 id="tools-heading" className="font-display text-base font-semibold">เครื่องมือ</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -127,7 +127,7 @@ export function Home() {
           >
             <NotebookPen className="mt-0.5 h-6 w-6 shrink-0 text-accent" strokeWidth={2} />
             <div>
-              <p className="font-display text-base font-semibold leading-tight">Draft Assist</p>
+              <p className="font-display text-base font-semibold leading-tight">Draft Assistant</p>
               <p className="mt-1 text-sm text-text-muted">
                 เลือกฮีโร่ทีละช่อง ดูว่าทีมขาดอะไร แล้วรับคำแนะนำตัวถัดไปพร้อมเหตุผล
               </p>
@@ -152,10 +152,10 @@ export function Home() {
         </div>
       </section>
 
-      {/* 3. What Draft Assist evaluates (static, no extra requests) */}
+      {/* 3. What Draft Assistant evaluates (static, no extra requests) */}
       <section aria-labelledby="draft-heading" className="grid gap-4 md:grid-cols-2 md:items-center">
         <div className="space-y-3">
-          <h2 id="draft-heading" className="font-display text-base font-semibold">Draft Assist ช่วยตัดสินใจอะไรได้บ้าง</h2>
+          <h2 id="draft-heading" className="font-display text-base font-semibold">Draft Assistant ช่วยตัดสินใจอะไรได้บ้าง</h2>
           <ul className="space-y-2 text-sm text-text-muted">
             {DRAFT_POINTS.map((p) => (
               <li key={p} className="flex gap-2">
@@ -174,7 +174,7 @@ export function Home() {
               FOCUS
             )}
           >
-            ลองใช้ Draft Assist
+            ลองใช้ Draft Assistant
           </Link>
         </div>
 
@@ -215,7 +215,7 @@ export function Home() {
           <MoreLink to="/learn" icon={BookOpen} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-faint">
-          <Sparkles className="h-3.5 w-3.5" /> โค้ช AI อยู่ใน Draft Assist ที่ปุ่ม &ldquo;ถามโค้ช AI&rdquo; บนการ์ดแนะนำ
+          <Sparkles className="h-3.5 w-3.5" /> โค้ช AI อยู่ใน Draft Assistant ที่ปุ่ม &ldquo;ถามโค้ช AI&rdquo; บนการ์ดแนะนำ
         </p>
       </section>
     </div>
