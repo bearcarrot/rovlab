@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
+import { ShareLinkButton } from "@/features/share/ShareLinkButton";
 import { useShareImage } from "@/features/share/useShareImage";
+import { NAME_PARAM, encodeSeries } from "@/features/share/linkCodec";
+import { buildShareUrl } from "@/features/share/shareLink";
 import {
   draftAssistantTemplate,
   formatGeneratedDate,
@@ -11,6 +14,7 @@ import {
 } from "@/lib/share-image";
 import type { HeroSummary } from "@/types/hero";
 import type { DraftMode, Recommendation, TeamAnalysis } from "./analyzeTeam";
+import { isGameEmpty, type DraftSeries } from "./series";
 
 const MAX = 10; // เพดานแถบเดียวกับ TeamMeters
 
@@ -38,6 +42,8 @@ export function DraftShareBar({
   analysis,
   mode,
   coachText,
+  series,
+  title,
 }: {
   myTeam: (HeroSummary | null)[];
   enemyTeam: (HeroSummary | null)[];
@@ -47,6 +53,9 @@ export function DraftShareBar({
   mode: DraftMode;
   /** คำตอบ Coach Ai ล่าสุดบนหน้า (ว่าง = ยังไม่ได้ถาม) */
   coachText: string;
+  /** ทั้งซีรีส์ (ทุกเกม + แบน) สำหรับแชร์เป็นลิงก์ — รูปแชร์ยังเป็นเฉพาะเกมที่เปิดอยู่ */
+  series: DraftSeries;
+  title: string;
 }) {
   // Coach Ai บนรูปปิดเป็นค่าเริ่มต้น ผู้ใช้ต้องเปิดเอง
   const [includeAi, setIncludeAi] = useState(false);
@@ -73,6 +82,16 @@ export function DraftShareBar({
 
   const share = useShareImage(draftAssistantTemplate, build);
 
+  // ลิงก์เก็บสแนปช็อตทั้งซีรีส์ไว้ใน URL: เปิดได้โดยไม่ต้องล็อกอิน/ไม่ต้องบันทึกขึ้นบัญชี
+  const buildLink = useCallback(
+    () => ({
+      url: buildShareUrl("/draft", encodeSeries(series), { [NAME_PARAM]: title }),
+      title: title.trim() || "RoV LAB Draft",
+    }),
+    [series, title]
+  );
+  const seriesBlank = series.games.every(isGameEmpty);
+
   useEffect(() => {
     const icons = [...myTeam, ...enemyTeam, ...recs.slice(0, 5).map((r) => r.hero)].map((h) => h?.icon ?? "");
     preloadImages(icons);
@@ -87,6 +106,7 @@ export function DraftShareBar({
         onShare={share.share}
         onDownload={share.download}
       />
+      <ShareLinkButton build={buildLink} disabled={seriesBlank} className="w-full sm:w-auto" />
       {hasCoach && (
         <label className="flex items-center gap-2 text-xs text-text-muted">
           <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} className="h-4 w-4 accent-[#E8A33D]" />
@@ -94,6 +114,7 @@ export function DraftShareBar({
         </label>
       )}
       <p className="text-[11px] text-text-faint">รูปจะมีป้าย HEURISTIC เสมอ เพราะเป็นการประเมินเบื้องต้น ไม่ใช่ข้อมูลทางการของเกม</p>
+      <p className="text-[11px] text-text-faint">ลิงก์เก็บทั้งซีรีส์ (ทุกเกมรวมแบน) ไว้ใน URL ผู้รับเปิดดูและโหลดไปแก้ต่อได้โดยไม่ต้องล็อกอิน</p>
     </div>
   );
 }
