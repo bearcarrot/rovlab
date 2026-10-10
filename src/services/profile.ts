@@ -16,6 +16,7 @@ type ProfileRow = {
   contact?: string | null;
   contact_links?: unknown;
   created_at?: string;
+  verified_category?: string | null;
 };
 
 function toProfile(row: ProfileRow): Profile {
@@ -29,6 +30,7 @@ function toProfile(row: ProfileRow): Profile {
     gameName: row.game_name,
     contact: row.contact ?? null,
     contactLinks: parseContactLinks(row.contact_links),
+    verifiedCategory: row.verified_category ?? null,
   };
 }
 
@@ -59,6 +61,7 @@ export interface ProfileEdit {
 }
 
 // avatar_url is intentionally not editable here: it can only be changed through the moderated `avatar` Edge Function.
+// verified_category / account_status are never sent from the client: only admin RPCs can change them.
 export async function updateProfile(userId: string, edit: ProfileEdit): Promise<void> {
   const displayName = edit.displayName.trim();
   if (displayName.length < PROFILE_LIMITS.displayNameMin || displayName.length > PROFILE_LIMITS.displayNameMax) {
