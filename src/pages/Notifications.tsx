@@ -7,6 +7,7 @@ import { listNotifications, markNotificationRead } from "@/services/community";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/components/ui/toast";
 import { timeAgo } from "@/lib/timeAgo";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,11 @@ export function Notifications() {
                   <Icon className="h-4 w-4 shrink-0 text-accent" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">
-                      <span className="font-medium">{who}</span> <span className="text-text-muted">{text}</span>
+                      <span className="inline-flex items-center gap-1 align-middle">
+                        <span className="font-medium">{who}</span>
+                        <VerifiedBadge category={n.actorVerifiedCategory} />
+                      </span>{" "}
+                      <span className="text-text-muted">{text}</span>
                     </p>
                     <p className="text-xs text-text-faint">{timeAgo(n.createdAt)}</p>
                   </div>
