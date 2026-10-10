@@ -51,10 +51,11 @@ export function HeroCard({
           {/* ขวาล่างเหมือนทุกหน้า (การ์ด overflow-hidden จึงวางชิดใน) */}
           <HeroBalanceBadge heroId={hero.id} size="md" inside />
         </div>
-        {/* ชื่อฮีโร่ใช้ฟอนต์ปกติ น้ำหนักปกติ (font-normal) เหมือนการ์ดในหน้า Counter Pick ไม่ใช้ font-display */}
+        {/* ชื่อฮีโร่ใช้ฟอนต์ปกติ น้ำหนักปกติ (font-normal) ไม่ใช้ font-display
+            โหมด compact ใช้ขนาดตัวอักษร/ระยะห่างเท่าการ์ดในหน้า Counter Pick (text-[11px] sm:text-xs) */}
         {compact ? (
-          <div className="p-2">
-            <p className="truncate text-center text-sm font-normal leading-tight">{hero.nameTh}</p>
+          <div className="px-1 py-1">
+            <p className="truncate text-center text-[11px] font-normal leading-tight sm:text-xs">{hero.nameTh}</p>
           </div>
         ) : (
           <div className="space-y-1 p-2.5">
