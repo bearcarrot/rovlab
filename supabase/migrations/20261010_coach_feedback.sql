@@ -1,5 +1,5 @@
 -- Coach Ai answer feedback (Like / Dislike + "what is wrong" report) for admin review.
--- NOT APPLIED YET. Apply to project mttcdaiwuasnkqlxbeqs as migration "coach_feedback" (safe to re-run).
+-- ALREADY APPLIED to project mttcdaiwuasnkqlxbeqs (migration "coach_feedback", 2026-10-10). Do not run again.
 -- Clients never touch the table directly: they call submit_coach_feedback() (own rows only, validated, rate-limited).
 -- Only admins can read / triage, through SECURITY DEFINER RPCs that check public.is_admin().
 
