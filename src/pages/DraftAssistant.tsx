@@ -9,6 +9,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
@@ -514,7 +515,11 @@ export function DraftAssistant() {
                         <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
                           {h.name.slice(0, 2).toUpperCase()}
                         </span>
-                        <HeroBalanceBadge heroId={h.id} />
+                        {/* Tier มุมซ้ายบน และไอคอน buff/nerf/rework มุมขวาล่างแบบเดียวกับการ์ดในหน้าฮีโร่ทั้งหมด */}
+                        <div className="absolute left-1.5 top-1.5">
+                          {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
+                        </div>
+                        <HeroBalanceBadge heroId={h.id} size="md" inside />
                       </div>
                       <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
                     </button>
