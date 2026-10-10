@@ -5,15 +5,19 @@ import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useToast } from "@/components/ui/toast";
 import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
 import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
 import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
+import { tierHeroCount } from "@/features/tierlist/tierData";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
+import { decodeTiers } from "@/features/share/linkCodec";
+import { useIncomingShare } from "@/features/share/useIncomingShare";
 import { formatGeneratedDate, makeFilename, preloadImages, tierListTemplate, type TierListImageData } from "@/lib/share-image";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -29,6 +33,7 @@ export type TierMode = "official" | "mine" | "community";
 export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
+  const toast = useToast();
   // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรงก์สลับที่ปุ่มบน Header
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
@@ -112,6 +117,23 @@ export function TierList() {
       })),
     []
   );
+
+  // เปิดลิงก์แชร์ (/tier-list?s=...): รอฮีโร่โหลดก่อน (ลิงก์ใช้ slug ต้องแปลงเป็น id) แล้วเปิดในตัวจัดอันดับเป็นร่างที่ยังไม่ได้บันทึก
+  useIncomingShare(async ({ code, name, patch }) => {
+    if (heroes.status !== "success") return;
+    const decoded = decodeTiers(code, new Map(heroes.data.map((h) => [h.slug, h.id])));
+    if (!decoded || tierHeroCount(decoded.data) === 0) {
+      toast.error("ลิงก์ Tier List ไม่ถูกต้องหรือเสียหาย");
+      return;
+    }
+    if (!(await canReplace())) return;
+    loadPreset({ name: name || "Tier List ที่แชร์มา", description: "", patch, data: decoded.data, cloudId: null });
+    toast.info(
+      decoded.missing > 0
+        ? `เปิด Tier List ที่แชร์มาแล้ว (ข้าม ${decoded.missing} ฮีโร่ที่ไม่พบในระบบ) กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ`
+        : "เปิด Tier List ที่แชร์มาแล้ว กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ"
+    );
+  }, heroes.status === "success");
 
   return (
     <div className="space-y-4">

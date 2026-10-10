@@ -131,11 +131,21 @@ export function useDraftSession() {
       write({ ...latest.current, series: next, gameNumber: clampGame(latest.current.gameNumber, next) });
     },
 
-    /** Replace the editor with a draft (My Draft / Community preset). Clears history. */
-    load: (next: { series: DraftSeries; draftId: string | null; title: string; description?: string; visibility?: Visibility }) => {
+    /**
+     * Replace the editor with a draft (My Draft / Community preset / share link). Clears history.
+     * `unsaved: true` keeps it flagged as unsaved (a share link exists nowhere in the account yet).
+     */
+    load: (next: {
+      series: DraftSeries;
+      draftId: string | null;
+      title: string;
+      description?: string;
+      visibility?: Visibility;
+      unsaved?: boolean;
+    }) => {
       setPast([]);
       setFuture([]);
-      setSavedJson(JSON.stringify(next.series));
+      setSavedJson(next.unsaved ? "" : JSON.stringify(next.series));
       write({
         series: next.series,
         gameNumber: 1,
