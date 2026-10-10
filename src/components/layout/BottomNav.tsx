@@ -1,14 +1,19 @@
 import { NavLink } from "react-router-dom";
-import { Home, NotebookPen, BarChart3, Menu } from "lucide-react";
-import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
+import { Home, ListOrdered, NotebookPen, BarChart3, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Order: Home · Tier List · Draft Assistant · Stats · More (drawer).
+// Heroes stays reachable from the drawer / sidebar and the Home page.
 const ITEMS = [
   { to: "/", label: "หน้าแรก", icon: Home, end: true },
-  { to: "/heroes", label: "ฮีโร่", icon: HeroHelmetIcon },
-  { to: "/draft", label: "ดราฟต์", icon: NotebookPen },
+  { to: "/tier-list", label: "Tier List", icon: ListOrdered },
+  { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
   { to: "/stats", label: "สถิติ", icon: BarChart3 },
 ];
+
+// "Draft Assistant" is too wide for one line on narrow phones (5 equal columns),
+// so labels use leading-tight + text-center and may wrap to two lines.
+const LABEL_CLS = "min-w-0 px-0.5 text-center text-[11px] leading-tight";
 
 export function BottomNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
   return (
@@ -23,21 +28,21 @@ export function BottomNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
           end={end}
           className={({ isActive }) =>
             cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-xs text-text-faint",
+              "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-text-faint",
               isActive && "text-accent"
             )
           }
         >
-          <Icon className="h-5 w-5" strokeWidth={2} />
-          {label}
+          <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
+          <span className={LABEL_CLS}>{label}</span>
         </NavLink>
       ))}
       <button
         onClick={onOpenDrawer}
-        className="flex flex-1 flex-col items-center justify-center gap-1 text-xs text-text-faint"
+        className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-text-faint"
       >
-        <Menu className="h-5 w-5" strokeWidth={2} />
-        เพิ่มเติม
+        <Menu className="h-5 w-5 shrink-0" strokeWidth={2} />
+        <span className={LABEL_CLS}>เพิ่มเติม</span>
       </button>
     </nav>
   );

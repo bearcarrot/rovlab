@@ -215,7 +215,7 @@ export function Home() {
           <MoreLink to="/learn" icon={BookOpen} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-faint">
-          <Sparkles className="h-3.5 w-3.5" /> Coach Ai อยู่ใน Draft Assist ที่ปุ่ม &ldquo;ถาม Coach Ai&rdquo; บนการ์ดแนะนำ
+          <Sparkles className="h-3.5 w-3.5" /> Coach Ai อยู่ใน Draft Assistant ที่ปุ่ม &ldquo;ถาม Coach Ai&rdquo; บนการ์ดแนะนำ
         </p>
       </section>
     </div>

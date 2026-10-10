@@ -2,8 +2,9 @@
 // Brand name lives here so it can be changed in one place.
 export const SITE = {
   name: "RoV LAB",
-  taglineTh: "เครื่องมือและข้อมูลชุมชนสำหรับผู้เล่น RoV",
-  taglineEn: "Community Tools & Data for RoV Players",
+  // Same voice as the Home eyebrow ("RoV META & DRAFT INTELLIGENCE").
+  taglineTh: "ข้อมูลเมต้าและเครื่องมือดราฟต์สำหรับผู้เล่น RoV",
+  taglineEn: "Meta & Draft Intelligence for RoV Players",
   // First year of the project; the footer shows a range once the year passes.
   startYear: 2026,
   // Public contact address for privacy / takedown requests. Leave empty until a
