@@ -1,14 +1,14 @@
 import { useMemo, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import {
+  BarChart3,
   BookOpen,
   Check,
-  GitCompareArrows,
   ListOrdered,
   NotebookPen,
+  Scale,
   Sparkles,
   Swords,
-  TrendingUp,
 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDashboardInsights } from "@/services/insights";
@@ -29,6 +29,7 @@ import type { HeroSummary } from "@/types/hero";
 // Every destination below exists in App.tsx. Do not add a link here before the
 // route exists (Draft Series, Community and a standalone Coach AI page are not
 // routed yet, so they are intentionally not advertised).
+// Icons match Sidebar / MobileDrawer so each tool looks the same everywhere.
 // ---------------------------------------------------------------------------
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -39,7 +40,7 @@ const FOCUS =
 const TOOLS: { to: string; title: string; desc: string; icon: IconType }[] = [
   { to: "/tier-list", title: "Tier List", desc: "ดูว่าฮีโร่ตัวไหนแรงในเมต้านี้ พร้อมเหตุผลต่อฮีโร่", icon: ListOrdered },
   { to: "/counter-pick", title: "Counter Pick", desc: "เลือกฮีโร่ศัตรู แล้วดูว่าใครสวนได้และสวนอย่างไร", icon: Swords },
-  { to: "/matchup", title: "Matchup", desc: "เทียบฮีโร่สองตัวในเลน ช่วงต้น กลาง ปลายเกม", icon: GitCompareArrows },
+  { to: "/matchup", title: "Matchup", desc: "เทียบฮีโร่สองตัวในเลน ช่วงต้น กลาง ปลายเกม", icon: Scale },
   { to: "/heroes", title: "ฮีโร่ทั้งหมด", desc: "ค้นหาและกรองตาม Role / Lane ดูจุดแข็งจุดอ่อน", icon: HeroHelmetIcon },
 ];
 
@@ -210,7 +211,7 @@ export function Home() {
       <section aria-labelledby="more-heading" className="space-y-3">
         <h2 id="more-heading" className="font-display text-base font-semibold">เรียนรู้และดูสถิติเพิ่ม</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <MoreLink to="/stats" icon={TrendingUp} title="สถิติฮีโร่" desc="จัดอันดับ Win / Pick / Ban Rate แยกตาม Lane" />
+          <MoreLink to="/stats" icon={BarChart3} title="สถิติฮีโร่" desc="จัดอันดับ Win / Pick / Ban Rate แยกตาม Lane" />
           <MoreLink to="/learn" icon={BookOpen} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-faint">
