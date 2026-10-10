@@ -29,7 +29,7 @@ function paint<T>(template: ImageTemplate<T>, data: T, images: ImageStore, scale
  * Input → Template → Canvas → PNG Blob
  * ลำดับ: โหลดรูป → โหลดฟอนต์ → วาด → export
  * รูปโหลดไม่ได้ = placeholder (ไม่ล้มทั้งงาน); ถ้า export ล้มเพราะ canvas ถูก taint จะวาดใหม่แบบไม่ใช้รูปภายนอก
- * โลโก้ RovLab โหลดให้ทุก template เสมอ (same-origin จึงไม่ทำให้ canvas taint และคงอยู่ในรูปสำรองด้วย)
+ * โลโก้ RoV LAB โหลดให้ทุก template เสมอ (same-origin จึงไม่ทำให้ canvas taint และคงอยู่ในรูปสำรองด้วย)
  */
 export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: RenderOptions = {}): Promise<RenderResult> {
   const scale = opts.scale ?? 1;

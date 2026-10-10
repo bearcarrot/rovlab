@@ -1616,7 +1616,7 @@ export function Admin() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-xl font-semibold">RoVLab Admin</h1>
+      <h1 className="font-display text-xl font-semibold">RoV LAB Admin</h1>
 
       {/* แท็บ: มือถือเลื่อนแนวนอน (relative เพื่อให้คำนวณตำแหน่งเลื่อนได้) เดสก์ท็อปขึ้นบรรทัดใหม่ */}
       <nav
