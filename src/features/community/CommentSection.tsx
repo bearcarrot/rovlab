@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { useToast } from "@/components/ui/toast";
 import { CommentComposer } from "./CommentComposer";
 import { CommentItem } from "./CommentItem";
-import { getComment, isAdmin as fetchIsAdmin, listComments, postComment } from "@/services/community";
+import { getComment, isAdmin as fetchIsAdmin, isModerator as fetchIsModerator, listComments, postComment } from "@/services/community";
 import type { CommentRow, CommentSort } from "@/types/community";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ export function CommentSection({ heroSlug }: { heroSlug: string }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [version, setVersion] = useState(0);
   const [admin, setAdmin] = useState(false);
+  const [moderator, setModerator] = useState(false);
   const [focusRoot, setFocusRoot] = useState<CommentRow | null>(null);
 
   useEffect(() => {
@@ -50,14 +51,18 @@ export function CommentSection({ heroSlug }: { heroSlug: string }) {
     };
   }, [heroSlug, sort, version, user?.id, isConfigured]);
 
+  // The UI only decides which controls to show; the database re-checks the role on every action.
   useEffect(() => {
     if (!user || !isConfigured) {
       setAdmin(false);
+      setModerator(false);
       return;
     }
     let cancelled = false;
-    fetchIsAdmin().then((v) => {
-      if (!cancelled) setAdmin(v);
+    void Promise.all([fetchIsAdmin(), fetchIsModerator()]).then(([a, m]) => {
+      if (cancelled) return;
+      setAdmin(a);
+      setModerator(m);
     });
     return () => {
       cancelled = true;
@@ -153,6 +158,7 @@ export function CommentSection({ heroSlug }: { heroSlug: string }) {
             comment={focusRoot}
             heroSlug={heroSlug}
             isAdmin={admin}
+            isModerator={moderator}
             canPost={canPost}
             highlightId={focusId}
             defaultOpenReplies
@@ -178,6 +184,7 @@ export function CommentSection({ heroSlug }: { heroSlug: string }) {
               comment={c}
               heroSlug={heroSlug}
               isAdmin={admin}
+              isModerator={moderator}
               canPost={canPost}
               onGone={(id) => setItems((prev) => prev.filter((x) => x.id !== id))}
             />
