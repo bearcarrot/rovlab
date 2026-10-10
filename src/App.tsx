@@ -22,6 +22,7 @@ const CounterPick = lazyNamed(() => import("@/pages/CounterPick"), "CounterPick"
 const DraftAssistant = lazyNamed(() => import("@/pages/DraftAssistant"), "DraftAssistant");
 const Matchup = lazyNamed(() => import("@/pages/Matchup"), "Matchup");
 const Favorites = lazyNamed(() => import("@/pages/Favorites"), "Favorites");
+const Matches = lazyNamed(() => import("@/pages/Matches"), "Matches");
 const Profile = lazyNamed(() => import("@/pages/Profile"), "Profile");
 const PlayerProfile = lazyNamed(() => import("@/pages/PlayerProfile"), "PlayerProfile");
 const Login = lazyNamed(() => import("@/pages/Login"), "Login");
@@ -88,6 +89,8 @@ export default function App() {
           }
         />
         <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
+        {/* วิเคราะห์เกม: อัปโหลดสกรีนชอตหน้าสรุปผล → OCR → ตรวจ/แก้ → บันทึก (ข้อมูลส่วนตัว ต้องล็อกอิน) */}
+        <Route path="matches" element={<RequireAuth><Matches /></RequireAuth>} />
         <Route
           path="notifications"
           element={

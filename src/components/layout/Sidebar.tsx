@@ -6,6 +6,7 @@ import {
   Scale,
   NotebookPen,
   BarChart3,
+  ClipboardList,
   ListOrdered,
   BookOpen,
   Heart,
@@ -39,7 +40,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "สถิติ",
-    items: [{ to: "/stats", label: "สถิติ", icon: BarChart3 }],
+    items: [
+      { to: "/stats", label: "สถิติ", icon: BarChart3 },
+      { to: "/matches", label: "วิเคราะห์เกม", icon: ClipboardList },
+    ],
   },
   {
     label: "เรียนรู้",

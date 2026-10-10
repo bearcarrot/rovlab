@@ -1,6 +1,6 @@
 # RoV LAB — Roadmap
 
-> Last reviewed: 2026-10-02
+> Last reviewed: 2026-10-10
 
 This roadmap describes project-level work and known gaps. It is not a gameplay ranking.
 
@@ -22,6 +22,7 @@ The project includes or has been working toward:
 - Comments
 - Admin tools
 - Coach Ai
+- Match analysis from scoreboard screenshots (`/matches`, see `docs/MATCH_OCR.md`)
 
 ## Known Gaps
 
@@ -33,9 +34,9 @@ The matchup feature has historically relied partly on mock and heuristic data.
 
 Guide data has historically been incomplete/mock.
 
-### Home Insights
+### Match Analysis
 
-Home insights have historically been placeholder/mock data.
+The scoreboard OCR flow has not been build-checked or tested against real screenshots yet, so its accuracy is unmeasured. Items are not read from the screenshot, Coach Ai does not use saved matches, and there is no Home summary card yet. The screenshot has no per-minute data, so insights are match-level only. Details in `docs/MATCH_OCR.md`.
 
 ### Saved Builds / Drafts
 
