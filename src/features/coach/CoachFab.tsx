@@ -6,11 +6,13 @@ import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useCoachChatState, type QuickChat } from "@/features/coach/CoachChatContext";
+import { CoachFeedback } from "@/components/CoachFeedback";
 import { CoachText } from "@/components/CoachText";
 import { EllipsisJump } from "@/components/EllipsisJump";
 import { cn } from "@/lib/utils";
 
-type Msg = { id: number; role: "user" | "coach" | "error"; text: string };
+// q = Quick Chat ที่ทำให้เกิดคำตอบนี้ (มีเฉพาะคำตอบจริงของ Coach Ai) ใช้ส่งรีวิว Like/Dislike พร้อมคำถามและข้อมูลที่ส่งให้ AI
+type Msg = { id: number; role: "user" | "coach" | "error"; text: string; q?: QuickChat };
 
 function Mascot({ className }: { className?: string }) {
   return (
@@ -56,9 +58,9 @@ export function CoachFab() {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, busy, open]);
 
-  function push(role: Msg["role"], text: string) {
+  function push(role: Msg["role"], text: string, q?: QuickChat) {
     const id = ++msgId.current;
-    setMessages((m) => [...m, { id, role, text }]);
+    setMessages((m) => [...m, { id, role, text, q }]);
   }
 
   async function ask(q: QuickChat) {
@@ -69,7 +71,7 @@ export function CoachFab() {
     try {
       const text = await askCoach(q.prompt, q.context);
       if (id === reqId.current) {
-        push("coach", text || "ยังไม่ได้คำตอบ ลองกดถามใหม่อีกครั้ง");
+        push("coach", text || "ยังไม่ได้คำตอบ ลองกดถามใหม่อีกครั้ง", text ? q : undefined);
         // ให้หน้าที่ลงทะเบียนรับคำตอบไปใช้ต่อ (เช่น ใส่ในรูปแชร์ของ Draft)
         if (text) q.onAnswer?.(text);
       }
@@ -136,6 +138,14 @@ export function CoachFab() {
                     )}
                   >
                     {m.role === "error" ? m.text : <CoachText text={m.text} className="text-text" />}
+                    {m.q && (
+                      <CoachFeedback
+                        question={m.q.label}
+                        answer={m.text}
+                        context={m.q.context}
+                        className="mt-2 border-t border-border/60 pt-2"
+                      />
+                    )}
                   </div>
                 </div>
               )

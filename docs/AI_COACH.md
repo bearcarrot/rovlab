@@ -98,6 +98,19 @@ Coach Ai should:
 6. Make recommendations conditional on the match context.
 7. Avoid presenting heuristics as guaranteed outcomes.
 
+## Answer Feedback (Like / Dislike)
+
+Every Coach Ai answer (floating chat and inline ask buttons) has a "คำตอบนี้ถูกต้องไหม?" row.
+
+- **Like** is saved immediately.
+- **Dislike** opens a required "ผิดตรงไหน?" field (3 to 500 characters), then saves a report.
+- Reports store the question, the answer, the page path and, for dislikes only, the exact data given to the AI
+  (same 8000-character cut as the Edge Function). This lets an admin tell "the AI made it up" apart from "our data is wrong".
+- Storage is the `coach_feedback` table (migration `20261010_coach_feedback.sql`). Clients never touch the table:
+  they call `submit_coach_feedback` (own rows, validated, 30 per user per 24h). Only admins read and triage, via
+  `admin_list_coach_feedback`, `admin_update_coach_feedback` and `admin_coach_feedback_counts` (all check `is_admin()`).
+- Admins review in `/admin` under the "รีวิว Coach Ai" tab and set a status: new, reviewed, fixed or dismissed, with a note.
+
 ## Updating Coach Ai
 
 When changing Coach Ai:

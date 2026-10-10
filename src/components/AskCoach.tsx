@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { askCoach } from "@/services/ai";
 import { useAuth } from "@/features/auth/AuthContext";
+import { CoachFeedback } from "@/components/CoachFeedback";
 import { CoachIcon } from "@/components/CoachIcon";
 import { CoachText } from "@/components/CoachText";
 import { EllipsisJump } from "@/components/EllipsisJump";
@@ -24,6 +25,8 @@ export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetK
   const { user, loading } = useAuth();
   const toast = useToast();
   const [advice, setAdvice] = useState("");
+  // prompt/context ณ ตอนที่ถาม (props อาจเปลี่ยนก่อนผู้ใช้กดรีวิว) + เลขคำตอบ ให้รีวิวเริ่มใหม่ทุกครั้งที่ถามใหม่
+  const [asked, setAsked] = useState<{ question: string; context: unknown; seq: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const reqId = useRef(0);
   const onAdviceRef = useRef(onAdvice);
@@ -32,6 +35,7 @@ export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetK
   useEffect(() => {
     reqId.current++;
     setAdvice("");
+    setAsked(null);
     setBusy(false);
   }, [resetKey]);
 
@@ -44,7 +48,10 @@ export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetK
     setBusy(true);
     try {
       const text = await askCoach(prompt, context);
-      if (id === reqId.current) setAdvice(text);
+      if (id === reqId.current) {
+        setAdvice(text);
+        setAsked((a) => ({ question: prompt, context, seq: (a?.seq ?? 0) + 1 }));
+      }
     } catch (e) {
       if (id === reqId.current) toast.error(e instanceof Error ? e.message : "ถาม Coach Ai ไม่สำเร็จ");
     } finally {
@@ -89,6 +96,15 @@ export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetK
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
           <CoachText text={advice} className="text-text" />
+          {asked && (
+            <CoachFeedback
+              key={asked.seq}
+              question={asked.question}
+              answer={advice}
+              context={asked.context}
+              className="mt-2 border-t border-accent/20 pt-2"
+            />
+          )}
           <p className="mt-1.5 text-[11px] text-text-faint">* คำแนะนำจาก AI สร้างจากข้อมูลบนหน้านี้ อาจคลาดเคลื่อน</p>
         </div>
       )}
