@@ -1,5 +1,6 @@
+-- APPLIED to project mttcdaiwuasnkqlxbeqs on 2026-10-10 as migration `match_results_and_ocr_quota`.
 -- Match results read from post-match scoreboard screenshots (OCR) + daily quota for the scoreboard-ocr Edge Function.
--- NOT APPLIED YET. Run in the Supabase SQL editor, then deploy the `scoreboard-ocr` function (see docs/MATCH_OCR.md).
+-- The `scoreboard-ocr` function still has to be deployed and its secrets set (see docs/MATCH_OCR.md).
 --
 -- Privacy: the screenshot itself is never stored, and other players' nicknames are not stored
 -- (match_results.players holds hero + stats only).
