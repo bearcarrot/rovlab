@@ -96,17 +96,12 @@ export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetK
       {advice && (
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
           <CoachText text={advice} className="text-text" />
-          {asked && (
-            <CoachFeedback
-              key={asked.seq}
-              question={asked.question}
-              answer={advice}
-              context={asked.context}
-              className="mt-2 border-t border-accent/20 pt-2"
-            />
-          )}
           <p className="mt-1.5 text-[11px] text-text-faint">* คำแนะนำจาก AI สร้างจากข้อมูลบนหน้านี้ อาจคลาดเคลื่อน</p>
         </div>
+      )}
+      {/* รีวิวอยู่ใต้กล่องคำตอบ (นอกกล่อง) */}
+      {advice && asked && (
+        <CoachFeedback key={asked.seq} question={asked.question} answer={advice} context={asked.context} className="-ml-1 !mt-0.5" />
       )}
     </div>
   );

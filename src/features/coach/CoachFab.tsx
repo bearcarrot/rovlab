@@ -131,19 +131,22 @@ export function CoachFab() {
               ) : (
                 <div key={m.id} className="flex items-start gap-2">
                   <Mascot className="h-7 w-7" />
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-2xl rounded-tl-md px-3 py-2",
-                      m.role === "error" ? "border border-loss/40 bg-loss/10 text-sm text-loss" : "bg-bg-raised"
-                    )}
-                  >
-                    {m.role === "error" ? m.text : <CoachText text={m.text} className="text-text" />}
+                  <div className="flex min-w-0 max-w-[85%] flex-col items-start">
+                    <div
+                      className={cn(
+                        "rounded-2xl rounded-tl-md px-3 py-2",
+                        m.role === "error" ? "border border-loss/40 bg-loss/10 text-sm text-loss" : "bg-bg-raised"
+                      )}
+                    >
+                      {m.role === "error" ? m.text : <CoachText text={m.text} className="text-text" />}
+                    </div>
+                    {/* รีวิวอยู่ใต้กล่องข้อความ (นอกกล่อง) */}
                     {m.q && (
                       <CoachFeedback
                         question={m.q.label}
                         answer={m.text}
                         context={m.q.context}
-                        className="mt-2 border-t border-border/60 pt-2"
+                        className="mt-0.5 -ml-1"
                       />
                     )}
                   </div>
