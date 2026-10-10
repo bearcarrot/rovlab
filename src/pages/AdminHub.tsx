@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Admin } from "@/pages/Admin";
+import { AdminCoachFeedback } from "@/pages/AdminCoachFeedback";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
@@ -7,10 +8,11 @@ import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "coach" | "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
+  ["coach", "รีวิว Coach Ai"],
   ["edit", "แก้ไขข้อมูล"],
   ["import", "นำเข้าสถิติ"],
   ["balance", "นำเข้าปรับสมดุล"],
@@ -62,6 +64,8 @@ export function AdminHub() {
         <AdminDashboard />
       ) : mode === "users" ? (
         <AdminUsers />
+      ) : mode === "coach" ? (
+        <AdminCoachFeedback />
       ) : mode === "edit" ? (
         <Admin />
       ) : mode === "import" ? (
