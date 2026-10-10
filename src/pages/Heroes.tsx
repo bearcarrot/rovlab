@@ -11,6 +11,9 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import type { HeroLane, HeroRole } from "@/types/hero";
 
+// กริดเดียวกับหน้า Counter Pick (การ์ดฮีโร่แบบ tile)
+const GRID = "grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9";
+
 export function Heroes() {
   const heroes = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
@@ -49,7 +52,7 @@ export function Heroes() {
       </div>
 
       {heroes.status === "loading" && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
+        <div className={GRID}>
           {Array.from({ length: 16 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square" />
           ))}
@@ -60,9 +63,9 @@ export function Heroes() {
         <EmptyState icon={Swords} title="ไม่พบฮีโร่ที่ตรงเงื่อนไข" description="ลองล้างตัวกรองหรือค้นหาด้วยคำอื่น" />
       )}
       {heroes.status === "success" && filtered.length > 0 && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 xl:grid-cols-8">
+        <div className={GRID}>
           {filtered.map((h) => (
-            <HeroCard key={h.id} hero={h} compact />
+            <HeroCard key={h.id} hero={h} tile />
           ))}
         </div>
       )}
