@@ -11,6 +11,7 @@ export function HeroCard({
   metric = "winRate",
   compact = false,
   hideRoles = false,
+  tile = false,
 }: {
   hero: HeroSummary;
   metric?: "winRate" | "banRate";
@@ -18,8 +19,55 @@ export function HeroCard({
   compact?: boolean;
   /** ซ่อนบรรทัดตำแหน่ง แต่ยังแสดงชื่อและ WR/BR (ใช้ในหน้าหลัก) */
   hideRoles?: boolean;
+  /** หน้าตาเหมือนตัวเลือกฮีโร่ในหน้า Counter Pick: ไอคอนเล็กในกรอบ + ชื่อด้านล่าง (ยังมี Tier และปุ่มโปรดย่อไว้มุมการ์ด) */
+  tile?: boolean;
 }) {
   const { roleLabel } = useFilterLabels();
+
+  if (tile) {
+    // Link เป็นตัวการ์ด ส่วน Tier/ปุ่มหัวใจเป็นพี่น้องของ <Link> (ไม่ซ้อน <button> ใน <a>) วางมุมการ์ดไม่ทับไอคอนตรงกลาง
+    return (
+      <div className="relative">
+        <Link
+          to={`/heroes/${hero.slug}`}
+          className="flex h-full flex-col items-center gap-1 rounded-lg border border-border bg-bg-surface p-2 text-center transition-colors hover:border-accent/40"
+        >
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint sm:h-11 sm:w-11">
+            {hero.icon ? (
+              <img
+                src={hero.icon}
+                alt={hero.nameTh}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-full w-full rounded-md object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                }}
+              />
+            ) : null}
+
+            <span className={`text-sm font-display text-text-faint sm:text-base ${hero.icon ? "hidden" : ""}`}>
+              {hero.name.slice(0, 2).toUpperCase()}
+            </span>
+            <HeroBalanceBadge heroId={hero.id} />
+          </div>
+          <span className="w-full truncate text-[11px] leading-tight sm:text-xs">{hero.nameTh}</span>
+        </Link>
+        <div className="pointer-events-none absolute left-0.5 top-0.5 z-10">
+          {hero.stat.hasStats ? (
+            <Badge tier={hero.stat.tier} className="px-1 py-0 text-[10px] leading-4">{hero.stat.tier}</Badge>
+          ) : (
+            <Badge className="px-1 py-0 text-[10px] leading-4">N/A</Badge>
+          )}
+        </div>
+        <FavoriteButton
+          heroSlug={hero.slug}
+          className="absolute right-0.5 top-0.5 z-10 h-5 w-5 [&>svg]:h-3 [&>svg]:w-3"
+        />
+      </div>
+    );
+  }
 
   // ปุ่มหัวใจวางเป็นพี่น้องของ <Link> (ไม่ใช่ลูก) เพราะ <button> ซ้อนใน <a> เป็น HTML ที่ไม่ถูกต้องและกระทบ screen reader/คีย์บอร์ด
   return (
