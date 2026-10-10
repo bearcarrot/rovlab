@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bookmark, FilePlus2, FolderOpen } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -6,6 +6,9 @@ import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/features/community/Modal";
 import { confirmDialog } from "@/features/community/confirm";
+import { ShareLinkButton } from "@/features/share/ShareLinkButton";
+import { NAME_PARAM, PATCH_PARAM, encodeTiers } from "@/features/share/linkCodec";
+import { buildShareUrl } from "@/features/share/shareLink";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
 import type { HeroSummary } from "@/types/hero";
 import { CustomTierBoard } from "./CustomTierBoard";
@@ -22,6 +25,7 @@ import {
 } from "./cloudTierList";
 import { MyTierLists } from "./MyTierLists";
 import { SaveTierListDialog, type SaveTierListValues } from "./SaveTierListDialog";
+import { tierHeroCount } from "./tierData";
 import type { PresetLoad } from "./CommunityTierLists";
 
 export interface IncomingPreset extends PresetLoad {
@@ -59,6 +63,19 @@ export function MyTierListWorkspace({
 
   const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : Object.values(current.tiers).some((l) => l.length > 0);
   const name = current.name.trim() || DEFAULT_CUSTOM_NAME;
+
+  // แชร์เป็นลิงก์: ฮีโร่ในลิงก์ใช้ slug (ไม่ใช่ id ในฐานข้อมูล) เปิดได้โดยไม่ต้องล็อกอิน
+  const slugById = useMemo(() => new Map(heroes.map((h) => [h.id, h.slug])), [heroes]);
+  const buildLink = useCallback(
+    () => ({
+      url: buildShareUrl("/tier-list", encodeTiers(current.tiers, slugById), {
+        [NAME_PARAM]: name,
+        [PATCH_PARAM]: current.patch || patch,
+      }),
+      title: name,
+    }),
+    [current.tiers, current.patch, patch, name, slugById]
+  );
 
   function replaceBoard(list: CustomTierList, nextCloud: CloudState) {
     setInitial(list);
@@ -162,6 +179,7 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
+        <ShareLinkButton variant="compact" build={buildLink} disabled={tierHeroCount(current.tiers) === 0} />
         <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
           ใหม่
