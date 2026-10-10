@@ -17,7 +17,11 @@ const SYSTEM = [
   "2) ข้อความเรื่องแนวหน้า/CC/ดาเมจใน reasons และ teamProfile เป็นการประเมินคร่าวๆ ตามบทบาท (heuristic) ไม่ใช่ข้อมูลยืนยัน ให้ใช้น้ำเสียงเป็นคำแนะนำ",
   "3) พูดถึงได้เฉพาะฮีโร่ที่อยู่ในข้อมูลที่ให้มา ห้ามอ้างฮีโร่อื่น",
   "4) ถ้าข้อมูลส่วนไหนไม่พอ ให้บอกตรงๆ ว่ายังไม่มีข้อมูล แทนการเดา",
+  "5) ถ้าท้ายข้อมูลมีหมายเหตุว่าข้อมูลถูกตัด ให้บอกผู้ใช้สั้นๆ ว่าข้อมูลบางส่วนไม่ครบ และอย่าสรุปเรื่องส่วนที่ขาด",
 ].join("\n");
+
+// เพดานขนาด context (ตัวอักษรของ JSON) ฝั่ง client เผื่อไว้ที่ 7200 (ดู coachContext.ts)
+const CONTEXT_LIMIT = 8000;
 
 // ภาษาไทยกินโทเคนเยอะ และโมเดลแบบ thinking นับโทเคนที่คิดรวมในเพดานนี้ด้วย
 // 2048 ทำให้คำตอบยาวๆ ถูกตัดกลางประโยค (finishReason = MAX_TOKENS)
@@ -109,9 +113,14 @@ Deno.serve(async (req) => {
     const fallback = cleanModel(Deno.env.get("GEMINI_FALLBACK_MODEL") ?? "gemini-3.5-flash-lite");
     const models = fallback && fallback !== primary ? [primary, fallback] : [primary];
 
-    const text = context
-      ? `${prompt}\n\nข้อมูล:\n${JSON.stringify(context).slice(0, 8000)}`
-      : prompt;
+    // context ยาวเกินเพดานจะถูกตัดกลางทาง: ใส่หมายเหตุให้โมเดลรู้ว่าข้อมูลไม่ครบ (ไม่งั้นมันจะตอบเหมือนข้อมูลครบ)
+    // ฝั่งผู้ใช้เก็บ snapshot ของ context ด้วยการตัดแบบเดียวกัน (slice 8000) เพื่อให้แอดมินตรวจรีวิวย้อนหลังได้ตรงกัน
+    let ctxText = context ? JSON.stringify(context) : "";
+    if (ctxText.length > CONTEXT_LIMIT) {
+      console.warn("ai-coach context truncated", ctxText.length);
+      ctxText = ctxText.slice(0, CONTEXT_LIMIT) + `\n[หมายเหตุ: ข้อมูลยาวเกินและถูกตัดท้าย ส่วนที่เหลือไม่ครบ]`;
+    }
+    const text = ctxText ? `${prompt}\n\nข้อมูล:\n${ctxText}` : prompt;
 
     // เรียก Gemini หนึ่งรอบ (retry เมื่อ overload แล้วค่อยสลับไปโมเดลสำรอง)
     async function run(userText: string): Promise<GeminiResult> {
