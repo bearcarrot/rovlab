@@ -202,7 +202,7 @@ export function HeroDetail() {
         <StatBlock
           label="Pick Rate"
           value={h.stat.hasStats ? `${h.stat.pickRate.toFixed(1)}%` : "N/A"}
-          valueClassName={h.stat.hasStats ? "text-yellow-400" : ""}
+          valueClassName={h.stat.hasStats ? "text-accent" : ""}
         />
         <StatBlock
           label="Ban Rate"
