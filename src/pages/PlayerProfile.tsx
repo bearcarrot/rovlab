@@ -10,11 +10,13 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { HeroIcon } from "@/components/HeroIcon";
 import { UserAvatar } from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { FollowButton } from "@/features/community/FollowButton";
 import { ContactLinksView } from "@/features/profile/ContactLinksView";
 import { RoleBadges } from "@/features/profile/RoleChips";
+import { creatorLabel } from "@/lib/creator";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -86,7 +88,11 @@ export function PlayerProfile() {
       <div className="flex items-center gap-4 rounded-card border border-border bg-bg-surface p-4">
         <UserAvatar name={name} url={p.avatarUrl} eager className="h-20 w-20 text-2xl" />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-xl font-semibold">{name}</h1>
+          <h1 className="flex min-w-0 items-center gap-1.5 font-display text-xl font-semibold">
+            <span className="truncate">{name}</span>
+            <VerifiedBadge category={p.verifiedCategory} className="[&>svg]:h-5 [&>svg]:w-5" />
+          </h1>
+          {p.verifiedCategory && <p className="text-xs text-text-muted">{creatorLabel(p.verifiedCategory)}</p>}
           {sinceText && <p className="text-xs text-text-faint">สมาชิกตั้งแต่ {sinceText}</p>}
           {mine && (
             <Link to="/profile" className="mt-1 inline-flex min-h-10 items-center text-sm text-accent">

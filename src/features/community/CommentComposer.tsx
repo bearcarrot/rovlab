@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/components/ui/toast";
 import { COMMENT_MAX_LENGTH } from "@/services/comments";
 import { communityError, searchHandles } from "@/services/community";
@@ -103,8 +104,10 @@ export function CommentComposer({ placeholder, initialValue = "", submitLabel = 
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-raised"
                 >
                   <UserAvatar name={p.displayName?.trim() || p.handle} url={p.avatarUrl} className="h-7 w-7 text-xs" />
-                  <span className="min-w-0 truncate">
-                    {p.displayName?.trim() || p.handle} <span className="text-text-faint">@{p.handle}</span>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate">{p.displayName?.trim() || p.handle}</span>
+                    <VerifiedBadge category={p.verifiedCategory} />
+                    <span className="shrink-0 text-text-faint">@{p.handle}</span>
                   </span>
                 </button>
               </li>

@@ -24,6 +24,7 @@ export interface Profile {
   gameName: string | null; // in-game name (RoV) — shown to signed-in users only
   contact: string | null; // legacy free-text contact: no longer shown or editable (replaced by contactLinks)
   contactLinks: ContactLink[]; // official social links — shown to signed-in users only
+  verifiedCategory?: string | null; // Verified Creator category (set by admins only; independent of system role)
 }
 
 export interface PublicProfile extends Profile {

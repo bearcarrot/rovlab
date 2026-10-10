@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { timeAgo } from "@/lib/timeAgo";
 
 export function Feed() {
@@ -40,7 +41,10 @@ export function Feed() {
                   <UserAvatar name={name} url={i.avatarUrl} className="h-9 w-9 text-sm" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs">
-                      <span className="font-medium">{name}</span>{" "}
+                      <span className="inline-flex items-center gap-1 align-middle">
+                        <span className="font-medium">{name}</span>
+                        <VerifiedBadge category={i.verifiedCategory} />
+                      </span>{" "}
                       <span className="text-text-faint">
                         {i.parentId ? "ตอบกลับใน" : "แสดงความคิดเห็นใน"} {q.data!.heroNames.get(i.heroSlug) ?? i.heroSlug} · {timeAgo(i.createdAt)}
                       </span>

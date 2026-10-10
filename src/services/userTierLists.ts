@@ -31,6 +31,7 @@ export interface CommunityTierListSummary {
   ownerId: string;
   authorName: string;
   handle: string | null;
+  verifiedCategory: string | null; // Verified Creator badge for the author (null = not verified)
   title: string;
   description: string;
   patch: string;
@@ -148,6 +149,7 @@ const toCommunity = (r: any): CommunityTierListSummary => ({
   ownerId: r.owner_id,
   authorName: r.author_name ?? "",
   handle: r.handle ?? null,
+  verifiedCategory: r.verified_category ?? null,
   title: r.title,
   description: r.description ?? "",
   patch: r.patch ?? "",

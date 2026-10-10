@@ -13,7 +13,14 @@ import type {
 export const HANDLE_RE = /^[A-Za-z0-9_]{3,20}$/;
 
 // DB triggers raise these (message is already Thai, detail carries the code).
-const KNOWN_CODES = new Set(["PROFANITY_BLOCKED", "HANDLE_BLOCKED", "DISPLAY_NAME_BLOCKED", "PARENT_NOT_FOUND", "FORBIDDEN"]);
+const KNOWN_CODES = new Set([
+  "PROFANITY_BLOCKED",
+  "HANDLE_BLOCKED",
+  "DISPLAY_NAME_BLOCKED",
+  "PARENT_NOT_FOUND",
+  "FORBIDDEN",
+  "ACCOUNT_SUSPENDED",
+]);
 
 export function communityError(e: unknown, fallback: string): string {
   const err = e as { message?: string; details?: string; code?: string } | null;
@@ -34,6 +41,7 @@ function mapRow(r: any): CommentRow {
     handle: r.handle,
     avatarUrl: r.avatar_url,
     isAdmin: Boolean(r.is_admin),
+    verifiedCategory: r.verified_category ?? null,
     replyToName: r.reply_to_name,
     replyToHandle: r.reply_to_handle,
     body: r.body,
@@ -138,9 +146,16 @@ export async function blockUser(blockerId: string, blockedId: string) {
   if (error && error.code !== "23505") throw error;
 }
 
-// existing zero-arg is_admin() (admin_users)
+// is_admin() = admin or super_admin (admin_users.role)
 export async function isAdmin(): Promise<boolean> {
   const { data, error } = await supabase.rpc("is_admin");
+  if (error) return false;
+  return data === true;
+}
+
+// is_moderator() = moderator, admin or super_admin. Moderators may pin/hide comments only; the database enforces it.
+export async function isModerator(): Promise<boolean> {
+  const { data, error } = await supabase.rpc("is_moderator");
   if (error) return false;
   return data === true;
 }
@@ -161,7 +176,13 @@ export async function searchHandles(query: string): Promise<HandleSuggestion[]> 
   const { data, error } = await supabase.rpc("search_handles", { p_q: q });
   if (error) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((p: any) => ({ id: p.id, handle: p.handle, displayName: p.display_name, avatarUrl: p.avatar_url }));
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    handle: p.handle,
+    displayName: p.display_name,
+    avatarUrl: p.avatar_url,
+    verifiedCategory: p.verified_category ?? null,
+  }));
 }
 
 export async function resolveHandle(handle: string): Promise<string | null> {
@@ -226,6 +247,7 @@ export async function getFollowingFeed(limit = 30): Promise<FeedItem[]> {
     authorName: r.author_name,
     handle: r.handle,
     avatarUrl: r.avatar_url,
+    verifiedCategory: r.verified_category ?? null,
   }));
 }
 
