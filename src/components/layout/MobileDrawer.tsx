@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   X,
   BarChart3,
+  ClipboardList,
   ListOrdered,
   Swords,
   Scale,
@@ -27,6 +28,7 @@ const ALL_ITEMS: NavItem[] = [
   { to: "/matchup", label: "Matchup", icon: Scale },
   { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
   { to: "/stats", label: "สถิติ", icon: BarChart3 },
+  { to: "/matches", label: "วิเคราะห์เกม", icon: ClipboardList },
   { to: "/learn", label: "คู่มือ", icon: BookOpen },
   { to: "/favorites", label: "รายการโปรด", icon: Heart },
 ];

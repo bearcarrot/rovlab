@@ -13,7 +13,7 @@ export const SITE = {
 } as const;
 
 // Date the legal pages were last revised (update when the text changes).
-export const LEGAL_UPDATED = "2026-10-02";
+export const LEGAL_UPDATED = "2026-10-10";
 
 export interface FooterLink {
   to: string;

@@ -17,6 +17,7 @@ import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { MyMatchesCard } from "@/features/matches/MyMatchesCard";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -255,6 +256,9 @@ export function Home() {
           <Sparkles className="h-3.5 w-3.5" /> Coach Ai อยู่ใน Draft Assistant ที่ปุ่ม &ldquo;ถาม Coach Ai&rdquo; บนการ์ดแนะนำ
         </p>
       </section>
+
+      {/* 6. แมตช์ของฉัน (เฉพาะผู้ที่ล็อกอิน; อยู่ล่างสุดเพื่อไม่กระทบ LCP/CLS) */}
+      <MyMatchesCard />
     </div>
   );
 }
