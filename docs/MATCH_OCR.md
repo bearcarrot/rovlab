@@ -20,7 +20,7 @@
 
 ## Deploy
 
-1. รัน `supabase/migrations/20261010_match_results.sql` ใน Supabase SQL editor (ยังไม่ได้ apply)
+1. ~~รัน `supabase/migrations/20261010_match_results.sql`~~ — apply แล้วกับโปรเจกต์ `mttcdaiwuasnkqlxbeqs` เมื่อ 2026-10-10 (migration `match_results_and_ocr_quota`)
 2. `supabase functions deploy scoreboard-ocr`
 3. ตั้ง secrets (ใช้ `GEMINI_API_KEY` ที่มีอยู่แล้วร่วมกับ ai-coach/avatar)
 
