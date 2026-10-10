@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Admin } from "@/pages/Admin";
+import { AdminBuildExtras } from "@/pages/AdminBuildExtras";
 import { AdminCoachFeedback } from "@/pages/AdminCoachFeedback";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminGameData } from "@/pages/AdminGameData";
@@ -9,18 +10,19 @@ import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "game" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "coach" | "game" | "builds" | "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
   ["coach", "รีวิว Coach Ai"],
   ["game", "ฐานข้อมูลเกม"],
+  ["builds", "ผูกบิลด์"],
   ["edit", "แก้ไขข้อมูล"],
   ["import", "นำเข้าสถิติ"],
   ["balance", "นำเข้าปรับสมดุล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "ผูกบิลด์" (สกิลชาเลนเจอร์/พลังแฝงของแต่ละบิลด์), "แก้ไขข้อมูล" (แท็บเดิม), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
@@ -70,6 +72,8 @@ export function AdminHub() {
         <AdminCoachFeedback />
       ) : mode === "game" ? (
         <AdminGameData />
+      ) : mode === "builds" ? (
+        <AdminBuildExtras />
       ) : mode === "edit" ? (
         <Admin />
       ) : mode === "import" ? (

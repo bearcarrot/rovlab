@@ -7,7 +7,8 @@ import {
   Swords,
   Scale,
   NotebookPen,
-  Users,
+  Hammer,
+  Library,
   BookOpen,
   Heart,
   Home,
@@ -27,6 +28,8 @@ const ALL_ITEMS: NavItem[] = [
   { to: "/counter-pick", label: "Counter Pick", icon: Swords },
   { to: "/matchup", label: "Matchup", icon: Scale },
   { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
+  { to: "/build", label: "Item Build", icon: Hammer },
+  { to: "/game-data", label: "คลังข้อมูลเกม", icon: Library },
   { to: "/stats", label: "สถิติ", icon: BarChart3 },
   { to: "/matches", label: "วิเคราะห์เกม", icon: ClipboardList },
   { to: "/learn", label: "คู่มือ", icon: BookOpen },
@@ -58,7 +61,7 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
       />
       <div
         className={cn(
-          "absolute inset-y-0 left-0 w-72 max-w-[80vw] border-r border-border bg-bg-surface transition-transform duration-200",
+          "absolute inset-y-0 left-0 w-72 max-w-[80vw] overflow-y-auto border-r border-border bg-bg-surface transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full"
         )}
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}

@@ -10,6 +10,8 @@ import {
   ListOrdered,
   BookOpen,
   Heart,
+  Hammer,
+  Library,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +39,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "ดราฟต์",
     items: [{ to: "/draft", label: "Draft Assistant", icon: NotebookPen }],
+  },
+  {
+    label: "บิลด์ & ข้อมูลเกม",
+    items: [
+      { to: "/build", label: "Item Build", icon: Hammer },
+      { to: "/game-data", label: "คลังข้อมูลเกม", icon: Library },
+    ],
   },
   {
     label: "สถิติ",
