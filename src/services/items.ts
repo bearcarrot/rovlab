@@ -1,5 +1,5 @@
 import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
-import type { ArcanaColor, ArcanaSummary, BuildArcanaEntry, HeroBuild, ItemSummary } from "@/types/item";
+import type { ArcanaColor, ArcanaSummary, BuildArcanaEntry, BuildEnchantment, BuildSpell, HeroBuild, ItemSummary } from "@/types/item";
 import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
@@ -116,13 +116,17 @@ function genericBuildFor(hero: HeroSummary): HeroBuild {
 
 const COLOR_ORDER: Record<ArcanaColor, number> = { red: 0, purple: 1, green: 2 };
 
+// สกิล/พลังแฝงจะแสดงให้ผู้ใช้เฉพาะรายการที่ active/seasonal และแอดมินยืนยันกับเกมแล้ว (verified_at) — test_server/inactive/ยังไม่ยืนยัน จะไม่ถูกแสดง
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const publicOk = (x: any): boolean => !!x && (x.status === "active" || x.status === "seasonal") && !!x.verified_at;
+
 // บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_rune)
 // เลือกอันที่เป็น curated ก่อน แล้วเอาแพตช์ใหม่สุด; ถ้าไม่มีหรือดึงไม่สำเร็จ คืน null เพื่อใช้ fallback เดิม
 async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
   const { data, error } = await supabase
     .from("item_builds")
     .select(
-      "source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color))"
+      "source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
     )
     .eq("hero_id", hero.id);
   if (error || !data) return null;
@@ -162,7 +166,47 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
     ? [{ name: r.rune.name, reason: r.rune.description ?? "", icon: r.rune.icon_url ?? undefined, color: r.rune.color ?? undefined }]
     : [];
 
-  return { heroSlug: hero.slug, items, arcana: multi.length > 0 ? multi : legacy, patch: r.patches?.code ?? "N/A", source: r.source };
+  const sp = r.challenger_spells;
+  const spell: BuildSpell | null = publicOk(sp)
+    ? {
+        slug: sp.slug,
+        name: sp.name,
+        nameTh: sp.name_th,
+        description: sp.description ?? "",
+        cooldownSeconds: sp.cooldown_seconds ?? null,
+        status: sp.status,
+        icon: sp.icon_url ?? undefined,
+      }
+    : null;
+
+  const enchantments: BuildEnchantment[] = [...(r.item_build_enchantments ?? [])]
+    .filter((e) => publicOk(e.enchantments))
+    .sort(
+      (a, b) =>
+        (a.selection_type === "primary" ? 0 : 1) - (b.selection_type === "primary" ? 0 : 1) ||
+        (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    )
+    .map((e) => ({
+      slug: e.enchantments.slug,
+      name: e.enchantments.name,
+      nameTh: e.enchantments.name_th,
+      description: e.enchantments.description ?? "",
+      tier: e.enchantments.tier_level ?? null,
+      category: e.enchantments.category,
+      status: e.enchantments.status,
+      icon: e.enchantments.icon_url ?? undefined,
+      type: e.selection_type as "primary" | "secondary",
+    }));
+
+  return {
+    heroSlug: hero.slug,
+    items,
+    arcana: multi.length > 0 ? multi : legacy,
+    patch: r.patches?.code ?? "N/A",
+    source: r.source,
+    spell,
+    enchantments,
+  };
 }
 
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {

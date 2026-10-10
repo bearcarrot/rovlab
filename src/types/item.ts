@@ -34,10 +34,36 @@ export interface BuildArcanaEntry {
   quantity?: number; // จำนวนที่ใส่ เช่น 5, 10
 }
 
+// สกิลชาเลนเจอร์ของบิลด์ — คืนเฉพาะแถวที่ status active/seasonal และยืนยันกับเกมแล้ว
+export interface BuildSpell {
+  slug: string;
+  name: string;
+  nameTh: string;
+  description: string;
+  cooldownSeconds: number | null;
+  status: string;
+  icon?: string;
+}
+
+// พลังแฝงของบิลด์ (selection_type primary/secondary จาก item_build_enchantments)
+export interface BuildEnchantment {
+  slug: string;
+  name: string;
+  nameTh: string;
+  description: string;
+  tier: number | null;
+  category: string;
+  status: string;
+  icon?: string;
+  type: "primary" | "secondary";
+}
+
 export interface HeroBuild {
   heroSlug: string;
   items: BuildItemEntry[];
   arcana: BuildArcanaEntry[];
   patch: string;
   source: "curated" | "heuristic";
+  spell?: BuildSpell | null;
+  enchantments?: BuildEnchantment[];
 }
