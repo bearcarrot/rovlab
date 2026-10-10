@@ -36,7 +36,7 @@ The following snapshot reflects the project documentation and should be rechecke
 | Guides | Application logic | Mock | Real guide dataset was previously incomplete |
 | Home insights | Application logic | Mock | Placeholder insights |
 | Draft analysis | Application logic | Derived / Heuristic / Curated | Combines counters, synergies, draft context and rules |
-| AI Coach | Supabase Edge Function | AI-generated | Analysis generated from supplied game/project data |
+| Coach Ai | Supabase Edge Function | AI-generated | Analysis generated from supplied game/project data |
 | Item images | External CDN / hotlinks | External asset | Verify current URL and usage rights |
 | Rune images | Garena Thailand CDN | External asset | Verify URL availability when changing data |
 | Rune stats | Third-party historical source | Third-party | Historical data must not automatically be treated as current |

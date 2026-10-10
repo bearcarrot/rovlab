@@ -44,7 +44,7 @@ export function AppShell() {
         </div>
         <BottomNav onOpenDrawer={() => setDrawerOpen(true)} />
         <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-        {/* ปุ่มลอยโค้ช AI: โผล่เฉพาะหน้าที่ลงทะเบียน Quick Chat (ตอนนี้: รายละเอียดฮีโร่) */}
+        {/* ปุ่มลอย Coach Ai: โผล่เฉพาะหน้าที่ลงทะเบียน Quick Chat (ตอนนี้: รายละเอียดฮีโร่) */}
         <CoachFab />
       </div>
     </CoachChatProvider>

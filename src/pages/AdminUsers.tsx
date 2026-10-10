@@ -39,7 +39,7 @@ const AUDIT_LABEL: Record<string, string> = {
 };
 
 const EVENT_LABEL: Record<string, string> = {
-  ai_coach_used: "AI Coach",
+  ai_coach_used: "Coach Ai",
   draft_created: "สร้าง Draft",
   draft_loaded: "เปิด Draft",
   draft_shared: "เผยแพร่ Draft",

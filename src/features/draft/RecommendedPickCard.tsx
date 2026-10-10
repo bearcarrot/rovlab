@@ -10,7 +10,7 @@ const TAG_LABEL: Record<RecommendTag, string> = {
   synergy: "คอมโบ",
 };
 
-// การ์ดฮีโร่ที่ระบบแนะนำ — การถามโค้ช AI ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
+// การ์ดฮีโร่ที่ระบบแนะนำ — การถาม Coach Ai ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
 export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPick: () => void }) {
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);

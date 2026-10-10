@@ -20,7 +20,7 @@ type Props = {
   imageIcon?: boolean;
 };
 
-export function AskCoach({ prompt, context, label = "ถามโค้ช AI", resetKey, onAdvice, imageIcon }: Props) {
+export function AskCoach({ prompt, context, label = "ถาม Coach Ai", resetKey, onAdvice, imageIcon }: Props) {
   const { user, loading } = useAuth();
   const toast = useToast();
   const [advice, setAdvice] = useState("");
@@ -46,7 +46,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
       const text = await askCoach(prompt, context);
       if (id === reqId.current) setAdvice(text);
     } catch (e) {
-      if (id === reqId.current) toast.error(e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
+      if (id === reqId.current) toast.error(e instanceof Error ? e.message : "ถาม Coach Ai ไม่สำเร็จ");
     } finally {
       if (id === reqId.current) setBusy(false);
     }
@@ -62,7 +62,7 @@ export function AskCoach({ prompt, context, label = "ถามโค้ช AI", 
         ) : (
           <Sparkles className="mr-1 inline h-3.5 w-3.5" />
         )}
-        <Link to="/login" className="text-accent underline">เข้าสู่ระบบ</Link> เพื่อถามโค้ช AI
+        <Link to="/login" className="text-accent underline">เข้าสู่ระบบ</Link> เพื่อถาม Coach Ai
       </p>
     );
   }

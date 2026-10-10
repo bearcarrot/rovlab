@@ -26,7 +26,7 @@ function Mascot({ className }: { className?: string }) {
   );
 }
 
-// ปุ่มลอยมุมขวาล่าง เปิดแชทโค้ช AI: ไม่มีช่องพิมพ์ เลือกได้เฉพาะ Quick Chat ที่หน้านั้นลงทะเบียนไว้
+// ปุ่มลอยมุมขวาล่าง เปิดแชท Coach Ai: ไม่มีช่องพิมพ์ เลือกได้เฉพาะ Quick Chat ที่หน้านั้นลงทะเบียนไว้
 // แสดงเฉพาะหน้าที่เรียก useCoachQuickChats (ดู CoachChatContext)
 export function CoachFab() {
   const { chats, resetKey } = useCoachChatState();
@@ -74,7 +74,7 @@ export function CoachFab() {
         if (text) q.onAnswer?.(text);
       }
     } catch (e) {
-      if (id === reqId.current) push("error", e instanceof Error ? e.message : "ถาม AI ไม่สำเร็จ");
+      if (id === reqId.current) push("error", e instanceof Error ? e.message : "ถาม Coach Ai ไม่สำเร็จ");
     } finally {
       if (id === reqId.current) setBusy(false);
     }
@@ -88,7 +88,7 @@ export function CoachFab() {
         {/* เด่น: ขอบ cyan 2px + glow cyan บางๆ ชั้นเดียว, ไอคอน 56px ใน 64px (87%), hover = ขยาย + glow เข้มขึ้นเล็กน้อย + ไอคอนเอียงเล็กน้อย */}
         <button
           type="button"
-          aria-label="เปิดแชทโค้ช AI"
+          aria-label="เปิดแชท Coach Ai"
           className="group fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full border-2 border-cyan-400 bg-bg-surface shadow-[0_0_8px_1px_rgba(34,211,238,0.45)] transition-all duration-200 ease-out hover:scale-110 hover:border-cyan-300 hover:shadow-[0_0_12px_2px_rgba(34,211,238,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 lg:bottom-6 lg:right-6"
         >
           <Mascot className="h-14 w-14 transition-transform duration-200 ease-out group-hover:-rotate-6 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:rotate-0 motion-reduce:group-hover:scale-100" />
@@ -104,8 +104,8 @@ export function CoachFab() {
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Mascot className="h-9 w-9" />
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="font-display text-base font-semibold">โค้ช AI</Dialog.Title>
-              <Dialog.Description className="text-xs text-text-faint">เลือกคำถามด้านล่างเพื่อถามโค้ช</Dialog.Description>
+              <Dialog.Title className="font-display text-base font-semibold">Coach Ai</Dialog.Title>
+              <Dialog.Description className="text-xs text-text-faint">เลือกคำถามด้านล่างเพื่อถาม Coach Ai</Dialog.Description>
             </div>
             <Dialog.Close
               aria-label="ปิด"
@@ -178,7 +178,7 @@ export function CoachFab() {
                 >
                   เข้าสู่ระบบ
                 </Link>{" "}
-                เพื่อถามโค้ช AI
+                เพื่อถาม Coach Ai
               </p>
             )}
           </div>

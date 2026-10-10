@@ -4,7 +4,7 @@ import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
 // ความสัมพันธ์ระหว่างฮีโร่ที่ Draft Assistant ใช้คำนวณ (ดึงทั้งตารางครั้งเดียว: top-3 ต่อฮีโร่ จึงมีไม่กี่ร้อยแถว)
 //  - hero_counters: hero_id = ฮีโร่ที่ "โดนเคาน์เตอร์", counter_hero_id = ฮีโร่ที่ชนะทาง
 //  - hero_synergies: hero_id คู่กับ partner_hero_id (ตีความเป็นคอมโบสองทาง)
-// reason / lane_tip คือข้อความอธิบายกลไกที่แอดมินกรอกไว้ — ใช้แสดงบนการ์ดและส่งให้ Coach AI อธิบายต่อ
+// reason / lane_tip คือข้อความอธิบายกลไกที่แอดมินกรอกไว้ — ใช้แสดงบนการ์ดและส่งให้ Coach Ai อธิบายต่อ
 
 export type CounterStrength = "best" | "good" | "situational";
 

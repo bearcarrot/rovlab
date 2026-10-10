@@ -12,7 +12,7 @@ export interface DraftImageData {
   damage: { physical: number; magic: number };
   /** ข้อความโหมดการแนะนำ เช่น "โหมด First Pick" */
   modeLabel: string;
-  /** ข้อความ AI Coach — ใส่เมื่อผู้ใช้เปิดตัวเลือกเท่านั้น (ค่าเริ่มต้นปิด) */
+  /** ข้อความ Coach Ai — ใส่เมื่อผู้ใช้เปิดตัวเลือกเท่านั้น (ค่าเริ่มต้นปิด) */
   aiCoach?: string | null;
   generatedDate: string;
 }
@@ -25,7 +25,7 @@ const COL_W = (W - PAD * 2 - COL_GAP) / 2;
 const LOGO_SIZE = 58;
 const BRAND_X = PAD + LOGO_SIZE + 16;
 
-// HEURISTIC ต้องอยู่บนรูปเสมอ (ไม่ขึ้นกับ AI Coach)
+// HEURISTIC ต้องอยู่บนรูปเสมอ (ไม่ขึ้นกับ Coach Ai)
 const HEURISTIC_NOTE = "คำแนะนำเบื้องต้นจากข้อมูล Role, Team Composition และข้อมูลในระบบ — ไม่ใช่การวิเคราะห์ข้อมูลการแข่งขันหรือระดับสกิลแบบเรียลไทม์";
 
 const TAG_TH: Record<string, string> = { firstPick: "First Pick", counter: "ชนะทางศัตรู", synergy: "คอมโบ" };
@@ -121,12 +121,12 @@ export const draftAssistantTemplate: ImageTemplate<DraftImageData> = {
       if (tag) text(ctx, tag, rx + COL_W - 20, y + s * 0.78, { font: font(500, 16), color: COLORS.muted, align: "right", baseline: "middle" });
     });
 
-    // AI Coach (เฉพาะเมื่อผู้ใช้เลือกใส่)
+    // Coach Ai (เฉพาะเมื่อผู้ใช้เลือกใส่)
     let y = colY + colH + 20;
     if (ai) {
       const boxH = 150;
       fillRound(ctx, PAD, y, W - PAD * 2, boxH, 16, "rgba(232,163,61,0.06)", "rgba(232,163,61,0.35)");
-      text(ctx, "AI COACH", PAD + 20, y + 32, { font: font(700, 20, "display"), color: COLORS.accent });
+      text(ctx, "Coach Ai", PAD + 20, y + 32, { font: font(700, 20, "display"), color: COLORS.accent });
       ctx.font = font(400, 20);
       const lines = wrapLines(ctx, ai, W - PAD * 2 - 40, 4);
       lines.forEach((l, i) => text(ctx, l, PAD + 20, y + 62 + i * 26, { font: font(400, 20), color: COLORS.text }));

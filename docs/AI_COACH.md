@@ -1,16 +1,16 @@
-# RoV LAB — AI Coach
+# RoV LAB — Coach Ai
 
 > Last reviewed: 2026-10-02
 
 ## Purpose
 
-AI Coach provides contextual gameplay analysis based on data available to RoV LAB.
+Coach Ai provides contextual gameplay analysis based on data available to RoV LAB.
 
 It is an analytical assistant, not an official RoV game service or authoritative source of game information.
 
 ## Current Integrations
 
-The project documentation has reported AI Coach integration with:
+The project documentation has reported Coach Ai integration with:
 
 - Hero Detail
 - Counter Pick
@@ -24,7 +24,7 @@ Operational details should be verified against the deployed Edge Function before
 
 ## Context Supplied to the Model
 
-Depending on the feature, AI Coach may receive assembled information such as:
+Depending on the feature, Coach Ai may receive assembled information such as:
 
 - hero information
 - hero statistics
@@ -88,7 +88,7 @@ The system should fail safely when validation or AI processing fails.
 
 ## AI Output Policy
 
-AI Coach should:
+Coach Ai should:
 
 1. Separate supplied facts from analysis.
 2. Avoid inventing unavailable statistics.
@@ -98,9 +98,9 @@ AI Coach should:
 6. Make recommendations conditional on the match context.
 7. Avoid presenting heuristics as guaranteed outcomes.
 
-## Updating AI Coach
+## Updating Coach Ai
 
-When changing AI Coach:
+When changing Coach Ai:
 
 - update the Edge Function
 - review prompt/context assembly

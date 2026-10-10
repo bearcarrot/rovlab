@@ -27,7 +27,7 @@ import type { HeroSummary } from "@/types/hero";
 
 // ---------------------------------------------------------------------------
 // Every destination below exists in App.tsx. Do not add a link here before the
-// route exists (Draft Series, Community and a standalone Coach AI page are not
+// route exists (Draft Series, Community and a standalone Coach Ai page are not
 // routed yet, so they are intentionally not advertised).
 // Icons match Sidebar / MobileDrawer so each tool looks the same everywhere.
 // ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ const DRAFT_POINTS = [
   "ประเมินดาเมจกายภาพ/เวทของทีมที่เลือกไว้",
   "ดูแนวหน้า Crowd Control ความคล่องตัว ความคงทน และกำลังช่วงต้น-ปลายเกม",
   "แนะนำฮีโร่ตัวถัดไปพร้อมระดับดาว ความเสี่ยง และเหตุผล",
-  "กดถามโค้ช AI ให้อธิบายเหตุผลของแต่ละตัวเลือก (ต้องล็อกอิน)",
+  "กดถาม Coach Ai ให้อธิบายเหตุผลของแต่ละตัวเลือก (ต้องล็อกอิน)",
 ];
 
 const PREVIEW_METERS = [
@@ -215,7 +215,7 @@ export function Home() {
           <MoreLink to="/learn" icon={BookOpen} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-faint">
-          <Sparkles className="h-3.5 w-3.5" /> โค้ช AI อยู่ใน Draft Assist ที่ปุ่ม &ldquo;ถามโค้ช AI&rdquo; บนการ์ดแนะนำ
+          <Sparkles className="h-3.5 w-3.5" /> Coach Ai อยู่ใน Draft Assist ที่ปุ่ม &ldquo;ถาม Coach Ai&rdquo; บนการ์ดแนะนำ
         </p>
       </section>
     </div>

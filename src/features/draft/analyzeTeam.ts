@@ -63,7 +63,7 @@ export type RiskLabel = "ต่ำ" | "กลาง" | "สูง";
 // composition = มีแต่ทีมเรา → เติมจุดที่ขาด + คอมโบ
 export type DraftMode = "firstPick" | "counter" | "composition";
 
-// รายละเอียดกลไกจากข้อมูลที่แอดมินกรอกไว้ (ใช้ส่งให้ Coach AI อธิบายต่อ)
+// รายละเอียดกลไกจากข้อมูลที่แอดมินกรอกไว้ (ใช้ส่งให้ Coach Ai อธิบายต่อ)
 export interface ComboDetail {
   partner: string;
   reason: string; // ว่างได้ถ้าแอดมินยังไม่ได้กรอก
@@ -278,7 +278,7 @@ export function recommendPicks(
 }
 
 // สรุปความสัมพันธ์ที่ "เกิดขึ้นแล้ว" ในดราฟต์ปัจจุบัน (คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีม)
-// ใช้เป็น context ให้ Coach AI ตอบเรื่องกลไกได้ เพราะ AI อ้างอิงจากข้อมูลที่ส่งไปเท่านั้น
+// ใช้เป็น context ให้ Coach Ai ตอบเรื่องกลไกได้ เพราะ AI อ้างอิงจากข้อมูลที่ส่งไปเท่านั้น
 export function describeDraft(
   myTeam: (HeroSummary | null)[],
   enemyTeam: (HeroSummary | null)[],

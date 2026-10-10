@@ -37,7 +37,7 @@ export function CounterPick() {
   const selectedHero = selected ? heroes.status === "success" ? heroes.data.find((h) => h.slug === selected) : undefined : undefined;
   const counters = detailQ.status === "success" && detailQ.data ? detailQ.data.counteredBy : [];
 
-  // FAB โค้ช AI: ถามได้เมื่อเลือกศัตรูแล้วและข้อมูลของตัวที่เลือกโหลดครบ (ตรวจ slug กันข้อมูลของตัวก่อนหน้าค้าง)
+  // FAB Coach Ai: ถามได้เมื่อเลือกศัตรูแล้วและข้อมูลของตัวที่เลือกโหลดครบ (ตรวจ slug กันข้อมูลของตัวก่อนหน้าค้าง)
   const coachReady =
     !!selected &&
     !!selectedHero &&
