@@ -262,6 +262,7 @@ export async function listNotifications(limit = 50): Promise<NotificationItem[]>
     actorId: r.actor_id,
     actorName: r.actor_name,
     actorHandle: r.actor_handle,
+    actorVerifiedCategory: r.actor_verified_category ?? null,
     commentId: r.comment_id,
     heroSlug: r.hero_slug,
     createdAt: r.created_at,
