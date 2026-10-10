@@ -51,13 +51,14 @@ export function HeroCard({
           {/* ขวาล่างเหมือนทุกหน้า (การ์ด overflow-hidden จึงวางชิดใน) */}
           <HeroBalanceBadge heroId={hero.id} size="md" inside />
         </div>
+        {/* น้ำหนักตัวอักษรชื่อฮีโร่ = font-normal เหมือนการ์ดในหน้า Counter Pick (เดิม font-medium หนากว่า) */}
         {compact ? (
           <div className="p-2">
-            <p className="truncate text-center font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+            <p className="truncate text-center font-display text-sm font-normal leading-tight">{hero.nameTh}</p>
           </div>
         ) : (
           <div className="space-y-1 p-2.5">
-            <p className="truncate font-display text-sm font-medium leading-tight">{hero.nameTh}</p>
+            <p className="truncate font-display text-sm font-normal leading-tight">{hero.nameTh}</p>
             {!hideRoles && (
               <p className="truncate text-xs text-text-faint">{heroRoles(hero).map((r) => roleLabel(r)).join(" · ")}</p>
             )}
