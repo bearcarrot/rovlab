@@ -116,7 +116,7 @@ export function CounterPick() {
                 <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
                   {h.name.slice(0, 2).toUpperCase()}
                 </span>
-                <HeroBalanceBadge heroId={h.id} />
+                <HeroBalanceBadge heroId={h.id} size="md" inside />
               </div>
               <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
             </button>
