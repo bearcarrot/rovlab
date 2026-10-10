@@ -248,6 +248,15 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail> {
   };
 }
 
+// Moderator pin/hide actions (single comment). The history list shows `action` as-is when it has no built-in label,
+// so these are translated here.
+const COMMENT_ACTION_LABEL: Record<string, string> = {
+  pin_comment: "ปักหมุดคอมเมนต์",
+  unpin_comment: "เลิกปักหมุดคอมเมนต์",
+  hide_comment: "ซ่อนคอมเมนต์",
+  unhide_comment: "เลิกซ่อนคอมเมนต์",
+};
+
 export async function getAudit(userId: string): Promise<AuditEntry[]> {
   const { data, error } = await rpc("admin_audit_recent", { p_user: userId, p_limit: 20 });
   if (error) throw new Error(error.message || "โหลดประวัติไม่สำเร็จ");
@@ -256,7 +265,7 @@ export async function getAudit(userId: string): Promise<AuditEntry[]> {
     return {
       id: r.id,
       createdAt: r.created_at,
-      action: r.action,
+      action: COMMENT_ACTION_LABEL[r.action] ?? r.action,
       adminName: r.admin_name ?? null,
       targetName: r.target_name ?? null,
       affected: m.affected != null ? num(m.affected) : null,
