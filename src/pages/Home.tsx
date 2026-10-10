@@ -23,7 +23,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { HeroSummary } from "@/types/hero";
+import type { HeroSummary, Tier } from "@/types/hero";
 
 // ---------------------------------------------------------------------------
 // Every destination below exists in App.tsx. Do not add a link here before the
@@ -61,8 +61,9 @@ const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
 
 // สแนปช็อตหน้าสถิติ: โชว์แค่ 6 อันดับแรกของแต่ละตัวชี้วัด
 const SNAPSHOT_SIZE = 6;
-// แถว Tier S+ โชว์สูงสุด 8 ตัว ที่เหลือรวมเป็นปุ่ม "+N" ไปหน้า Tier List
-const TOP_TIER_MAX = 8;
+// แถว Tier: โชว์ S+ และ S อย่างละสูงสุด 11 ตัว (+ ปุ่ม "+N" ไปหน้า Tier List) ไอคอนเล็กกว่าหน้า Tier List
+const TOP_TIER_MAX = 11;
+const TOP_TIERS: Tier[] = ["S+", "S"];
 
 export function Home() {
   const heroes = useAsync(() => getHeroes(), []);
@@ -89,12 +90,15 @@ export function Home() {
     };
   }, [data]);
 
-  // ฮีโร่ Tier S+ เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
-  const sPlus = useMemo(() => {
+  // ฮีโร่ Tier S+ / S เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
+  const topTiers = useMemo(() => {
     if (!data || curatedLoading) return null;
-    return data
-      .filter((h) => (curatedTiers ? curatedTiers.get(h.id) === "S+" : h.stat.hasStats && h.stat.tier === "S+"))
-      .sort((a, b) => a.name.localeCompare(b.name, "en"));
+    return TOP_TIERS.map((tier) => ({
+      tier,
+      heroes: data
+        .filter((h) => (curatedTiers ? curatedTiers.get(h.id) : h.stat.hasStats ? h.stat.tier : undefined) === tier)
+        .sort((a, b) => a.name.localeCompare(b.name, "en")),
+    }));
   }, [data, curatedTiers, curatedLoading]);
 
   const metaLabel = [meta.patch ? `Patch ${meta.patch}` : null, RANK_LABEL[rank]].filter(Boolean).join(" · ");
@@ -207,17 +211,17 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Current meta: snapshot of the Stats page (top 6 each) + Tier S+ */}
+      {/* 4. Current meta: snapshot of Tier List (S+ / S) and the Stats page (top 6 each) */}
       <section aria-labelledby="meta-heading" className="space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 id="meta-heading" className="font-display text-base font-semibold">เมต้าตอนนี้</h2>
           {metaLabel && <span className="text-xs text-text-faint">{metaLabel}</span>}
         </div>
 
-        <TopTierRow
+        <TopTierRows
           loading={heroes.status === "loading" || curatedLoading}
           error={heroes.status === "error"}
-          heroes={sPlus}
+          groups={topTiers}
           curated={curatedTiers !== null}
         />
 
@@ -273,84 +277,96 @@ function MoreLink({ to, icon: Icon, title, desc }: { to: string; icon: IconType;
   );
 }
 
-// แถว Tier S+ : ไอคอนฮีโร่แบบเดียวกับหน้า Tier List (เรียง A–Z ไม่ใช่อันดับความแรง)
-function TopTierRow({
+// แถว Tier S+ และ S : ไอคอนฮีโร่ฟอร์มเดียวกับหน้า Tier List แต่ย่อส่วน (เรียง A–Z ไม่ใช่อันดับความแรง)
+const TOP_TIER_GRID = "grid grid-cols-6 gap-2 sm:grid-cols-12";
+
+function TopTierRows({
   loading,
   error,
-  heroes,
+  groups,
   curated,
 }: {
   loading: boolean;
   error: boolean;
-  heroes: HeroSummary[] | null;
+  groups: { tier: Tier; heroes: HeroSummary[] }[] | null;
   curated: boolean;
 }) {
   if (error) return null; // ส่วนสถิติด้านล่างแสดงข้อความ error อยู่แล้ว
-  if (!loading && heroes && heroes.length === 0) return null;
-
-  const shown = heroes ? heroes.slice(0, TOP_TIER_MAX) : [];
-  const extra = heroes ? heroes.length - shown.length : 0;
+  const visible = groups ? groups.filter((g) => g.heroes.length > 0) : [];
+  if (!loading && groups && visible.length === 0) return null;
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Badge tier="S+" className="px-2.5 py-1 text-sm">S+</Badge>
-        <h3 className="font-display text-sm font-medium text-text-muted">ฮีโร่ Tier S+</h3>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <h3 className="font-display text-sm font-medium text-text-muted">ฮีโร่ Tier สูงสุด</h3>
         <span className="text-[11px] text-text-faint">
           {curated ? "จัดโดยทีมงาน" : "คำนวณจาก Win Rate"} · เรียง A–Z
         </span>
       </div>
-      {loading || !heroes ? (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {Array.from({ length: TOP_TIER_MAX }).map((_, i) => (
-            <Skeleton key={i} className="aspect-square" />
+
+      {loading || !groups ? (
+        <div className="space-y-3">
+          {TOP_TIERS.map((t) => (
+            <div key={t} className={TOP_TIER_GRID}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square" />
+              ))}
+            </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {shown.map((h) => (
-            <Link
-              key={h.id}
-              to={`/heroes/${h.slug}`}
-              aria-label={h.nameTh}
-              title={h.nameTh}
-              className={cn(
-                "relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-tier-sp/50",
-                FOCUS
-              )}
-            >
-              {h.icon ? (
-                <img
-                  src={h.icon}
-                  alt={h.nameTh}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full rounded-lg object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                  }}
-                />
-              ) : null}
-              <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-                {h.name.slice(0, 2).toUpperCase()}
-              </span>
-              <HeroBalanceBadge heroId={h.id} />
-            </Link>
-          ))}
-          {extra > 0 && (
-            <Link
-              to="/tier-list"
-              className={cn(
-                "flex aspect-square w-full flex-col items-center justify-center rounded-lg border border-border bg-bg-surface text-center hover:border-accent/40",
-                FOCUS
-              )}
-            >
-              <span className="font-display text-sm font-semibold text-text">+{extra}</span>
-              <span className="text-[10px] text-text-muted">ดูทั้งหมด</span>
-            </Link>
-          )}
-        </div>
+        visible.map(({ tier, heroes }) => {
+          const shown = heroes.slice(0, TOP_TIER_MAX);
+          const extra = heroes.length - shown.length;
+          return (
+            <div key={tier}>
+              <div className="mb-2 flex items-center gap-2">
+                <Badge tier={tier} className="px-2.5 py-1 text-sm">{tier}</Badge>
+                <span className="text-xs text-text-faint">{heroes.length} ฮีโร่</span>
+              </div>
+              <div className={TOP_TIER_GRID}>
+                {shown.map((h) => (
+                  <Link
+                    key={h.id}
+                    to={`/heroes/${h.slug}`}
+                    aria-label={h.nameTh}
+                    title={h.nameTh}
+                    className="relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40"
+                  >
+                    {h.icon ? (
+                      <img
+                        src={h.icon}
+                        alt={h.nameTh}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full rounded-lg object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
+                    <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
+                      {h.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <HeroBalanceBadge heroId={h.id} />
+                  </Link>
+                ))}
+                {extra > 0 && (
+                  <Link
+                    to="/tier-list"
+                    className={cn(
+                      "flex aspect-square w-full flex-col items-center justify-center rounded-lg border border-border bg-bg-surface text-center hover:border-accent/40",
+                      FOCUS
+                    )}
+                  >
+                    <span className="font-display text-xs font-semibold text-text">+{extra}</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })
       )}
     </div>
   );
