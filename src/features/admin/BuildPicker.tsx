@@ -16,6 +16,23 @@ export type BuildRow = {
   challenger_spell_id: string | null;
 };
 
+// โหลดบิลด์ทั้งหมด ใหม่สุดขึ้นก่อน (code ของแพตช์เป็นข้อความ จึงเรียงตามวันที่ปล่อยแพตช์) แพตช์เดียวกัน curated ขึ้นก่อน
+// ใช้ร่วมกับหน้า Build Management ที่เลือกฮีโร่/บิลด์ครั้งเดียวแล้วแก้ทุกอย่างในหน้าเดียว
+export async function fetchBuildRows(): Promise<{ rows: BuildRow[]; error: { message: string } | null }> {
+  const b = await db.from("item_builds").select("id,hero_id,source,challenger_spell_id,patches(code,released_at)");
+  const rows = ((b.data ?? []) as any[])
+    .map((r) => ({
+      id: r.id as string,
+      hero_id: r.hero_id as string,
+      source: r.source as string,
+      patchCode: (r.patches?.code ?? "?") as string,
+      released: (r.patches?.released_at ?? "") as string,
+      challenger_spell_id: (r.challenger_spell_id ?? null) as string | null,
+    }))
+    .sort((x, y) => (y.released || "").localeCompare(x.released || "") || Number(y.source === "curated") - Number(x.source === "curated"));
+  return { rows: rows.map(({ released: _released, ...rest }) => rest), error: b.error ?? null };
+}
+
 // ตัวเลือกฮีโร่ของแท็บสกิลชาเลนเจอร์/พลังแฝงในบิลด์ — เลือกฮีโร่แล้วใช้ "บิลด์ล่าสุดของฮีโร่นั้น" ให้อัตโนมัติ (ไม่มีช่องเลือกบิลด์)
 // จำฮีโร่ที่เลือกไว้ตามแท็บ (รีเฟรชแล้วกลับมาที่เดิม) และโหลดบิลด์ใหม่ทุกครั้งที่ `reloadKey` เปลี่ยน
 // บิลด์ล่าสุด = บิลด์ของแพตช์ที่ปล่อยล่าสุด (ถ้าแพตช์เดียวกันมีหลายบิลด์ ใช้อันที่ source = curated ก่อน)

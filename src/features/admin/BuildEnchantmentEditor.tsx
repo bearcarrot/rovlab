@@ -123,12 +123,16 @@ const Line = ({ hex, dim }: { hex: string; dim?: boolean }) => (
 //   สายรอง  = 2 ช่อง แต่ละช่องมีไอคอนสีของตัวเอง (ห้ามสีเดียวกับสายหลัก) ช่อง 1 = Tier I, ช่อง 2 = Tier I ถ้าคนละสี / Tier II ถ้าสีเดียวกับช่อง 1
 // แตะไอคอนสีเพื่อเลือกสี แตะโหนดเพื่อเลือกพลังแฝง (ป๊อปอัปใต้แถว) — ตัวที่ผิดกติกาจะจาง แตะแล้วบอกเหตุผล
 // กติกาอยู่ที่ src/lib/enchantmentRules.ts และ trigger ใน migration 20261011
-export function BuildEnchantmentEditor() {
+// ส่ง build/heroName เข้ามา = โหมดควบคุม (หน้า Build Management เลือกฮีโร่/บิลด์ไว้แล้ว ไม่แสดงช่องเลือกฮีโร่ซ้ำ)
+export function BuildEnchantmentEditor({ build: buildProp, heroName: heroNameProp }: { build?: BuildRow | null; heroName?: string } = {}) {
+  const controlled = buildProp !== undefined;
   const toast = useToast();
   const [trees, setTrees] = useState<Tree[]>([]);
   const [options, setOptions] = useState<EnchOpt[]>([]);
-  const [build, setBuild] = useState<BuildRow | null>(null);
-  const [heroName, setHeroName] = useState("");
+  const [ownBuild, setBuild] = useState<BuildRow | null>(null);
+  const [ownHeroName, setHeroName] = useState("");
+  const build = controlled ? buildProp : ownBuild;
+  const heroName = controlled ? (heroNameProp ?? "") : ownHeroName;
   const [rows, setRows] = useState<DbRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -185,6 +189,14 @@ export function BuildEnchantmentEditor() {
     setBuild(b);
     setHeroName(name);
   }, []);
+
+  // โหมดควบคุม: เปลี่ยนบิลด์จากหน้าแม่ → ทิ้งสีที่เลือกค้างและปิดป๊อปอัปเหมือน onBuild
+  useEffect(() => {
+    if (!controlled || buildIdRef.current === build?.id) return;
+    buildIdRef.current = build?.id;
+    setPending({});
+    setOpen(null);
+  }, [controlled, build?.id]);
 
   // แถวพลังแฝงของบิลด์ที่เลือก
   useEffect(() => {
@@ -460,7 +472,7 @@ export function BuildEnchantmentEditor() {
 
       <TreeIconEditor trees={trees} onSaved={(id, url) => setTrees((ts) => ts.map((t) => (t.id === id ? { ...t, icon_url: url } : t)))} />
 
-      <BuildPicker persistKey="admin:buildEnchant" reloadKey={0} onBuild={onBuild} />
+      {!controlled && <BuildPicker persistKey="admin:buildEnchant" reloadKey={0} onBuild={onBuild} />}
 
       {build && (
         <section className="space-y-5 rounded-card border border-border bg-bg-surface p-4">
