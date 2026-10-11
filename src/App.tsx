@@ -71,10 +71,11 @@ export default function App() {
             </WithNav>
           }
         />
-        <Route path="tier-list" element={<TierList />} />
+        {/* :shareId? = ลิงก์แชร์ของ Community Tier List / Draft (/tier-list/<id>, /draft/<id>) ใช้ route เดียวกับหน้าปกติ จึงไม่ remount */}
+        <Route path="tier-list/:shareId?" element={<TierList />} />
         <Route path="counter-pick" element={<CounterPick />} />
         <Route path="matchup" element={<Matchup />} />
-        <Route path="draft" element={<DraftAssistant />} />
+        <Route path="draft/:shareId?" element={<DraftAssistant />} />
         {/* หน้า Item Build ถูกนำออกแล้ว: ลิงก์/บุ๊กมาร์กเก่าให้กลับหน้าแรก */}
         <Route path="build" element={<Navigate to="/" replace />} />
         <Route path="stats" element={<Stats />} />
