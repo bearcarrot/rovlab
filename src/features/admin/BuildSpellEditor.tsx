@@ -25,11 +25,16 @@ const PICKABLE = ["active", "seasonal"];
 
 // แท็บ "สกิลชาเลนเจอร์ในบิลด์": 1 บิลด์ตั้งสกิลชาเลนเจอร์ได้ 1 อัน (item_builds.challenger_spell_id) แตะการ์ดเพื่อเลือก / แตะซ้ำที่อันเดิมหรือกด "ล้าง" เพื่อเอาออก
 // แก้รายละเอียดของสกิล (ชื่อ ไอคอน คูลดาวน์) ได้ที่ "ฐานข้อมูลเกม" → สกิลชาเลนเจอร์
-export function BuildSpellEditor() {
+// ส่ง build/heroName เข้ามา = โหมดควบคุม (ใช้ในหน้า Build Management ที่เลือกฮีโร่/บิลด์ไว้แล้ว ไม่แสดงช่องเลือกฮีโร่ซ้ำ)
+// onChanged = แจ้งหน้าแม่ให้โหลดบิลด์ใหม่หลังบันทึก (challenger_spell_id เปลี่ยน)
+export function BuildSpellEditor({ build: buildProp, heroName: heroNameProp, onChanged }: { build?: BuildRow | null; heroName?: string; onChanged?: () => void } = {}) {
+  const controlled = buildProp !== undefined;
   const toast = useToast();
   const [spells, setSpells] = useState<Spell[]>([]);
-  const [build, setBuild] = useState<BuildRow | null>(null);
-  const [heroName, setHeroName] = useState("");
+  const [ownBuild, setBuild] = useState<BuildRow | null>(null);
+  const [ownHeroName, setHeroName] = useState("");
+  const build = controlled ? buildProp : ownBuild;
+  const heroName = controlled ? (heroNameProp ?? "") : ownHeroName;
   const [saving, setSaving] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [summary, setSummary] = useState<{ total: number; set: number } | null>(null);
@@ -82,6 +87,7 @@ export function BuildSpellEditor() {
     }
     toast.success(spellId ? "ตั้งสกิลชาเลนเจอร์แล้ว" : "ล้างสกิลชาเลนเจอร์แล้ว");
     setReloadKey((k) => k + 1);
+    onChanged?.();
   }
 
   const current = spells.find((s) => s.id === build?.challenger_spell_id) ?? null;
@@ -97,7 +103,7 @@ export function BuildSpellEditor() {
         )}
       </div>
 
-      <BuildPicker persistKey="admin:buildSpell" reloadKey={reloadKey} onBuild={onBuild} />
+      {!controlled && <BuildPicker persistKey="admin:buildSpell" reloadKey={reloadKey} onBuild={onBuild} />}
 
       {build && (
         <section className="space-y-3 rounded-card border border-border bg-bg-surface p-4">
