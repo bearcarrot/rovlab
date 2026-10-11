@@ -20,6 +20,8 @@ const EVENT_META: Record<string, { feature: string; text: string }> = {
   stats_viewed: { feature: "Stats", text: "เปิดหน้าสถิติ" },
   matchup_viewed: { feature: "Matchup", text: "เปิด Matchup" },
   counter_pick_used: { feature: "Counter Pick", text: "ใช้ Counter Pick" },
+  match_analysis_attempted: { feature: "Match Analysis", text: "ส่งรูปวิเคราะห์แมตช์" },
+  match_saved: { feature: "Match Analysis", text: "บันทึกแมตช์" },
 };
 
 type Range = "today" | "d7" | "d30";

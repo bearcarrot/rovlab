@@ -1,6 +1,8 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { matchHero, type Issue, type ScanDraft } from "@/features/matches/scan";
+import { ColIcon } from "@/features/matches/ScoreIcons";
+import { HeroCombobox } from "@/features/matches/HeroCombobox";
 import type { HeroSummary } from "@/types/hero";
 import type { MatchOutcome, MeSource, ScanPlayer, TeamSide } from "@/types/match";
 
@@ -64,18 +66,18 @@ function TeamTable({
         {blue ? "ทีมฟ้า (ทีมของคุณ)" : "ทีมแดง"}
       </h3>
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[680px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="bg-bg-raised text-left text-[11px] text-text-faint">
-              <th className="px-2 py-1.5 font-medium">ฉัน</th>
-              <th className="px-2 py-1.5 font-medium">ฮีโร่</th>
-              <th className="px-2 py-1.5 text-right font-medium">K</th>
-              <th className="px-2 py-1.5 text-right font-medium">D</th>
-              <th className="px-2 py-1.5 text-right font-medium">A</th>
-              <th className="px-2 py-1.5 text-right font-medium">Gold</th>
-              <th className="px-2 py-1.5 text-right font-medium">คะแนน</th>
-              <th className="px-2 py-1.5 text-center font-medium">MVP</th>
-              <th className="px-2 py-1.5 font-medium">ชื่อในรูป</th>
+            <tr className={cn("text-left text-[11px]", blue ? "bg-rift/25" : "bg-loss/25")}>
+              <th className="px-2 py-1.5 font-medium text-text-muted">ฉัน</th>
+              <th className="px-2 py-1.5 font-medium text-text-muted">ฮีโร่</th>
+              <th className="px-1 py-1.5"><ColIcon kind="kills" /></th>
+              <th className="px-1 py-1.5"><ColIcon kind="deaths" /></th>
+              <th className="px-1 py-1.5"><ColIcon kind="assists" /></th>
+              <th className="px-1 py-1.5"><ColIcon kind="gold" /></th>
+              <th className="px-1 py-1.5"><ColIcon kind="rating" /></th>
+              <th className="px-2 py-1.5 text-center font-medium text-text-muted">MVP</th>
+              <th className="px-2 py-1.5 font-medium text-text-muted">ชื่อในรูป</th>
             </tr>
           </thead>
           <tbody>
@@ -95,35 +97,21 @@ function TeamTable({
                     />
                   </td>
                   <td className="px-2 py-1.5">
-                    <input
-                      list="rov-hero-names"
-                      aria-label="ชื่อฮีโร่"
+                    <HeroCombobox
+                      ariaLabel="ชื่อฮีโร่"
                       value={p.hero}
-                      onChange={(e) => onPlayer(i, { hero: e.target.value })}
+                      heroes={heroes}
+                      onChange={(hero) => onPlayer(i, { hero })}
                       className={cn(
                         FIELD,
-                        "min-w-[8rem]",
+                        "min-w-[9rem]",
                         unknown && "border-loss/60",
                         match.kind === "ambiguous" && "border-accent/60"
                       )}
                     />
                     {unknown && <p className="mt-0.5 text-[10px] text-loss">ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)</p>}
                     {match.kind === "ambiguous" && (
-                      <div className="mt-1 space-y-0.5">
-                        <p className="text-[10px] text-accent">มีหลายฮีโร่ชื่อนี้ เลือก:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {match.heroes.map((h) => (
-                            <button
-                              key={h.id}
-                              type="button"
-                              onClick={() => onPlayer(i, { hero: h.name })}
-                              className="rounded border border-border bg-bg-raised px-1.5 py-0.5 text-[11px] text-text hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                            >
-                              {h.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <p className="mt-0.5 text-[10px] text-accent">มีหลายฮีโร่ชื่อนี้ กดช่องแล้วเลือกจากรายการ ({match.heroes.map((h) => h.name).join(" / ")})</p>
                     )}
                   </td>
                   <td className="px-1 py-1.5"><Num label="Kill" value={p.kills} onChange={(v) => onPlayer(i, { kills: v })} className="w-14" /></td>
@@ -182,12 +170,6 @@ export function ScanReview({
 
   return (
     <div className="space-y-4">
-      <datalist id="rov-hero-names">
-        {heroes.map((h) => (
-          <option key={h.id} value={h.name} />
-        ))}
-      </datalist>
-
       <p className="text-xs text-text-muted">
         ตรวจตัวเลขเทียบกับรูปของคุณ แก้ช่องที่อ่านผิดได้ แล้วกดบันทึก — ยังไม่มีอะไรถูกบันทึกจนกว่าจะกดปุ่ม
       </p>
