@@ -4,6 +4,7 @@ import type { draftToRow } from "@/features/matches/scan";
 import type { MatchRecord, ScanResponse, StoredPlayer } from "@/types/match";
 
 // Scoreboard OCR (Edge Function `scoreboard-ocr`) and the user's own saved matches (public.match_results, RLS: own rows).
+// Errors thrown here carry a Thai message that is safe to show in a toast; the raw database error goes to the console.
 
 export type MatchInsert = ReturnType<typeof draftToRow>;
 
@@ -60,19 +61,26 @@ export async function listMyMatches(limit = 100): Promise<MatchRecord[]> {
     .select(COLS)
     .order("played_at", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(error.message || "โหลดแมตช์ไม่สำเร็จ");
+  if (error) {
+    console.error("listMyMatches", error);
+    throw new Error("โหลดแมตช์ไม่สำเร็จ");
+  }
   return (data ?? []).map(toRecord);
 }
 
 export async function saveMatch(row: MatchInsert): Promise<void> {
   const { error } = await supabase.from("match_results").insert(row);
   if (error) {
-    if (error.code === "23505") throw new Error("แมตช์นี้ถูกบันทึกไว้แล้ว");
-    throw new Error(error.message || "บันทึกแมตช์ไม่สำเร็จ");
+    if (error.code === "23505") throw new Error("บันทึกแมตช์ไม่สำเร็จ: แมตช์นี้ถูกบันทึกไว้แล้ว");
+    console.error("saveMatch", error);
+    throw new Error("บันทึกแมตช์ไม่สำเร็จ");
   }
 }
 
 export async function deleteMatch(id: string): Promise<void> {
   const { error } = await supabase.from("match_results").delete().eq("id", id);
-  if (error) throw new Error(error.message || "ลบแมตช์ไม่สำเร็จ");
+  if (error) {
+    console.error("deleteMatch", error);
+    throw new Error("ลบแมตช์ไม่สำเร็จ");
+  }
 }

@@ -1,10 +1,11 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { resolveHero, type Issue, type ScanDraft } from "@/features/matches/scan";
+import { matchHero, type Issue, type ScanDraft } from "@/features/matches/scan";
 import type { HeroSummary } from "@/types/hero";
 import type { MatchOutcome, MeSource, ScanPlayer, TeamSide } from "@/types/match";
 
 // Review screen: shows what OCR read, lets the user fix any cell, then save. Nothing is saved before the user confirms.
+// Field-level problems stay inline here (validation); the outcome of actions (scan/save/delete) is reported with toasts.
 
 const FIELD =
   "w-full rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -79,7 +80,8 @@ function TeamTable({
           </thead>
           <tbody>
             {rows.map(({ p, i }) => {
-              const known = resolveHero(p.hero, heroes);
+              const match = matchHero(p.hero, heroes);
+              const unknown = heroes.length > 0 && p.hero.trim() !== "" && match.kind === "none";
               return (
                 <tr key={i} className={cn("border-t border-border", p.isMe && "bg-accent/10")}>
                   <td className="px-2 py-1.5">
@@ -98,10 +100,30 @@ function TeamTable({
                       aria-label="ชื่อฮีโร่"
                       value={p.hero}
                       onChange={(e) => onPlayer(i, { hero: e.target.value })}
-                      className={cn(FIELD, "min-w-[8rem]", p.hero.trim() && !known && heroes.length > 0 && "border-loss/60")}
+                      className={cn(
+                        FIELD,
+                        "min-w-[8rem]",
+                        unknown && "border-loss/60",
+                        match.kind === "ambiguous" && "border-accent/60"
+                      )}
                     />
-                    {p.hero.trim() && !known && heroes.length > 0 && (
-                      <p className="mt-0.5 text-[10px] text-loss">ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)</p>
+                    {unknown && <p className="mt-0.5 text-[10px] text-loss">ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)</p>}
+                    {match.kind === "ambiguous" && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-[10px] text-accent">มีหลายฮีโร่ชื่อนี้ เลือก:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {match.heroes.map((h) => (
+                            <button
+                              key={h.id}
+                              type="button"
+                              onClick={() => onPlayer(i, { hero: h.name })}
+                              className="rounded border border-border bg-bg-raised px-1.5 py-0.5 text-[11px] text-text hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            >
+                              {h.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </td>
                   <td className="px-1 py-1.5"><Num label="Kill" value={p.kills} onChange={(v) => onPlayer(i, { kills: v })} className="w-14" /></td>
