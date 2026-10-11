@@ -391,7 +391,7 @@ export function ItemSlots({
         return (
           <div key={k}>
             <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
-            <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-[repeat(auto-fill,4.5rem)]">
               {list.map((r) => {
                 const it = byId.get(r.item_id);
                 const name = it?.label ?? "?";
