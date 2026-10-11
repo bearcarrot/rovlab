@@ -29,7 +29,7 @@ export function BuildDetail() {
 
   useDocumentMeta({
     title: b ? `${b.name} — บิลด์ ${b.hero.nameTh} | RoV LAB` : "บิลด์ | RoV LAB",
-    description: b ? `บิลด์ ${b.hero.nameTh} ของผู้เล่น: ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝงใน RoV" : "บิลด์ของผู้ใช้",
+    description: b ? `บิลด์ ${b.hero.nameTh} ของผู้เล่น: ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝงใน RoV` : "บิลด์ของผู้ใช้",
     path: `/build/view/${id}`,
     breadcrumbs: [{ name: "หน้าแรก", path: "/" }, { name: "Item Build", path: "/build" }],
   });
