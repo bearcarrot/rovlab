@@ -22,7 +22,10 @@ const CounterPick = lazyNamed(() => import("@/pages/CounterPick"), "CounterPick"
 const DraftAssistant = lazyNamed(() => import("@/pages/DraftAssistant"), "DraftAssistant");
 const Matchup = lazyNamed(() => import("@/pages/Matchup"), "Matchup");
 const ItemBuild = lazyNamed(() => import("@/pages/ItemBuild"), "ItemBuild");
+const BuildDetail = lazyNamed(() => import("@/pages/BuildDetail"), "BuildDetail");
+const BuildEditor = lazyNamed(() => import("@/pages/BuildEditor"), "BuildEditor");
 const GameData = lazyNamed(() => import("@/pages/GameData"), "GameData");
+const GameDataDetail = lazyNamed(() => import("@/pages/GameDataDetail"), "GameDataDetail");
 const Favorites = lazyNamed(() => import("@/pages/Favorites"), "Favorites");
 const Profile = lazyNamed(() => import("@/pages/Profile"), "Profile");
 const PlayerProfile = lazyNamed(() => import("@/pages/PlayerProfile"), "PlayerProfile");
@@ -45,6 +48,8 @@ const DataSources = lazyNamed(() => import("@/pages/Legal"), "DataSources");
 const CommunityGuidelines = lazyNamed(() => import("@/pages/Legal"), "CommunityGuidelines");
 
 const HOME: Crumb = { label: "หน้าแรก", to: "/" };
+const BUILD: Crumb = { label: "Item Build", to: "/build" };
+const GAME_DATA: Crumb = { label: "คลังข้อมูลเกม", to: "/game-data" };
 
 // ใส่ปุ่มย้อนกลับ + breadcrumb ให้หน้าลูก/หน้านอกเมนูหลัก ที่ระดับ route
 // ครอบทุกสถานะของหน้า (loading/error/ไม่พบ) โดยไม่ต้องแก้ไฟล์หน้าเดิม
@@ -78,7 +83,23 @@ export default function App() {
         <Route path="matchup" element={<Matchup />} />
         <Route path="draft" element={<DraftAssistant />} />
         <Route path="build" element={<ItemBuild />} />
+        <Route
+          path="build/view/:id"
+          element={<WithNav crumbs={[HOME, BUILD, { label: "บิลด์" }]} fallback="/build"><BuildDetail /></WithNav>}
+        />
+        <Route
+          path="build/edit/:id"
+          element={
+            <RequireAuth>
+              <WithNav crumbs={[HOME, BUILD, { label: "สร้าง/แก้ไขบิลด์" }]} fallback="/build?tab=mine"><BuildEditor /></WithNav>
+            </RequireAuth>
+          }
+        />
         <Route path="game-data" element={<GameData />} />
+        <Route
+          path="game-data/:kind/:key"
+          element={<WithNav crumbs={[HOME, GAME_DATA, { label: "รายละเอียด" }]} fallback="/game-data"><GameDataDetail /></WithNav>}
+        />
         <Route path="stats" element={<Stats />} />
         <Route path="learn" element={<Learn />} />
         <Route
