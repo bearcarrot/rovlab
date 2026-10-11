@@ -21,6 +21,7 @@ import {
 } from "@/lib/enchantmentRules";
 import { BuildPicker, type BuildRow } from "./BuildPicker";
 import { Thumb } from "./ImageSelect";
+import { TreeIconEditor } from "./TreeIconEditor";
 
 const db: any = supabase;
 
@@ -456,6 +457,8 @@ export function BuildEnchantmentEditor() {
   return (
     <div className="space-y-4">
       <h2 className="font-display text-base font-semibold">พลังแฝงในบิลด์</h2>
+
+      <TreeIconEditor trees={trees} onSaved={(id, url) => setTrees((ts) => ts.map((t) => (t.id === id ? { ...t, icon_url: url } : t)))} />
 
       <BuildPicker persistKey="admin:buildEnchant" reloadKey={0} onBuild={onBuild} />
 
