@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Loader2, Plus, Search, X } from "lucide-react";
+import { Hammer, Loader2, Plus, Search, X } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getCatalogEnchantments, getCatalogItems, getCatalogRunes, getCatalogSpells } from "@/services/gameCatalog";
+import {
+  getCatalogEnchantments, getCatalogItems, getCatalogRunes, getCatalogSpells,
+  type CatalogEnchantment, type CatalogItem, type CatalogRune, type CatalogSpell, type EnchantmentTree,
+} from "@/services/gameCatalog";
 import { buildError, getBuild, saveBuild } from "@/services/userBuilds";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -14,7 +17,6 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ItemSlots, RuneSlots, type RowMove } from "@/features/admin/BuildSlots";
 import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
 import { PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
-import { Hammer } from "lucide-react";
 
 // ตัวสร้าง/แก้ไข "Build ของฉัน": ใช้สล็อตไอเทม/รูนแบบเดียวกับฝั่งแอดมิน (ลากวางได้) และเลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้ว
 // บันทึกผ่าน RPC save_user_build (ตรวจซ้ำที่ฐานข้อมูลและกรองคำไม่เหมาะสมที่ชื่อ/โน๊ต)
@@ -24,11 +26,14 @@ type RuneRow = { id: string; rune_id: string; quantity: number; sort_order: numb
 type EnchSlot = { key: string; enchantment_id: string; selection_type: "primary" | "secondary" };
 type RuneOpt = ImgOpt & { color?: string };
 type Panel = null | "spell" | "primary" | "secondary";
+type Catalog = [CatalogItem[], CatalogRune[], CatalogSpell[], { trees: EnchantmentTree[]; list: CatalogEnchantment[] }];
 
+const EMPTY_CATALOG: Catalog = [[], [], [], { trees: [], list: [] }];
 const MAX_ITEMS = 12;
 const MAX_ENCHANTMENTS = 12;
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 const squash = (s: string) => s.toLowerCase().replace(/[\s'’`"\-_.]/g, "");
+const nextOrder = (rows: { sort_order: number }[]) => rows.reduce((m, r) => Math.max(m, r.sort_order), 0) + 1;
 
 const ctl = "block w-full rounded-lg border border-border bg-bg-raised px-3 text-base text-text outline-none transition placeholder:text-text-faint focus:border-accent focus:ring-1 focus:ring-accent sm:text-sm";
 const btn = "inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
@@ -106,7 +111,7 @@ export function BuildEditor() {
     setHydrated(true);
   }, [existing, hydrated]);
 
-  const [items, runes, spells, enchData] = catalog.status === "success" ? catalog.data : [[], [], [], { trees: [], list: [] }];
+  const [items, runes, spells, enchData] = catalog.status === "success" ? catalog.data : EMPTY_CATALOG;
   const itemOpts: ImgOpt[] = useMemo(() => items.map((i) => ({ id: i.id, label: i.name, icon: i.icon || undefined, alt: i.nameTh })), [items]);
   const runeOpts: RuneOpt[] = useMemo(() => runes.map((r) => ({ id: r.id, label: r.name, icon: r.icon || undefined, color: r.color ?? undefined })), [runes]);
   const spellOpts: ImgOpt[] = useMemo(() => spells.map((s) => ({ id: s.id, label: s.nameTh, icon: s.icon || undefined, alt: s.name })), [spells]);
@@ -149,16 +154,19 @@ export function BuildEditor() {
     );
   }
 
-  const applyMoves = <T extends { id: string }>(rows: T[], moves: RowMove[]) =>
-    rows.map((r) => {
-      const m = moves.find((x) => x.id === r.id);
-      return m ? ({ ...r, ...m.patch } as T) : r;
-    });
+  // ให้ array เรียงตาม sort_order เสมอ (planItemMove/planRuneMove อ่านลำดับจากตำแหน่งใน array)
+  const applyMoves = <T extends { id: string; sort_order: number }>(rows: T[], moves: RowMove[]) =>
+    rows
+      .map((r) => {
+        const m = moves.find((x) => x.id === r.id);
+        return m ? ({ ...r, ...m.patch } as T) : r;
+      })
+      .sort((a, b) => a.sort_order - b.sort_order);
 
   function addItem(itemId: string, phase: string) {
     if (itemRows.some((r) => r.item_id === itemId)) return toast.error("ไอเทมนี้อยู่ในบิลด์แล้ว");
     if (itemRows.length >= MAX_ITEMS) return toast.error(`ใส่ไอเทมได้สูงสุด ${MAX_ITEMS} ชิ้น`);
-    setItemRows((rows) => [...rows, { id: uid(), item_id: itemId, phase, sort_order: rows.length + 1 }]);
+    setItemRows((rows) => [...rows, { id: uid(), item_id: itemId, phase, sort_order: nextOrder(rows) }]);
   }
 
   function addRune(runeId: string) {
@@ -168,7 +176,7 @@ export function BuildEditor() {
     setRuneRows((rows) => {
       const hit = rows.find((r) => r.rune_id === runeId);
       if (hit) return rows.map((r) => (r === hit ? { ...r, quantity: r.quantity + 1 } : r));
-      return [...rows, { id: uid(), rune_id: runeId, quantity: 1, sort_order: rows.length + 1 }];
+      return [...rows, { id: uid(), rune_id: runeId, quantity: 1, sort_order: nextOrder(rows) }];
     });
   }
 
@@ -222,7 +230,7 @@ export function BuildEditor() {
             </div>
           );
         })}
-        <button type="button" aria-label={`เพิ่ม${label}`} onClick={() => setPanel(panel === type ? null : type)} className={`flex aspect-square items-center justify-center rounded-lg border border-dashed ${panel === type ? "border-accent bg-accent/10" : "border-border bg-bg-surface"}`}>
+        <button type="button" aria-label={`เพิ่มพลังแฝง${label}`} onClick={() => setPanel(panel === type ? null : type)} className={`flex aspect-square items-center justify-center rounded-lg border border-dashed ${panel === type ? "border-accent bg-accent/10" : "border-border bg-bg-surface"}`}>
           <Plus className="h-4 w-4 text-text-faint" />
         </button>
       </div>
@@ -232,7 +240,7 @@ export function BuildEditor() {
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center gap-3">
-        <Thumb src={hero.icon} label={hero.nameTh} className="h-12 w-12" />
+        <Thumb src={hero.icon || undefined} label={hero.nameTh} className="h-12 w-12" />
         <div>
           <h1 className="font-display text-xl font-semibold">{isNew ? "สร้างบิลด์" : "แก้ไขบิลด์"}: {hero.nameTh}</h1>
           <p className="text-xs text-text-faint">เลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้วเท่านั้น</p>
@@ -267,7 +275,7 @@ export function BuildEditor() {
         <RuneSlots
           rows={runeRows}
           rune={runeOpts}
-          colors={RUNE_COLOR_VIEW.map((c) => ({ k: c.k, label: c.label, hex: c.hex }))}
+          colors={RUNE_COLOR_VIEW}
           max={10}
           onAdd={addRune}
           onDec={(r) => setRuneRows((rows) => (r.quantity <= 1 ? rows.filter((x) => x.id !== r.id) : rows.map((x) => (x.id === r.id ? { ...x, quantity: x.quantity - 1 } : x))))}
