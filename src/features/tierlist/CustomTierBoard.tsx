@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, RotateCcw, Search, X } from "lucide-react";
 import { HeroIcon } from "@/components/HeroIcon";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ export function CustomTierBoard({
   initial,
   onChange,
   onReset,
+  shareExtra,
 }: {
   heroes: HeroSummary[];
   patch: string;
@@ -46,6 +47,8 @@ export function CustomTierBoard({
   onChange?: (list: CustomTierList) => void;
   /** ผู้ใช้กดรีเซ็ต: ตัวห่อจะเลิกผูกกับรายการที่บันทึกไว้ เพื่อไม่ให้บันทึกทับด้วยลิสต์ว่าง */
   onReset?: () => void;
+  /** ปุ่มเสริมในแถวเดียวกับปุ่มแชร์รูป (เช่น ปุ่มแชร์ลิงก์ ซึ่งต้องรู้สถานะบัญชีที่ตัวห่อถืออยู่) */
+  shareExtra?: ReactNode;
 }) {
   const toast = useToast();
   const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
@@ -246,6 +249,7 @@ export function CustomTierBoard({
         disabled={totalPlaced === 0}
         onShare={share.share}
         onDownload={share.download}
+        extra={shareExtra}
       />
       {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
 
