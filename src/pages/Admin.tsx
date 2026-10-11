@@ -1571,12 +1571,12 @@ const TAB_KEYS: string[] = (() => {
 function Section({ title, hint, open, children }: { title: string; hint?: string; open?: boolean; children: ReactNode }) {
   return (
     <details open={open} className="group rounded-card border border-border bg-bg-surface">
-      <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-[48px] cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-semibold sm:px-4 [&::-webkit-details-marker]:hidden">
         <ChevronDown className="h-4 w-4 shrink-0 text-text-faint transition group-open:rotate-180" />
         {title}
-        {hint && <span className="text-xs font-normal text-text-faint">{hint}</span>}
+        {hint && <span className="hidden text-xs font-normal text-text-faint sm:inline">{hint}</span>}
       </summary>
-      <div className="border-t border-border p-3 sm:p-4">{children}</div>
+      <div className="border-t border-border p-2 sm:p-4">{children}</div>
     </details>
   );
 }
@@ -1627,14 +1627,14 @@ function BuildManagementView({ refs }: { refs: Record<string, RefOpt[]> }) {
           clearable={false}
         />
         {heroBuilds.length > 0 && (
-          <div role="group" aria-label="บิลด์" className="flex flex-wrap gap-2">
+          <div role="group" aria-label="บิลด์" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
             {heroBuilds.map((b) => (
               <button
                 key={b.id}
                 type="button"
                 aria-pressed={current?.id === b.id}
                 onClick={() => setBuildId(b.id)}
-                className={`h-9 rounded-full border px-3 text-xs transition ${
+                className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-4 text-xs transition sm:h-9 sm:px-3 ${
                   current?.id === b.id ? "border-accent bg-accent font-medium text-accent-fg" : "border-border bg-bg-surface text-text-muted hover:border-text-faint"
                 }`}
               >

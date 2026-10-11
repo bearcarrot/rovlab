@@ -95,7 +95,7 @@ export function BuildSpellEditor({ build: buildProp, heroName: heroNameProp, onC
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-display text-base font-semibold">สกิลชาเลนเจอร์ในบิลด์</h2>
+        {!controlled && <h2 className="font-display text-base font-semibold">สกิลชาเลนเจอร์ในบิลด์</h2>}
         {summary && (
           <p className="mt-0.5 text-xs text-text-faint">
             ตั้งสกิลแล้ว {summary.set}/{summary.total} บิลด์
@@ -106,7 +106,7 @@ export function BuildSpellEditor({ build: buildProp, heroName: heroNameProp, onC
       {!controlled && <BuildPicker persistKey="admin:buildSpell" reloadKey={reloadKey} onBuild={onBuild} />}
 
       {build && (
-        <section className="space-y-3 rounded-card border border-border bg-bg-surface p-4">
+        <section className="space-y-3 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
           <p className="text-xs font-medium text-text-muted">
             {heroName} · {build.patchCode} · {build.source}
           </p>
