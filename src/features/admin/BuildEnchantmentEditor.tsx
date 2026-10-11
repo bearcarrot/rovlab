@@ -366,7 +366,7 @@ export function BuildEnchantmentEditor() {
             type="button"
             aria-disabled={!check.ok}
             disabled={busy}
-            title={check.ok ? t?.name_th : check.reason}
+            title={check.ok ? t?.name : check.reason}
             onClick={() => void chooseTree(type, slot, treeId)}
             className={`flex w-[72px] flex-col items-center gap-1 rounded-lg p-1.5 text-center transition hover:bg-bg-raised ${check.ok ? "" : "opacity-35"} ${
               treeId === current ? "bg-bg-raised ring-2 ring-accent" : ""
@@ -375,14 +375,14 @@ export function BuildEnchantmentEditor() {
             <span className="flex h-12 w-12 items-center justify-center rounded-[50%] border-2 bg-black/20" style={{ borderColor: hexOf(treeId) }}>
               <TreeGlyph tree={t ?? null} />
             </span>
-            <span className="w-full truncate text-[10px] leading-tight">{t?.name_th ?? "?"}</span>
+            <span className="w-full truncate text-[10px] leading-tight">{t?.name ?? "?"}</span>
           </button>
         );
       });
     } else {
       const tree = type === "primary" ? primaryTreeId : secondaryTreeId(slot);
       const tier = tree ? requiredTier(rows, byId, type, slot, tree) : null;
-      title = `เลือกพลังแฝง · ${treeOf(tree)?.name_th ?? ""} · Tier ${tier ? ROMAN[tier] : "?"}`;
+      title = `เลือกพลังแฝง · ${treeOf(tree)?.name ?? ""} · Tier ${tier ? ROMAN[tier] : "?"}`;
       const list = tree ? pickerOptions(rows, byId, options, type, slot, tree) : [];
       const currentId = rowAt(type, slot)?.enchantment_id;
       body = (
