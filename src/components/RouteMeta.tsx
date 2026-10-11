@@ -49,11 +49,14 @@ export function RouteMeta() {
   const { pathname } = useLocation();
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   const isDynamicDetail = /^\/(heroes|learn)\/[^/]+$/.test(path);
+  const isShareDetail = /^\/(draft|tier-list)\/[^/]+$/.test(path);
 
   useEffect(() => {
     if (isDynamicDetail) return; // HeroDetail / GuideDetail ตั้ง meta เองหลังโหลดข้อมูล
+    // /draft/<id>: api/share-meta ใส่ meta ของรายการที่แชร์ลง HTML แล้ว (และใส่ marker ไว้) จึงไม่ทับด้วยค่า default
+    if (isShareDetail && document.head.querySelector('meta[name="share-meta"]')?.getAttribute("content") === path) return;
     applyDocumentMeta({ ...(PAGES[path] ?? DEFAULT), path });
-  }, [path, isDynamicDetail]);
+  }, [path, isDynamicDetail, isShareDetail]);
 
   return null;
 }
