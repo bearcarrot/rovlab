@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -34,6 +34,11 @@ type RefOpt = {
   alt?: string;
   roles?: string[];
   lanes?: string[];
+  // ไอเทม: ใช้แสดงในกริดเลือกไอเทมแบบร้านค้าในเกม (ค่าจากคอลัมน์ items เดิม ไม่มีฟิลด์ใหม่)
+  tier?: number;
+  cost?: number;
+  tags?: string[];
+  stat?: string;
   tagType?: number;
 };
 // text | num | date | sel(เลือกจาก opts) | hero/item/rune/patch/guideCat(เลือกจากตารางอื่น)
@@ -1079,6 +1084,17 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
     else void load();
   }
 
+  // รูนในบิลด์: เติมรูนเดียวกันทีเดียวหลายช่อง (ลากรูนจากคอลัมน์เลือกไปวางที่แถวสี / โหมดแตะเติมเต็ม) จำนวนช่องที่เติมคำนวณใน RuneSlots ตามที่เหลือของสีนั้น
+  async function fillRune(runeId: string, count: number) {
+    if (!fv || count <= 0) return;
+    const existing = rows.find((r) => r.rune_id === runeId);
+    const { error } = existing
+      ? await db.from(cfg.table).update({ quantity: (Number(existing.quantity) || 0) + count }).eq("id", existing.id)
+      : await db.from(cfg.table).insert({ [cfg.filter!.col]: fv, rune_id: runeId, quantity: count, sort_order: nextSort() });
+    if (error) err(error.message);
+    else void load();
+  }
+
   // ลดจำนวนรูนทีละ 1 ถึง 0 = ลบแถว
   async function decRune(row: Row) {
     const n = Number(row.quantity) || 0;
@@ -1341,6 +1357,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
         <ItemSlots
           rows={rows}
           items={refs.item ?? []}
+          typeChoices={ITEM_TYPE_CHOICES}
           onAdd={(itemId, phase) => void addBuildItem(itemId, phase)}
           onRemove={(row) => void remove(row)}
           onOpen={(row) => setOpenId(row.id)}
@@ -1354,6 +1371,7 @@ function Editor({ id, cfg, refs }: { id: string; cfg: Cfg; refs: Record<string, 
           colors={SLOT_COLORS}
           max={MAX_SLOTS}
           onAdd={(runeId) => void addRune(runeId)}
+          onFill={(runeId, n) => void fillRune(runeId, n)}
           onDec={(row) => void decRune(row)}
           onMoves={(m) => void applyMoves(m)}
         />
@@ -1518,6 +1536,8 @@ const CUSTOM_TABS: Record<string, { label: string; after: string; render: () => 
   buildSpell: { label: "สกิลชาเลนเจอร์ในบิลด์", after: "buildRune", render: () => <BuildSpellEditor /> },
   buildEnchant: { label: "พลังแฝงในบิลด์", after: "buildSpell", render: () => <BuildEnchantmentEditor /> },
 };
+// กลุ่มแท็บ: "build" = หน้า Build Management (บิลด์ + 4 ตัวแก้ไขในบิลด์) / "rest" = แท็บที่เหลือในโหมด "แก้ไขข้อมูล"
+const BUILD_TAB_KEYS = ["builds", "buildItems", "buildRune", "buildSpell", "buildEnchant"];
 const isCustomTab = (k: string) => Object.prototype.hasOwnProperty.call(CUSTOM_TABS, k);
 // ลำดับแท็บทั้งหมด: ตาราง CFG ตามเดิม โดยแท็บ custom แทรกต่อจากแท็บที่ระบุใน `after`
 const TAB_KEYS: string[] = (() => {
@@ -1529,13 +1549,14 @@ const TAB_KEYS: string[] = (() => {
   return keys;
 })();
 
-export function Admin() {
+export function Admin({ group = "rest" }: { group?: "build" | "rest" }) {
   const { user, loading } = useAuth();
   const { isAdmin, checking, error } = useIsAdmin();
   const toast = useToast();
   // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
-  const [savedTab, setTab] = usePersistedState<string>("admin:tab", "heroes");
-  const tab = Object.prototype.hasOwnProperty.call(CFG, savedTab) || isCustomTab(savedTab) ? savedTab : "heroes";
+  const keys = useMemo(() => TAB_KEYS.filter((k) => BUILD_TAB_KEYS.includes(k) === (group === "build")), [group]);
+  const [savedTab, setTab] = usePersistedState<string>(group === "build" ? "admin:tab:build" : "admin:tab", keys[0]);
+  const tab = keys.includes(savedTab) ? savedTab : keys[0];
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
   const navRef = useRef<HTMLElement>(null);
 
@@ -1598,7 +1619,21 @@ export function Admin() {
         (r) => ({ roles: arrOr(r.roles, r.role), lanes: arrOr(r.lanes, r.lane) })
       ),
       // ไอเทมในบิลด์แสดงชื่ออังกฤษ (ตรงกับเกม/เว็บทางการ) ชื่อไทยใน DB เป็นการแปลเครื่อง
-      opt("items", "id,name,icon_url", "name", true, (r) => r.name ?? "?", (r) => r.icon_url ?? undefined),
+      opt(
+        "items",
+        "id,name,icon_url,tier,cost,role_tags,stats",
+        "name",
+        true,
+        (r) => r.name ?? "?",
+        (r) => r.icon_url ?? undefined,
+        undefined,
+        (r) => ({
+          tier: (r.tier ?? undefined) as number | undefined,
+          cost: (r.cost ?? undefined) as number | undefined,
+          tags: Array.isArray(r.role_tags) ? (r.role_tags as string[]) : [],
+          stat: Array.isArray(r.stats) ? (r.stats as string[]).join(" · ") : undefined,
+        })
+      ),
       runeOpts,
       opt("patches", "id,code", "released_at", false, (r) => r.code),
       // หมวดคู่มือ ใช้เป็นตัวเลือกของช่อง "หมวดหมู่" ในแท็บ "คู่มือ" (เรียงตาม sort_id เหมือนที่แสดงบนเว็บ)
@@ -1639,11 +1674,11 @@ export function Admin() {
       {/* แท็บ: มือถือเลื่อนแนวนอน (relative เพื่อให้คำนวณตำแหน่งเลื่อนได้) เดสก์ท็อปขึ้นบรรทัดใหม่ */}
       <nav
         ref={navRef}
-        aria-label="ตาราง"
+        aria-label={group === "build" ? "Build Management" : "ตาราง"}
         className="relative overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex w-max gap-2 md:w-auto md:flex-wrap">
-          {TAB_KEYS.map((k) => (
+          {keys.map((k) => (
             <button
               key={k}
               type="button"

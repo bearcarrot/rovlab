@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { Thumb, type ImgOpt } from "./ImageSelect";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 type ColorOpt = ImgOpt & { color?: string };
+// ไอเทมสำหรับกริดแบบร้านค้า: tier/cost/role_tags/stats มาจากคอลัมน์เดิมของตาราง items
+export type ItemOpt = ImgOpt & { tier?: number; cost?: number; tags?: string[]; stat?: string };
 // การเปลี่ยนแปลงที่ต้องบันทึกลงแถว (Admin เป็นคนเขียน DB และอัปเดต state)
 export type RowMove = { id: string; patch: Row };
 
@@ -187,12 +189,19 @@ function PickerGrid({
   round,
   onPick,
   onClose,
+  header,
+  bindDrag,
+  consumeClick,
 }: {
   title: string;
   options: ImgOpt[];
   round?: boolean;
   onPick: (id: string) => void;
   onClose: () => void;
+  header?: ReactNode;
+  // ลากไอคอนจากกริดไปวางที่ช่อง (ใช้ pointer events ตัวเดียวกับการลากย้ายช่อง); id ที่ส่งคือ "pick:<id>"
+  bindDrag?: (id: string) => (e: ReactPointerEvent<HTMLElement>) => void;
+  consumeClick?: () => boolean;
 }) {
   const [q, setQ] = useState("");
   const list = useMemo(() => {
@@ -216,19 +225,129 @@ function PickerGrid({
           className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
         />
       </div>
+      {header}
       <div className="grid max-h-72 grid-cols-5 gap-2 overflow-y-auto sm:grid-cols-8">
         {list.map((o) => (
           <button
             key={o.id}
             type="button"
-            onClick={() => onPick(o.id)}
-            className="flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-1.5 text-center hover:border-accent/40"
+            onPointerDown={bindDrag?.(`pick:${o.id}`)}
+            onContextMenu={bindDrag ? (e) => e.preventDefault() : undefined}
+            onClick={() => {
+              if (!consumeClick?.()) onPick(o.id);
+            }}
+            className="flex select-none flex-col items-center gap-1 rounded-lg border border-border bg-bg p-1.5 text-center hover:border-accent/40 [&_img]:pointer-events-none"
           >
             <Thumb src={o.icon} label={o.label} round={round} className="h-9 w-9" />
             <span className="w-full truncate text-[10px] leading-tight">{o.label}</span>
           </button>
         ))}
         {list.length === 0 && <p className="col-span-full py-4 text-center text-sm text-text-muted">ไม่พบรายการ</p>}
+      </div>
+    </div>
+  );
+}
+
+// กริดเลือกไอเทมแบบร้านค้าในเกม: 3 คอลัมน์ Tier 1 (ซ้าย) / Tier 2 (กลาง) / Tier 3 (ขวา) ตามค่า items.tier จริงใน DB
+// ค้นหา + กรองประเภท (role_tags) + กรอง Tier ได้ มือถือเลื่อนแนวนอนทีละคอลัมน์ (เดสก์ท็อป/แท็บเล็ตแสดงครบ 3 คอลัมน์)
+const TIERS = [1, 2, 3] as const;
+
+function ItemShopPicker({
+  title,
+  items,
+  typeChoices,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  items: ItemOpt[];
+  typeChoices: readonly { value: string; label: string }[];
+  onPick: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const [tier, setTier] = useState<number | null>(null);
+  const [type, setType] = useState<string | null>(null);
+  const list = useMemo(() => {
+    const n = squash(q);
+    return items.filter(
+      (o) => (!n || squash(`${o.label} ${o.alt ?? ""}`).includes(n)) && (!type || (o.tags ?? []).includes(type))
+    );
+  }, [items, q, type]);
+  const shown = TIERS.filter((t) => tier === null || tier === t);
+  const chip = (active: boolean) =>
+    `h-8 shrink-0 rounded-full border px-3 text-xs transition ${
+      active ? "border-accent bg-accent font-medium text-accent-fg" : "border-border bg-bg text-text-muted hover:border-text-faint"
+    }`;
+  return (
+    <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-text-muted">{title}</p>
+        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised" aria-label="ปิด">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
+        <Search className="h-4 w-4 shrink-0 text-text-faint" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="ค้นหา..."
+          className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
+        />
+      </div>
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="กรอง Tier">
+        <button type="button" aria-pressed={tier === null} onClick={() => setTier(null)} className={chip(tier === null)}>
+          ทุก Tier
+        </button>
+        {TIERS.map((t) => (
+          <button key={t} type="button" aria-pressed={tier === t} onClick={() => setTier(tier === t ? null : t)} className={chip(tier === t)}>
+            Tier {t}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="กรองประเภท">
+        <button type="button" aria-pressed={type === null} onClick={() => setType(null)} className={chip(type === null)}>
+          ทุกประเภท
+        </button>
+        {typeChoices.map((o) => (
+          <button key={o.value} type="button" aria-pressed={type === o.value} onClick={() => setType(type === o.value ? null : o.value)} className={chip(type === o.value)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 sm:mx-0 sm:grid sm:overflow-visible sm:px-0" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
+        {shown.map((t) => {
+          const col = list.filter((o) => o.tier === t);
+          return (
+            <section key={t} aria-label={`Tier ${t}`} className="min-w-[78%] shrink-0 snap-start rounded-lg border border-border bg-bg sm:min-w-0">
+              <h4 className="border-b border-border px-2 py-1.5 text-xs font-semibold text-accent">
+                Tier {t} <span className="font-normal text-text-faint">({col.length})</span>
+              </h4>
+              <ul className="max-h-72 space-y-1 overflow-y-auto p-1.5">
+                {col.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(o.id)}
+                      className="flex w-full items-center gap-2 rounded-lg border border-transparent p-1 text-left hover:border-accent/40 hover:bg-bg-surface"
+                    >
+                      <Thumb src={o.icon} label={o.label} className="h-9 w-9 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="truncate text-xs font-medium">{o.label}</span>
+                          {o.cost != null && <span className="shrink-0 text-[11px] font-semibold text-accent">{o.cost}</span>}
+                        </span>
+                        {o.stat && <span className="block truncate text-[10px] text-text-faint">{o.stat}</span>}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {col.length === 0 && <li className="py-4 text-center text-xs text-text-muted">ไม่พบรายการ</li>}
+              </ul>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
@@ -242,13 +361,15 @@ const DRAG_HINT = "ลากเพื่อย้ายช่อง (มือ�
 export function ItemSlots({
   rows,
   items,
+  typeChoices,
   onAdd,
   onRemove,
   onOpen,
   onMoves,
 }: {
   rows: Row[];
-  items: ImgOpt[];
+  items: ItemOpt[];
+  typeChoices: readonly { value: string; label: string }[];
   onAdd: (itemId: string, phase: string) => void;
   onRemove: (row: Row) => void;
   onOpen: (row: Row) => void;
@@ -322,9 +443,10 @@ export function ItemSlots({
       })}
       <p className="text-[11px] text-text-faint">{DRAG_HINT}</p>
       {picker && (
-        <PickerGrid
+        <ItemShopPicker
           title={`เลือกไอเทม · ${PHASES.find((p) => p.k === picker)?.label}`}
-          options={items}
+          items={items}
+          typeChoices={typeChoices}
           onPick={(id) => onAdd(id, picker)}
           onClose={() => setPicker(null)}
         />
@@ -343,6 +465,7 @@ export function RuneSlots({
   colors,
   max,
   onAdd,
+  onFill,
   onDec,
   onMoves,
 }: {
@@ -351,18 +474,44 @@ export function RuneSlots({
   colors: readonly { k: string; label: string; hex: string }[];
   max: number;
   onAdd: (runeId: string) => void;
+  // เติมรูนเดียวกัน count ช่อง (ส่งเฉพาะจำนวนที่เหลือของสีนั้น ไม่เกิน max)
+  onFill: (runeId: string, count: number) => void;
   onDec: (row: Row) => void;
   onMoves: (moves: RowMove[]) => void;
 }) {
   const [picker, setPicker] = useState<string | null>(null);
   const byId = useMemo(() => new Map(rune.map((a) => [a.id, a])), [rune]);
+  // โหมดแตะเติมเต็ม (มือถือ/เมาส์): แตะรูนในกริด = เติมช่องที่เหลือของสีนั้นทีเดียว
+  const [fillAll, setFillAll] = useState(false);
+  const colorOf = (r: Row) => byId.get(r.rune_id)?.color;
+  const used = (k: string) => rows.reduce((n, r) => (colorOf(r) === k ? n + (Number(r.quantity) || 0) : n), 0);
+  // สีของปลายทางที่ปล่อย: ช่องว่าง/แถวสี/ช่องที่มีรูนอยู่แล้ว
+  const colorAt = (id: string | null | undefined) =>
+    !id ? undefined : id.startsWith("empty:") || id.startsWith("zone:") ? id.slice(id.indexOf(":") + 1) : (() => {
+      const r = rows.find((x) => x.id === id);
+      return r ? colorOf(r) : undefined;
+    })();
+  // เติมให้เต็ม: เฉพาะรูนที่สีตรงกับแถวนั้น และไม่เกิน max ช่องต่อสี
+  const fillColor = (runeId: string, color: string | undefined) => {
+    const opt = byId.get(runeId);
+    if (!opt?.color || opt.color !== color) return;
+    const n = max - used(color);
+    if (n > 0) onFill(runeId, n);
+  };
   const dnd = useSlotDrag((from, to) => {
+    if (from.startsWith("pick:")) {
+      fillColor(from.slice(5), colorAt(to));
+      return;
+    }
     const m = planRuneMove(rows, rune, from, to);
     if (m.length > 0) onMoves(m);
   });
-  const dragRow = dnd.drag ? rows.find((r) => r.id === dnd.drag!.id) : undefined;
-  const dragOpt = dragRow ? byId.get(dragRow.rune_id) : undefined;
-  const hot = (id: string) => dnd.drag?.over === id && dnd.drag.id !== id;
+  const picking = dnd.drag?.id.startsWith("pick:") ? byId.get(dnd.drag.id.slice(5)) : undefined;
+  const dragRow = dnd.drag && !picking ? rows.find((r) => r.id === dnd.drag!.id) : undefined;
+  const dragOpt = picking ?? (dragRow ? byId.get(dragRow.rune_id) : undefined);
+  const hot = (id: string) => !picking && dnd.drag?.over === id && dnd.drag.id !== id;
+  // ระหว่างลากรูนจากกริด: ไฮไลต์แถวสีที่รับได้เท่านั้น (สีตรงกัน)
+  const zoneHot = (k: string) => !!picking && picking.color === k && colorAt(dnd.drag?.over) === k;
   return (
     <section aria-label="ช่องรูน" className="space-y-4">
       {colors.map(({ k, label, hex }) => {
@@ -376,7 +525,7 @@ export function RuneSlots({
         const total = Math.max(max, slots.length);
         const over = slots.length > max;
         return (
-          <div key={k}>
+          <div key={k} data-slot-id={`zone:${k}`} className={`rounded-lg ${zoneHot(k) ? "bg-accent/10 ring-2 ring-accent" : ""}`}>
             <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-text-faint">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: hex }} />
               {label}
@@ -436,14 +585,24 @@ export function RuneSlots({
           </div>
         );
       })}
-      <p className="text-[11px] text-text-faint">{DRAG_HINT} · ย้ายได้เฉพาะในสีเดียวกัน</p>
+      <p className="text-[11px] text-text-faint">
+        {DRAG_HINT} · ย้ายได้เฉพาะในสีเดียวกัน · ลากรูนจากกริดเลือกไปวางที่แถวสีเดียวกัน = เติมช่องที่เหลือให้เต็ม {max} ช่อง
+      </p>
       {picker && (
         <PickerGrid
           title={`เลือกรูน · ${colors.find((c) => c.k === picker)?.label}`}
           options={rune.filter((a) => a.color === picker)}
           round
-          onPick={onAdd}
+          onPick={(id) => (fillAll ? fillColor(id, picker) : onAdd(id))}
           onClose={() => setPicker(null)}
+          bindDrag={dnd.bind}
+          consumeClick={dnd.consumeClick}
+          header={
+            <label className="flex min-h-[36px] cursor-pointer items-center gap-2 text-xs text-text-muted">
+              <input type="checkbox" checked={fillAll} onChange={(e) => setFillAll(e.target.checked)} className="h-4 w-4 accent-[var(--accent,#d4a017)]" />
+              แตะรูน = เติมช่องที่เหลือของสีนี้ให้เต็ม {max} ช่อง (ปิด = เพิ่มทีละ 1)
+            </label>
+          }
         />
       )}
       <DragGhost drag={dnd.drag} src={dragOpt?.icon} label={dragOpt?.label ?? "?"} round />
