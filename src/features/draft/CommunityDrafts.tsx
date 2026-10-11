@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Users } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -38,21 +38,36 @@ export function CommunityDrafts({
   heroes,
   onOpenCopy,
   canReplace,
+  openId,
+  onOpenIdClosed,
 }: {
   heroes: HeroSummary[];
   /** Called with a brand-new copy for the user; the original snapshot is never modified. */
   onOpenCopy: (c: { series: DraftSeries; name: string; description: string; draftId: string | null }) => void;
   /** Asks the user before unsaved editor work is replaced; resolve false to cancel the load. */
   canReplace: () => Promise<boolean>;
+  /** Community draft to open straight away (from a share link /draft/<id>). */
+  openId?: string | null;
+  /** The opened share-link draft was closed or loaded: the page drops the id from the URL. */
+  onOpenIdClosed?: () => void;
 }) {
   const { user } = useAuth();
   const toast = useToast();
   const [sort, setSort] = useState<CommunitySort>("new");
   const [query, setQuery] = useState("");
   const q = useDebounced(query, 300);
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(openId ?? null);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const list = useCommunityList((offset, limit) => listCommunityDrafts({ sort, q, offset, limit }), [sort, q]);
+
+  useEffect(() => {
+    if (openId) setViewId(openId);
+  }, [openId]);
+
+  const closeView = () => {
+    if (openId && viewId === openId) onOpenIdClosed?.();
+    setViewId(null);
+  };
 
   async function setReaction(item: CommunityDraftSummary, next: Reaction) {
     if (!user) {
@@ -177,7 +192,17 @@ export function CommunityDrafts({
         </button>
       )}
 
-      {viewId && <DraftViewModal id={viewId} heroes={heroes} onClose={() => setViewId(null)} onLoad={(it) => { setViewId(null); void loadPreset(it); }} />}
+      {viewId && (
+        <DraftViewModal
+          id={viewId}
+          heroes={heroes}
+          onClose={closeView}
+          onLoad={(it) => {
+            closeView();
+            void loadPreset(it);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -201,6 +226,10 @@ function DraftViewModal({
       {state.status === "error" && <ErrorState message="ไม่สามารถโหลด Draft ได้" onRetry={state.refetch} />}
       {state.status === "success" && (
         <div className="space-y-4">
+          <p className="text-xs text-text-faint">
+            โดย {state.data.authorName || (state.data.handle ? `@${state.data.handle}` : "ผู้ใช้")} · {FORMAT_LABEL[state.data.format]}
+            {state.data.format !== "single" && state.data.globalBanPick ? " · Global Ban Pick" : ""}
+          </p>
           {state.data.description && <p className="text-sm text-text-muted">{state.data.description}</p>}
           {state.data.series.games.filter((g) => !isGameEmpty(g)).length === 0 && <p className="text-sm text-text-faint">Draft นี้ยังไม่มีฮีโร่</p>}
           {state.data.series.games.map((g) =>

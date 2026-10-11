@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
@@ -12,18 +12,18 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
 import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
 import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
-import { tierHeroCount } from "@/features/tierlist/tierData";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
+import { ShareLinkButton } from "@/features/share/ShareLinkButton";
+import { shortIdToUuid } from "@/features/share/shareId";
+import { buildOfficialTierUrl } from "@/features/share/shareLink";
 import { useShareImage } from "@/features/share/useShareImage";
-import { decodeTiers } from "@/features/share/linkCodec";
-import { useIncomingShare } from "@/features/share/useIncomingShare";
 import { formatGeneratedDate, makeFilename, preloadImages, tierListTemplate, type TierListImageData } from "@/lib/share-image";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { RANK_LABEL, useRank } from "@/lib/rank";
+import { RANK_LABEL, setRank, useRank } from "@/lib/rank";
 import type { HeroLane, HeroRole, Tier } from "@/types/hero";
 
 const TIER_ORDER: Tier[] = TIER_OPTIONS;
@@ -34,12 +34,26 @@ export function TierList() {
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
   const toast = useToast();
+  const navigate = useNavigate();
+  // /tier-list/<id> = ลิงก์แชร์ของ Community Tier List; ?view=official&... = ลิงก์แชร์ของ Tier List ทางการ (ตัวกรอง)
+  const { shareId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedUuid = useMemo(() => (shareId ? shortIdToUuid(shareId) : null), [shareId]);
   // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน) — ช่วงแรงก์สลับที่ปุ่มบน Header
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:tier:role", null);
   const [lane, setLane] = usePersistedState<HeroLane | null>("rovlab:filter:tier:lane", null);
   const [storedTier, setTier] = usePersistedState<Tier | null>("rovlab:filter:tier:tier", null);
   // โหมดหน้า: Tier List ทางการ / Tier List ของฉัน (จัดเอง + บันทึกบนบัญชีได้) / Community (ของคนอื่นที่เผยแพร่)
-  const [mode, setMode] = usePersistedState<TierMode>("rovlab:tier:mode", "official");
+  const [storedMode, setMode] = usePersistedState<TierMode>("rovlab:tier:mode", "official");
+  const mode: TierMode = shareId ? "community" : storedMode;
+  // เปลี่ยนโหมดด้วยมือ = ออกจากลิงก์แชร์ (/tier-list/<id>) กลับ /tier-list
+  const changeMode = useCallback(
+    (m: TierMode) => {
+      setMode(m);
+      if (shareId) navigate("/tier-list", { replace: true });
+    },
+    [setMode, shareId, navigate]
+  );
   // Tier List ที่โหลดมาจาก Community รอให้ตัวจัดอันดับรับไป
   const [incoming, setIncoming] = useState<IncomingPreset | null>(null);
   const { roleLabel, laneLabel } = useFilterLabels();
@@ -47,6 +61,36 @@ export function TierList() {
   const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
   // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
   const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
+
+  // ลิงก์ /tier-list/<id>: id เสีย = กลับหน้าปกติ; id ถูก = จำไว้ว่าอยู่แท็บ Community (ปิดหน้าต่างแล้วไม่เด้งไปแท็บอื่น)
+  useEffect(() => {
+    if (!shareId) return;
+    if (!sharedUuid) {
+      toast.error("ลิงก์ Tier List ไม่ถูกต้อง");
+      navigate("/tier-list", { replace: true });
+      return;
+    }
+    setMode("community");
+  }, [shareId, sharedUuid, setMode, navigate, toast]);
+
+  // ลิงก์ Tier List ทางการ: ?view=official&rank=high&role=mage&lane=mid&tier=S%2B → ตั้งตัวกรองตามลิงก์ แล้วลบพารามิเตอร์ออกจาก URL
+  useEffect(() => {
+    if (searchParams.get("view") !== "official") return;
+    const pick = (k: string) => {
+      const v = searchParams.get(k);
+      return v && /^[a-z0-9_-]{1,24}$/i.test(v) ? v : null;
+    };
+    const rankParam = searchParams.get("rank");
+    if (rankParam === "all" || rankParam === "high") setRank(rankParam);
+    setRole(pick("role") as HeroRole | null);
+    setLane(pick("lane") as HeroLane | null);
+    const t = searchParams.get("tier");
+    setTier(TIER_ORDER.find((x) => x === t) ?? null);
+    setMode("official");
+    const next = new URLSearchParams(searchParams);
+    for (const k of ["view", "rank", "role", "lane", "tier"]) next.delete(k);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, setRole, setLane, setTier, setMode]);
 
   const grouped = useMemo(() => {
     if (heroes.status !== "success" || curated.status === "loading") return null;
@@ -93,6 +137,12 @@ export function TierList() {
   }, [grouped, patchLabel, rank, role, lane, roleLabel, laneLabel]);
   const share = useShareImage(tierListTemplate, buildShare);
 
+  // ลิงก์ของ Tier List ทางการ = ตัวกรองที่ใช้อยู่ (ไม่ต้องเก็บอะไรลง DB ไม่ต้องล็อกอิน)
+  const buildOfficialLink = useCallback(
+    () => ({ url: buildOfficialTierUrl({ rank, role, lane, tier }), title: "RoV LAB Tier List" }),
+    [rank, role, lane, tier]
+  );
+
   useEffect(() => {
     if (mode !== "official" || !grouped) return;
     preloadImages([...grouped.values()].flatMap((l) => l.map((h) => h.icon)));
@@ -102,9 +152,9 @@ export function TierList() {
   const loadPreset = useCallback(
     (p: PresetLoad) => {
       setIncoming({ ...p, nonce: Date.now() });
-      setMode("mine");
+      changeMode("mine");
     },
-    [setMode]
+    [changeMode]
   );
   const canReplace = useCallback(
     async () =>
@@ -117,23 +167,6 @@ export function TierList() {
       })),
     []
   );
-
-  // เปิดลิงก์แชร์ (/tier-list?s=...): รอฮีโร่โหลดก่อน (ลิงก์ใช้ slug ต้องแปลงเป็น id) แล้วเปิดในตัวจัดอันดับเป็นร่างที่ยังไม่ได้บันทึก
-  useIncomingShare(async ({ code, name, patch }) => {
-    if (heroes.status !== "success") return;
-    const decoded = decodeTiers(code, new Map(heroes.data.map((h) => [h.slug, h.id])));
-    if (!decoded || tierHeroCount(decoded.data) === 0) {
-      toast.error("ลิงก์ Tier List ไม่ถูกต้องหรือเสียหาย");
-      return;
-    }
-    if (!(await canReplace())) return;
-    loadPreset({ name: name || "Tier List ที่แชร์มา", description: "", patch, data: decoded.data, cloudId: null });
-    toast.info(
-      decoded.missing > 0
-        ? `เปิด Tier List ที่แชร์มาแล้ว (ข้าม ${decoded.missing} ฮีโร่ที่ไม่พบในระบบ) กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ`
-        : "เปิด Tier List ที่แชร์มาแล้ว กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ"
-    );
-  }, heroes.status === "success");
 
   return (
     <div className="space-y-4">
@@ -150,9 +183,9 @@ export function TierList() {
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="โหมด Tier List">
-        <Chip active={mode === "official"} onClick={() => setMode("official")} label="Tier List ทางการ" />
-        <Chip active={mode === "mine"} onClick={() => setMode("mine")} label="Tier List ของฉัน" />
-        <Chip active={mode === "community"} onClick={() => setMode("community")} label="Community" />
+        <Chip active={mode === "official"} onClick={() => changeMode("official")} label="Tier List ทางการ" />
+        <Chip active={mode === "mine"} onClick={() => changeMode("mine")} label="Tier List ของฉัน" />
+        <Chip active={mode === "community"} onClick={() => changeMode("community")} label="Community" />
       </div>
 
       {(mode === "mine" || mode === "community") && (
@@ -167,7 +200,13 @@ export function TierList() {
             <MyTierListWorkspace heroes={heroes.data} patch={patchLabel === "—" ? "" : patchLabel} incoming={incoming} />
           )}
           {heroes.status === "success" && mode === "community" && (
-            <CommunityTierLists heroes={heroes.data} canReplace={canReplace} onLoadPreset={loadPreset} />
+            <CommunityTierLists
+              heroes={heroes.data}
+              canReplace={canReplace}
+              onLoadPreset={loadPreset}
+              openId={sharedUuid}
+              onOpenIdClosed={() => navigate("/tier-list", { replace: true })}
+            />
           )}
         </>
       )}
@@ -186,6 +225,7 @@ export function TierList() {
               pending={share.pending}
               onShare={share.share}
               onDownload={share.download}
+              extra={<ShareLinkButton build={buildOfficialLink} />}
             />
           )}
 

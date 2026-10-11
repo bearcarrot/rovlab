@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
@@ -18,6 +18,7 @@ import { TeamMeters } from "@/features/draft/TeamMeters";
 import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import { DraftShareBar } from "@/features/draft/DraftShareBar";
+import { DraftLinkShare } from "@/features/draft/DraftLinkShare";
 import {
   analyzeTeam,
   describeDraft,
@@ -35,7 +36,6 @@ import {
   getAvailableHeroes,
   getCurrentGameTaken,
   getGlobalRestrictedHeroes,
-  isGameEmpty,
   isGlobalRuleActive,
   type TeamKey,
 } from "@/features/draft/series";
@@ -46,8 +46,7 @@ import { BanRow } from "@/features/draft/BanRow";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
 import { MyDrafts } from "@/features/draft/MyDrafts";
 import { CommunityDrafts } from "@/features/draft/CommunityDrafts";
-import { decodeSeries } from "@/features/share/linkCodec";
-import { useIncomingShare } from "@/features/share/useIncomingShare";
+import { shortIdToUuid } from "@/features/share/shareId";
 import { Modal } from "@/features/community/Modal";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
@@ -132,10 +131,15 @@ export function DraftAssistant() {
   const ds = useDraftSession();
   const { user } = useAuth();
   const toast = useToast();
-  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // /draft/<id> = ลิงก์แชร์ของ Community Draft: เปิดแท็บ Community พร้อมหน้าต่างดู Draft นั้นทันที
+  const { shareId } = useParams();
+  const sharedUuid = useMemo(() => (shareId ? shortIdToUuid(shareId) : null), [shareId]);
   const rawTab = params.get("tab");
-  const tab: Tab = rawTab === "my" ? "my" : rawTab === "community" ? "community" : "editor";
-  const setTab = (t: Tab) => setParams(t === "editor" ? {} : { tab: t });
+  const tab: Tab = shareId ? "community" : rawTab === "my" ? "my" : rawTab === "community" ? "community" : "editor";
+  // เปลี่ยนแท็บด้วยมือ = ออกจากลิงก์แชร์ กลับ /draft
+  const setTab = (t: Tab) => navigate(t === "editor" ? "/draft" : `/draft?tab=${t}`);
 
   const [active, setActive] = useState<Active | null>({ team: "mine", kind: "pick", index: 0 });
   const [query, setQuery] = useState("");
@@ -146,6 +150,14 @@ export function DraftAssistant() {
   const [loginNotice, setLoginNotice] = useState(false);
   const filters = useHeroFilters();
   const { laneLabel } = useFilterLabels();
+
+  // ลิงก์ /draft/<id> ที่ id เสีย → กลับหน้าปกติพร้อมแจ้งผู้ใช้
+  useEffect(() => {
+    if (shareId && !sharedUuid) {
+      toast.error("ลิงก์ Draft ไม่ถูกต้อง");
+      navigate("/draft", { replace: true });
+    }
+  }, [shareId, sharedUuid, navigate, toast]);
 
   const heroes = useMemo(() => (heroesQ.status === "success" ? heroesQ.data : []), [heroesQ.status, heroesQ.data]);
   const bySlug = useMemo(() => new Map(heroes.map((h) => [h.slug, h])), [heroes]);
@@ -354,20 +366,6 @@ export function DraftAssistant() {
     setTab("editor");
   }
 
-  // เปิดลิงก์แชร์ (/draft?s=...): โหลดทั้งซีรีส์เข้าตัวแก้ไขเป็น Draft ที่ยังไม่ได้บันทึก (ถามก่อนถ้ามีงานค้างอยู่)
-  useIncomingShare(async ({ code, name }) => {
-    const series = decodeSeries(code);
-    if (!series || series.games.every(isGameEmpty)) {
-      toast.error("ลิงก์ Draft ไม่ถูกต้องหรือเสียหาย");
-      return;
-    }
-    if (!(await canReplace())) return;
-    ds.load({ series, draftId: null, title: name || "Draft ที่แชร์มา", unsaved: true });
-    setActive(firstPick());
-    setCoachText("");
-    toast.success("เปิด Draft ที่แชร์มาแล้ว กด “บันทึก” เพื่อเก็บไว้ในบัญชีของคุณ");
-  });
-
   function onSaveClick() {
     if (!user) {
       setLoginNotice(true); // ไม่ล้าง Draft ปัจจุบัน: เก็บใน sessionStorage อยู่แล้ว
@@ -415,7 +413,15 @@ export function DraftAssistant() {
       </div>
 
       {tab === "my" && <MyDrafts currentId={ds.draftId} onOpen={(d) => void openMyDraft(d)} onDeleted={(id) => id === ds.draftId && ds.detach()} />}
-      {tab === "community" && <CommunityDrafts heroes={heroes} canReplace={canReplace} onOpenCopy={openCopy} />}
+      {tab === "community" && (
+        <CommunityDrafts
+          heroes={heroes}
+          canReplace={canReplace}
+          onOpenCopy={openCopy}
+          openId={sharedUuid}
+          onOpenIdClosed={() => navigate("/draft?tab=community", { replace: true })}
+        />
+      )}
 
       {tab === "editor" && (
         <>
@@ -473,7 +479,7 @@ export function DraftAssistant() {
             ))}
           </div>
 
-          {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — แชร์เกมที่เปิดอยู่ / แชร์ลิงก์ = ทั้งซีรีส์ */}
+          {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — รูป = เกมที่เปิดอยู่ / ลิงก์ = ทั้งซีรีส์ */}
           <DraftShareBar
             myTeam={myTeam}
             enemyTeam={enemyTeam}
@@ -481,8 +487,7 @@ export function DraftAssistant() {
             analysis={analysis}
             mode={mode}
             coachText={analysis.filledSlots > 0 ? coachText : ""}
-            series={ds.series}
-            title={ds.title}
+            linkShare={<DraftLinkShare ds={ds} onNeedLogin={() => setLoginNotice(true)} />}
           />
 
           {active && (
@@ -627,9 +632,9 @@ export function DraftAssistant() {
         />
       )}
       {loginNotice && (
-        <Modal title="เข้าสู่ระบบเพื่อบันทึก Draft" onClose={() => setLoginNotice(false)}>
+        <Modal title="เข้าสู่ระบบก่อนบันทึกหรือแชร์ลิงก์" onClose={() => setLoginNotice(false)}>
           <div className="space-y-3 text-sm">
-            <p className="text-text-muted">ต้องเข้าสู่ระบบก่อนบันทึก Draft ไว้ในบัญชีของคุณ Draft ที่กำลังทำอยู่จะยังอยู่ในหน้านี้ ไม่ถูกล้างเมื่อไปเข้าสู่ระบบ</p>
+            <p className="text-text-muted">ต้องเข้าสู่ระบบก่อนบันทึก Draft หรือสร้างลิงก์แชร์ Draft ที่กำลังทำอยู่จะยังอยู่ในหน้านี้ ไม่ถูกล้างเมื่อไปเข้าสู่ระบบ</p>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setLoginNotice(false)} className="rounded-lg border border-border px-3 py-2 text-text-muted hover:text-text">
                 ยกเลิก

@@ -79,8 +79,12 @@ export default function App() {
           }
         />
         <Route path="tier-list" element={<TierList />} />
+        {/* ลิงก์แชร์ Community Tier List: /tier-list/<id> (หน้าเดียวกัน เปิดหน้าต่างดูรายการนั้นทันที) */}
+        <Route path="tier-list/:shareId" element={<TierList />} />
         <Route path="counter-pick" element={<CounterPick />} />
         <Route path="matchup" element={<Matchup />} />
+        {/* ลิงก์แชร์ Community Draft: /draft/<id> */}
+        <Route path="draft/:shareId" element={<DraftAssistant />} />
         <Route path="draft" element={<DraftAssistant />} />
         <Route path="build" element={<ItemBuild />} />
         <Route path="game-data" element={<GameData />} />
