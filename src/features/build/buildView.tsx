@@ -8,7 +8,7 @@ import { getCatalogEnchantments } from "@/services/gameCatalog";
 
 export type Phase = "early" | "core" | "situational";
 export const PHASES: { k: Phase; label: string }[] = [
-  { k: "early", label: "ช่วงต้นเกม" },
+  { k: "early", label: "ต้นเกม" },
   { k: "core", label: "ไอเทมหลัก" },
   { k: "situational", label: "ตามสถานการณ์" },
 ];
@@ -31,6 +31,9 @@ export const catalogPath = (kind: CatalogKind, key: string) => `/game-data/${kin
 const ROMAN = ["", "I", "II", "III"];
 const KNOWN_COLORS: Set<string> = new Set(RUNE_COLOR_VIEW.map((c) => c.k));
 
+// ความสูงพื้นที่ไอคอนพลังแฝง (ให้เส้นเชื่อมอยู่กลางไอคอนทุกขนาด) — เพชร Tier 3 หมุน 45° เลยต้องเผื่อเป็นแนวทแยง
+const NODE_AREA = "h-[4.5rem]";
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section aria-label={title} className="rounded-card border border-border bg-bg-surface px-4 py-3">
@@ -45,25 +48,32 @@ function Tier({ tier }: { tier: number | null }) {
   return <span className="text-[10px] font-semibold leading-none text-text-muted">{ROMAN[tier]}</span>;
 }
 
+// ขนาดไอคอนตาม Tier: Tier 1 < Tier 2 < Tier 3 (ชุดรองเล็กกว่าชุดหลัก)
+function circleSize(tier: number | null, secondary: boolean) {
+  if (secondary) return tier === 1 ? "h-8 w-8" : "h-9 w-9";
+  if (tier === 1) return "h-10 w-10";
+  if (tier === 2) return "h-12 w-12";
+  return "h-16 w-16";
+}
+
 // โนดพลังแฝง: วงกลม (หลัก = กรอบแดง, รอง = กรอบทอง) หรือเพชร (keystone) พร้อมเลขระดับใต้ไอคอน
 function EnchantNode({ e, keystone, secondary }: { e: ViewEnchant; keystone: boolean; secondary: boolean }) {
   const ring = secondary ? "border-accent" : "border-loss";
-  const size = secondary ? "h-11 w-11" : keystone ? "h-12 w-12" : "h-14 w-14";
   return (
     <Link to={catalogPath("enchantments", e.slug)} title={e.nameTh} aria-label={e.nameTh} className="flex flex-col items-center gap-1.5 transition hover:brightness-125">
-      {keystone ? (
-        <span className="flex h-16 w-16 items-center justify-center">
-          <span className={`flex ${size} rotate-45 items-center justify-center overflow-hidden rounded-md border-2 ${ring} bg-bg-raised`}>
+      <span className={`flex ${NODE_AREA} items-center justify-center`}>
+        {keystone ? (
+          <span className={`flex h-12 w-12 rotate-45 items-center justify-center overflow-hidden rounded-md border-2 ${ring} bg-bg-raised`}>
             <span className="-rotate-45 scale-[1.45]">
               <Thumb src={e.icon} label={e.nameTh} className="h-10 w-10 !rounded-none !border-0" />
             </span>
           </span>
-        </span>
-      ) : (
-        <span className={`flex ${size} items-center justify-center overflow-hidden rounded-[50%] border-2 ${ring} bg-bg-raised`}>
-          <Thumb src={e.icon} label={e.nameTh} round className="h-full w-full" />
-        </span>
-      )}
+        ) : (
+          <span className={`flex ${circleSize(e.tier, secondary)} items-center justify-center overflow-hidden rounded-[50%] border-2 ${ring} bg-bg-raised`}>
+            <Thumb src={e.icon} label={e.nameTh} round className="h-full w-full" />
+          </span>
+        )}
+      </span>
       <Tier tier={e.tier} />
     </Link>
   );
@@ -81,24 +91,34 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
     ...RUNE_COLOR_VIEW.flatMap((c) => build.runes.filter((r) => r.color === c.k)),
     ...build.runes.filter((r) => !r.color || !KNOWN_COLORS.has(r.color)),
   ];
-  const runeTotal = build.runes.reduce((n, r) => n + Math.max(1, r.quantity), 0);
   const hexOf = (c?: string) => RUNE_COLOR_VIEW.find((x) => x.k === c)?.hex ?? "#5C616D";
 
   return (
     <div className="space-y-3">
       <Panel title="ไอเทม">
-        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {build.items.map((i) => (
-            <Link
-              key={i.slug}
-              to={catalogPath("items", i.slug)}
-              title={i.name}
-              aria-label={i.name}
-              className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60 sm:h-16 sm:w-16"
-            >
-              <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
-            </Link>
-          ))}
+        <div className="space-y-4">
+          {PHASES.map(({ k, label }) => {
+            const list = build.items.filter((i) => i.phase === k);
+            if (list.length === 0) return null;
+            return (
+              <div key={k}>
+                <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
+                <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {list.map((i) => (
+                    <Link
+                      key={i.slug}
+                      to={catalogPath("items", i.slug)}
+                      title={i.name}
+                      aria-label={i.name}
+                      className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60 sm:h-16 sm:w-16"
+                    >
+                      <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
         {reasons.length > 0 && (
           <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm text-text-muted">
@@ -116,11 +136,15 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
           <div className="flex flex-wrap items-start gap-y-3">
             {primary.map((e, i) => (
               <div key={e.slug} className="flex items-start">
-                {i > 0 && <span className="mt-7 h-0.5 w-5 shrink-0 bg-loss/60 sm:w-8" aria-hidden />}
+                {i > 0 && (
+                  <span className={`flex ${NODE_AREA} shrink-0 items-center`} aria-hidden>
+                    <span className="h-0.5 w-4 bg-loss/60 sm:w-8" />
+                  </span>
+                )}
                 <EnchantNode e={e} keystone={keystones.has(e.slug)} secondary={false} />
               </div>
             ))}
-            {primary.length > 0 && secondary.length > 0 && <span className="mx-3 h-14 w-px shrink-0 bg-border" aria-hidden />}
+            {primary.length > 0 && secondary.length > 0 && <span className={`mx-3 ${NODE_AREA} w-px shrink-0 bg-border`} aria-hidden />}
             <div className="flex items-start gap-3">
               {secondary.map((e) => (
                 <EnchantNode key={e.slug} e={e} keystone={false} secondary />
@@ -132,23 +156,15 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
 
       {build.runes.length > 0 && (
         <Panel title="รูน">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <div className="relative flex h-14 w-12 shrink-0 items-center justify-center text-rift" role="img" aria-label={`รูนรวม ${runeTotal} ช่อง`}>
-              <svg viewBox="0 0 48 56" className="absolute inset-0 h-full w-full" fill="none" aria-hidden>
-                <path d="M24 2 L45 12 V30 C45 42 36 50 24 54 C12 50 3 42 3 30 V12 Z" stroke="currentColor" strokeWidth="3" className="fill-bg-raised" />
-              </svg>
-              <span className="relative -mt-1 font-display text-lg font-semibold text-accent">{runeTotal}</span>
-            </div>
-            <div className="flex flex-wrap items-start gap-4">
-              {orderedRunes.map((r) => (
-                <Link key={r.key} to={catalogPath("runes", r.name)} title={r.name} aria-label={r.name} className="flex flex-col items-center transition hover:brightness-125">
-                  <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[50%] border-2 bg-bg-raised" style={{ borderColor: hexOf(r.color) }}>
-                    <Thumb src={r.icon} label={r.name} round className="h-full w-full" />
-                  </span>
-                  <span className="-mt-2 rounded-full border border-border bg-bg px-1.5 py-0.5 text-[10px] font-semibold leading-none">×{r.quantity}</span>
-                </Link>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-start gap-4">
+            {orderedRunes.map((r) => (
+              <Link key={r.key} to={catalogPath("runes", r.name)} title={r.name} aria-label={r.name} className="flex flex-col items-center transition hover:brightness-125">
+                <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[50%] border-2 bg-bg-raised" style={{ borderColor: hexOf(r.color) }}>
+                  <Thumb src={r.icon} label={r.name} round className="h-full w-full" />
+                </span>
+                <span className="-mt-2 rounded-full border border-border bg-bg px-1.5 py-0.5 text-[10px] font-semibold leading-none">×{r.quantity}</span>
+              </Link>
+            ))}
           </div>
         </Panel>
       )}
