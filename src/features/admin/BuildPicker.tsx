@@ -16,8 +16,9 @@ export type BuildRow = {
   challenger_spell_id: string | null;
 };
 
-// ตัวเลือก "ฮีโร่ → บิลด์" ที่ใช้ร่วมกันในแท็บสกิลชาเลนเจอร์/พลังแฝงในบิลด์
-// จำฮีโร่และบิลด์ที่เลือกไว้ตามแท็บ (รีเฟรชแล้วกลับมาที่เดิม) และโหลดบิลด์ใหม่ทุกครั้งที่ `reloadKey` เปลี่ยน
+// ตัวเลือกฮีโร่ของแท็บสกิลชาเลนเจอร์/พลังแฝงในบิลด์ — เลือกฮีโร่แล้วใช้ "บิลด์ล่าสุดของฮีโร่นั้น" ให้อัตโนมัติ (ไม่มีช่องเลือกบิลด์)
+// จำฮีโร่ที่เลือกไว้ตามแท็บ (รีเฟรชแล้วกลับมาที่เดิม) และโหลดบิลด์ใหม่ทุกครั้งที่ `reloadKey` เปลี่ยน
+// บิลด์ล่าสุด = บิลด์ของแพตช์ที่ปล่อยล่าสุด (ถ้าแพตช์เดียวกันมีหลายบิลด์ ใช้อันที่ source = curated ก่อน)
 export function BuildPicker({
   persistKey,
   reloadKey,
@@ -32,7 +33,6 @@ export function BuildPicker({
   const [builds, setBuilds] = useState<BuildRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [heroId, setHeroId] = usePersistedState<string>(`${persistKey}:hero`, "");
-  const [buildId, setBuildId] = usePersistedState<string>(`${persistKey}:build`, "");
 
   useEffect(() => {
     let alive = true;
@@ -46,7 +46,7 @@ export function BuildPicker({
       setHeroes(
         ((h.data ?? []) as any[]).map((r) => ({ id: r.id, label: r.name || r.name_th || "?", icon: r.icon_url ?? undefined, alt: r.name_th ?? undefined }))
       );
-      // แพตช์ใหม่สุดขึ้นก่อน (code เป็นข้อความ จึงเรียงตามวันที่ปล่อยแพตช์)
+      // ใหม่สุดขึ้นก่อน (code ของแพตช์เป็นข้อความ จึงเรียงตามวันที่ปล่อยแพตช์) แพตช์เดียวกัน curated ขึ้นก่อน
       const rows = ((b.data ?? []) as any[])
         .map((r) => ({
           id: r.id as string,
@@ -56,7 +56,7 @@ export function BuildPicker({
           released: (r.patches?.released_at ?? "") as string,
           challenger_spell_id: (r.challenger_spell_id ?? null) as string | null,
         }))
-        .sort((x, y) => (y.released || "").localeCompare(x.released || ""));
+        .sort((x, y) => (y.released || "").localeCompare(x.released || "") || Number(y.source === "curated") - Number(x.source === "curated"));
       setBuilds(rows.map(({ released: _released, ...rest }) => rest));
       setLoading(false);
     })();
@@ -67,14 +67,8 @@ export function BuildPicker({
   }, [reloadKey]);
 
   const heroBuilds = useMemo(() => builds.filter((b) => b.hero_id === heroId), [builds, heroId]);
-  const current = heroBuilds.find((b) => b.id === buildId) ?? null;
+  const current = heroBuilds[0] ?? null;
   const heroName = heroes.find((h) => h.id === heroId)?.label ?? "";
-
-  // ฮีโร่เปลี่ยนแล้วบิลด์ที่จำไว้ไม่ใช่ของฮีโร่นี้ → เลือกบิลด์ล่าสุดของฮีโร่นี้ให้เอง
-  useEffect(() => {
-    if (loading || !heroId) return;
-    if (!heroBuilds.some((b) => b.id === buildId)) setBuildId(heroBuilds[0]?.id ?? "");
-  }, [loading, heroId, heroBuilds, buildId, setBuildId]);
 
   useEffect(() => {
     onBuild(current, heroName);
@@ -82,31 +76,12 @@ export function BuildPicker({
   }, [current?.id, current?.challenger_spell_id, heroName]);
 
   return (
-    <section className="space-y-3 rounded-card border border-border bg-bg-surface p-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="min-w-0">
-          <span className="mb-1.5 block text-xs font-medium text-text-muted">ฮีโร่</span>
-          <ImageSelect value={heroId} options={heroes} onChange={setHeroId} placeholder={loading ? "กำลังโหลด..." : "— เลือกฮีโร่ —"} clearable={false} />
-        </div>
-        <div className="min-w-0">
-          <span className="mb-1.5 block text-xs font-medium text-text-muted">บิลด์ (แพตช์ · แหล่งที่มา)</span>
-          <select
-            value={current?.id ?? ""}
-            onChange={(e) => setBuildId(e.target.value)}
-            disabled={!heroId || heroBuilds.length === 0}
-            className="block h-11 w-full rounded-lg border border-border bg-bg-raised px-3 text-base text-text outline-none transition focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-50 sm:text-sm"
-          >
-            {heroBuilds.length === 0 && <option value="">{heroId ? "ฮีโร่นี้ยังไม่มีบิลด์" : "เลือกฮีโร่ก่อน"}</option>}
-            {heroBuilds.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.patchCode} · {b.source}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {heroId && heroBuilds.length === 0 && !loading && (
-        <p className="text-xs text-text-faint">สร้างบิลด์ของฮีโร่นี้ได้ที่แท็บ "บิลด์" ก่อน</p>
+    <section className="space-y-2">
+      <span className="block text-xs font-medium text-text-muted">ฮีโร่</span>
+      <ImageSelect value={heroId} options={heroes} onChange={setHeroId} placeholder={loading ? "กำลังโหลด..." : "— เลือกฮีโร่ —"} clearable={false} />
+      {heroId && !loading && heroBuilds.length === 0 && <p className="text-xs text-text-faint">ฮีโร่นี้ยังไม่มีบิลด์ สร้างได้ที่แท็บ "บิลด์" ก่อน</p>}
+      {heroBuilds.length > 1 && (
+        <p className="text-xs text-text-faint">ฮีโร่นี้มี {heroBuilds.length} บิลด์ กำลังแก้บิลด์แพตช์ล่าสุด ({current?.patchCode})</p>
       )}
     </section>
   );

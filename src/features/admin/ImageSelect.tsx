@@ -7,18 +7,32 @@ export type ImgOpt = { id: string; label: string; icon?: string; alt?: string };
 const squash = (s: string) => s.toLowerCase().replace(/[\s'’`"\-_.]/g, "");
 
 // รูปเล็ก: รูปโหลดไม่ได้/ไม่มีรูป = แสดงตัวอักษรย่อแทน
-export function Thumb({ src, label, round, className = "h-7 w-7" }: { src?: string; label: string; round?: boolean; className?: string }) {
+// bare = พื้นหลังโปร่งใส ไม่ตัดมุม/ไม่ครอป (ใช้กับไอคอนที่รูปร่างไม่ใช่วงกลม เช่น พลังแฝง) — ภาพแสดงครบทั้งรูป
+export function Thumb({
+  src,
+  label,
+  round,
+  bare,
+  className = "h-7 w-7",
+}: {
+  src?: string;
+  label: string;
+  round?: boolean;
+  bare?: boolean;
+  className?: string;
+}) {
   const [bad, setBad] = useState(false);
-  const shape = round ? "rounded-[50%]" : "rounded-md";
+  const shape = bare ? "" : round ? "rounded-[50%]" : "rounded-md";
+  const box = bare ? "bg-transparent" : "overflow-hidden bg-bg-raised";
   return (
-    <span className={`flex shrink-0 items-center justify-center overflow-hidden bg-bg-raised ${shape} ${className}`}>
+    <span className={`flex shrink-0 items-center justify-center ${box} ${shape} ${className}`}>
       {src && !bad ? (
         <img
           src={src}
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"
-          className="h-full w-full object-cover"
+          className={`h-full w-full ${bare ? "object-contain" : "object-cover"}`}
           onError={() => setBad(true)}
         />
       ) : (
