@@ -1,6 +1,7 @@
 import { lazy, type ComponentType, type ReactNode } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
 import { RouteMeta } from "@/components/RouteMeta";
@@ -64,6 +65,7 @@ export default function App() {
     <>
     <RouteMeta />
     <Analytics />
+    <SpeedInsights />
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Home />} />
@@ -131,7 +133,7 @@ export default function App() {
           path="reset-password"
           element={<WithNav crumbs={[HOME, { label: "ตั้งรหัสผ่านใหม่" }]} fallback="/login"><ResetPassword /></WithNav>}
         />
-        {/* แอดมิน: ต้องล็อกอินก่อน (สิทธิ์แอดมินยังตรวจใน AdminHub และต้องถูกบังคับที่ RLS) */}
+        {/* แอดมิน: ต้องล็อกอินก่อน (สิทธิ์แอดมินยังตรวจใน AdminHub และต้องถูกบังคับท���่ RLS) */}
         <Route
           path="admin"
           element={
