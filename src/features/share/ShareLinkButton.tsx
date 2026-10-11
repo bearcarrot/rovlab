@@ -4,17 +4,23 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { canNativeShare, shareOrCopyLink } from "./shareLink";
 
-// Share-as-URL button. `build` runs on click (so the link always reflects the current content) and returns null on failure.
-// variant "bar" matches ShareImageButtons; "compact" matches the small action rows (e.g. Tier List workspace).
+export interface ShareLink {
+  url: string;
+  title: string;
+}
+// null = could not build (error toast); undefined = handled elsewhere (login prompt / publish dialog), show nothing
+type BuildResult = ShareLink | null | undefined;
+
+// Sits in the same row as ShareImageButtons (passed through its `extra` slot), so the sizing matches it.
+// `build` runs on click so the link always reflects the current content. A synchronous build keeps the
+// click's user gesture, which iOS needs to open the share sheet; an async build (DB lookup) falls back to copying.
 export function ShareLinkButton({
   build,
   disabled,
-  variant = "bar",
   className,
 }: {
-  build: () => { url: string; title: string } | null;
+  build: () => BuildResult | Promise<BuildResult>;
   disabled?: boolean;
-  variant?: "bar" | "compact";
   className?: string;
 }) {
   const toast = useToast();
@@ -23,13 +29,26 @@ export function ShareLinkButton({
 
   async function onClick() {
     if (busy) return;
-    let link: { url: string; title: string } | null = null;
+    let link: BuildResult;
     try {
-      link = build();
-    } catch {
-      link = null;
+      const r = build();
+      if (r instanceof Promise) {
+        setBusy(true);
+        link = await r;
+      } else {
+        link = r;
+      }
+    } catch (e) {
+      setBusy(false);
+      toast.error(e instanceof Error ? e.message : "สร้างลิงก์ไม่สำเร็จ ลองใหม่อีกครั้ง");
+      return;
     }
-    if (!link) {
+    if (link === undefined) {
+      setBusy(false);
+      return;
+    }
+    if (link === null) {
+      setBusy(false);
       toast.error("สร้างลิงก์ไม่สำเร็จ ลองใหม่อีกครั้ง");
       return;
     }
@@ -51,10 +70,7 @@ export function ShareLinkButton({
       disabled={busy || disabled}
       aria-busy={busy}
       className={cn(
-        "flex items-center justify-center gap-1.5 rounded-lg border border-border text-sm disabled:cursor-not-allowed disabled:opacity-60",
-        variant === "bar"
-          ? "min-h-10 bg-bg-surface py-2 font-medium text-text hover:bg-bg-raised sm:px-4"
-          : "px-3 py-1.5 text-text-muted hover:text-text",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface py-2 text-sm font-medium text-text hover:bg-bg-raised disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-4",
         className
       )}
     >
