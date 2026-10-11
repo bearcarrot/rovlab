@@ -17,6 +17,7 @@ export type IssueCode =
   | "player_count"
   | "me"
   | "hero_empty"
+  | "hero_ambiguous"
   | "result"
   | "duration"
   | "date"
@@ -33,6 +34,9 @@ export interface Issue {
 
 /** Lower-case letters/digits only, so "Y'bneth" === "ybneth" and Ø-style symbols do not break matching. */
 export const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/** "Flowborn (Mage)" -> "Flowborn". The scoreboard prints only the base name. */
+const baseName = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "");
 
 export function parseDuration(s: string): number | null {
   const m = /^(\d{1,3}):([0-5]\d)$/.exec(s.trim());
@@ -55,15 +59,39 @@ function editDistance(a: string, b: string): number {
   return dp[b.length];
 }
 
-/** Exact match on English/Thai name, otherwise a unique near match (1 typo, names of 5+ letters). */
-export function resolveHero(name: string, heroes: HeroSummary[]): HeroSummary | null {
+export type HeroMatch =
+  | { kind: "found"; hero: HeroSummary }
+  | { kind: "ambiguous"; heroes: HeroSummary[] }
+  | { kind: "none" };
+
+const pick = (list: HeroSummary[]): HeroMatch | null =>
+  list.length === 1 ? { kind: "found", hero: list[0] } : list.length > 1 ? { kind: "ambiguous", heroes: list } : null;
+
+/**
+ * 1) full name (English/Thai), 2) base name without the "(Role)" suffix — several heroes can share it
+ * (Flowborn Mage/Carry), then the user must pick one — 3) a unique near match (1 typo, names of 5+ letters).
+ */
+export function matchHero(name: string, heroes: HeroSummary[]): HeroMatch {
   const n = norm(name);
-  if (!n) return null;
-  const exact = heroes.find((h) => norm(h.name) === n || norm(h.nameTh) === n);
+  if (!n) return { kind: "none" };
+
+  const exact = pick(heroes.filter((h) => norm(h.name) === n || norm(h.nameTh) === n));
   if (exact) return exact;
-  if (n.length < 5) return null;
-  const near = heroes.filter((h) => editDistance(norm(h.name), n) <= 1);
-  return near.length === 1 ? near[0] : null;
+
+  const base = pick(heroes.filter((h) => norm(baseName(h.name)) === n || norm(baseName(h.nameTh)) === n));
+  if (base) return base;
+
+  if (n.length >= 5) {
+    const near = heroes.filter((h) => editDistance(norm(baseName(h.name)), n) <= 1);
+    if (near.length === 1) return { kind: "found", hero: near[0] };
+  }
+  return { kind: "none" };
+}
+
+/** The hero when exactly one matches, otherwise null (not found, or ambiguous and not chosen yet). */
+export function resolveHero(name: string, heroes: HeroSummary[]): HeroSummary | null {
+  const m = matchHero(name, heroes);
+  return m.kind === "found" ? m.hero : null;
 }
 
 export function scanToDraft(scan: ScanResult): ScanDraft {
@@ -90,7 +118,7 @@ export function fingerprint(d: ScanDraft): string {
 
 const badNumber = (n: number, max: number) => !Number.isFinite(n) || n < 0 || n > max;
 
-export function checkDraft(d: ScanDraft): Issue[] {
+export function checkDraft(d: ScanDraft, heroes: HeroSummary[] = []): Issue[] {
   const issues: Issue[] = [];
   const blue = d.players.filter((p) => p.team === "blue");
   const red = d.players.filter((p) => p.team === "red");
@@ -98,8 +126,19 @@ export function checkDraft(d: ScanDraft): Issue[] {
   if (blue.length !== 5 || red.length !== 5) {
     issues.push({ code: "player_count", message: `อ่านผู้เล่นได้ ${blue.length} + ${red.length} คน (ต้องเป็น 5 + 5) ลองถ่ายรูปใหม่ให้เห็นครบทั้งสองทีม`, blocking: true });
   }
-  if (d.players.filter((p) => p.isMe).length !== 1) {
+  const mine = d.players.filter((p) => p.isMe);
+  if (mine.length !== 1) {
     issues.push({ code: "me", message: "เลือกแถวของคุณ (วงกลมหน้าชื่อฮีโร่)", blocking: true });
+  } else if (heroes.length > 0) {
+    // Only the user's own hero must be exact: it drives the hero stats. Other rows may stay as typed.
+    const m = matchHero(mine[0].hero, heroes);
+    if (m.kind === "ambiguous") {
+      issues.push({
+        code: "hero_ambiguous",
+        message: `ฮีโร่ของคุณมีหลายตำแหน่ง กรุณาเลือกให้ตรงกับที่ใช้ (${m.heroes.map((h) => h.name).join(" / ")})`,
+        blocking: true,
+      });
+    }
   }
   if (d.players.some((p) => !p.hero.trim())) {
     issues.push({ code: "hero_empty", message: "มีแถวที่ยังไม่ได้ใส่ชื่อฮีโร่", blocking: true });

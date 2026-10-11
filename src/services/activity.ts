@@ -2,7 +2,8 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // Lightweight activity tracking (public.user_activity_events) for the Admin Dashboard.
 // Rules: meaningful feature actions only (no page_view / click / filter / hover / scroll), signed-in users only,
-// tiny metadata, never block or break the main action. The DB whitelists event_type (see migration 20261007_user_activity_events).
+// tiny metadata, never block or break the main action. The DB whitelists event_type (see migrations 20261007_user_activity_events
+// and 20261011_match_analysis_activity_events).
 // Call it fire-and-forget:  void trackActivity("ai_coach_used");
 
 export type ActivityEventType =
@@ -15,7 +16,9 @@ export type ActivityEventType =
   | "hero_viewed"
   | "stats_viewed"
   | "matchup_viewed"
-  | "counter_pick_used";
+  | "counter_pick_used"
+  | "match_analysis_attempted" // a scan request was sent; metadata {ok}
+  | "match_saved"; // only after the match_results insert succeeded; metadata {edited}
 
 // ids / codes only: never put profile data or anything sensitive here (DB caps it at 512 bytes)
 export type ActivityMetadata = Record<string, string | number | boolean>;

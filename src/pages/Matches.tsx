@@ -1,8 +1,9 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import { AlertTriangle, ClipboardList, Loader2, Upload } from "lucide-react";
+import { ClipboardList, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroes } from "@/services/heroes";
+import { trackActivity } from "@/services/activity";
 import { deleteMatch, listMyMatches, saveMatch, scanScoreboard } from "@/services/matches";
 import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
@@ -13,6 +14,8 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import type { MatchRecord, MeSource } from "@/types/match";
@@ -25,15 +28,17 @@ type Phase =
   | { kind: "scanning" }
   | { kind: "review"; draft: ScanDraft; initial: string; meSource: MeSource; remaining: number };
 
+const messageOf = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
+
 export function Matches() {
   const { user } = useAuth();
+  const toast = useToast();
   const heroesQ = useAsync(() => getHeroes(), []);
   const matchesQ = useAsync(() => listMyMatches(100), []);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MatchRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : NO_HEROES;
   const matches = matchesQ.status === "success" ? matchesQ.data : NO_MATCHES;
@@ -41,22 +46,32 @@ export function Matches() {
   const summary = useMemo(() => summarize(matches), [matches]);
   const insights = useMemo(() => buildInsights(matches), [matches]);
   const heroLines = useMemo(() => byHero(matches).slice(0, 5), [matches]);
-  const issues = useMemo(() => (phase.kind === "review" ? checkDraft(phase.draft) : []), [phase]);
+  const issues = useMemo(() => (phase.kind === "review" ? checkDraft(phase.draft, heroes) : []), [phase, heroes]);
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow picking the same file again
     if (!file) return;
-    setError(null);
-    setNotice(null);
     setPhase({ kind: "scanning" });
+
+    let base64: string;
     try {
-      const base64 = await fileToScoreboardBase64(file);
+      base64 = await fileToScoreboardBase64(file);
+    } catch (err) {
+      // rejected on the device (not an image / not landscape): nothing was sent, so it is not an analysis attempt
+      toast.error(messageOf(err, "อ่านไฟล์รูปไม่ได้"));
+      setPhase({ kind: "idle" });
+      return;
+    }
+
+    try {
       const res = await scanScoreboard(base64);
+      void trackActivity("match_analysis_attempted", { ok: true });
       const draft = scanToDraft(res.scan);
       setPhase({ kind: "review", draft, initial: fingerprint(draft), meSource: res.meSource, remaining: res.remaining });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "อ่านรูปไม่สำเร็จ");
+      void trackActivity("match_analysis_attempted", { ok: false });
+      toast.error(messageOf(err, "วิเคราะห์รูปไม่สำเร็จ"));
       setPhase({ kind: "idle" });
     }
   }
@@ -64,30 +79,37 @@ export function Matches() {
   async function onSave() {
     if (phase.kind !== "review" || !user) return;
     setSaving(true);
-    setError(null);
+    const edited = fingerprint(phase.draft) !== phase.initial;
     try {
-      await saveMatch(draftToRow(phase.draft, heroes, user.id, fingerprint(phase.draft) !== phase.initial));
+      await saveMatch(draftToRow(phase.draft, heroes, user.id, edited));
+      // logged only here, after the insert has succeeded
+      void trackActivity("match_saved", { edited });
       setPhase({ kind: "idle" });
-      setNotice("บันทึกแมตช์แล้ว");
+      toast.success("บันทึกแมตช์แล้ว");
       matchesQ.refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "บันทึกแมตช์ไม่สำเร็จ");
+      toast.error(messageOf(err, "บันทึกแมตช์ไม่สำเร็จ"));
     } finally {
       setSaving(false);
     }
   }
 
-  async function onDelete(id: string) {
-    if (!window.confirm("ลบแมตช์นี้? การลบกู้คืนไม่ได้")) return;
-    setDeletingId(id);
-    setError(null);
+  function requestDelete(id: string) {
+    setPendingDelete(matches.find((m) => m.id === id) ?? null);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await deleteMatch(id);
+      await deleteMatch(pendingDelete.id);
+      toast.success("ลบแมตช์แล้ว");
       matchesQ.refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ลบแมตช์ไม่สำเร็จ");
+      toast.error(messageOf(err, "ลบแมตช์ไม่สำเร็จ"));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
+      setPendingDelete(null);
     }
   }
 
@@ -108,7 +130,7 @@ export function Matches() {
         <CardHeader>
           <CardTitle>{phase.kind === "review" ? "ตรวจผลที่อ่านได้" : "เพิ่มแมตช์จากรูป"}</CardTitle>
           {phase.kind === "review" && (
-            <span className="text-xs text-text-faint">เหลือโควต้าอ่านรูปวันนี้ {phase.remaining} รูป</span>
+            <span className="text-xs text-text-faint">เหลือโควต้าวิเคราะห์วันนี้ {phase.remaining} รูป</span>
           )}
         </CardHeader>
         <CardContent className="space-y-3">
@@ -124,34 +146,45 @@ export function Matches() {
               onCancel={() => setPhase({ kind: "idle" })}
             />
           ) : (
-            <>
-              <label
-                className={cn(
-                  "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-bg sm:inline-flex",
-                  scanning && "pointer-events-none opacity-60"
-                )}
-              >
-                {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {scanning ? "กำลังอ่านรูป…" : "เลือกรูปสรุปผลการเล่น"}
-                <input type="file" accept="image/*" onChange={onFile} disabled={scanning} className="sr-only" />
-              </label>
-              <ul className="list-disc space-y-1 pl-5 text-xs text-text-muted">
-                <li>ใช้สกรีนชอตแนวนอนที่เห็นผู้เล่นครบ 10 คน (ไม่ต้องครอป ระบบตัดแถบ UID ด้านล่างทิ้งให้ก่อนส่ง)</li>
-                <li>
-                  รูปจะถูกส่งให้ Google Gemini อ่านตัวเลข ระบบไม่เก็บรูปต้นฉบับ และไม่บันทึกชื่อของผู้เล่นคนอื่น
-                  (ดู <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>)
-                </li>
-                <li>จำกัดจำนวนรูปต่อวัน เพื่อไม่ให้โควต้าของระบบหมด</li>
-                <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
-              </ul>
-            </>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:items-start">
+              <div className="space-y-3">
+                <label
+                  className={cn(
+                    "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-bg sm:inline-flex",
+                    scanning && "pointer-events-none opacity-60"
+                  )}
+                >
+                  {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {scanning ? "กำลังวิเคราะห์" : "เลือกรูปสรุปผลการเล่น"}
+                  <input type="file" accept="image/*" onChange={onFile} disabled={scanning} className="sr-only" />
+                </label>
+                <ul className="list-disc space-y-1 pl-5 text-xs text-text-muted">
+                  <li>ใช้สกรีนชอตแนวนอนที่เห็นผู้เล่นครบ 10 คน (ไม่ต้องครอป ระบบตัดแถบ UID ด้านล่างทิ้งให้ก่อนส่ง)</li>
+                  <li>
+                    รูปจะถูกส่งให้ Google Gemini อ่านตัวเลข ระบบไม่เก็บรูปต้นฉบับ และไม่บันทึกชื่อของผู้เล่นคนอื่น
+                    (ดู <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>)
+                  </li>
+                  <li>จำกัดจำนวนรูปต่อวัน เพื่อไม่ให้โควต้าของระบบหมด</li>
+                  <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
+                </ul>
+              </div>
+              {/* รูปตัวอย่าง: public/examples/scoreboard-example.webp (ถ้าไม่มีไฟล์จะซ่อนทั้งกล่อง) */}
+              <figure className="space-y-1">
+                <img
+                  src="/examples/scoreboard-example.webp"
+                  alt="ตัวอย่างหน้าสรุปผลการเล่นที่ใช้ได้"
+                  width={1200}
+                  height={532}
+                  loading="lazy"
+                  className="h-auto w-full rounded-lg border border-border"
+                  onError={(e) => e.currentTarget.closest("figure")?.classList.add("hidden")}
+                />
+                <figcaption className="text-[11px] text-text-faint">
+                  ตัวอย่าง: สกรีนชอตหน้า &ldquo;ประวัติการเล่น&rdquo; ที่เห็นผู้เล่นครบ 10 คน
+                </figcaption>
+              </figure>
+            </div>
           )}
-          {error && (
-            <p role="alert" className="flex gap-2 rounded-lg border border-loss/30 bg-loss/5 p-3 text-sm text-loss">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> <span>{error}</span>
-            </p>
-          )}
-          {notice && !error && <p role="status" className="text-sm text-win">{notice}</p>}
         </CardContent>
       </Card>
 
@@ -190,8 +223,10 @@ export function Matches() {
                       ) : null}
                       <span className="truncate">{h.heroName}</span>
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-text-muted">
-                      {h.games} เกม · ชนะ {Math.round(h.winRate * 100)}% · KDA {h.kda.toFixed(1)}
+                    <span className="flex shrink-0 gap-3 text-xs tabular-nums text-text-muted">
+                      <span>{h.games} เกม</span>
+                      <span>ชนะ {Math.round(h.winRate * 100)}%</span>
+                      <span>KDA {h.kda.toFixed(1)}</span>
                     </span>
                   </li>
                 ))}
@@ -233,18 +268,36 @@ export function Matches() {
         <section aria-labelledby="list-heading" className="space-y-3">
           <h2 id="list-heading" className="font-display text-base font-semibold">แมตช์ที่บันทึก</h2>
           <ul className="space-y-2">
-            {matches.map((m) => (
+            {matches.map((m, idx) => (
               <MatchCard
                 key={m.id}
                 match={m}
-                heroIcon={m.myHeroId ? iconById.get(m.myHeroId) : undefined}
-                onDelete={onDelete}
-                deleting={deletingId === m.id}
+                iconById={iconById}
+                onDelete={requestDelete}
+                deleting={deleting && pendingDelete?.id === m.id}
+                defaultOpen={idx === 0}
               />
             ))}
           </ul>
         </section>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="ลบแมตช์นี้?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.result === "victory" ? "ชนะ" : "แพ้"} ${pendingDelete.myHeroName} ${pendingDelete.kills}/${pendingDelete.deaths}/${pendingDelete.assists} แมตช์นี้จะหายไปจากสถิติของคุณ และกู้คืนไม่ได้`
+            : ""
+        }
+        confirmLabel="ลบแมตช์"
+        destructive
+        busy={deleting}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

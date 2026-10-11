@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDuration, } from "@/features/matches/scan";
+import { formatDuration } from "@/features/matches/scan";
+import { STAT_GRID, StatHeader } from "@/features/matches/ScoreIcons";
 import type { MatchRecord, StoredPlayer, TeamSide } from "@/types/match";
 
 function when(iso: string): string {
@@ -9,19 +10,46 @@ function when(iso: string): string {
   return d.toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function PlayersTable({ players, team }: { players: StoredPlayer[]; team: TeamSide }) {
-  const rows = players.filter((p) => p.team === team);
+function HeroThumb({ src, name, size }: { src?: string; name: string; size: string }) {
+  return src ? (
+    <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className={cn(size, "shrink-0 rounded bg-bg-raised object-cover")} />
+  ) : (
+    <span className={cn(size, "flex shrink-0 items-center justify-center rounded bg-bg-raised font-display text-[10px] text-text-faint")}>
+      {name.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
+
+function PlayerRow({ p, icon }: { p: StoredPlayer; icon?: string }) {
   return (
-    <div>
-      <p className={cn("mb-1 text-[11px] font-medium", team === "blue" ? "text-rift" : "text-loss")}>
-        {team === "blue" ? "ทีมฟ้า" : "ทีมแดง"}
-      </p>
-      <ul className="space-y-0.5 text-xs">
+    <li className={cn(STAT_GRID, "px-2 py-1 text-xs tabular-nums", p.isMe && "bg-accent/15 ring-1 ring-inset ring-accent/40")}>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <HeroThumb src={icon} name={p.hero} size="h-7 w-7" />
+        <span className={cn("truncate text-sm", p.isMe ? "font-medium text-accent" : "text-text")}>{p.hero}</span>
+        {p.mvp && <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-[9px] font-semibold text-accent">MVP</span>}
+        {p.isMe && <span className="shrink-0 text-[10px] text-accent">(ฉัน)</span>}
+      </span>
+      <span className="text-center">{p.kills}</span>
+      <span className="text-center">{p.deaths}</span>
+      <span className="text-center">{p.assists}</span>
+      <span className="text-center">{p.gold.toLocaleString()}</span>
+      <span className="text-center">{p.rating.toFixed(1)}</span>
+    </li>
+  );
+}
+
+function TeamBlock({ team, match, iconById }: { team: TeamSide; match: MatchRecord; iconById: Map<string, string> }) {
+  const rows = match.players.filter((p) => p.team === team);
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <StatHeader
+        team={team}
+        label={team === "blue" ? "ทีมฟ้า" : "ทีมแดง"}
+        score={team === "blue" ? match.scoreBlue : match.scoreRed}
+      />
+      <ul className="divide-y divide-border">
         {rows.map((p, i) => (
-          <li key={i} className={cn("flex justify-between gap-2 tabular-nums", p.isMe ? "font-medium text-accent" : "text-text-muted")}>
-            <span className="truncate">{p.hero}{p.mvp ? " · MVP" : ""}</span>
-            <span className="shrink-0">{p.kills}/{p.deaths}/{p.assists} · {p.gold.toLocaleString()} · {p.rating.toFixed(1)}</span>
-          </li>
+          <PlayerRow key={i} p={p} icon={p.heroId ? iconById.get(p.heroId) : undefined} />
         ))}
       </ul>
     </div>
@@ -30,37 +58,39 @@ function PlayersTable({ players, team }: { players: StoredPlayer[]; team: TeamSi
 
 export function MatchCard({
   match,
-  heroIcon,
+  iconById,
   onDelete,
   deleting,
+  defaultOpen = false,
 }: {
   match: MatchRecord;
-  heroIcon?: string;
+  iconById: Map<string, string>;
   onDelete: (id: string) => void;
   deleting: boolean;
+  defaultOpen?: boolean;
 }) {
   const win = match.result === "victory";
+  const myIcon = match.myHeroId ? iconById.get(match.myHeroId) : undefined;
   return (
     <li className="rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center gap-3">
         <div className={cn("h-12 w-1 shrink-0 rounded-full", win ? "bg-win" : "bg-loss")} aria-hidden="true" />
-        {heroIcon ? (
-          <img src={heroIcon} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-12 w-12 shrink-0 rounded-lg bg-bg-raised object-cover" />
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-sm text-text-faint">
-            {match.myHeroName.slice(0, 2).toUpperCase()}
-          </div>
-        )}
+        <HeroThumb src={myIcon} name={match.myHeroName} size="h-12 w-12" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-sm font-medium">
-            <span className={win ? "text-win" : "text-loss"}>{win ? "ชนะ" : "แพ้"}</span> · {match.myHeroName}
-            {match.mvp && <span className="ml-1.5 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">MVP</span>}
+          <p className="flex min-w-0 items-center gap-1.5 font-display text-sm font-medium">
+            <span className={win ? "text-win" : "text-loss"}>{win ? "ชนะ" : "แพ้"}</span>
+            <span className="truncate">{match.myHeroName}</span>
+            {match.mvp && <span className="shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">MVP</span>}
           </p>
-          <p className="text-xs text-text-muted tabular-nums">
-            {match.kills}/{match.deaths}/{match.assists} · {match.gold.toLocaleString()} ทอง · คะแนน {match.rating.toFixed(1)}
+          <p className="flex flex-wrap gap-x-3 text-xs tabular-nums text-text-muted">
+            <span>{match.kills}/{match.deaths}/{match.assists}</span>
+            <span>{match.gold.toLocaleString()} ทอง</span>
+            <span>คะแนน {match.rating.toFixed(1)}</span>
           </p>
-          <p className="text-[11px] text-text-faint">
-            {when(match.playedAt)} · {formatDuration(match.durationSec)} นาที · {match.scoreBlue}:{match.scoreRed}
+          <p className="flex flex-wrap gap-x-3 text-[11px] text-text-faint tabular-nums">
+            <span>{when(match.playedAt)}</span>
+            <span>{formatDuration(match.durationSec)} นาที</span>
+            <span>{match.scoreBlue}:{match.scoreRed}</span>
           </p>
         </div>
         <button
@@ -73,11 +103,11 @@ export function MatchCard({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <details className="mt-2">
-        <summary className="cursor-pointer text-xs text-text-muted">ดูผู้เล่นทั้ง 10 คน</summary>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <PlayersTable players={match.players} team="blue" />
-          <PlayersTable players={match.players} team="red" />
+      <details className="mt-2" open={defaultOpen}>
+        <summary className="cursor-pointer text-xs text-text-muted">ผู้เล่นทั้ง 10 คน</summary>
+        <div className="mt-2 grid gap-3 lg:grid-cols-2">
+          <TeamBlock team="blue" match={match} iconById={iconById} />
+          <TeamBlock team="red" match={match} iconById={iconById} />
         </div>
       </details>
     </li>
