@@ -1,5 +1,7 @@
 import { lazy, type ComponentType, type ReactNode } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
 import { RouteMeta } from "@/components/RouteMeta";
@@ -21,7 +23,10 @@ const TierList = lazyNamed(() => import("@/pages/TierList"), "TierList");
 const CounterPick = lazyNamed(() => import("@/pages/CounterPick"), "CounterPick");
 const DraftAssistant = lazyNamed(() => import("@/pages/DraftAssistant"), "DraftAssistant");
 const Matchup = lazyNamed(() => import("@/pages/Matchup"), "Matchup");
+const ItemBuild = lazyNamed(() => import("@/pages/ItemBuild"), "ItemBuild");
+const GameData = lazyNamed(() => import("@/pages/GameData"), "GameData");
 const Favorites = lazyNamed(() => import("@/pages/Favorites"), "Favorites");
+const Matches = lazyNamed(() => import("@/pages/Matches"), "Matches");
 const Profile = lazyNamed(() => import("@/pages/Profile"), "Profile");
 const PlayerProfile = lazyNamed(() => import("@/pages/PlayerProfile"), "PlayerProfile");
 const Login = lazyNamed(() => import("@/pages/Login"), "Login");
@@ -59,6 +64,8 @@ export default function App() {
   return (
     <>
     <RouteMeta />
+    <Analytics />
+    <SpeedInsights />
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Home />} />
@@ -76,8 +83,8 @@ export default function App() {
         <Route path="counter-pick" element={<CounterPick />} />
         <Route path="matchup" element={<Matchup />} />
         <Route path="draft/:shareId?" element={<DraftAssistant />} />
-        {/* หน้า Item Build ถูกนำออกแล้ว: ลิงก์/บุ๊กมาร์กเก่าให้กลับหน้าแรก */}
-        <Route path="build" element={<Navigate to="/" replace />} />
+        <Route path="build" element={<ItemBuild />} />
+        <Route path="game-data" element={<GameData />} />
         <Route path="stats" element={<Stats />} />
         <Route path="learn" element={<Learn />} />
         <Route
@@ -89,6 +96,8 @@ export default function App() {
           }
         />
         <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
+        {/* วิเคราะห์เกม: อัปโหลดสกรีนชอตหน้าสรุปผล → OCR → ตรวจ/แก้ → บันทึก (ข้อมูลส่วนตัว ต้องล็อกอิน) */}
+        <Route path="matches" element={<RequireAuth><Matches /></RequireAuth>} />
         <Route
           path="notifications"
           element={
