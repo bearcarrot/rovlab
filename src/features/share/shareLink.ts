@@ -1,16 +1,27 @@
-import { SHARE_PARAM } from "./linkCodec";
+import { uuidToShortId } from "./shareId";
 
-// Browser-side helpers for share links: build the URL, then share (mobile sheet) or copy (desktop).
-// Add new kinds (Community Item Build, ...) by passing their own path + code to buildShareUrl.
+// Browser-side helpers for share links.
+// Pretty links point at a Community row by its DB id (shortened to 22 chars): /draft/<id>, /tier-list/<id>.
+// A future kind (Community Item Build) only needs its own path + the Community row id.
 
-/** `code` is already URL-safe ([A-Za-z0-9-._~]) so it is not escaped; `extra` values are. */
-export function buildShareUrl(path: string, code: string, extra: Record<string, string | undefined> = {}): string {
-  const query = [`${SHARE_PARAM}=${code}`];
-  for (const [key, value] of Object.entries(extra)) {
-    const v = value?.trim();
-    if (v) query.push(`${key}=${encodeURIComponent(v)}`);
-  }
-  return `${window.location.origin}${path}?${query.join("&")}`;
+export type ShareLinkPath = "/draft" | "/tier-list";
+
+export function buildShareUrl(path: ShareLinkPath, communityId: string): string {
+  return `${window.location.origin}${path}/${uuidToShortId(communityId)}`;
+}
+
+/** Official Tier List link: the current filters (nothing is stored in the DB). Read back by pages/TierList.tsx. */
+export function buildOfficialTierUrl(f: {
+  rank: string;
+  role: string | null;
+  lane: string | null;
+  tier: string | null;
+}): string {
+  const q = ["view=official", `rank=${encodeURIComponent(f.rank)}`];
+  if (f.role) q.push(`role=${encodeURIComponent(f.role)}`);
+  if (f.lane) q.push(`lane=${encodeURIComponent(f.lane)}`);
+  if (f.tier) q.push(`tier=${encodeURIComponent(f.tier)}`);
+  return `${window.location.origin}/tier-list?${q.join("&")}`;
 }
 
 export type LinkShareOutcome = "shared" | "copied" | "cancelled" | "failed";
@@ -48,7 +59,6 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Must be called straight from the click handler so iOS keeps the user gesture for navigator.share. */
 export async function shareOrCopyLink(url: string, title: string): Promise<LinkShareOutcome> {
   if (canNativeShare()) {
     try {
@@ -56,7 +66,7 @@ export async function shareOrCopyLink(url: string, title: string): Promise<LinkS
       return "shared";
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return "cancelled";
-      // share failed for another reason: fall back to copying
+      // share failed for another reason (e.g. the click's user gesture expired): fall back to copying
     }
   }
   return (await copyText(url)) ? "copied" : "failed";
