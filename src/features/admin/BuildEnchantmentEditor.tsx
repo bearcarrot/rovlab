@@ -54,7 +54,7 @@ function TreeButton({ tree, active, label, onClick }: { tree: Tree | null; activ
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
-      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[50%] border-2 bg-black/20 transition hover:brightness-125 ${
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[50%] border-2 bg-black/20 transition hover:brightness-125 sm:h-14 sm:w-14 ${
         tree ? "" : "border-dashed"
       } ${active ? "ring-2 ring-accent" : ""}`}
       style={{ borderColor: hex }}
@@ -84,25 +84,25 @@ function NodeButton({
   label: string;
   onClick: () => void;
 }) {
-  const icon = opt ? <Thumb src={opt.icon} label={opt.name} bare className="h-9 w-9" /> : null;
+  const icon = opt ? <Thumb src={opt.icon} label={opt.name} bare className="h-7 w-7 sm:h-9 sm:w-9" /> : null;
   return (
     <button
       type="button"
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
-      className={`relative flex h-14 w-14 shrink-0 items-center justify-center transition hover:brightness-125 ${locked ? "opacity-40" : ""}`}
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center transition hover:brightness-125 sm:h-14 sm:w-14 ${locked ? "opacity-40" : ""}`}
     >
       {diamond ? (
         <span
-          className={`flex h-10 w-10 rotate-45 items-center justify-center rounded-md border-2 bg-black/20 ${active ? "ring-2 ring-accent" : ""}`}
+          className={`flex h-8 w-8 rotate-45 items-center justify-center rounded-md border-2 bg-black/20 sm:h-10 sm:w-10 ${active ? "ring-2 ring-accent" : ""}`}
           style={{ borderColor: hex }}
         >
           <span className="-rotate-45">{icon}</span>
         </span>
       ) : (
         <span
-          className={`flex h-12 w-12 items-center justify-center rounded-[50%] border-2 bg-black/20 ${active ? "ring-2 ring-accent" : ""}`}
+          className={`flex h-10 w-10 items-center justify-center rounded-[50%] border-2 bg-black/20 sm:h-12 sm:w-12 ${active ? "ring-2 ring-accent" : ""}`}
           style={{ borderColor: hex }}
         >
           {icon}
@@ -437,7 +437,7 @@ export function BuildEnchantmentEditor({ build: buildProp, heroName: heroNamePro
       <div className={`absolute top-full z-30 mt-2 w-max max-w-[calc(100vw-2.5rem)] rounded-card border border-border bg-bg-surface p-2 shadow-card ${POP_ALIGN[align]}`}>
         <div className="mb-1 flex items-center justify-between gap-3 px-1">
           <p className="text-[11px] font-medium text-text-muted">{title}</p>
-          <button type="button" onClick={() => setOpen(null)} aria-label="ปิด" className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-bg-raised">
+          <button type="button" onClick={() => setOpen(null)} aria-label="ปิด" className="flex h-9 w-9 items-center justify-center rounded-md text-text-muted hover:bg-bg-raised sm:h-6 sm:w-6">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -456,7 +456,7 @@ export function BuildEnchantmentEditor({ build: buildProp, heroName: heroNamePro
         type="button"
         disabled={busy || !rows.some((r) => r.selection_type === type)}
         onClick={() => void clearGroup(type)}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-bg-raised px-3 text-xs text-text-muted hover:border-loss/50 hover:text-loss disabled:pointer-events-none disabled:opacity-40"
+        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-bg-raised px-3 text-xs text-text-muted hover:border-loss/50 hover:text-loss disabled:pointer-events-none disabled:opacity-40 sm:h-9"
       >
         <Trash2 className="h-3.5 w-3.5" />
         ล้าง
@@ -468,14 +468,14 @@ export function BuildEnchantmentEditor({ build: buildProp, heroName: heroNamePro
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-base font-semibold">พลังแฝงในบิลด์</h2>
+      {!controlled && <h2 className="font-display text-base font-semibold">พลังแฝงในบิลด์</h2>}
 
       <TreeIconEditor trees={trees} onSaved={(id, url) => setTrees((ts) => ts.map((t) => (t.id === id ? { ...t, icon_url: url } : t)))} />
 
       {!controlled && <BuildPicker persistKey="admin:buildEnchant" reloadKey={0} onBuild={onBuild} />}
 
       {build && (
-        <section className="space-y-5 rounded-card border border-border bg-bg-surface p-4">
+        <section className="space-y-5 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
           <p className="flex items-center gap-2 text-xs font-medium text-text-muted">
             {heroName} · แพตช์ {build.patchCode}
             {(loadingRows || busy) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -516,7 +516,7 @@ export function BuildEnchantmentEditor({ build: buildProp, heroName: heroNamePro
             <div className="space-y-2">
               {groupHead("สายรอง", "ห้ามสีเดียวกับสายหลัก · ช่อง 2 คนละสีกับช่อง 1 = Tier I, สีเดียวกับช่อง 1 = Tier II", "secondary")}
               <div className="relative">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {[1, 2].map((slot) => {
                     const tid = secondaryTreeId(slot);
                     const tier = optAt("secondary", slot)?.tier ?? (tid ? requiredTier(rows, byId, "secondary", slot, tid) : 1) ?? 1;

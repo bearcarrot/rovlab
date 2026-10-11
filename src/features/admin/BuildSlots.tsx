@@ -212,7 +212,7 @@ function PickerGrid({
     <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-text-muted">{title}</p>
-        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised" aria-label="ปิด">
+        <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised sm:h-8 sm:w-8" aria-label="ปิด">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -226,7 +226,7 @@ function PickerGrid({
         />
       </div>
       {header}
-      <div className="grid max-h-72 grid-cols-5 gap-2 overflow-y-auto sm:grid-cols-8">
+      <div className="grid max-h-[50vh] grid-cols-5 gap-2 overflow-y-auto sm:max-h-72 sm:grid-cols-8">
         {list.map((o) => (
           <button
             key={o.id}
@@ -276,14 +276,14 @@ function ItemShopPicker({
   }, [items, q, type]);
   const shown = TIERS.filter((t) => tier === null || tier === t);
   const chip = (active: boolean) =>
-    `h-8 shrink-0 rounded-full border px-3 text-xs transition ${
+    `h-9 shrink-0 rounded-full border px-3 text-xs transition sm:h-8 ${
       active ? "border-accent bg-accent font-medium text-accent-fg" : "border-border bg-bg text-text-muted hover:border-text-faint"
     }`;
   return (
     <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-text-muted">{title}</p>
-        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised" aria-label="ปิด">
+        <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised sm:h-8 sm:w-8" aria-label="ปิด">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -316,21 +316,21 @@ function ItemShopPicker({
           </button>
         ))}
       </div>
-      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 sm:mx-0 sm:grid sm:overflow-visible sm:px-0" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
         {shown.map((t) => {
           const col = list.filter((o) => o.tier === t);
           return (
-            <section key={t} aria-label={`Tier ${t}`} className="min-w-[78%] shrink-0 snap-start rounded-lg border border-border bg-bg sm:min-w-0">
+            <section key={t} aria-label={`Tier ${t}`} className="min-w-[82%] shrink-0 snap-start rounded-lg border border-border bg-bg sm:min-w-[60%] md:min-w-0">
               <h4 className="border-b border-border px-2 py-1.5 text-xs font-semibold text-accent">
                 Tier {t} <span className="font-normal text-text-faint">({col.length})</span>
               </h4>
-              <ul className="max-h-72 space-y-1 overflow-y-auto p-1.5">
+              <ul className="max-h-[50vh] space-y-1 overflow-y-auto p-1.5 md:max-h-72">
                 {col.map((o) => (
                   <li key={o.id}>
                     <button
                       type="button"
                       onClick={() => onPick(o.id)}
-                      className="flex w-full items-center gap-2 rounded-lg border border-transparent p-1 text-left hover:border-accent/40 hover:bg-bg-surface"
+                      className="flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-transparent p-1 text-left hover:border-accent/40 hover:bg-bg-surface md:min-h-0"
                     >
                       <Thumb src={o.icon} label={o.label} className="h-9 w-9 shrink-0" />
                       <span className="min-w-0 flex-1">
@@ -419,9 +419,9 @@ export function ItemSlots({
                       type="button"
                       aria-label="ลบไอเทม"
                       onClick={() => onRemove(r)}
-                      className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-loss text-white"
+                      className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-loss text-white sm:-right-1 sm:-top-1 sm:h-5 sm:w-5"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
                   </div>
                 );
@@ -574,9 +574,9 @@ export function RuneSlots({
                       type="button"
                       aria-label="ลดจำนวนรูน"
                       onClick={() => onDec(s.row)}
-                      className="absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-loss text-white"
+                      className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-loss text-white sm:-right-1 sm:-top-1 sm:h-4 sm:w-4"
                     >
-                      <X className="h-2.5 w-2.5" />
+                      <X className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
                     </button>
                   </div>
                 );
@@ -598,8 +598,8 @@ export function RuneSlots({
           bindDrag={dnd.bind}
           consumeClick={dnd.consumeClick}
           header={
-            <label className="flex min-h-[36px] cursor-pointer items-center gap-2 text-xs text-text-muted">
-              <input type="checkbox" checked={fillAll} onChange={(e) => setFillAll(e.target.checked)} className="h-4 w-4 accent-[var(--accent,#d4a017)]" />
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-xs text-text-muted sm:min-h-[36px]">
+              <input type="checkbox" checked={fillAll} onChange={(e) => setFillAll(e.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--accent,#d4a017)] sm:h-4 sm:w-4" />
               แตะรูน = เติมช่องที่เหลือของสีนี้ให้เต็ม {max} ช่อง (ปิด = เพิ่มทีละ 1)
             </label>
           }
