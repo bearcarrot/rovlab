@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Users } from "lucide-react";
 import { HeroIcon } from "@/components/HeroIcon";
@@ -45,22 +45,37 @@ export function CommunityTierLists({
   heroes,
   canReplace,
   onLoadPreset,
+  openId,
+  onOpenIdClosed,
 }: {
   heroes: HeroSummary[];
   /** Asks the user before unsaved editor work is replaced; resolve false to cancel the load. */
   canReplace: () => Promise<boolean>;
   /** Receives a brand-new copy for the user; the published original is never modified. */
   onLoadPreset: (p: PresetLoad) => void;
+  /** Community tier list to open straight away (from a share link /tier-list/<id>). */
+  openId?: string | null;
+  /** The opened share-link tier list was closed or loaded: the page drops the id from the URL. */
+  onOpenIdClosed?: () => void;
 }) {
   const { user } = useAuth();
   const toast = useToast();
   const [sort, setSort] = useState<CommunitySort>("new");
   const [query, setQuery] = useState("");
   const q = useDebounced(query, 300);
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(openId ?? null);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const list = useCommunityList((offset, limit) => listCommunityTierLists({ sort, q, offset, limit }), [sort, q]);
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
+
+  useEffect(() => {
+    if (openId) setViewId(openId);
+  }, [openId]);
+
+  const closeView = () => {
+    if (openId && viewId === openId) onOpenIdClosed?.();
+    setViewId(null);
+  };
 
   async function setReaction(item: CommunityTierListSummary, next: Reaction) {
     if (!user) {
@@ -201,10 +216,11 @@ export function CommunityTierLists({
           byId={byId}
           pending={pending.has(viewId)}
           onReact={(n) => viewItem && void setReaction(viewItem, n)}
-          onClose={() => setViewId(null)}
+          onClose={closeView}
           onLoad={() => {
-            setViewId(null);
-            void loadPreset(viewId);
+            const id = viewId;
+            closeView();
+            void loadPreset(id);
           }}
         />
       )}
@@ -236,6 +252,10 @@ function TierViewModal({
       {state.status === "error" && <ErrorState message="ไม่สามารถโหลด Tier List ได้" onRetry={state.refetch} />}
       {state.status === "success" && (
         <div className="space-y-4">
+          <p className="text-xs text-text-faint">
+            โดย {state.data.authorName || (state.data.handle ? `@${state.data.handle}` : "ผู้ใช้")}
+            {state.data.patch ? ` · Patch ${state.data.patch}` : ""}
+          </p>
           {state.data.description && <p className="text-sm text-text-muted">{state.data.description}</p>}
           <TierRows data={state.data.data} byId={byId} />
           <div className="flex flex-wrap items-center justify-between gap-2">
