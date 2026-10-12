@@ -7,6 +7,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { Modal } from "@/features/community/Modal";
 import { ReactionButtons } from "@/features/community/ReactionButtons";
@@ -239,8 +240,18 @@ function DraftViewModal({
                 {(["mine", "enemy"] as const).map((t) => (
                   <div key={t} className="space-y-1">
                     <p className="text-xs text-text-faint">{t === "mine" ? "ทีมผู้สร้าง" : "ทีมคู่แข่ง"}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {g[t].picks.map((s, i) => (s ? <MiniHero key={`${s}-${i}`} hero={bySlug.get(s)} fallback={s} showName={false} /> : null))}
+                    {/* ไอคอน pick ขยายตามความกว้าง (grid 5 คอลัมน์, aspect-square) แทนชิป 24px ชิดซ้าย ไม่เหลือที่ว่างขวา */}
+                    <div className="grid max-w-80 grid-cols-5 gap-1.5">
+                      {g[t].picks.map((s, i) => {
+                        if (!s) return null;
+                        const hero = bySlug.get(s);
+                        const name = hero?.nameTh ?? s;
+                        return (
+                          <div key={`${s}-${i}`} title={name}>
+                            <HeroIcon icon={hero?.icon} name={hero?.name ?? s} className="aspect-square h-auto w-full rounded-md" />
+                          </div>
+                        );
+                      })}
                     </div>
                     {g[t].bans.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5">
