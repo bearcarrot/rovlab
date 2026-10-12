@@ -16,7 +16,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ItemSlots, RuneSlots, type RowMove } from "@/features/admin/BuildSlots";
 import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
-import { PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
+import { ITEM_TYPE_CHOICES, PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
 
 // ตัวสร้าง/แก้ไข "Build ของฉัน": ใช้สล็อตไอเทม/รูนแบบเดียวกับฝั่งแอดมิน (ลากวางได้) และเลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้ว
 // บันทึกผ่าน RPC save_user_build (ตรวจซ้ำที่ฐานข้อมูลและกรองคำไม่เหมาะสมที่ชื่อ/โน๊ต)
@@ -180,6 +180,19 @@ export function BuildEditor() {
     });
   }
 
+  // เติมรูนเดียวกันหลายช่องทีเดียว (ลากจากกริด / โหมดแตะเติมเต็ม) ไม่เกิน 10 ช่องต่อสี เหมือนฝั่งแอดมิน
+  function fillRune(runeId: string, count: number) {
+    const color = colorOf(runeId);
+    const used = runeRows.filter((r) => colorOf(r.rune_id) === color).reduce((n, r) => n + r.quantity, 0);
+    const n = Math.min(count, 10 - used);
+    if (n <= 0) return toast.error("รูนแต่ละสีใส่ได้สูงสุด 10 ช่อง");
+    setRuneRows((rows) => {
+      const hit = rows.find((r) => r.rune_id === runeId);
+      if (hit) return rows.map((r) => (r === hit ? { ...r, quantity: r.quantity + n } : r));
+      return [...rows, { id: uid(), rune_id: runeId, quantity: n, sort_order: nextOrder(rows) }];
+    });
+  }
+
   function pickEnch(type: "primary" | "secondary", enchId: string) {
     if (ench.some((e) => e.enchantment_id === enchId)) return toast.error("พลังแฝงนี้อยู่ในบิลด์แล้ว");
     if (ench.length >= MAX_ENCHANTMENTS) return toast.error(`ใส่พลังแฝงได้สูงสุด ${MAX_ENCHANTMENTS} รายการ`);
@@ -238,7 +251,7 @@ export function BuildEditor() {
   );
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="mx-auto w-full max-w-3xl space-y-6 pb-24">
       <div className="flex items-center gap-3">
         <Thumb src={hero.icon || undefined} label={hero.nameTh} className="h-12 w-12" />
         <div>
@@ -263,6 +276,7 @@ export function BuildEditor() {
         <ItemSlots
           rows={itemRows}
           items={itemOpts}
+          typeChoices={ITEM_TYPE_CHOICES}
           onAdd={addItem}
           onRemove={(r) => setItemRows((rows) => rows.filter((x) => x.id !== r.id))}
           onOpen={() => undefined}
@@ -278,6 +292,7 @@ export function BuildEditor() {
           colors={RUNE_COLOR_VIEW}
           max={10}
           onAdd={addRune}
+          onFill={fillRune}
           onDec={(r) => setRuneRows((rows) => (r.quantity <= 1 ? rows.filter((x) => x.id !== r.id) : rows.map((x) => (x.id === r.id ? { ...x, quantity: x.quantity - 1 } : x))))}
           onMoves={(m) => setRuneRows((rows) => applyMoves(rows, m))}
         />

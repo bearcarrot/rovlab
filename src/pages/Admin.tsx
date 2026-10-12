@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { Chip, LANE_OPTIONS, LaneFilterRow, ROLE_OPTIONS, RoleFilterRow, useFilterIcons, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { RuneSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots";
+import { ITEM_TYPE_CHOICES } from "@/features/build/buildView";
 import { BuildSpellEditor } from "@/features/admin/BuildSpellEditor";
 import { fetchBuildRows, type BuildRow } from "@/features/admin/BuildPicker";
 import { ImageSelect } from "@/features/admin/ImageSelect";
@@ -133,14 +134,6 @@ const ITEM_TIER_CHOICES = [
 ];
 // "none" = ยังไม่ได้ใส่ tier (ไอเทมเดิมยังไม่มีค่า) ช่วยให้ไล่ใส่ให้ครบ
 const ITEM_TIER_FILTERS = [...ITEM_TIER_CHOICES, { value: "none", label: "ยังไม่ระบุ" }];
-const ITEM_TYPE_CHOICES = [
-  { value: "physical", label: "โจมตี" },
-  { value: "magic", label: "เวท" },
-  { value: "defense", label: "ป้องกัน" },
-  { value: "boots", label: "เคลื่อนที่" },
-  { value: "jungle", label: "ป่า" },
-  { value: "support", label: "ซัพพอร์ต" },
-];
 const ITEM_TYPE_LABEL: Record<string, string> = Object.fromEntries(ITEM_TYPE_CHOICES.map((o) => [o.value, o.label]));
 // ไอคอนสกิลและรูนเป็นวงกลม ส่วนฮีโร่/ไอเทมเป็นสี่เหลี่ยมมุมมน
 const ROUND = "rounded-[50%]";

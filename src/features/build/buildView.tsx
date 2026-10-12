@@ -17,6 +17,15 @@ export const RUNE_COLOR_VIEW = [
   { k: "purple", label: "ม่วง", hex: "#a855f7" },
   { k: "green", label: "เขียว", hex: "#22c55e" },
 ] as const;
+// ประเภทไอเทม (ค่าใน items.role_tags) ใช้ทั้งชิปกรองฝั่งแอดมินและกริดเลือกไอเทมของตัวสร้างบิลด์
+export const ITEM_TYPE_CHOICES = [
+  { value: "physical", label: "โจมตี" },
+  { value: "magic", label: "เวท" },
+  { value: "defense", label: "ป้องกัน" },
+  { value: "boots", label: "เคลื่อนที่" },
+  { value: "jungle", label: "ป่า" },
+  { value: "support", label: "ซัพพอร์ต" },
+];
 
 export interface ViewItem { slug: string; name: string; icon?: string; phase: Phase; reason?: string }
 export interface ViewRune { key: string; name: string; icon?: string; color?: string; quantity: number }
@@ -91,7 +100,6 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
     ...RUNE_COLOR_VIEW.flatMap((c) => build.runes.filter((r) => r.color === c.k)),
     ...build.runes.filter((r) => !r.color || !KNOWN_COLORS.has(r.color)),
   ];
-  const hexOf = (c?: string) => RUNE_COLOR_VIEW.find((x) => x.k === c)?.hex ?? "#5C616D";
 
   return (
     <div className="space-y-3">
@@ -159,7 +167,7 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
           <div className="flex flex-wrap items-start gap-4">
             {orderedRunes.map((r) => (
               <Link key={r.key} to={catalogPath("runes", r.name)} title={r.name} aria-label={r.name} className="flex flex-col items-center transition hover:brightness-125">
-                <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[50%] border-2 bg-bg-raised" style={{ borderColor: hexOf(r.color) }}>
+                <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[50%] bg-bg-raised">
                   <Thumb src={r.icon} label={r.name} round className="h-full w-full" />
                 </span>
                 <span className="-mt-2 rounded-full border border-border bg-bg px-1.5 py-0.5 text-[10px] font-semibold leading-none">×{r.quantity}</span>

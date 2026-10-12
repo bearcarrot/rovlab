@@ -563,10 +563,9 @@ export function RuneSlots({
                       title={s.opt.label}
                       onPointerDown={dnd.bind(s.row.id)}
                       onContextMenu={(e) => e.preventDefault()}
-                      className={`flex aspect-square items-center justify-center overflow-hidden rounded-[50%] border-2 bg-bg-surface ${
-                        hot(s.row.id) ? "ring-2 ring-accent" : ""
+                      className={`flex aspect-square items-center justify-center overflow-hidden rounded-[50%] bg-bg-surface ${
+                        hot(s.row.id) ? "ring-2 ring-accent" : i >= max ? "ring-2 ring-loss" : ""
                       }`}
-                      style={{ borderColor: i >= max ? "#ef4444" : hex }}
                     >
                       <Thumb src={s.opt.icon} label={s.opt.label} round className="h-full w-full" />
                     </span>
