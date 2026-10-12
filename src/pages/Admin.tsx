@@ -90,6 +90,8 @@ type Cfg = {
   // ค้นหา + เรียงตามชื่อฝั่งเบราว์เซอร์ ใช้กับตารางที่ชื่อฮีโร่มาจากการอ้างอิง (ไม่ใช่คอลัมน์ในตาราง)
   // ค้นได้ทั้งชื่ออังกฤษ/ไทย และพิมพ์ไม่ต้องใส่ช่องว่าง/เครื่องหมายก็เจอ (เช่น "azzenka" = Azzen'Ka)
   clientSearch?: boolean;
+  // ค้นหาคอลัมน์อื่นด้วยพร้อมกับ search (เช่น ชื่อไทยของฮีโร่) ใช้ OR
+  searchAlso?: string[];
   // ชิปกรองฮีโร่ (ค่าที่เลือกจำไว้ตามแท็บ รีเฟรชแล้วไม่หาย)
   // true = ตำแหน่ง + เลน, "role" = เฉพาะตำแหน่ง (แท็บที่เลนถูกใช้เลือกลิสต์ไปแล้ว)
   heroChips?: boolean | "role";
@@ -169,6 +171,7 @@ const CFG: Record<string, Cfg> = {
     add: true,
     search: "name",
     heroChips: true,
+    searchAlso: ["name_th"],
     cols: [
       { k: "slug" },
       { k: "name" },
@@ -187,7 +190,7 @@ const CFG: Record<string, Cfg> = {
   // ชื่อ ไอคอน และลำดับของตำแหน่ง/เลน (ทุกหน้าใช้ชุดเดียวกันจาก DB) ว่าง = แสดงเฉพาะข้อความ
   // รหัส (code) แก้ไม่ได้: ถูกอ้างจากฮีโร่ / สถิติ / Tier / ตัวกรอง
   roleIcons: {
-    label: "ตำแหน่ง (Role)",
+    label: "ตำแหน่ง",
     table: "hero_roles",
     order: "sort_order",
     noDelete: true,
@@ -199,7 +202,7 @@ const CFG: Record<string, Cfg> = {
     ],
   },
   laneIcons: {
-    label: "เลน (Lane)",
+    label: "เลน",
     table: "hero_lanes",
     order: "sort_order",
     noDelete: true,
@@ -1004,7 +1007,13 @@ function Editor({
     }
     let r = db.from(cfg.table).select("*");
     if (cfg.filter) r = r.eq(cfg.filter.col, fv);
-    if (cfg.search && q) r = r.ilike(cfg.search, `%${q}%`);
+    if (cfg.search && q) {
+      if (cfg.searchAlso?.length) {
+        // ตัดอักขระที่เป็นไวยากรณ์ของ PostgREST .or() ออก ไม่ให้คำค้นทำให้ฟิลเตอร์พัง
+        const t = q.replace(/[,()*%\\]/g, " ").trim();
+        if (t) r = r.or([cfg.search, ...cfg.searchAlso].map((c) => `${c}.ilike.%${t}%`).join(","));
+      } else r = r.ilike(cfg.search, `%${q}%`);
+    }
     if (cfg.order) r = r.order(cfg.order, { ascending: cfg.asc ?? true });
     const { data, error } = await r;
     if (error) err(error.message);
@@ -1269,7 +1278,7 @@ function Editor({
               className={`${inp} sm:w-64`}
               type="search"
               autoComplete="off"
-              placeholder={cfg.clientSearch ? "ค้นหาชื่อฮีโร่ (อังกฤษ/ไทย)..." : "ค้นหาชื่อ..."}
+              placeholder={cfg.clientSearch || cfg.searchAlso ? "ค้นหาชื่อฮีโร่ (อังกฤษ/ไทย)..." : "ค้นหาชื่อ..."}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -1555,6 +1564,8 @@ const CUSTOM_TABS: Record<string, { label: string; after: string; render: () => 
 };
 // กลุ่มแท็บ: "build" = หน้า Build Management (บิลด์ + 4 ตัวแก้ไขในบิลด์) / "rest" = แท็บที่เหลือในโหมด "แก้ไขข้อมูล"
 const BUILD_TAB_KEYS = ["builds", "buildItems", "buildRune", "buildSpell", "buildEnchant"];
+// ไอเทม/รูน แก้ได้ที่โหมด "ฐานข้อมูลเกม" แล้ว จึงไม่แสดงเป็นชิปในโหมด "แก้ไขข้อมูล" (ยังใช้ CFG ตัวเดิมเป็นข้อมูลอ้างอิงให้หน้าบิลด์)
+const HIDDEN_TAB_KEYS = ["items", "rune"];
 const isCustomTab = (k: string) => Object.prototype.hasOwnProperty.call(CUSTOM_TABS, k);
 // ลำดับแท็บทั้งหมด: ตาราง CFG ตามเดิม โดยแท็บ custom แทรกต่อจากแท็บที่ระบุใน `after`
 const TAB_KEYS: string[] = (() => {
@@ -1680,7 +1691,7 @@ export function Admin({ group = "rest" }: { group?: "build" | "rest" }) {
   const { isAdmin, checking, error } = useIsAdmin();
   const toast = useToast();
   // แท็บที่เปิดอยู่จำไว้ด้วย รีเฟรชแล้วกลับมาที่แท็บเดิมพร้อมตัวกรองที่เลือกไว้
-  const keys = useMemo(() => TAB_KEYS.filter((k) => BUILD_TAB_KEYS.includes(k) === (group === "build")), [group]);
+  const keys = useMemo(() => TAB_KEYS.filter((k) => !HIDDEN_TAB_KEYS.includes(k) && BUILD_TAB_KEYS.includes(k) === (group === "build")), [group]);
   const [savedTab, setTab] = usePersistedState<string>(group === "build" ? "admin:tab:build" : "admin:tab", keys[0]);
   const tab = keys.includes(savedTab) ? savedTab : keys[0];
   const [refs, setRefs] = useState<Record<string, RefOpt[]>>({});
