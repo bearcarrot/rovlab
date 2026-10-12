@@ -22,26 +22,33 @@ interface TopDraft {
   enemy: HeroKey[];
 }
 
-// ดราฟต์ชุมชนที่มียอดถูกใจสูงสุด: ใช้ RPC เดียวกับหน้า Draft (list_community_drafts, sort = liked)
+// ดราฟต์ชุมชนที่มียอดถูกใจสูงสุด: ใช้ RPC เดียวกับหน้า Draft (list_community_drafts)
+// list_community_drafts คืนคอลัมน์ series เฉพาะเมื่อระบุ p_only_id เท่านั้น (แบบลิสต์คืน null)
+// จึงต้องเรียก 2 ครั้ง: (1) หารายการที่ไลก์สูงสุด (2) ดึง series ของรายการนั้น
 // RLS/RPC ซ่อนรายการที่ hidden อยู่แล้ว; ถ้าไม่มีรายการที่มีไลก์ ≥ 1 ให้คืน null (แสดงภาพประกอบเดิมแทน)
 async function fetchTopLikedDraft(): Promise<TopDraft | null> {
-  const { data, error } = await supabase.rpc("list_community_drafts", {
+  const list = await supabase.rpc("list_community_drafts", {
     p_sort: "liked",
     p_q: null,
     p_limit: 1,
     p_offset: 0,
   });
-  if (error || !data?.length) return null;
-  const r = data[0];
-  const likes = Number(r.like_count ?? 0);
+  if (list.error || !list.data?.length) return null;
+  const top = list.data[0];
+  const likes = Number(top.like_count ?? 0);
+  if (likes < 1 || typeof top.id !== "string") return null;
+
+  const one = await supabase.rpc("list_community_drafts", { p_only_id: top.id, p_limit: 1 });
+  if (one.error || !one.data?.length) return null;
+  const r = one.data[0];
   const series = parseSeries(r.series);
   const game = series?.games[0];
-  if (!series || !game || likes < 1 || typeof r.id !== "string") return null;
+  if (!series || !game) return null;
   const keep = (picks: (HeroKey | null)[]) => picks.filter((h): h is HeroKey => h !== null);
   const mine = keep(game.mine.picks);
   if (mine.length === 0) return null;
   return {
-    id: r.id,
+    id: top.id,
     title: typeof r.title === "string" ? r.title : "",
     likes,
     format: series.format,
