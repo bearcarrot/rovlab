@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild, type ViewBuild } from "@/features/build/buildView";
@@ -19,9 +20,9 @@ import type { HeroSummary } from "@/types/hero";
 
 type Tab = "recommended" | "community" | "mine";
 const TABS: [Tab, string][] = [
-  ["recommended", "บิลด์แนะนำ"],
-  ["mine", "My"],
-  ["community", "Community Build"],
+  ["recommended", "Build แนะนำ"],
+  ["mine", "Build ของฉัน"],
+  ["community", "Community"],
 ];
 
 // การ์ดเลือกฮีโร่แบบเดียวกับหน้า Matchup (ตัวกรอง Role/Lane + ป้าย balance)
@@ -236,18 +237,9 @@ export function ItemBuild() {
         <p className="mt-1 text-sm text-text-muted">บิลด์แนะนำ ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝง สร้างเอง และแบ่งปันให้คนอื่น</p>
       </div>
 
-      <div role="tablist" aria-label="หมวดบิลด์" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>:first-child]:ml-auto [&>:last-child]:mr-auto">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
         {TABS.map(([t, label]) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => update("tab", t)}
-            className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-4 text-sm transition ${tab === t ? "border-accent bg-accent font-medium text-accent-fg" : "border-border bg-bg-surface text-text-muted hover:text-text"}`}
-          >
-            {label}
-          </button>
+          <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
         ))}
       </div>
 
