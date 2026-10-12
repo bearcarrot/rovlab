@@ -21,13 +21,14 @@ import { useIsAdmin } from "@/features/auth/useIsAdmin";
 
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
+// ลำดับเดียวกับ Sidebar และการ์ดทางลัดในหน้า Home
 const ALL_ITEMS: NavItem[] = [
   { to: "/", label: "หน้าแรก", icon: Home, end: true },
-  { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
+  { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
   { to: "/tier-list", label: "Tier List", icon: ListOrdered },
   { to: "/counter-pick", label: "Counter Pick", icon: Swords },
   { to: "/matchup", label: "Matchup", icon: Scale },
-  { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
+  { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
   { to: "/build", label: "Item Build", icon: Hammer },
   { to: "/game-data", label: "คลังข้อมูลเกม", icon: Library },
   { to: "/stats", label: "สถิติ", icon: BarChart3 },
