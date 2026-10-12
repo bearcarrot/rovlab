@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { explainDbError, verifyState, VERIFY_LABEL } from "@/lib/catalogAdmin";
+import { SpellPicker, type SpellOpt } from "@/features/build/SpellPicker";
 import { BuildPicker, type BuildRow } from "./BuildPicker";
-import { Thumb } from "./ImageSelect";
 
 const db: any = supabase;
 
@@ -24,6 +23,7 @@ type Spell = {
 const PICKABLE = ["active", "seasonal"];
 
 // แท็บ "สกิลชาเลนเจอร์ในบิลด์": 1 บิลด์ตั้งสกิลชาเลนเจอร์ได้ 1 อัน (item_builds.challenger_spell_id) แตะการ์ดเพื่อเลือก / แตะซ้ำที่อันเดิมหรือกด "ล้าง" เพื่อเอาออก
+// หน้าตาของตัวเลือกอยู่ที่ features/build/SpellPicker (ใช้ร่วมกับตัวสร้างบิลด์ของผู้ใช้) ไฟล์นี้ดูแลเฉพาะส่วนแอดมิน: โหลดสกิลและเขียน DB ทันที
 // แก้รายละเอียดของสกิล (ชื่อ ไอคอน คูลดาวน์) ได้ที่ "ฐานข้อมูลเกม" → สกิลชาเลนเจอร์
 // ส่ง build/heroName เข้ามา = โหมดควบคุม (ใช้ในหน้า Build Management ที่เลือกฮีโร่/บิลด์ไว้แล้ว ไม่แสดงช่องเลือกฮีโร่ซ้ำ)
 // onChanged = แจ้งหน้าแม่ให้โหลดบิลด์ใหม่หลังบันทึก (challenger_spell_id เปลี่ยน)
@@ -90,7 +90,20 @@ export function BuildSpellEditor({ build: buildProp, heroName: heroNameProp, onC
     onChanged?.();
   }
 
-  const current = spells.find((s) => s.id === build?.challenger_spell_id) ?? null;
+  const opts: SpellOpt[] = useMemo(
+    () =>
+      spells.map((s) => ({
+        id: s.id,
+        name: s.name,
+        nameTh: s.name_th,
+        description: s.description,
+        cooldownSeconds: s.cooldown_seconds,
+        icon: s.icon_url ?? undefined,
+        pickable: PICKABLE.includes(s.status),
+        note: VERIFY_LABEL[verifyState(s)],
+      })),
+    [spells]
+  );
 
   return (
     <div className="space-y-4">
@@ -110,63 +123,14 @@ export function BuildSpellEditor({ build: buildProp, heroName: heroNameProp, onC
           <p className="text-xs font-medium text-text-muted">
             {heroName} · {build.patchCode} · {build.source}
           </p>
-
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-bg-raised p-3">
-            {current ? (
-              <>
-                <Thumb src={current.icon_url ?? undefined} label={current.name} round className="h-12 w-12" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {current.name} <span className="text-text-muted">· {current.name_th}</span>
-                  </p>
-                  <p className="text-xs text-text-faint">
-                    {current.cooldown_seconds != null ? `คูลดาวน์ ${current.cooldown_seconds} วิ · ` : ""}
-                    {VERIFY_LABEL[verifyState(current)]}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={saving !== null}
-                  onClick={() => void setSpell(null)}
-                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-loss/40 bg-loss/10 px-3 text-sm text-loss hover:bg-loss/20 disabled:opacity-50"
-                >
-                  {saving === "clear" ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                  ล้าง
-                </button>
-              </>
-            ) : (
-              <p className="text-sm text-text-faint">บิลด์นี้ยังไม่ได้ตั้งสกิลชาเลนเจอร์</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {spells.map((s) => {
-              const selected = s.id === build.challenger_spell_id;
-              const pickable = PICKABLE.includes(s.status);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={saving !== null || (!pickable && !selected)}
-                  aria-pressed={selected}
-                  title={pickable ? s.description : "สกิลนี้ยังไม่เปิดใช้ในเกมจริง (inactive / Test Server)"}
-                  onClick={() => void setSpell(selected ? null : s.id)}
-                  className={`flex min-h-[88px] flex-col items-center justify-center gap-1 rounded-lg border bg-bg p-2 text-center transition hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-40 ${
-                    selected ? "border-accent ring-2 ring-accent" : "border-border"
-                  }`}
-                >
-                  {saving === s.id ? (
-                    <Loader2 className="h-10 w-10 animate-spin text-text-faint" />
-                  ) : (
-                    <Thumb src={s.icon_url ?? undefined} label={s.name} round className="h-10 w-10" />
-                  )}
-                  <span className="w-full truncate text-xs font-medium leading-tight">{s.name}</span>
-                  <span className="w-full truncate text-[10px] leading-tight text-text-faint">{s.name_th}</span>
-                </button>
-              );
-            })}
-            {spells.length === 0 && <p className="col-span-full py-4 text-center text-sm text-text-muted">ยังไม่มีสกิลชาเลนเจอร์ในฐานข้อมูล</p>}
-          </div>
+          <SpellPicker
+            spells={opts}
+            value={build.challenger_spell_id ?? null}
+            onChange={(id) => void setSpell(id)}
+            busyId={saving}
+            disabled={saving !== null}
+            emptyCurrentText="บิลด์นี้ยังไม่ได้ตั้งสกิลชาเลนเจอร์"
+          />
         </section>
       )}
     </div>
