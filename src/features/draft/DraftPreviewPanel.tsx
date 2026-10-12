@@ -7,10 +7,13 @@ const PREVIEW_METERS = [
 ];
 
 // ภาพประกอบแบบ static (ไม่มี request) ใช้เป็นค่าเริ่มต้นและเป็น fallback เมื่อยังไม่มีดราฟต์ชุมชนที่มียอดถูกใจ
-// min-h เท่ากับการ์ดดราฟต์ชุมชน เพื่อไม่ให้เลย์เอาต์ขยับตอนสลับ (กัน CLS)
+// min-h เท่ากับ CommunityDraftSpotlight (208px) เพื่อไม่ให้เลย์เอาต์ขยับตอนสลับ (กัน CLS) และจัดเนื้อหาให้อยู่กึ่งกลาง
 export function DraftPreviewPanel() {
   return (
-    <div aria-hidden="true" className="min-h-[200px] space-y-3 rounded-card border border-border bg-bg-surface p-4">
+    <div
+      aria-hidden="true"
+      className="flex min-h-[208px] flex-col justify-center gap-3 rounded-card border border-border bg-bg-surface p-4"
+    >
       {PREVIEW_METERS.map((m) => (
         <div key={m.label}>
           <p className="mb-1 text-xs text-text-muted">{m.label}</p>
