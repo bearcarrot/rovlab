@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroes } from "@/services/heroes";
 import { trackActivity } from "@/services/activity";
-import { deleteMatch, listMyMatches, saveMatch, scanScoreboard } from "@/services/matches";
+import { MAX_SCAN_IMAGES, deleteMatch, listMyMatches, saveMatch, scanScoreboards } from "@/services/matches";
 import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
 import { MIN_GAMES_FOR_INSIGHTS, buildInsights, byHero, summarize } from "@/features/matches/stats";
@@ -23,10 +23,13 @@ import type { MatchRecord, MeSource } from "@/types/match";
 const NO_HEROES: HeroSummary[] = [];
 const NO_MATCHES: MatchRecord[] = [];
 
+// One analysed screenshot waiting for the user's review (up to MAX_SCAN_IMAGES per upload, reviewed one after another).
+type ReviewItem = { draft: ScanDraft; initial: string; meSource: MeSource };
+
 type Phase =
   | { kind: "idle" }
   | { kind: "scanning" }
-  | { kind: "review"; draft: ScanDraft; initial: string; meSource: MeSource; remaining: number };
+  | { kind: "review"; items: ReviewItem[]; index: number; remaining: number };
 
 const messageOf = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
 
@@ -46,47 +49,79 @@ export function Matches() {
   const summary = useMemo(() => summarize(matches), [matches]);
   const insights = useMemo(() => buildInsights(matches), [matches]);
   const heroLines = useMemo(() => byHero(matches).slice(0, 5), [matches]);
-  const issues = useMemo(() => (phase.kind === "review" ? checkDraft(phase.draft, heroes) : []), [phase, heroes]);
+  const current = phase.kind === "review" ? phase.items[phase.index] : null;
+  const issues = useMemo(() => (current ? checkDraft(current.draft, heroes) : []), [current, heroes]);
 
-  async function onFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow picking the same file again
-    if (!file) return;
+  async function onFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow picking the same files again
+    if (files.length === 0) return;
+    if (files.length > MAX_SCAN_IMAGES) {
+      toast.error(`เลือกได้ครั้งละไม่เกิน ${MAX_SCAN_IMAGES} รูป`);
+      return;
+    }
     setPhase({ kind: "scanning" });
 
-    let base64: string;
-    try {
-      base64 = await fileToScoreboardBase64(file);
-    } catch (err) {
-      // rejected on the device (not an image / not landscape): nothing was sent, so it is not an analysis attempt
-      toast.error(messageOf(err, "อ่านไฟล์รูปไม่ได้"));
+    // Prepare on the device first. Files rejected here (not an image / not landscape) are never sent, so they are not
+    // analysis attempts and cost no quota.
+    const prepared: { name: string; base64: string }[] = [];
+    const rejected: string[] = [];
+    for (const f of files) {
+      try {
+        prepared.push({ name: f.name, base64: await fileToScoreboardBase64(f) });
+      } catch (err) {
+        rejected.push(files.length > 1 ? `${f.name}: ${messageOf(err, "อ่านไฟล์ไม่ได้")}` : messageOf(err, "อ่านไฟล์ไม่ได้"));
+      }
+    }
+    if (rejected.length > 0) toast.error(rejected.join("; "));
+    if (prepared.length === 0) {
       setPhase({ kind: "idle" });
       return;
     }
 
     try {
-      const res = await scanScoreboard(base64);
-      void trackActivity("match_analysis_attempted", { ok: true });
-      const draft = scanToDraft(res.scan);
-      setPhase({ kind: "review", draft, initial: fingerprint(draft), meSource: res.meSource, remaining: res.remaining });
+      const res = await scanScoreboards(prepared.map((p) => p.base64));
+      const items: ReviewItem[] = [];
+      const failed: string[] = [];
+      for (const r of res.results) {
+        void trackActivity("match_analysis_attempted", { ok: r.ok });
+        if (r.ok) {
+          const draft = scanToDraft(r.scan);
+          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource });
+        } else {
+          const name = prepared[r.index - 1]?.name ?? `รูปที่ ${r.index}`;
+          failed.push(prepared.length > 1 ? `${name}: ${r.error}` : r.error);
+        }
+      }
+      if (failed.length > 0) toast.error(failed.join("; "));
+      if (items.length === 0) {
+        setPhase({ kind: "idle" });
+        return;
+      }
+      setPhase({ kind: "review", items, index: 0, remaining: res.remaining });
     } catch (err) {
-      void trackActivity("match_analysis_attempted", { ok: false });
+      prepared.forEach(() => void trackActivity("match_analysis_attempted", { ok: false }));
       toast.error(messageOf(err, "วิเคราะห์รูปไม่สำเร็จ"));
       setPhase({ kind: "idle" });
     }
   }
 
+  /** Moves to the next screenshot in the batch, or back to the upload box after the last one. */
+  function advance() {
+    setPhase((p) => (p.kind === "review" && p.index + 1 < p.items.length ? { ...p, index: p.index + 1 } : { kind: "idle" }));
+  }
+
   async function onSave() {
-    if (phase.kind !== "review" || !user) return;
+    if (phase.kind !== "review" || !current || !user) return;
     setSaving(true);
-    const edited = fingerprint(phase.draft) !== phase.initial;
+    const edited = fingerprint(current.draft) !== current.initial;
     try {
-      await saveMatch(draftToRow(phase.draft, heroes, user.id, edited));
+      await saveMatch(draftToRow(current.draft, heroes, user.id, edited));
       // logged only here, after the insert has succeeded
       void trackActivity("match_saved", { edited });
-      setPhase({ kind: "idle" });
       toast.success("บันทึกแมตช์แล้ว");
       matchesQ.refetch();
+      advance();
     } catch (err) {
       toast.error(messageOf(err, "บันทึกแมตช์ไม่สำเร็จ"));
     } finally {
@@ -114,6 +149,7 @@ export function Matches() {
   }
 
   const scanning = phase.kind === "scanning";
+  const batch = phase.kind === "review" && phase.items.length > 1 ? ` (${phase.index + 1}/${phase.items.length})` : "";
 
   return (
     <div className="space-y-6">
@@ -128,22 +164,24 @@ export function Matches() {
       {/* Upload / review */}
       <Card>
         <CardHeader>
-          <CardTitle>{phase.kind === "review" ? "ตรวจผลที่อ่านได้" : "เพิ่มแมตช์จากรูป"}</CardTitle>
+          <CardTitle>{phase.kind === "review" ? `ตรวจผลที่วิเคราะห์ได้${batch}` : "เพิ่มแมตช์จากรูป"}</CardTitle>
           {phase.kind === "review" && (
             <span className="text-xs text-text-faint">เหลือโควต้าวิเคราะห์วันนี้ {phase.remaining} รูป</span>
           )}
         </CardHeader>
         <CardContent className="space-y-3">
-          {phase.kind === "review" ? (
+          {phase.kind === "review" && current ? (
             <ScanReview
-              draft={phase.draft}
-              onChange={(draft) => setPhase({ ...phase, draft })}
+              draft={current.draft}
+              onChange={(draft) =>
+                setPhase({ ...phase, items: phase.items.map((it, i) => (i === phase.index ? { ...it, draft } : it)) })
+              }
               heroes={heroes}
               issues={issues}
-              meSource={phase.meSource}
+              meSource={current.meSource}
               saving={saving}
               onSave={onSave}
-              onCancel={() => setPhase({ kind: "idle" })}
+              onCancel={advance}
             />
           ) : (
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:items-start">
@@ -156,15 +194,15 @@ export function Matches() {
                 >
                   {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   {scanning ? "กำลังวิเคราะห์" : "เลือกรูปสรุปผลการเล่น"}
-                  <input type="file" accept="image/*" onChange={onFile} disabled={scanning} className="sr-only" />
+                  <input type="file" accept="image/*" multiple onChange={onFiles} disabled={scanning} className="sr-only" />
                 </label>
                 <ul className="list-disc space-y-1 pl-5 text-xs text-text-muted">
                   <li>ใช้สกรีนชอตแนวนอนที่เห็นผู้เล่นครบ 10 คน (ไม่ต้องครอป ระบบตัดแถบ UID ด้านล่างทิ้งให้ก่อนส่ง)</li>
+                  <li>เลือกได้สูงสุด {MAX_SCAN_IMAGES} รูปต่อครั้ง แล้วตรวจทีละแมตช์ โควต้าต่อวันนับตามจำนวนรูป</li>
                   <li>
                     รูปจะถูกส่งให้ Google Gemini อ่านตัวเลข ระบบไม่เก็บรูปต้นฉบับ และไม่บันทึกชื่อของผู้เล่นคนอื่น
                     (ดู <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>)
                   </li>
-                  <li>จำกัดจำนวนรูปต่อวัน เพื่อไม่ให้โควต้าของระบบหมด</li>
                   <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
                 </ul>
               </div>

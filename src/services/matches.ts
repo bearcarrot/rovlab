@@ -1,18 +1,24 @@
 import { supabase } from "@/lib/supabase";
 import { functionErrorMessage } from "@/lib/functionError";
 import type { draftToRow } from "@/features/matches/scan";
-import type { MatchRecord, ScanResponse, StoredPlayer } from "@/types/match";
+import type { MatchRecord, ScanBatchResponse, StoredPlayer } from "@/types/match";
 
 // Scoreboard OCR (Edge Function `scoreboard-ocr`) and the user's own saved matches (public.match_results, RLS: own rows).
 // Errors thrown here carry a Thai message that is safe to show in a toast; the raw database error goes to the console.
 
 export type MatchInsert = ReturnType<typeof draftToRow>;
 
-/** Sends a client-resized JPEG (base64) to be read. Counts against the daily quota; nothing is saved. */
-export async function scanScoreboard(base64: string): Promise<ScanResponse> {
-  const { data, error } = await supabase.functions.invoke("scoreboard-ocr", { body: { image: base64 } });
-  if (error) throw new Error(await functionErrorMessage(error, "อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง"));
-  return data as ScanResponse;
+/** Same limit as the Edge Function. One request = one Gemini call, whatever the number of images. */
+export const MAX_SCAN_IMAGES = 3;
+
+/**
+ * Sends 1-3 client-resized JPEGs (base64) in ONE request. The daily per-user quota counts images, the system quota counts
+ * requests. Nothing is saved. Entries come back in the same order as `images` (`index` is 1-based).
+ */
+export async function scanScoreboards(images: string[]): Promise<ScanBatchResponse> {
+  const { data, error } = await supabase.functions.invoke("scoreboard-ocr", { body: { images } });
+  if (error) throw new Error(await functionErrorMessage(error, "วิเคราะห์รูปไม่สำเร็จ ลองใหม่อีกครั้ง"));
+  return data as ScanBatchResponse;
 }
 
 const COLS =
