@@ -43,8 +43,13 @@ export function ColIcon({ kind, className }: { kind: StatKind; className?: strin
   );
 }
 
-/** One row = name column + 5 fixed stat columns, so header icons and player values always line up. */
-export const STAT_GRID = "grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_2.5rem_3.75rem_2.75rem] items-center gap-x-1";
+/**
+ * One row = name column + 5 fixed stat columns, so header icons and player values always line up.
+ * Phone: narrow stat columns (K/D/A fit 2 digits, gold fits "10,792") so the hero name gets the room.
+ * sm and up: the wider columns.
+ */
+export const STAT_GRID =
+  "grid grid-cols-[minmax(0,1fr)_1.75rem_1.75rem_1.75rem_3.25rem_2.25rem] items-center gap-x-0.5 sm:grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_2.5rem_3.75rem_2.75rem] sm:gap-x-1";
 
 export function StatHeader({ team, label, score }: { team: TeamSide; label: string; score: number }) {
   return (
