@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { SITE } from "@/lib/siteConfig";
 import type { HeroSummary, Tier } from "@/types/hero";
 
 // ---------------------------------------------------------------------------
@@ -113,9 +114,9 @@ export function Home() {
     <div className="space-y-8">
       {/* 1. Product intro: text only, no hero image, so LCP is the headline */}
       <section className="space-y-4 pt-1">
-        <p className="text-xs font-medium tracking-wide text-accent">RoV META &amp; DRAFT INTELLIGENCE</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-accent">{SITE.taglineEn}</p>
         <h1 className="font-display text-2xl font-semibold leading-snug sm:text-3xl">
-          ดราฟให้เหนือกว่า ด้วยข้อมูล ไม่ใช่การเดา
+          {SITE.taglineTh}
         </h1>
         <p className="max-w-xl text-sm leading-relaxed text-text-muted">
           วิเคราะห์องค์ประกอบทีม หาเคาน์เตอร์ และเลือกฮีโร่ให้เข้ากับแผนการเล่น
