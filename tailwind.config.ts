@@ -17,7 +17,8 @@ export default {
         text: {
           DEFAULT: "#F2F3F5",
           muted: "#8B909B",
-          faint: "#5C616D",
+          // เดิม #5C616D (คอนทราสต์ ~3:1 บนพื้นเข้ม ไม่ผ่าน WCAG AA สำหรับตัวอักษรเล็ก) → ปรับให้ ≥ 4.5:1 บน bg/surface
+          faint: "#7D838F",
         },
         accent: {
           DEFAULT: "#E8A33D", // ember gold — rank/tier accent
