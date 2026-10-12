@@ -20,11 +20,11 @@ import { RANK_LABEL, useRank } from "@/lib/rank";
 import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyMatchesCard } from "@/features/matches/MyMatchesCard";
+import { DraftPreviewSlot } from "@/features/draft/DraftPreviewSlot";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/siteConfig";
 import type { HeroSummary, Tier } from "@/types/hero";
@@ -56,12 +56,6 @@ const DRAFT_POINTS = [
   "ดูแนวหน้า Crowd Control ความคล่องตัว ความคงทน และกำลังช่วงต้น-ปลายเกม",
   "แนะนำฮีโร่ตัวถัดไปพร้อมระดับดาว ความเสี่ยง และเหตุผล",
   "กดถาม Coach Ai ให้อธิบายเหตุผลของแต่ละตัวเลือก (ต้องล็อกอิน)",
-];
-
-const PREVIEW_METERS = [
-  { label: "แนวหน้า", value: 30 },
-  { label: "Crowd Control", value: 60 },
-  { label: "ความคล่องตัว", value: 80 },
 ];
 
 const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
@@ -181,7 +175,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 3. What Draft Assistant evaluates (static, no extra requests) */}
+      {/* 3. What Draft Assistant evaluates. Right column: static preview, swapped for the most-liked community draft once it scrolls near the viewport */}
       <section aria-labelledby="draft-heading" className="grid gap-4 md:grid-cols-2 md:items-center">
         <div className="space-y-3">
           <h2 id="draft-heading" className="font-display text-base font-semibold">Draft Assistant ช่วยตัดสินใจอะไรได้บ้าง</h2>
@@ -207,15 +201,7 @@ export function Home() {
           </Link>
         </div>
 
-        <div aria-hidden="true" className="space-y-3 rounded-card border border-border bg-bg-surface p-4">
-          {PREVIEW_METERS.map((m) => (
-            <div key={m.label}>
-              <p className="mb-1 text-xs text-text-muted">{m.label}</p>
-              <Progress value={m.value} />
-            </div>
-          ))}
-          <p className="pt-1 text-[11px] text-text-faint">ภาพประกอบเพื่ออธิบายหน้าตา ไม่ใช่ผลวิเคราะห์จริง</p>
-        </div>
+        <DraftPreviewSlot heroes={data ?? []} />
       </section>
 
       {/* 4. Current meta: snapshot of Tier List (S+ / S) and the Stats page (top 6 each) */}

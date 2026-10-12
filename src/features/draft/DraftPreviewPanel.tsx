@@ -1,0 +1,23 @@
+import { Progress } from "@/components/ui/progress";
+
+const PREVIEW_METERS = [
+  { label: "แนวหน้า", value: 30 },
+  { label: "Crowd Control", value: 60 },
+  { label: "ความคล่องตัว", value: 80 },
+];
+
+// ภาพประกอบแบบ static (ไม่มี request) ใช้เป็นค่าเริ่มต้นและเป็น fallback เมื่อยังไม่มีดราฟต์ชุมชนที่มียอดถูกใจ
+// min-h เท่ากับการ์ดดราฟต์ชุมชน เพื่อไม่ให้เลย์เอาต์ขยับตอนสลับ (กัน CLS)
+export function DraftPreviewPanel() {
+  return (
+    <div aria-hidden="true" className="min-h-[200px] space-y-3 rounded-card border border-border bg-bg-surface p-4">
+      {PREVIEW_METERS.map((m) => (
+        <div key={m.label}>
+          <p className="mb-1 text-xs text-text-muted">{m.label}</p>
+          <Progress value={m.value} />
+        </div>
+      ))}
+      <p className="pt-1 text-[11px] text-text-faint">ภาพประกอบเพื่ออธิบายหน้าตา ไม่ใช่ผลวิเคราะห์จริง</p>
+    </div>
+  );
+}
