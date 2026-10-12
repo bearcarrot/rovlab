@@ -27,9 +27,21 @@ export interface ScanResult {
 /** How the Edge Function identified the user's own row. */
 export type MeSource = "name" | "highlight" | null;
 
+/** Single-image response (legacy shape, still returned when the old `{ image }` body is sent). */
 export interface ScanResponse {
   scan: ScanResult;
   meSource: MeSource;
+  remaining: number;
+  resetsAt: string;
+}
+
+/** One entry per image sent; `index` is 1-based and matches the order the images were sent in. */
+export type ScanBatchItem =
+  | { index: number; ok: true; scan: ScanResult; meSource: MeSource }
+  | { index: number; ok: false; code: "not_scoreboard" | "missing"; error: string };
+
+export interface ScanBatchResponse {
+  results: ScanBatchItem[];
   remaining: number;
   resetsAt: string;
 }
