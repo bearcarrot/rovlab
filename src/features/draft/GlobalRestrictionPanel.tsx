@@ -1,22 +1,28 @@
+import { HeroIcon } from "@/components/HeroIcon";
 import type { HeroSummary } from "@/types/hero";
-import { MiniHero } from "./MiniHero";
 
 /** Heroes one team picked in a single earlier game (one row in the panel). */
 export type RestrictedByGame = { gameNumber: number; heroes: HeroSummary[] };
 
+// ไอคอนขยายตามความกว้างแถว (grid 5 คอลัมน์, aspect-square) แทนชิป 32px ชิดซ้าย ไม่เหลือที่ว่างขวาบนมือถือ
+// max-w-72 จำกัดไม่ให้ใหญ่เกินไปบนจอกว้าง; เกมที่มีฮีโร่น้อยกว่า 5 ตัวไอคอนยังขนาดเท่าเดิม
 function GameRows({ rows }: { rows: RestrictedByGame[] }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {rows.map((r) => (
         <div key={r.gameNumber} className="flex items-center gap-2">
           <span className="w-12 shrink-0 text-xs font-medium text-text-muted">เกม {r.gameNumber}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {r.heroes.length === 0 ? (
-              <span className="text-xs text-text-faint">ยังไม่ได้เลือก</span>
-            ) : (
-              r.heroes.map((h) => <MiniHero key={h.slug} hero={h} showName={false} size="md" />)
-            )}
-          </div>
+          {r.heroes.length === 0 ? (
+            <span className="text-xs text-text-faint">ยังไม่ได้เลือก</span>
+          ) : (
+            <div className="grid max-w-72 flex-1 grid-cols-5 gap-1.5">
+              {r.heroes.map((h) => (
+                <div key={h.slug} title={h.nameTh}>
+                  <HeroIcon icon={h.icon} name={h.name} className="aspect-square h-auto w-full rounded-md" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
