@@ -22,23 +22,25 @@ import { useIsAdmin } from "@/features/auth/useIsAdmin";
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
+// ลำดับเมนูใช้ชุดเดียวกับ MobileDrawer และการ์ดทางลัดในหน้า Home:
+// Draft Assistant → Tier List → Counter Pick → Matchup → ฮีโร่ทั้งหมด → Item Build → คลังข้อมูลเกม → สถิติ → วิเคราะห์เกม → คู่มือ → รายการโปรด
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "หลัก",
     items: [{ to: "/", label: "หน้าแรก", icon: Home, end: true }],
   },
   {
+    label: "ดราฟต์",
+    items: [{ to: "/draft", label: "Draft Assistant", icon: NotebookPen }],
+  },
+  {
     label: "ฮีโร่",
     items: [
-      { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
       { to: "/tier-list", label: "Tier List", icon: ListOrdered },
       { to: "/counter-pick", label: "Counter Pick", icon: Swords },
       { to: "/matchup", label: "Matchup", icon: Scale },
+      { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
     ],
-  },
-  {
-    label: "ดราฟต์",
-    items: [{ to: "/draft", label: "Draft Assistant", icon: NotebookPen }],
   },
   {
     label: "บิลด์ & ข้อมูลเกม",
@@ -48,7 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "สถิติ",
+    label: "สถิติ & วิเคราะห์",
     items: [
       { to: "/stats", label: "สถิติ", icon: BarChart3 },
       { to: "/matches", label: "วิเคราะห์เกม", icon: ClipboardList },

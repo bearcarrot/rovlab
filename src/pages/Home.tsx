@@ -4,6 +4,8 @@ import {
   BarChart3,
   BookOpen,
   Check,
+  Hammer,
+  Library,
   ListOrdered,
   NotebookPen,
   Scale,
@@ -38,11 +40,14 @@ type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
+// ลำดับเดียวกับ Sidebar / MobileDrawer (Draft Assistant เป็นการ์ดใหญ่ด้านบนแยกต่างหาก)
 const TOOLS: { to: string; title: string; desc: string; icon: IconType }[] = [
   { to: "/tier-list", title: "Tier List", desc: "ดูว่าฮีโร่ตัวไหนแรงในเมต้านี้ พร้อมเหตุผลต่อฮีโร่", icon: ListOrdered },
   { to: "/counter-pick", title: "Counter Pick", desc: "เลือกฮีโร่ศัตรู แล้วดูว่าใครสวนได้และสวนอย่างไร", icon: Swords },
   { to: "/matchup", title: "Matchup", desc: "เทียบฮีโร่สองตัวในเลน ช่วงต้น กลาง ปลายเกม", icon: Scale },
   { to: "/heroes", title: "ฮีโร่ทั้งหมด", desc: "ค้นหาและกรองตาม Role / Lane ดูจุดแข็งจุดอ่อน", icon: HeroHelmetIcon },
+  { to: "/build", title: "Item Build", desc: "เลือกฮีโร่เพื่อดูบิลด์แนะนำพร้อมเหตุผล", icon: Hammer },
+  { to: "/game-data", title: "คลังข้อมูลเกม", desc: "รวมไอเทม รูน และข้อมูลเกมให้ค้นหาได้", icon: Library },
 ];
 
 const DRAFT_POINTS = [
@@ -137,14 +142,14 @@ export function Home() {
         </div>
       </section>
 
-      {/* 2. Tools: Draft Assistant leads, the rest follow in priority order */}
+      {/* 2. Tools: Draft Assistant leads, the rest follow in the same order as the Sidebar */}
       <section aria-labelledby="tools-heading" className="space-y-3">
         <h2 id="tools-heading" className="font-display text-base font-semibold">เครื่องมือ</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             to="/draft"
             className={cn(
-              "flex min-h-11 gap-3 rounded-card border border-accent/50 bg-accent/5 p-4 hover:border-accent sm:col-span-2 lg:col-span-4",
+              "flex min-h-11 gap-3 rounded-card border border-accent/50 bg-accent/5 p-4 hover:border-accent sm:col-span-2 lg:col-span-3",
               FOCUS
             )}
           >
