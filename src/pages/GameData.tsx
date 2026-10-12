@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Library, Search } from "lucide-react";
 import {
@@ -77,7 +77,7 @@ function Grid({ empty, children }: { empty: boolean; children: React.ReactNode }
 function Gold({ cost }: { cost: number }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <img src="/gold.png" alt="gold" className="h-3.5 w-3.5 object-contain" loading="lazy" />
+      <img src="/gold.svg" alt="gold" className="h-3.5 w-3.5 object-contain" loading="lazy" />
       {cost.toLocaleString()}
     </span>
   );
@@ -187,19 +187,23 @@ function SpellsTab({ q }: { q: string }) {
   );
 }
 
-// พลังแฝง: แบ่งกลุ่มตาม Tier 1 → 3 (ในแต่ละ Tier เรียงตามสาย แล้วตาม sort_order เดิม); ไอคอนไม่มีพื้นหลัง/ไม่ครอป
+// พลังแฝง: แบ่งกลุ่มตามสาย (เรียงตามลำดับสายในฐานข้อมูล) แล้วแบ่งย่อยตาม Tier 1 → 3 ภายในแต่ละสาย; ไอคอนไม่มีพื้นหลัง/ไม่ครอป
 function EnchantmentsTab({ q }: { q: string }) {
   const [tree, setTree] = useState<string>("");
   const [tier, setTier] = useState<string>("");
   const d = useAsync(() => getCatalogEnchantments(), []);
-  const treeName = useMemo(() => new Map((d.status === "success" ? d.data.trees : []).map((t: EnchantmentTree) => [t.id, t.nameTh])), [d]);
   if (d.status === "loading") return <Skeleton className="h-40" />;
   if (d.status === "error") return <ErrorState message={d.message} onRetry={d.refetch} />;
-  const treeRank = new Map<string, number>(d.data.trees.map((t: EnchantmentTree, i: number): [string, number] => [t.id, i]));
-  const list = d.data.list
-    .filter((e: CatalogEnchantment) => match(q, e.name, e.nameTh, e.slug) && (tree === "" || e.treeId === tree) && (tier === "" || tierKey(e.tier) === tier))
-    .sort((a, b) => (treeRank.get(a.treeId) ?? 99) - (treeRank.get(b.treeId) ?? 99)); // sort เสถียร: ลำดับ sort_order เดิมคงอยู่ภายในสายเดียวกัน
-  const groups = groupByTier(list, (e) => e.tier);
+  const list = d.data.list.filter(
+    (e: CatalogEnchantment) => match(q, e.name, e.nameTh, e.slug) && (tree === "" || e.treeId === tree) && (tier === "" || tierKey(e.tier) === tier)
+  );
+  // list มาเรียง sort_order แล้ว; filter รักษาลำดับนั้นไว้ภายในสาย+Tier เดียวกัน
+  const groups = d.data.trees
+    .map((t: EnchantmentTree) => ({ tree: t, rows: list.filter((e: CatalogEnchantment) => e.treeId === t.id) }))
+    .filter((g) => g.rows.length > 0);
+  // กันพลังแฝงที่อ้างสายซึ่งไม่อยู่ในลิสต์ ไม่ให้หายจากหน้า
+  const orphans = list.filter((e: CatalogEnchantment) => !d.data.trees.some((t: EnchantmentTree) => t.id === e.treeId));
+  if (orphans.length > 0) groups.push({ tree: { id: "other", name: "other", nameTh: "อื่น ๆ" }, rows: orphans });
   return (
     <div className="space-y-3">
       <Chips value={tree} onChange={setTree} all="ทุกสาย" opts={d.data.trees.map((t: EnchantmentTree) => ({ value: t.id, label: t.nameTh }))} />
@@ -209,16 +213,21 @@ function EnchantmentsTab({ q }: { q: string }) {
       ) : (
         <div className="space-y-6">
           {groups.map((g) => (
-            <section key={g.key} className="space-y-3">
-              <GroupHeading label={g.label} count={g.rows.length} />
-              <div className={GRID}>
-                {g.rows.map((e: CatalogEnchantment) => (
-                  <Card key={e.id} to={catalogPath("enchantments", e.slug)} icon={e.icon} title={e.nameTh} sub={`${e.name} · ${treeName.get(e.treeId) ?? ""}`} bare>
-                    {e.category === "keystone" && <p className="text-[11px] text-accent">Keystone</p>}
-                    {e.description && <p className="mt-1 line-clamp-2 text-sm text-text-muted">{e.description}</p>}
-                  </Card>
-                ))}
-              </div>
+            <section key={g.tree.id} className="space-y-3">
+              <GroupHeading label={g.tree.nameTh} count={g.rows.length} />
+              {groupByTier(g.rows, (e: CatalogEnchantment) => e.tier).map((t) => (
+                <div key={t.key}>
+                  <TierHeading label={t.label} />
+                  <div className={GRID}>
+                    {t.rows.map((e: CatalogEnchantment) => (
+                      <Card key={e.id} to={catalogPath("enchantments", e.slug)} icon={e.icon} title={e.nameTh} sub={e.name} bare>
+                        {e.category === "keystone" && <p className="text-[11px] text-accent">Keystone</p>}
+                        {e.description && <p className="mt-1 line-clamp-2 text-sm text-text-muted">{e.description}</p>}
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </section>
           ))}
         </div>
