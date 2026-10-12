@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Hammer, Loader2, Plus, Search, X } from "lucide-react";
+import { Hammer, Loader2 } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import {
   getCatalogEnchantments, getCatalogItems, getCatalogRunes, getCatalogSpells,
@@ -16,64 +16,45 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ItemSlots, RuneSlots, type RowMove } from "@/features/admin/BuildSlots";
 import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
-import { PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
+import { ITEM_TYPE_CHOICES, PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
+import { EnchantmentBoard, type BoardRow, type EnchTree } from "@/features/build/EnchantmentBoard";
+import { SpellPicker, type SpellOpt } from "@/features/build/SpellPicker";
+import type { EnchOpt, SelectionType } from "@/lib/enchantmentRules";
 
-// ตัวสร้าง/แก้ไข "Build ของฉัน": ใช้สล็อตไอเทม/รูนแบบเดียวกับฝั่งแอดมิน (ลากวางได้) และเลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้ว
-// บันทึกผ่าน RPC save_user_build (ตรวจซ้ำที่ฐานข้อมูลและกรองคำไม่เหมาะสมที่ชื่อ/โน๊ต)
+// ตัวสร้าง/แก้ไข "Build ของฉัน": ใช้ตัวแก้ไขชุดเดียวกับฝั่งแอดมิน — สล็อตไอเทม/รูน (ลากวางได้), กระดานพลังแฝง, ตัวเลือกสกิลชาเลนเจอร์ —
+// และเลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้ว ต่างกันที่การเก็บข้อมูล: แอดมินเขียน DB ทันที ส่วนที่นี่เก็บใน state จนกดบันทึก
+// บันทึกผ่าน RPC save_user_build (ตรวจซ้ำที่ฐานข้อมูลและกรองคำไม่เหมาะสมที่ชื่อ/โน๊ต) สิทธิ์ทั้งหมดบังคับที่ RLS/RPC ไม่ใช่ที่ฝั่งหน้าจอ
 
 type ItemRow = { id: string; item_id: string; phase: string; sort_order: number };
 type RuneRow = { id: string; rune_id: string; quantity: number; sort_order: number };
-type EnchSlot = { key: string; enchantment_id: string; selection_type: "primary" | "secondary" };
 type RuneOpt = ImgOpt & { color?: string };
-type Panel = null | "spell" | "primary" | "secondary";
 type Catalog = [CatalogItem[], CatalogRune[], CatalogSpell[], { trees: EnchantmentTree[]; list: CatalogEnchantment[] }];
 
 const EMPTY_CATALOG: Catalog = [[], [], [], { trees: [], list: [] }];
 const MAX_ITEMS = 12;
-const MAX_ENCHANTMENTS = 12;
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-const squash = (s: string) => s.toLowerCase().replace(/[\s'’`"\-_.]/g, "");
 const nextOrder = (rows: { sort_order: number }[]) => rows.reduce((m, r) => Math.max(m, r.sort_order), 0) + 1;
+
+// บิลด์ที่บันทึกไว้เก็บพลังแฝงเป็นลำดับในสาย (ไม่เก็บหมายเลขช่อง) จึงคืนช่องจากกติกาของเกม:
+// สายหลักช่อง n = พลังแฝง Tier n, สายรองเรียงตามลำดับที่บันทึก (ช่อง 1, 2)
+function toBoardRows(saved: { id: string; type: SelectionType }[], tierOf: Map<string, number | null>): BoardRow[] {
+  const rows: BoardRow[] = [];
+  let primary = 0;
+  let secondary = 0;
+  for (const e of saved) {
+    if (e.type === "primary") {
+      primary += 1;
+      rows.push({ id: uid(), enchantment_id: e.id, selection_type: "primary", sort_order: tierOf.get(e.id) ?? primary });
+    } else {
+      secondary += 1;
+      rows.push({ id: uid(), enchantment_id: e.id, selection_type: "secondary", sort_order: secondary });
+    }
+  }
+  return rows;
+}
 
 const ctl = "block w-full rounded-lg border border-border bg-bg-raised px-3 text-base text-text outline-none transition placeholder:text-text-faint focus:border-accent focus:ring-1 focus:ring-accent sm:text-sm";
 const btn = "inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
-
-function PickPanel({ title, options, round, disabled, onPick, onClose }: { title: string; options: ImgOpt[]; round?: boolean; disabled: Set<string>; onPick: (id: string) => void; onClose: () => void }) {
-  const [q, setQ] = useState("");
-  const list = useMemo(() => {
-    const n = squash(q);
-    return n ? options.filter((o) => squash(`${o.label} ${o.alt ?? ""}`).includes(n)) : options;
-  }, [options, q]);
-  return (
-    <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-text-muted">{title}</p>
-        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-raised" aria-label="ปิด">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
-        <Search className="h-4 w-4 shrink-0 text-text-faint" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา..." className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm" />
-      </div>
-      <div className="grid max-h-72 grid-cols-5 gap-2 overflow-y-auto sm:grid-cols-8">
-        {list.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            disabled={disabled.has(o.id)}
-            onClick={() => onPick(o.id)}
-            className="flex flex-col items-center gap-1 rounded-lg border border-border bg-bg p-1.5 text-center hover:border-accent/40 disabled:opacity-40"
-          >
-            <Thumb src={o.icon} label={o.label} round={round} className="h-9 w-9" />
-            <span className="w-full truncate text-[10px] leading-tight">{o.label}</span>
-          </button>
-        ))}
-        {list.length === 0 && <p className="col-span-full py-4 text-center text-sm text-text-muted">ไม่พบรายการ</p>}
-      </div>
-    </div>
-  );
-}
 
 export function BuildEditor() {
   const { id = "new" } = useParams();
@@ -93,13 +74,13 @@ export function BuildEditor() {
   const [spellId, setSpellId] = useState("");
   const [itemRows, setItemRows] = useState<ItemRow[]>([]);
   const [runeRows, setRuneRows] = useState<RuneRow[]>([]);
-  const [ench, setEnch] = useState<EnchSlot[]>([]);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [enchRows, setEnchRows] = useState<BoardRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(isNew);
 
+  // รอแคตตาล็อกโหลดก่อน เพราะต้องใช้ Tier ของพลังแฝงเพื่อคืนช่องในกระดาน
   useEffect(() => {
-    if (hydrated || existing.status !== "success" || !existing.data) return;
+    if (hydrated || existing.status !== "success" || !existing.data || catalog.status !== "success") return;
     const b = existing.data;
     setName(b.name);
     setNote(b.note);
@@ -107,17 +88,23 @@ export function BuildEditor() {
     setSpellId(b.spellId ?? "");
     setItemRows(b.ids.items.map((x, i) => ({ id: uid(), item_id: x.itemId, phase: x.phase, sort_order: i + 1 })));
     setRuneRows(b.ids.runes.map((x, i) => ({ id: uid(), rune_id: x.runeId, quantity: x.quantity, sort_order: i + 1 })));
-    setEnch(b.ids.enchants.map((x) => ({ key: uid(), enchantment_id: x.id, selection_type: x.type })));
+    setEnchRows(toBoardRows(b.ids.enchants, new Map(catalog.data[3].list.map((e) => [e.id, e.tier]))));
     setHydrated(true);
-  }, [existing, hydrated]);
+  }, [existing, catalog, hydrated]);
 
   const [items, runes, spells, enchData] = catalog.status === "success" ? catalog.data : EMPTY_CATALOG;
   const itemOpts: ImgOpt[] = useMemo(() => items.map((i) => ({ id: i.id, label: i.name, icon: i.icon || undefined, alt: i.nameTh })), [items]);
   const runeOpts: RuneOpt[] = useMemo(() => runes.map((r) => ({ id: r.id, label: r.name, icon: r.icon || undefined, color: r.color ?? undefined })), [runes]);
-  const spellOpts: ImgOpt[] = useMemo(() => spells.map((s) => ({ id: s.id, label: s.nameTh, icon: s.icon || undefined, alt: s.name })), [spells]);
-  const enchOpts: ImgOpt[] = useMemo(() => enchData.list.map((e) => ({ id: e.id, label: e.nameTh, icon: e.icon || undefined, alt: e.name })), [enchData]);
-  const enchById = useMemo(() => new Map(enchOpts.map((o) => [o.id, o])), [enchOpts]);
-  const spell = spellOpts.find((s) => s.id === spellId);
+  const spellOpts: SpellOpt[] = useMemo(
+    () => spells.map((s) => ({ id: s.id, name: s.name, nameTh: s.nameTh, description: s.description, cooldownSeconds: s.cooldownSeconds, icon: s.icon || undefined, pickable: true })),
+    [spells]
+  );
+  const enchTrees: EnchTree[] = useMemo(() => enchData.trees.map((t) => ({ id: t.id, slug: t.slug, name: t.name, icon_url: t.icon || null })), [enchData]);
+  // แคตตาล็อกสาธารณะมีเฉพาะที่ยืนยันกับเกมแล้วและใช้งานอยู่ (active / seasonal) จึงเลือกได้ทั้งหมด
+  const enchRuleOpts: EnchOpt[] = useMemo(
+    () => enchData.list.map((e) => ({ id: e.id, name: e.name, nameTh: e.nameTh, treeId: e.treeId, tier: e.tier, status: e.status, icon: e.icon || undefined, verified: true })),
+    [enchData]
+  );
   const colorOf = (runeId: string) => runeOpts.find((r) => r.id === runeId)?.color;
 
   const hero = isNew
@@ -180,11 +167,36 @@ export function BuildEditor() {
     });
   }
 
-  function pickEnch(type: "primary" | "secondary", enchId: string) {
-    if (ench.some((e) => e.enchantment_id === enchId)) return toast.error("พลังแฝงนี้อยู่ในบิลด์แล้ว");
-    if (ench.length >= MAX_ENCHANTMENTS) return toast.error(`ใส่พลังแฝงได้สูงสุด ${MAX_ENCHANTMENTS} รายการ`);
-    setEnch((xs) => [...xs, { key: uid(), enchantment_id: enchId, selection_type: type }]);
+  // เติมรูนเดียวกันหลายช่องทีเดียว (ลากจากกริด / โหมดแตะเติมเต็ม) ไม่เกิน 10 ช่องต่อสี เหมือนฝั่งแอดมิน
+  function fillRune(runeId: string, count: number) {
+    const color = colorOf(runeId);
+    const used = runeRows.filter((r) => colorOf(r.rune_id) === color).reduce((n, r) => n + r.quantity, 0);
+    const n = Math.min(count, 10 - used);
+    if (n <= 0) return toast.error("รูนแต่ละสีใส่ได้สูงสุด 10 ช่อง");
+    setRuneRows((rows) => {
+      const hit = rows.find((r) => r.rune_id === runeId);
+      if (hit) return rows.map((r) => (r === hit ? { ...r, quantity: r.quantity + n } : r));
+      return [...rows, { id: uid(), rune_id: runeId, quantity: n, sort_order: nextOrder(rows) }];
+    });
   }
+
+  // กระดานพลังแฝง: เก็บใน state (ไม่เขียน DB จนกดบันทึกบิลด์) กติกาการเลือกตรวจในตัวกระดานเอง
+  const enchPick = async (type: SelectionType, slot: number, opt: EnchOpt, existingRow: BoardRow | undefined) => {
+    setEnchRows((rows) =>
+      existingRow
+        ? rows.map((r) => (r.id === existingRow.id ? { ...r, enchantment_id: opt.id } : r))
+        : [...rows, { id: uid(), enchantment_id: opt.id, selection_type: type, sort_order: slot }]
+    );
+    return true;
+  };
+  const enchRemove = async (row: BoardRow) => {
+    setEnchRows((rows) => rows.filter((r) => r.id !== row.id));
+    return true;
+  };
+  const enchClear = async (type: SelectionType) => {
+    setEnchRows((rows) => rows.filter((r) => r.selection_type !== type));
+    return true;
+  };
 
   async function save() {
     if (!name.trim()) return toast.error("ต้องตั้งชื่อบิลด์");
@@ -200,7 +212,10 @@ export function BuildEditor() {
         isPublic,
         items: PHASES.flatMap((p) => itemRows.filter((r) => r.phase === p.k).sort((a, b) => a.sort_order - b.sort_order).map((r) => ({ item_id: r.item_id, phase: p.k }))),
         runes: [...runeRows].sort((a, b) => a.sort_order - b.sort_order).map((r) => ({ rune_id: r.rune_id, quantity: r.quantity })),
-        enchantments: ench.map((e) => ({ enchantment_id: e.enchantment_id, selection_type: e.selection_type })),
+        // RPC เก็บลำดับในสายตามลำดับของ array จึงส่งสายหลักก่อน แล้วเรียงตามช่อง (Tier I → III / ช่อง 1 → 2)
+        enchantments: [...enchRows]
+          .sort((a, b) => (a.selection_type === b.selection_type ? a.sort_order - b.sort_order : a.selection_type === "primary" ? -1 : 1))
+          .map((r) => ({ enchantment_id: r.enchantment_id, selection_type: r.selection_type })),
       });
       toast.success("บันทึกแล้ว");
       navigate(`/build/view/${newId}`);
@@ -211,34 +226,8 @@ export function BuildEditor() {
     }
   }
 
-  const takenEnch = new Set(ench.map((e) => e.enchantment_id));
-  const enchGroup = (type: "primary" | "secondary", label: string) => (
-    <div>
-      <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
-      <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
-        {ench.filter((e) => e.selection_type === type).map((e) => {
-          const o = enchById.get(e.enchantment_id);
-          return (
-            <div key={e.key} className="relative">
-              <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-lg border border-border bg-bg-surface text-center">
-                <Thumb src={o?.icon} label={o?.label ?? "?"} className="h-10 w-10" />
-                <span className="max-w-full truncate px-1 text-[10px] font-medium leading-tight">{o?.label ?? "?"}</span>
-              </div>
-              <button type="button" aria-label="ลบพลังแฝง" onClick={() => setEnch((xs) => xs.filter((x) => x.key !== e.key))} className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-loss text-white">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          );
-        })}
-        <button type="button" aria-label={`เพิ่มพลังแฝง${label}`} onClick={() => setPanel(panel === type ? null : type)} className={`flex aspect-square items-center justify-center rounded-lg border border-dashed ${panel === type ? "border-accent bg-accent/10" : "border-border bg-bg-surface"}`}>
-          <Plus className="h-4 w-4 text-text-faint" />
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-6 pb-24">
+    <div className="mx-auto w-full max-w-3xl space-y-6 pb-24">
       <div className="flex items-center gap-3">
         <Thumb src={hero.icon || undefined} label={hero.nameTh} className="h-12 w-12" />
         <div>
@@ -263,6 +252,7 @@ export function BuildEditor() {
         <ItemSlots
           rows={itemRows}
           items={itemOpts}
+          typeChoices={ITEM_TYPE_CHOICES}
           onAdd={addItem}
           onRemove={(r) => setItemRows((rows) => rows.filter((x) => x.id !== r.id))}
           onOpen={() => undefined}
@@ -278,6 +268,7 @@ export function BuildEditor() {
           colors={RUNE_COLOR_VIEW}
           max={10}
           onAdd={addRune}
+          onFill={fillRune}
           onDec={(r) => setRuneRows((rows) => (r.quantity <= 1 ? rows.filter((x) => x.id !== r.id) : rows.map((x) => (x.id === r.id ? { ...x, quantity: x.quantity - 1 } : x))))}
           onMoves={(m) => setRuneRows((rows) => applyMoves(rows, m))}
         />
@@ -285,27 +276,23 @@ export function BuildEditor() {
 
       <section className="space-y-2">
         <h2 className="font-display text-base font-semibold">สกิลชาเลนเจอร์</h2>
-        <div className="flex items-center gap-3">
-          <button type="button" aria-label="เลือกสกิลชาเลนเจอร์" onClick={() => setPanel(panel === "spell" ? null : "spell")} className={`flex h-14 w-14 items-center justify-center overflow-hidden rounded-[50%] border ${spell ? "border-border" : "border-dashed border-border"} ${panel === "spell" ? "ring-2 ring-accent" : ""} bg-bg-surface`}>
-            {spell ? <Thumb src={spell.icon} label={spell.label} round className="h-full w-full" /> : <Plus className="h-4 w-4 text-text-faint" />}
-          </button>
-          <div className="min-w-0 flex-1 text-sm">
-            {spell ? <span className="font-medium">{spell.label}</span> : <span className="text-text-faint">ยังไม่ได้เลือก</span>}
-          </div>
-          {spell && <button type="button" className="text-xs text-text-muted underline" onClick={() => setSpellId("")}>ล้าง</button>}
+        <div className="rounded-card border border-border bg-bg-surface p-3 sm:p-4">
+          <SpellPicker spells={spellOpts} value={spellId || null} onChange={(sid) => setSpellId(sid ?? "")} />
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-2">
         <h2 className="font-display text-base font-semibold">พลังแฝง</h2>
-        {enchGroup("primary", "หลัก")}
-        {enchGroup("secondary", "รอง")}
+        <EnchantmentBoard
+          trees={enchTrees}
+          options={enchRuleOpts}
+          rows={enchRows}
+          resetKey={isNew ? "new" : id}
+          onPick={enchPick}
+          onRemove={enchRemove}
+          onClearType={enchClear}
+        />
       </section>
-
-      {panel === "spell" && <PickPanel title="เลือกสกิลชาเลนเจอร์" options={spellOpts} round disabled={new Set()} onPick={(sid) => { setSpellId(sid); setPanel(null); }} onClose={() => setPanel(null)} />}
-      {(panel === "primary" || panel === "secondary") && (
-        <PickPanel title={`เลือกพลังแฝง · ${panel === "primary" ? "หลัก" : "รอง"}`} options={enchOpts} disabled={takenEnch} onPick={(eid) => pickEnch(panel, eid)} onClose={() => setPanel(null)} />
-      )}
 
       <section className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
         <label className="flex items-start gap-3">

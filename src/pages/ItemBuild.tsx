@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild, type ViewBuild } from "@/features/build/buildView";
@@ -19,9 +20,9 @@ import type { HeroSummary } from "@/types/hero";
 
 type Tab = "recommended" | "community" | "mine";
 const TABS: [Tab, string][] = [
-  ["recommended", "บิลด์แนะนำ"],
-  ["community", "Community Build"],
+  ["recommended", "Build แนะนำ"],
   ["mine", "Build ของฉัน"],
+  ["community", "Community"],
 ];
 
 // การ์ดเลือกฮีโร่แบบเดียวกับหน้า Matchup (ตัวกรอง Role/Lane + ป้าย balance)
@@ -136,7 +137,7 @@ function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {b.view.items.slice(0, 6).map((i) => <Thumb key={i.slug} src={i.icon} label={i.name} className="h-8 w-8" />)}
         {b.view.spell && <Thumb src={b.view.spell.icon} label={b.view.spell.nameTh} round className="ml-1 h-8 w-8" />}
       </div>
@@ -145,7 +146,7 @@ function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
 }
 
 function CreateButton({ hero }: { hero: HeroSummary | null }) {
-  const cls = "inline-flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium";
+  const cls = "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium sm:w-auto";
   if (!hero) return <span className={`${cls} cursor-not-allowed border border-border text-text-faint`}>เลือกฮีโร่ก่อนสร้างบิลด์</span>;
   return (
     <Link to={`/build/edit/new?hero=${hero.slug}`} className={`${cls} bg-accent text-accent-fg hover:brightness-110`}>
@@ -168,7 +169,7 @@ function Community({ hero }: { hero: HeroSummary }) {
         <EmptyState icon={Hammer} title="ยังไม่มี Community Build" description="สร้างบิลด์ของคุณแล้วเผยแพร่เป็นคนแรกของฮีโร่ตัวนี้" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="grid gap-2 md:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
+        <div className="grid gap-2 sm:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
       )}
     </div>
   );
@@ -198,7 +199,7 @@ function Mine({ hero }: { hero: HeroSummary | null }) {
         <EmptyState icon={Hammer} title="ยังไม่มีบิลด์" description="เลือกฮีโร่ด้านบน แล้วกดสร้างบิลด์" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="grid gap-2 md:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
+        <div className="grid gap-2 sm:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
       )}
     </div>
   );
@@ -230,24 +231,15 @@ export function ItemBuild() {
   });
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="mx-auto w-full max-w-4xl space-y-5 pb-4">
       <div>
         <h1 className="font-display text-xl font-semibold">Item Build</h1>
         <p className="mt-1 text-sm text-text-muted">บิลด์แนะนำ ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝง สร้างเอง และแบ่งปันให้คนอื่น</p>
       </div>
 
-      <div role="tablist" aria-label="หมวดบิลด์" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
         {TABS.map(([t, label]) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => update("tab", t)}
-            className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-sm transition ${tab === t ? "border-accent bg-accent font-medium text-accent-fg" : "border-border bg-bg-surface text-text-muted hover:text-text"}`}
-          >
-            {label}
-          </button>
+          <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
         ))}
       </div>
 

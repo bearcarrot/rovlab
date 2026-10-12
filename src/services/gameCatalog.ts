@@ -35,8 +35,10 @@ export interface CatalogSpell {
 }
 export interface EnchantmentTree {
   id: string;
+  slug: string;
   name: string;
   nameTh: string;
+  icon: string;
 }
 export interface CatalogEnchantment {
   id: string;
@@ -123,7 +125,7 @@ export const getCatalogSpells = once(async (): Promise<CatalogSpell[]> =>
 
 export const getCatalogEnchantments = once(async (): Promise<{ trees: EnchantmentTree[]; list: CatalogEnchantment[] }> => {
   const [trees, list] = await Promise.all([
-    rows("enchantment_trees", "id, name, name_th", (q) => q, "sort_order"),
+    rows("enchantment_trees", "id, slug, name, name_th, icon_url", (q) => q, "sort_order"),
     rows(
       "enchantments",
       "id, slug, name, name_th, description, tier_level, category, status, icon_url, tree_id",
@@ -132,7 +134,7 @@ export const getCatalogEnchantments = once(async (): Promise<{ trees: Enchantmen
     ),
   ]);
   return {
-    trees: trees.map((t) => ({ id: t.id, name: t.name, nameTh: t.name_th })),
+    trees: trees.map((t) => ({ id: t.id, slug: t.slug, name: t.name, nameTh: t.name_th, icon: t.icon_url ?? "" })),
     list: list.map((r) => ({
       id: r.id,
       slug: r.slug,
