@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ITEM_TYPES, RUNE_COLORS } from "@/lib/catalogAdmin";
+import type { CatalogNavState, NavEntry } from "@/lib/catalogNav";
 
 type Tab = "items" | "runes" | "spells" | "enchantments";
 const TABS: [Tab, string][] = [
@@ -52,10 +53,10 @@ function Chips<T extends string>({ value, onChange, all, opts }: { value: T | ""
   );
 }
 
-// การ์ดทุกใบกดแล้วไปหน้ารายละเอียดของชิ้นนั้น; round = กรอบวงกลม (รูน/สกิลชาเลนเจอร์); bare = ไม่มีพื้นหลัง/ไม่ครอปไอคอน (พลังแฝง)
-function Card({ to, icon, title, sub, right, round, bare, children }: { to: string; icon?: string; title: string; sub?: string; right?: React.ReactNode; round?: boolean; bare?: boolean; children?: React.ReactNode }) {
+// การ์ดทุกใบกดแล้วไปหน้ารายละเอียดของชิ้นนั้น (nav = ลำดับที่เห็นอยู่ ใช้ทำปุ่ม ก่อนหน้า/ถัดไป); round = กรอบวงกลม (รูน/สกิลชาเลนเจอร์); bare = ไม่มีพื้นหลัง/ไม่ครอปไอคอน (พลังแฝง)
+function Card({ to, nav, icon, title, sub, right, round, bare, children }: { to: string; nav?: NavEntry[]; icon?: string; title: string; sub?: string; right?: React.ReactNode; round?: boolean; bare?: boolean; children?: React.ReactNode }) {
   return (
-    <Link to={to} className="flex gap-3 rounded-card border border-border bg-bg-surface p-3 transition hover:border-accent/40">
+    <Link to={to} state={nav ? ({ nav } as CatalogNavState) : undefined} className="flex gap-3 rounded-card border border-border bg-bg-surface p-3 transition hover:border-accent/40">
       <Thumb src={icon || undefined} label={title} round={round} bare={bare} className="h-11 w-11" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -110,6 +111,8 @@ function ItemsTab({ q }: { q: string }) {
   const groups = [...ITEM_TYPES, { value: "other", label: "อื่น ๆ" }]
     .map((g) => ({ ...g, rows: list.filter((i) => groupOf(i) === g.value) }))
     .filter((g) => g.rows.length > 0);
+  // ลำดับตามที่แสดงบนจอ (กลุ่ม → Tier → ไอเทม) ให้หน้ารายละเอียดกด ถัดไป ตามลำดับนี้
+  const nav: NavEntry[] = groups.flatMap((g) => groupByTier(g.rows, (i) => i.tier).flatMap((t) => t.rows)).map((i) => ({ to: catalogPath("items", i.slug), name: i.name }));
   return (
     <div className="space-y-3">
       <Chips value={type} onChange={setType} all="ทุกประเภท" opts={ITEM_TYPES} />
@@ -128,7 +131,7 @@ function ItemsTab({ q }: { q: string }) {
                     {t.rows.map((i: CatalogItem) => {
                       const stats = i.stats.filter((s) => s.length <= MAX_STAT_LENGTH);
                       return (
-                        <Card key={i.id} to={catalogPath("items", i.slug)} icon={i.icon} title={i.name} right={<Gold cost={i.cost} />}>
+                        <Card key={i.id} to={catalogPath("items", i.slug)} nav={nav} icon={i.icon} title={i.name} right={<Gold cost={i.cost} />}>
                           {stats.length > 0 && <p className="mt-1 text-xs text-text-muted">{stats.join(" · ")}</p>}
                         </Card>
                       );
@@ -157,12 +160,13 @@ function RunesTab({ q }: { q: string }) {
   const list = d.data
     .filter((r: CatalogRune) => match(q, r.name) && (color === "" || r.color === color))
     .sort((a, b) => rank(a.color) - rank(b.color) || a.name.localeCompare(b.name));
+  const nav: NavEntry[] = list.map((r) => ({ to: catalogPath("runes", r.name), name: r.name }));
   return (
     <div className="space-y-3">
       <Chips value={color} onChange={setColor} all="ทุกสี" opts={RUNE_COLORS} />
       <Grid empty={list.length === 0}>
         {list.map((r: CatalogRune) => (
-          <Card key={r.id} to={catalogPath("runes", r.name)} icon={r.icon} title={r.name} sub={RUNE_COLORS.find((c) => c.value === r.color)?.label} round />
+          <Card key={r.id} to={catalogPath("runes", r.name)} nav={nav} icon={r.icon} title={r.name} sub={RUNE_COLORS.find((c) => c.value === r.color)?.label} round />
         ))}
       </Grid>
     </div>
@@ -175,10 +179,11 @@ function SpellsTab({ q }: { q: string }) {
   if (d.status === "loading") return <Skeleton className="h-40" />;
   if (d.status === "error") return <ErrorState message={d.message} onRetry={d.refetch} />;
   const list = d.data.filter((s: CatalogSpell) => match(q, s.name, s.nameTh, s.slug));
+  const nav: NavEntry[] = list.map((s) => ({ to: catalogPath("spells", s.slug), name: s.nameTh || s.name }));
   return (
     <Grid empty={list.length === 0}>
       {list.map((s: CatalogSpell) => (
-        <Card key={s.id} to={catalogPath("spells", s.slug)} icon={s.icon} title={s.name || s.nameTh} sub={s.name && s.nameTh && s.nameTh !== s.name ? s.nameTh : undefined} right={s.cooldownSeconds != null ? `CD ${s.cooldownSeconds}s` : undefined} round>
+        <Card key={s.id} to={catalogPath("spells", s.slug)} nav={nav} icon={s.icon} title={s.name || s.nameTh} sub={s.name && s.nameTh && s.nameTh !== s.name ? s.nameTh : undefined} right={s.cooldownSeconds != null ? `CD ${s.cooldownSeconds}s` : undefined} round>
           {s.status === "seasonal" && <p className="text-[11px] text-accent">ตามซีซัน</p>}
           {s.description && <p className="mt-1 line-clamp-2 text-sm text-text-muted">{s.description}</p>}
         </Card>
@@ -204,6 +209,9 @@ function EnchantmentsTab({ q }: { q: string }) {
   // กันพลังแฝงที่อ้างสายซึ่งไม่อยู่ในลิสต์ ไม่ให้หายจากหน้า
   const orphans = list.filter((e: CatalogEnchantment) => !d.data.trees.some((t: EnchantmentTree) => t.id === e.treeId));
   if (orphans.length > 0) groups.push({ tree: { id: "other", name: "other", nameTh: "อื่น ๆ" }, rows: orphans });
+  const nav: NavEntry[] = groups
+    .flatMap((g) => groupByTier(g.rows, (e: CatalogEnchantment) => e.tier).flatMap((t) => t.rows))
+    .map((e) => ({ to: catalogPath("enchantments", e.slug), name: e.nameTh }));
   return (
     <div className="space-y-3">
       <Chips value={tree} onChange={setTree} all="ทุกสาย" opts={d.data.trees.map((t: EnchantmentTree) => ({ value: t.id, label: t.nameTh }))} />
@@ -220,7 +228,7 @@ function EnchantmentsTab({ q }: { q: string }) {
                   <TierHeading label={t.label} />
                   <div className={GRID}>
                     {t.rows.map((e: CatalogEnchantment) => (
-                      <Card key={e.id} to={catalogPath("enchantments", e.slug)} icon={e.icon} title={e.nameTh} sub={e.name} bare>
+                      <Card key={e.id} to={catalogPath("enchantments", e.slug)} nav={nav} icon={e.icon} title={e.nameTh} sub={e.name} bare>
                         {e.category === "keystone" && <p className="text-[11px] text-accent">Keystone</p>}
                         {e.description && <p className="mt-1 line-clamp-2 text-sm text-text-muted">{e.description}</p>}
                       </Card>
