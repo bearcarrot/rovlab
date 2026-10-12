@@ -268,7 +268,7 @@ function MoreLink({ to, icon: Icon, title, desc }: { to: string; icon: IconType;
     <Link
       to={to}
       className={cn(
-        "flex min-h-11 items-start gap-3 rounded-lg border border-border bg-bg-surface p-3 hover:border-accent/40",
+        "flex min-h-11 items-start gap-3 rounded-card border border-border bg-bg-surface p-3 hover:border-accent/40",
         FOCUS
       )}
     >
@@ -335,13 +335,17 @@ function TopTierRows({
                     to={`/heroes/${h.slug}`}
                     aria-label={h.nameTh}
                     title={h.nameTh}
-                    className="relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40"
+                    className={cn(
+                      "relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40",
+                      FOCUS
+                    )}
                   >
                     {h.icon ? (
                       <img
                         src={h.icon}
                         alt={h.nameTh}
                         loading="lazy"
+                        decoding="async"
                         referrerPolicy="no-referrer"
                         className="h-full w-full rounded-lg object-cover"
                         onError={(e) => {
