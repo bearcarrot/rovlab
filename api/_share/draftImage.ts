@@ -60,7 +60,7 @@ function sniffMime(b: Uint8Array): string | null {
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
   if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
-  return null; // e.g. WebP: satori cannot draw it, so the tile falls back to initials
+  return null; // e.g. WebP / AVIF: satori cannot draw them
 }
 
 function toBase64(b: Uint8Array): string {
@@ -69,16 +69,24 @@ function toBase64(b: Uint8Array): string {
   return btoa(s);
 }
 
-async function iconDataUri(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  const abs = /^https?:\/\//i.test(url) ? url : url.startsWith("//") ? `https:${url}` : url.startsWith("/") ? `${SITE}${url}` : null;
-  if (!abs) return null;
-  const res = await timedFetch(abs, 2500);
+/** Fetch an image and return it as a data URI, only if satori can draw it (PNG / JPEG / GIF). */
+async function loadImage(url: string): Promise<string | null> {
+  const res = await timedFetch(url, 2500);
   if (!res) return null;
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (bytes.length === 0 || bytes.length > 600_000) return null;
   const mime = sniffMime(bytes);
   return mime ? `data:${mime};base64,${toBase64(bytes)}` : null;
+}
+
+async function iconDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  const abs = /^https?:\/\//i.test(url) ? url : url.startsWith("//") ? `https:${url}` : url.startsWith("/") ? `${SITE}${url}` : null;
+  if (!abs) return null;
+  const direct = await loadImage(abs);
+  if (direct) return direct;
+  // Icon is WebP/AVIF (satori cannot draw those): ask a public image proxy for a 128px PNG of the same public icon.
+  return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(abs)}&w=128&h=128&fit=cover&output=png`);
 }
 
 function tile(slug: string | null, hero: HeroRow | undefined, icon: string | null, color: string): El {
