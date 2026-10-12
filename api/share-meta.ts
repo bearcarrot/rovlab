@@ -1,6 +1,6 @@
-// Edge handler behind /draft/:shareId (see vercel.json). Returns the SPA's own index.html with Draft-specific <head> metadata,
-// so crawlers (Facebook, LINE, Discord, X, ...) see the right title / description / image WITHOUT running JavaScript,
-// while normal visitors get the same HTML and boot the React app as before.
+// Edge handler behind /draft/:shareId and /tier-list/:shareId (see vercel.json). Returns the SPA's own index.html with
+// item-specific <head> metadata, so crawlers (Facebook, LINE, Discord, X, ...) see the right title / description / image
+// WITHOUT running JavaScript, while normal visitors get the same HTML and boot the React app as before.
 // Any failure (bad id, unpublished, backend down) falls back to the unchanged default metadata; the SPA shows its own not-found state.
 
 import { injectMeta, markNoindex } from "./_share/html";
@@ -8,7 +8,7 @@ import { isShareKind, resolveShare, SHARE_PATH, type ShareLookup } from "./_shar
 
 export const config = { runtime: "edge" };
 
-const CACHE_OK = "public, max-age=0, s-maxage=300, stale-while-revalidate=600"; // a republished Draft shows up within ~5 min
+const CACHE_OK = "public, max-age=0, s-maxage=300, stale-while-revalidate=600"; // a republished item shows up within ~5 min
 const CACHE_MISSING = "public, max-age=0, s-maxage=60, stale-while-revalidate=120";
 const CACHE_ERROR = "public, max-age=0, s-maxage=10";
 
@@ -32,7 +32,7 @@ function parseTarget(url: URL): { kind: string; id: string } {
   const kind = url.searchParams.get("kind");
   const id = url.searchParams.get("id");
   if (kind && id) return { kind, id };
-  const m = url.pathname.match(/^\/(draft)\/([^/]+)\/?$/);
+  const m = url.pathname.match(/^\/(draft|tier-list)\/([^/]+)\/?$/);
   if (!m) return { kind: "", id: "" };
   try {
     return { kind: m[1], id: decodeURIComponent(m[2]) };
