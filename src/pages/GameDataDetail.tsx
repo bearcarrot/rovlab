@@ -103,7 +103,12 @@ export function GameDataDetail() {
       <div className="rounded-card border border-border bg-bg-surface px-4 py-1">
         {f.k === "items" && (
           <>
-            <Row label="ราคา">{f.v.cost.toLocaleString()} ทอง</Row>
+            <Row label="ราคา">
+              <span className="inline-flex items-center justify-end gap-1.5">
+                <img src="/gold.svg" alt="gold" className="h-4 w-4 object-contain" />
+                {f.v.cost.toLocaleString()}
+              </span>
+            </Row>
             {f.v.tier && <Row label="Tier">T{f.v.tier}</Row>}
             {f.v.roleTags.length > 0 && <Row label="ประเภท">{f.v.roleTags.map((t) => ITEM_TYPES.find((o) => o.value === t)?.label ?? t).join(" · ")}</Row>}
           </>
