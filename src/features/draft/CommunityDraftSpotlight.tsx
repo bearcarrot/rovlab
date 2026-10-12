@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import { ThumbsUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { parseSeries, TEAM_SIZE, type HeroKey, type SeriesFormat } from "@/features/draft/series";
+import { analyzeTeam } from "@/features/draft/analyzeTeam";
+import { findTeamGaps } from "@/features/draft/teamGaps";
 import { DraftPreviewPanel } from "@/features/draft/DraftPreviewPanel";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 
@@ -11,6 +14,15 @@ const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
 const FORMAT_LABEL: Record<SeriesFormat, string> = { single: "เกมเดียว", bo3: "BO3", bo5: "BO5", bo7: "BO7" };
+
+// 3 มิติเดียวกับกราฟตัวอย่างเดิมบน Home (ไม่ใช้ครบ 6 แถวเหมือนหน้า Draft เพื่อไม่ให้การ์ดยาว)
+// gap = key ของ findTeamGaps ที่ชี้ว่ามิตินั้น "ขาด" (ความคล่องตัวไม่มีเกณฑ์ขาด)
+const METERS = [
+  { key: "frontline", label: "แนวหน้า", gap: "frontline" },
+  { key: "cc", label: "Crowd Control", gap: "cc" },
+  { key: "mobility", label: "ความคล่องตัว", gap: null },
+] as const;
+const METER_MAX = 10; // เพดานสเกลแถบเท่ากับ TeamMeters บนหน้า Draft
 
 interface TopDraft {
   id: string;
@@ -111,6 +123,21 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
     };
   }, []);
 
+  // สถิติของทีมฝั่งผู้สร้าง (เกมที่ 1) ใช้ analyzeTeam/findTeamGaps ตัวเดียวกับหน้า Draft แต่ไม่ส่ง kits (แท็กสกิล)
+  // จึงคำนวณจาก Role เท่านั้น (ไม่มี request เพิ่ม) ค่า CC อาจต่างจากหน้า Draft เล็กน้อย
+  // ถ้าหาฮีโร่บางตัวไม่เจอในรายชื่อ จะไม่แสดงแถบสถิติ (แทนที่จะคำนวณผิด)
+  const teamStats = useMemo(() => {
+    if (!top) return null;
+    const picked = top.mine.map((s) => bySlug.get(s));
+    const mineHeroes = picked.filter((h): h is HeroSummary => h !== undefined);
+    if (mineHeroes.length === 0 || mineHeroes.length < picked.length) return null;
+    const analysis = analyzeTeam(mineHeroes);
+    // ระบุว่า "ขาด" เฉพาะทีมครบ 5 ตัว ทีมที่ยังไม่ครบจะขาดอยู่แล้วโดยธรรมชาติ
+    const full = mineHeroes.length >= TEAM_SIZE;
+    const gaps = full ? new Set(findTeamGaps(analysis, mineHeroes).map((g) => g.key)) : new Set<string>();
+    return { analysis, gaps };
+  }, [top, bySlug]);
+
   // ยังโหลดอยู่ / ไม่มีดราฟต์ที่มียอดถูกใจ / error → ภาพประกอบเดิม (ไม่โชว์เลข 0 หรือกล่องว่าง)
   if (!top) return <DraftPreviewPanel />;
 
@@ -118,7 +145,7 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
     <Link
       to={`/draft/${top.id}`}
       className={cn(
-        "flex min-h-[208px] flex-col justify-center gap-3 rounded-card border border-border bg-bg-surface p-4 hover:border-accent/40",
+        "flex flex-col gap-3 rounded-card border border-border bg-bg-surface p-4 hover:border-accent/40",
         FOCUS
       )}
     >
@@ -139,6 +166,23 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
         <TeamRow label="ทีมเรา" slugs={top.mine} bySlug={bySlug} />
         {top.enemy.length > 0 && <TeamRow label="ทีมศัตรู" slugs={top.enemy} bySlug={bySlug} />}
       </div>
+      {teamStats && (
+        <div className="space-y-2 border-t border-border pt-3">
+          {METERS.map((m) => {
+            const isGap = m.gap !== null && teamStats.gaps.has(m.gap);
+            return (
+              <div key={m.key}>
+                <div className="mb-1 flex justify-between text-xs">
+                  <span className="text-text-muted">{m.label}</span>
+                  {isGap && <span className="font-medium text-loss">ขาด</span>}
+                </div>
+                <Progress value={(teamStats.analysis[m.key] / METER_MAX) * 100} barClassName={isGap ? "bg-loss" : undefined} />
+              </div>
+            );
+          })}
+          <p className="pt-0.5 text-[11px] text-text-faint">* ประเมินจาก Role ของทีมเรา (Heuristic) ไม่ใช่ข้อมูลระดับสกิล</p>
+        </div>
+      )}
     </Link>
   );
 }
