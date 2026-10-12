@@ -1,17 +1,14 @@
 // 1200x630 social card for a Community Draft. Rendered with @vercel/og (satori) on the edge.
 // Shows: brand, title, format / Global Ban-Pick badges, and Game 1 picks for both teams (hero icons).
-// Every external dependency (font, hero icons) is optional: if it fails the card still renders.
+// Shared helpers (font, icon loading, tiles) live in ./imageKit.
 
 import { ImageResponse } from "@vercel/og";
 import { parseSeries, TEAM_SIZE } from "../../src/features/draft/series";
 import { shortIdToUuid } from "../../src/features/share/shareId";
-import { OG_HEIGHT, OG_WIDTH, SITE } from "./html";
+import { OG_HEIGHT, OG_WIDTH } from "./html";
+import { BLUE, CACHE, el, GOLD, heroTile, iconDataUri, loadFont, MUTED, SLUG, badge, type El, type HeroRow } from "./imageKit";
 import { restSelect } from "./supabase";
 
-const GOLD = "#E8A33D";
-const BLUE = "#4C8DFF";
-const MUTED = "#8B909B";
-const SLUG = /^[A-Za-z0-9_-]{1,64}$/;
 const ICON = 88;
 
 interface DraftRow {
@@ -20,93 +17,6 @@ interface DraftRow {
   global_ban_pick: boolean;
   series: unknown;
 }
-interface HeroRow {
-  slug: string;
-  name: string;
-  icon_url: string | null;
-}
-
-type El = { type: string; props: Record<string, unknown> };
-// Plain element objects (satori accepts them) so this file needs no JSX transform.
-const el = (type: string, style: Record<string, unknown>, children?: unknown, extra: Record<string, unknown> = {}): El => ({
-  type,
-  props: { ...extra, style, children: Array.isArray(children) ? children.filter(Boolean) : children },
-});
-
-async function timedFetch(url: string, ms: number): Promise<Response | null> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    return res.ok ? res : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** Thai-capable font, subset to the characters actually used (Google Fonts returns TTF when no browser UA is sent). */
-async function loadFont(text: string): Promise<ArrayBuffer | null> {
-  const css = await timedFetch(`https://fonts.googleapis.com/css2?family=Kanit:wght@700&text=${encodeURIComponent(text)}`, 3000);
-  if (!css) return null;
-  const m = (await css.text()).match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/);
-  if (!m) return null;
-  const font = await timedFetch(m[1], 3000);
-  return font ? font.arrayBuffer() : null;
-}
-
-function sniffMime(b: Uint8Array): string | null {
-  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
-  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
-  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
-  return null; // e.g. WebP / AVIF: satori cannot draw them
-}
-
-function toBase64(b: Uint8Array): string {
-  let s = "";
-  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
-  return btoa(s);
-}
-
-/** Fetch an image and return it as a data URI, only if satori can draw it (PNG / JPEG / GIF). */
-async function loadImage(url: string): Promise<string | null> {
-  const res = await timedFetch(url, 2500);
-  if (!res) return null;
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > 600_000) return null;
-  const mime = sniffMime(bytes);
-  return mime ? `data:${mime};base64,${toBase64(bytes)}` : null;
-}
-
-async function iconDataUri(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  const abs = /^https?:\/\//i.test(url) ? url : url.startsWith("//") ? `https:${url}` : url.startsWith("/") ? `${SITE}${url}` : null;
-  if (!abs) return null;
-  const direct = await loadImage(abs);
-  if (direct) return direct;
-  // Icon is WebP/AVIF (satori cannot draw those): ask a public image proxy for a 128px PNG of the same public icon.
-  return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(abs)}&w=128&h=128&fit=cover&output=png`);
-}
-
-function tile(slug: string | null, hero: HeroRow | undefined, icon: string | null, color: string): El {
-  const box = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: ICON,
-    height: ICON,
-    borderRadius: 14,
-    background: "#1C1F26",
-    border: `3px solid ${slug ? color : "#262A33"}`,
-    overflow: "hidden",
-  };
-  if (icon) {
-    return el("div", box, el("img", { width: ICON - 6, height: ICON - 6, objectFit: "cover" }, undefined, { src: icon, width: ICON - 6, height: ICON - 6 }));
-  }
-  const initials = slug ? Array.from(hero?.name ?? slug).slice(0, 2).join("").toUpperCase() : "";
-  return el("div", { ...box, fontSize: 28, color: MUTED }, initials || " ");
-}
 
 function team(label: string, color: string, slugs: (string | null)[], heroes: Map<string, HeroRow>, icons: Map<string, string | null>): El {
   return el("div", { display: "flex", flexDirection: "column", gap: 12 }, [
@@ -114,27 +24,21 @@ function team(label: string, color: string, slugs: (string | null)[], heroes: Ma
     el(
       "div",
       { display: "flex", gap: 10 },
-      slugs.map((s) => tile(s, s ? heroes.get(s) : undefined, s ? icons.get(s) ?? null : null, color))
+      slugs.map((s) =>
+        heroTile({
+          size: ICON,
+          filled: !!s,
+          name: s ? heroes.get(s)?.name ?? s : null,
+          icon: s ? icons.get(s) ?? null : null,
+          color,
+          border: 3,
+          radius: 14,
+          fontSize: 28,
+        })
+      )
     ),
   ]);
 }
-
-const badge = (text: string, strong: boolean): El =>
-  el(
-    "div",
-    {
-      display: "flex",
-      fontSize: 22,
-      padding: "6px 18px",
-      borderRadius: 999,
-      color: strong ? "#0A0B0E" : GOLD,
-      background: strong ? GOLD : "transparent",
-      border: `2px solid ${GOLD}`,
-    },
-    text
-  );
-
-const CACHE = "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
 
 /** Returns null when the Draft is invalid / unpublished; throws when the backend is unreachable. */
 export async function renderDraftImage(rawId: string): Promise<Response | null> {
@@ -155,11 +59,10 @@ export async function renderDraftImage(rawId: string): Promise<Response | null> 
   const title = Array.from(row.title.trim()).slice(0, 56).join("");
   const fmt = row.format === "single" ? "SINGLE" : row.format.toUpperCase();
   const labels = "YOUR TEAM ENEMY RoV LAB DRAFT ASSISTANT GLOBAL BAN/PICK SINGLE GAME GAMES VS BO3 BO5 BO7 0123456789 · ";
-  const fontText = [...new Set(Array.from(`${title}${labels}ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`))].join("");
 
   const [heroRows, font] = await Promise.all([
-    slugs.length ? restSelect<HeroRow>("heroes", `select=slug,name,icon_url&slug=in.(${slugs.join(",")})`) : Promise.resolve([] as HeroRow[]),
-    loadFont(fontText),
+    slugs.length ? restSelect<HeroRow>("heroes", `select=id,slug,name,icon_url&slug=in.(${slugs.join(",")})`) : Promise.resolve([] as HeroRow[]),
+    loadFont(`${title}${labels}`),
   ]);
   const heroes = new Map((heroRows ?? []).map((h) => [h.slug, h]));
   const iconPairs = await Promise.all(slugs.map(async (s) => [s, await iconDataUri(heroes.get(s)?.icon_url ?? null)] as const));

@@ -1,14 +1,15 @@
 // One resolver per shareable kind. A resolver turns the id from the URL into public-safe page metadata.
-// Adding Tier List later = add "tier-list" to ShareKind + SHARE_PATH, write resolveTierList(), and a tier image renderer.
-// The HTML handler (api/share-meta.ts) and the image handler (api/share-image.ts) already dispatch on `kind`.
+// Adding another kind = add it to ShareKind + SHARE_PATH, write its resolver here, and an image renderer in api/_share.
+// The HTML handler (api/share-meta.ts) and the image handler (api/share-image.ts) dispatch on `kind`.
 
 import { shortIdToUuid, uuidToShortId } from "../../src/features/share/shareId";
+import { parseTierData, tierHeroCount } from "../../src/features/tierlist/tierData";
 import { SITE } from "./html";
 import { restSelect } from "./supabase";
 
-export type ShareKind = "draft";
-export const SHARE_PATH: Record<ShareKind, string> = { draft: "/draft" };
-export const isShareKind = (v: string): v is ShareKind => v === "draft";
+export type ShareKind = "draft" | "tier-list";
+export const SHARE_PATH: Record<ShareKind, string> = { draft: "/draft", "tier-list": "/tier-list" };
+export const isShareKind = (v: string): v is ShareKind => v === "draft" || v === "tier-list";
 
 export interface ResolvedShare {
   title: string;
@@ -64,9 +65,49 @@ async function resolveDraft(rawId: string): Promise<ShareLookup> {
   };
 }
 
+interface TierListRow {
+  id: string;
+  title: string;
+  description: string | null;
+  patch: string | null;
+  version: number | null;
+  data: unknown;
+}
+
+async function resolveTierList(rawId: string): Promise<ShareLookup> {
+  const uuid = shortIdToUuid(rawId);
+  if (!uuid) return { status: "missing" };
+  // Public columns only (no owner / author). RLS ("read visible community tier lists") hides hidden rows from anon.
+  const rows = await restSelect<TierListRow>(
+    "community_tier_lists",
+    `select=id,title,description,patch,version,data&id=eq.${uuid}&limit=1`
+  );
+  if (rows === null) return { status: "error" };
+  const row = rows[0];
+  if (!row || !row.title) return { status: "missing" };
+
+  const shortId = uuidToShortId(uuid);
+  const count = tierHeroCount(parseTierData(row.data));
+  const patch = (row.patch ?? "").trim();
+  const head = `Tier List RoV · ${count} ฮีโร่${patch ? ` · Patch ${patch}` : ""}`;
+  const note = clip((row.description ?? "").replace(/\s+/g, " ").trim(), 120);
+  const title = clip(row.title.trim(), 80);
+  return {
+    status: "ok",
+    meta: {
+      title: `${title} — RoV Tier List | RoV LAB`,
+      description: note ? `${head} — ${note}` : `${head} — ดูการจัดอันดับฮีโร่และร่วมโหวตได้ที่ RoV LAB`,
+      url: `${SITE}${SHARE_PATH["tier-list"]}/${shortId}`,
+      image: { url: `${SITE}/api/share-image?kind=tier-list&id=${shortId}&v=${row.version ?? 1}`, alt: `Tier List RoV: ${title}` },
+    },
+  };
+}
+
 export function resolveShare(kind: ShareKind, rawId: string): Promise<ShareLookup> {
   switch (kind) {
     case "draft":
       return resolveDraft(rawId);
+    case "tier-list":
+      return resolveTierList(rawId);
   }
 }
