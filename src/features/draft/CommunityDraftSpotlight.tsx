@@ -58,22 +58,24 @@ async function fetchTopLikedDraft(): Promise<TopDraft | null> {
   };
 }
 
+// ไอคอนขยายตามความกว้างการ์ด (grid 5 คอลัมน์, aspect-square) แทนขนาด 32px คงที่ มือถือไม่เหลือที่ว่างขวา
+// max-w-72 จำกัดไม่ให้ไอคอนใหญ่เกินไปบนจอกว้าง
 function TeamRow({ label, slugs, bySlug }: { label: string; slugs: HeroKey[]; bySlug: Map<string, HeroSummary> }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-14 shrink-0 text-[11px] text-text-faint">{label}</span>
-      <div className="flex gap-1.5">
+      <div className="grid max-w-72 flex-1 grid-cols-5 gap-1.5">
         {Array.from({ length: TEAM_SIZE }).map((_, i) => {
           const h = slugs[i] ? bySlug.get(slugs[i]) : undefined;
           return (
-            <div key={i} className="h-8 w-8 shrink-0 overflow-hidden rounded-md bg-bg-raised">
+            <div key={i} className="aspect-square w-full overflow-hidden rounded-md bg-bg-raised">
               {h?.icon ? (
                 <img
                   src={h.icon}
                   alt={h.nameTh}
                   title={h.nameTh}
-                  width={32}
-                  height={32}
+                  width={48}
+                  height={48}
                   loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
@@ -116,7 +118,7 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
     <Link
       to={`/draft/${top.id}`}
       className={cn(
-        "block min-h-[200px] space-y-3 rounded-card border border-border bg-bg-surface p-4 hover:border-accent/40",
+        "flex min-h-[208px] flex-col justify-center gap-3 rounded-card border border-border bg-bg-surface p-4 hover:border-accent/40",
         FOCUS
       )}
     >
