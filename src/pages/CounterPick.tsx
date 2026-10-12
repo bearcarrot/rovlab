@@ -9,6 +9,7 @@ import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { CounterList } from "@/features/heroes/CounterList";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 
 export function CounterPick() {
@@ -22,10 +23,7 @@ export function CounterPick() {
 
   const filtered = useMemo(() => {
     if (heroes.status !== "success") return [];
-    const q = query.trim();
-    return heroes.data.filter(
-      (h) => filters.match(h) && (q === "" || h.nameTh.includes(q) || h.name.toLowerCase().includes(q.toLowerCase()))
-    );
+    return heroes.data.filter((h) => filters.match(h) && heroMatchesQuery(h, query));
   }, [heroes, query, filters.match]);
 
   // slug → icon URL จากรายชื่อฮีโร่ที่โหลดแล้ว ใช้เป็น fallback แสดงไอคอนในรายการฮีโร่ที่ชนะทาง
