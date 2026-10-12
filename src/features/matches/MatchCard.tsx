@@ -20,14 +20,27 @@ function HeroThumb({ src, name, size }: { src?: string; name: string; size: stri
   );
 }
 
+// The MVP badge sits on the hero icon and "me" is the highlighted row, so the name keeps the whole name column
+// (long names such as "Flowborn (Carry)" wrap to two lines instead of being cut with an ellipsis).
 function PlayerRow({ p, icon }: { p: StoredPlayer; icon?: string }) {
   return (
     <li className={cn(STAT_GRID, "px-2 py-1 text-xs tabular-nums", p.isMe && "bg-accent/15 ring-1 ring-inset ring-accent/40")}>
       <span className="flex min-w-0 items-center gap-1.5">
-        <HeroThumb src={icon} name={p.hero} size="h-7 w-7" />
-        <span className={cn("truncate text-sm", p.isMe ? "font-medium text-accent" : "text-text")}>{p.hero}</span>
-        {p.mvp && <span className="shrink-0 rounded bg-accent/15 px-1 py-0.5 text-[9px] font-semibold text-accent">MVP</span>}
-        {p.isMe && <span className="shrink-0 text-[10px] text-accent">(ฉัน)</span>}
+        <span className="relative shrink-0">
+          <HeroThumb src={icon} name={p.hero} size="h-7 w-7" />
+          {p.mvp && (
+            <span className="absolute -bottom-1 -right-1 rounded bg-accent px-0.5 text-[8px] font-bold leading-tight text-accent-fg">
+              MVP
+            </span>
+          )}
+        </span>
+        <span
+          title={p.hero}
+          className={cn("min-w-0 break-words text-[13px] leading-tight", p.isMe ? "font-medium text-accent" : "text-text")}
+        >
+          {p.hero}
+          {p.isMe && <span className="sr-only"> (ฉัน)</span>}
+        </span>
       </span>
       <span className="text-center">{p.kills}</span>
       <span className="text-center">{p.deaths}</span>
