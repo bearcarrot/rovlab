@@ -127,7 +127,7 @@ export function GameDataDetail() {
 
       {f.k === "items" && f.v.stats.filter((s) => s.length <= 40).length > 0 && (
         <ul className="space-y-1 rounded-card border border-border bg-bg-surface p-4 text-sm text-text-muted">
-          {f.v.stats.filter((s) => s.length <= 40).map((s) => <li key={s}>• {s}</li>)}
+          {f.v.stats.filter((s) => s.length <= 40).map((s) => <li key={s}>{s}</li>)}
         </ul>
       )}
       {f.k === "items" && f.v.passive && <p className="whitespace-pre-line rounded-card border border-border bg-bg-surface p-4 text-sm text-text-muted">{f.v.passive}</p>}
