@@ -52,6 +52,7 @@ import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes } from "@/lib/heroPositions";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroLane, HeroSummary } from "@/types/hero";
 import { cn } from "@/lib/utils";
@@ -271,11 +272,7 @@ export function DraftAssistant() {
     }
     return getAvailableHeroes({ heroes, series: ds.series, gameNumber: ds.gameNumber, team: active.team });
   }, [active, heroes, takenNow, ds.series, ds.gameNumber]);
-  const filteredPool = activePool.filter(
-    (h) =>
-      filters.match(h) &&
-      (query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase()))
-  );
+  const filteredPool = activePool.filter((h) => filters.match(h) && heroMatchesQuery(h, query));
 
   const firstPick = (): Active => ({ team: "mine", kind: "pick", index: 0 });
 

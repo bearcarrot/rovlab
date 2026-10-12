@@ -41,6 +41,7 @@ export function HeroCombobox({
           (h) =>
             norm(h.name).includes(q) ||
             norm(h.nameTh).includes(q) ||
+            (!!h.thaiName && norm(h.thaiName).includes(q)) ||
             norm(h.slug).includes(q) ||
             heroRoles(h).some((r) => norm(roleLabel(r)).includes(q) || r.includes(q))
         )

@@ -22,7 +22,8 @@ import { ALL_LANES, getCuratedTierLists, type CuratedTierLists } from "@/service
 // Hero names: the site shows the in-game English name everywhere (Thai translations
 // can differ from the game and confuse players). The `nameTh` / `heroNameTh` properties
 // are kept so existing components don't change, but they are now filled with the English
-// `name` column. The `name_th` column is no longer read for display.
+// `name` column. The `name_th` column is not used for display; it is exposed only as
+// `thaiName` so the hero search boxes can also match Thai names (see lib/heroSearch.ts).
 //
 // Performance: the independent queries run in parallel, and results are cached in memory
 // for CACHE_TTL_MS (see lib/ttlCache). Admins bypass the cache so their edits show up at once.
@@ -55,6 +56,7 @@ function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]
     slug: row.slug,
     name: row.name,
     nameTh: row.name, // display name = English in-game name
+    thaiName: row.name_th || undefined, // search only, never displayed
     role: row.role,
     lane: row.lane,
     roles: row.roles && row.roles.length > 0 ? row.roles : [row.role],

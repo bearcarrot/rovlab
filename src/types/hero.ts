@@ -23,6 +23,8 @@ export interface HeroSummary {
   slug: string;
   name: string;
   nameTh: string;
+  // heroes.name_th — ใช้ค้นหาเท่านั้น (UI ยังแสดงชื่ออังกฤษใน nameTh) ดู lib/heroSearch.ts
+  thaiName?: string;
   role: HeroRole; // ตำแหน่งหลัก (= roles[0])
   lane: HeroLane; // เลนหลัก (= lanes[0])
   roles?: HeroRole[]; // ทุกตำแหน่งที่ฮีโร่ไปได้ ใช้ heroRoles() จาก @/lib/heroPositions

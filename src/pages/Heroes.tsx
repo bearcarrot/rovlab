@@ -6,6 +6,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { HeroCard } from "@/features/heroes/HeroCard";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -21,7 +22,7 @@ export function Heroes() {
   const filtered = useMemo(() => {
     if (heroes.status !== "success") return [];
     return heroes.data.filter((h) => {
-      const matchesQuery = query.trim() === "" || h.nameTh.includes(query) || h.name.toLowerCase().includes(query.toLowerCase());
+      const matchesQuery = heroMatchesQuery(h, query);
       // ฮีโร่ที่ไปได้หลายตำแหน่ง/เลนต้องขึ้นในทุกตัวกรองที่ตรง (ใช้ roles/lanes ทั้งอาร์เรย์ ไม่ใช่แค่ค่าหลัก)
       const matchesRole = role === null || heroRoles(h).includes(role);
       const matchesLane = lane === null || heroLanes(h).includes(lane);
