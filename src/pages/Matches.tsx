@@ -168,10 +168,10 @@ export function Matches() {
                   <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
                 </ul>
               </div>
-              {/* รูปตัวอย่าง: public/examples/scoreboard-example.webp (ถ้าไม่มีไฟล์จะซ่อนทั้งกล่อง) */}
+              {/* รูปตัวอย่าง: public/example/scoreboard-example.webp (ถ้าไม่มีไฟล์จะซ่อนทั้งกล่อง) */}
               <figure className="space-y-1">
                 <img
-                  src="/examples/scoreboard-example.webp"
+                  src="/example/scoreboard-example.webp"
                   alt="ตัวอย่างหน้าสรุปผลการเล่นที่ใช้ได้"
                   width={1200}
                   height={532}
