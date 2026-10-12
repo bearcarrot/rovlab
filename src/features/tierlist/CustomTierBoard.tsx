@@ -13,6 +13,7 @@ import {
   tierListTemplate,
   type TierListImageData,
 } from "@/lib/share-image";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 import type { HeroSummary, Tier } from "@/types/hero";
 import {
@@ -74,10 +75,10 @@ export function CustomTierBoard({
 
   const placed = useMemo(() => new Set(CUSTOM_TIERS.flatMap((t) => list.tiers[t])), [list.tiers]);
   const match = filters.match;
-  const pool = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return heroes.filter((h) => !placed.has(h.id) && match(h) && (q === "" || h.name.toLowerCase().includes(q)));
-  }, [heroes, placed, match, query]);
+  const pool = useMemo(
+    () => heroes.filter((h) => !placed.has(h.id) && match(h) && heroMatchesQuery(h, query)),
+    [heroes, placed, match, query]
+  );
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
 
