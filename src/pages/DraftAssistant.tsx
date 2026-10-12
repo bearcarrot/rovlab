@@ -601,7 +601,7 @@ export function DraftAssistant() {
             <p className="mb-2 text-xs text-text-muted">{MODE_TEXT[mode]} · เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ</p>
             {mineList.length > 0 && !teamFull && missingLanes.length > 0 && (
               <p className="mb-2 text-xs text-text-muted">
-                เลนที่ยังขาด: {missingLanes.map((l) => laneLabel(l as HeroLane)).join(" · ")} — แนะนำเฉพาะฮีโร่ที่เล่นเลนเหล่านั้นได้
+                เลนที่ยังขาด: {missingLanes.map((l) => laneLabel(l as HeroLane)).join(" · ")} — แนะนำเฉพาะฮีโร่ที่เล่นเลนเหล่านี้ได้
               </p>
             )}
             {teamFull ? (
