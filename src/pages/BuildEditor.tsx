@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { ItemSlots, RuneSlots, type RowMove } from "@/features/admin/BuildSlots";
+import { ItemSlots, RuneSlots, type ItemOpt, type RowMove } from "@/features/admin/BuildSlots";
 import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
 import { ITEM_TYPE_CHOICES, PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
 import { EnchantmentBoard, type BoardRow, type EnchTree } from "@/features/build/EnchantmentBoard";
@@ -93,7 +93,20 @@ export function BuildEditor() {
   }, [existing, catalog, hydrated]);
 
   const [items, runes, spells, enchData] = catalog.status === "success" ? catalog.data : EMPTY_CATALOG;
-  const itemOpts: ImgOpt[] = useMemo(() => items.map((i) => ({ id: i.id, label: i.name, icon: i.icon || undefined, alt: i.nameTh })), [items]);
+  const itemOpts: ItemOpt[] = useMemo(
+    () =>
+      items.map((i) => ({
+        id: i.id,
+        label: i.name,
+        icon: i.icon || undefined,
+        alt: i.nameTh,
+        tier: i.tier ?? undefined,
+        cost: i.cost ?? undefined,
+        tags: i.roleTags,
+        stat: i.stats.length ? i.stats.join(" · ") : undefined,
+      })),
+    [items]
+  );
   const runeOpts: RuneOpt[] = useMemo(() => runes.map((r) => ({ id: r.id, label: r.name, icon: r.icon || undefined, color: r.color ?? undefined })), [runes]);
   const spellOpts: SpellOpt[] = useMemo(
     () => spells.map((s) => ({ id: s.id, name: s.name, nameTh: s.nameTh, description: s.description, cooldownSeconds: s.cooldownSeconds, icon: s.icon || undefined, pickable: true })),
