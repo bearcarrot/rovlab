@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Hammer, LogIn, Plus } from "lucide-react";
+import { Hammer, LogIn, Plus, Search } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getBuildForHero, getItems } from "@/services/items";
 import { listCommunityBuilds, listMyBuilds, type UserBuild } from "@/services/userBuilds";
@@ -16,6 +16,7 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { toViewBuild } from "@/features/build/toViewBuild";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 
@@ -26,19 +27,30 @@ const TABS: [Tab, string][] = [
   ["community", "Community"],
 ];
 
-// การ์ดเลือกฮีโร่แบบเดียวกับหน้า Matchup (ตัวกรอง Role/Lane + ป้าย balance)
+// การ์ดเลือกฮีโร่แบบเดียวกับหน้า Matchup (ตัวกรอง Role/Lane + ป้าย balance) + ช่องค้นหาชื่อแบบหน้าฮีโร่ทั้งหมด
 function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void }) {
   const filters = useHeroFilters("build");
-  const list = heroes.filter((h) => filters.match(h));
+  const [query, setQuery] = useState("");
+  const list = heroes.filter((h) => filters.match(h) && heroMatchesQuery(h, query));
   return (
     <div className="min-w-0 space-y-2">
       <p className="text-xs font-medium text-text-faint">
         เลือกฮีโร่
         {value && <span className="ml-2 text-accent">เลือกอยู่: {value.nameTh}</span>}
       </p>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
+        <Search className="h-4 w-4 shrink-0 text-text-faint" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="ค้นหาชื่อฮีโร่"
+          aria-label="ค้นหาชื่อฮีโร่"
+          className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
+        />
+      </div>
       <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
       {list.length === 0 ? (
-        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับคำค้นหาหรือตัวกรอง</p>
       ) : (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12">
           {list.map((h) => (
