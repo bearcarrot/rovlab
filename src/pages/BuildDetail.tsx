@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Hammer, Loader2, Pencil } from "lucide-react";
+import { Check, Eye, EyeOff, Globe, Hammer, Loader2, Lock, Pencil, Trash2, X } from "lucide-react";
 import { buildError, deleteBuild, getBuild, setBuildHidden, setBuildPublic } from "@/services/userBuilds";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
@@ -82,24 +82,26 @@ export function BuildDetail() {
             <>
               <Link to={`/build/edit/${b.id}`} className={`${btn} border-border bg-bg-raised text-text hover:border-text-faint`}><Pencil className="h-4 w-4" />แก้ไข</Link>
               <button type="button" disabled={busy} onClick={() => void run(() => setBuildPublic(b.id, !b.isPublic), b.isPublic ? "เปลี่ยนเป็นส่วนตัวแล้ว" : "เผยแพร่แล้ว")} className={`${btn} border-border bg-bg-raised text-text hover:border-text-faint`}>
+                {b.isPublic ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                 {b.isPublic ? "ยกเลิกการเผยแพร่" : "เผยแพร่เป็น Community Build"}
               </button>
             </>
           )}
           {isAdmin && (
             <button type="button" disabled={busy} onClick={() => void run(() => setBuildHidden(b.id, !b.hidden), b.hidden ? "เปิดการแสดงแล้ว" : "ซ่อนบิลด์แล้ว")} className={`${btn} border-border bg-bg-raised text-text hover:border-text-faint`}>
+              {b.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               {b.hidden ? "เปิดการแสดง (แอดมิน)" : "ซ่อนบิลด์ (แอดมิน)"}
             </button>
           )}
           {confirmDel ? (
             <>
               <button type="button" disabled={busy} onClick={() => void run(() => deleteBuild(b.id), "ลบแล้ว", () => navigate("/build?tab=mine"))} className={`${btn} border-loss bg-loss text-white`}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}ยืนยันลบ
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}ยืนยันลบ
               </button>
-              <button type="button" onClick={() => setConfirmDel(false)} className={`${btn} border-border bg-bg-raised text-text`}>ยกเลิก</button>
+              <button type="button" onClick={() => setConfirmDel(false)} className={`${btn} border-border bg-bg-raised text-text`}><X className="h-4 w-4" />ยกเลิก</button>
             </>
           ) : (
-            <button type="button" onClick={() => setConfirmDel(true)} className={`${btn} border-loss/40 bg-loss/10 text-loss`}>ลบบิลด์</button>
+            <button type="button" onClick={() => setConfirmDel(true)} className={`${btn} border-loss/40 bg-loss/10 text-loss`}><Trash2 className="h-4 w-4" />ลบบิลด์</button>
           )}
         </div>
       )}

@@ -39,7 +39,7 @@ const SELECT =
   "heroes(slug, name, name_th, icon_url), " +
   "challenger_spells(id, slug, name, name_th, icon_url, cooldown_seconds), " +
   "user_build_items(item_id, phase, sort_order, items(slug, name, name_th, icon_url)), " +
-  "user_build_runes(rune_id, quantity, sort_order, rune(id, name, icon_url, color)), " +
+  "user_build_runes(rune_id, quantity, sort_order, rune(id, name, icon_url, color, description)), " +
   "user_build_enchantments(enchantment_id, selection_type, sort_order, enchantments(slug, name, name_th, icon_url, tier_level))";
 
 const PHASE_ORDER: Record<string, number> = { early: 0, core: 1, situational: 2 };
@@ -67,7 +67,7 @@ function map(r: any): UserBuild {
     spellId: r.challenger_spell_id ?? null,
     view: {
       items: items.map((i) => ({ slug: i.items.slug, name: i.items.name, icon: i.items.icon_url ?? undefined, phase: i.phase as Phase })),
-      runes: runes.map((x) => ({ key: x.rune.id, name: x.rune.name, icon: x.rune.icon_url ?? undefined, color: x.rune.color ?? undefined, quantity: x.quantity })),
+      runes: runes.map((x) => ({ key: x.rune.id, name: x.rune.name, icon: x.rune.icon_url ?? undefined, color: x.rune.color ?? undefined, quantity: x.quantity, description: x.rune.description ?? undefined })),
       spell: sp ? { slug: sp.slug, name: sp.name, nameTh: sp.name_th, icon: sp.icon_url ?? undefined, cooldownSeconds: sp.cooldown_seconds ?? null } : null,
       enchantments: ench.map((e) => ({
         slug: e.enchantments.slug,
