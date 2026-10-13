@@ -74,10 +74,34 @@ export async function listMyMatches(limit = 100): Promise<MatchRecord[]> {
   return (data ?? []).map(toRecord);
 }
 
+/**
+ * Saved matches (own rows, RLS) with exactly this printed time and length. An exact duplicate must share both, so this is
+ * all the duplicate check has to read. Throws when the lookup fails: the caller must then NOT save.
+ */
+export async function findSameSlot(playedAt: string, durationSec: number): Promise<MatchRecord[]> {
+  const { data, error } = await supabase
+    .from("match_results")
+    .select(COLS)
+    .eq("played_at", playedAt)
+    .eq("duration_sec", durationSec);
+  if (error) {
+    console.error("findSameSlot", error);
+    throw new Error("ตรวจแมตช์ซ้ำไม่สำเร็จ ยังไม่ได้บันทึก ลองใหม่อีกครั้ง");
+  }
+  return (data ?? []).map(toRecord);
+}
+
+/** Thrown when the database itself rejects the insert: unique (user_id, played_at, duration_sec). Covers races and retries. */
+export class DuplicateMatchError extends Error {
+  constructor() {
+    super("บันทึกแมตช์ไม่สำเร็จ: มีแมตช์ที่เวลาและความยาวเกมเท่ากันถูกบันทึกไว้แล้ว");
+  }
+}
+
 export async function saveMatch(row: MatchInsert): Promise<void> {
   const { error } = await supabase.from("match_results").insert(row);
   if (error) {
-    if (error.code === "23505") throw new Error("บันทึกแมตช์ไม่สำเร็จ: แมตช์นี้ถูกบันทึกไว้แล้ว");
+    if (error.code === "23505") throw new DuplicateMatchError();
     console.error("saveMatch", error);
     throw new Error("บันทึกแมตช์ไม่สำเร็จ");
   }
