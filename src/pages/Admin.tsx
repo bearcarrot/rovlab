@@ -46,8 +46,7 @@ type RefOpt = {
 // text | num | date | sel(เลือกจาก opts) | hero/item/rune/patch/guideCat(เลือกจากตารางอื่น)
 // | area(ข้อความยาว) | arr(หลายค่าคั่นด้วย ,) | img(รูป: วาง URL หรืออัปโหลดไฟล์)
 // | multi(เลือกได้หลายค่าจาก opts แบบปุ่ม ค่าแรก = ตัวหลัก)
-// | choice(ปุ่มชิปจาก choices ค่าเดียว หรือหลายค่าถ้า multiChoice แตะซ้ำเพื่อเอาออก)
-// | tags(แท็กสกิล: jsonb [{type,name}] แตะเลือกจากรายการในแท็บ "แท็กและสี") | color(สี hex)
+// | choice(ปุ่มชิปจาก choices ค่าเดียว หรือหลายค่าถ้า multiChoice แตะซ้ำเพื่อเอาออก) | tags(แท็กสกิล: jsonb [{type,name}] แตะเลือกจากรายการในแท็บ "แท็กและสี") | color(สี hex)
 type Col = {
   k: string;
   label?: string;
@@ -60,6 +59,8 @@ type Col = {
   num?: boolean;
   // แสดงอย่างเดียว แก้ไม่ได้ (เช่น รหัสตำแหน่งที่ผูกกับ CHECK ใน DB)
   ro?: boolean;
+  // คอลัมน์ NOT NULL ใน DB: เว้นว่าง = บันทึกเป็น "" แทน null
+  blank?: boolean;
   // รูปแบบวงกลม (border-radius 50%) ใช้กับไอคอนสกิลและรูน
   round?: boolean;
   // ขอบสีทอง 1px รอบรูป (ใช้กับไอคอนสกิล)
@@ -323,7 +324,8 @@ const CFG: Record<string, Cfg> = {
     cols: [
       { k: "item_id", label: "ไอเทม", type: "item" },
       { k: "phase", type: "sel", opts: ["early", "core", "situational"] },
-      { k: "reason", type: "area" },
+      // reason เป็น NOT NULL ใน DB — เว้นว่างได้ จะบันทึกเป็น "" (blank)
+      { k: "reason", type: "area", blank: true },
       { k: "sort_order", type: "num" },
     ],
   },
@@ -500,7 +502,7 @@ const clean = (c: Col, v: unknown, refs?: Record<string, RefOpt[]>, prev?: unkno
     }
     return tagNames(v).map((name) => ({ type: typeOf.get(name) ?? 0, name }));
   }
-  return isArrCol(c) ? toArr(v) : v === "" || v == null ? null : c.type === "num" || c.num ? Number(v) : v;
+  return isArrCol(c) ? toArr(v) : v === "" || v == null ? (c.blank ? "" : null) : c.type === "num" || c.num ? Number(v) : v;
 };
 
 const show = (c: Col, v: any, refs: Record<string, RefOpt[]>) => {
