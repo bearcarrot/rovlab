@@ -27,7 +27,7 @@ export const ITEM_TYPE_CHOICES = [
   { value: "support", label: "ซัพพอร์ต" },
 ];
 
-export interface ViewItem { slug: string; name: string; icon?: string; phase: Phase; reason?: string }
+export interface ViewItem { slug: string; name: string; nameTh?: string; icon?: string; phase: Phase; reason?: string }
 export interface ViewRune { key: string; name: string; icon?: string; color?: string; quantity: number }
 export interface ViewSpell { slug: string; name: string; nameTh: string; icon?: string; cooldownSeconds: number | null }
 export interface ViewEnchant { slug: string; name: string; nameTh: string; icon?: string; tier: number | null; type: "primary" | "secondary" }
@@ -116,11 +116,11 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
                     <Link
                       key={i.slug}
                       to={catalogPath("items", i.slug)}
-                      title={i.name}
-                      aria-label={i.name}
+                      title={i.nameTh ?? i.name}
+                      aria-label={i.nameTh ?? i.name}
                       className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60 sm:h-16 sm:w-16"
                     >
-                      <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
+                      <Thumb src={i.icon} label={i.nameTh ?? i.name} className="h-full w-full !rounded-none !border-0" />
                     </Link>
                   ))}
                 </div>
@@ -132,7 +132,7 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
           <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm text-text-muted">
             {reasons.map((i) => (
               <li key={i.slug}>
-                <Link to={catalogPath("items", i.slug)} className="font-medium text-text hover:text-accent">{i.name}</Link>: {i.reason}
+                <Link to={catalogPath("items", i.slug)} className="font-medium text-text hover:text-accent">{i.nameTh ?? i.name}</Link>: {i.reason}
               </li>
             ))}
           </ul>

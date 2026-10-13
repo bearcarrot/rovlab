@@ -14,7 +14,8 @@ import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Thumb } from "@/features/admin/ImageSelect";
-import { ReadOnlyBuild, type ViewBuild } from "@/features/build/buildView";
+import { ReadOnlyBuild } from "@/features/build/buildView";
+import { toViewBuild } from "@/features/build/toViewBuild";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 
@@ -79,18 +80,7 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
 function Recommended({ hero }: { hero: HeroSummary }) {
   const q = useAsync(async () => {
     const [build, items] = await Promise.all([getBuildForHero(hero), getItems()]);
-    const bySlug = new Map(items.map((i) => [i.slug, i]));
-    const view: ViewBuild = {
-      items: build.items.flatMap((i) => {
-        const it = bySlug.get(i.itemSlug);
-        return it ? [{ slug: it.slug, name: it.name, icon: it.icon || undefined, phase: i.phase, reason: i.reason }] : [];
-      }),
-      runes: build.arcana.map((a) => ({ key: a.name, name: a.name, icon: a.icon, color: a.color, quantity: a.quantity ?? 1 })),
-      spell: build.spell
-        ? { slug: build.spell.slug, name: build.spell.name, nameTh: build.spell.nameTh, icon: build.spell.icon, cooldownSeconds: build.spell.cooldownSeconds }
-        : null,
-      enchantments: (build.enchantments ?? []).map((e) => ({ slug: e.slug, name: e.name, nameTh: e.nameTh, icon: e.icon, tier: e.tier, type: e.type })),
-    };
+    const view = toViewBuild(build, items);
     return { patch: build.patch, source: build.source, view };
   }, [hero.id]);
 
