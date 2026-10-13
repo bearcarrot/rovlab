@@ -36,6 +36,9 @@ const MAX_OUTPUT_TOKENS = 8192;
 // ต่ำลงเพื่อให้ยึดข้อมูลที่ส่งไป (เดิม 0.7)
 const TEMPERATURE = 0.3;
 
+// จำกัดจำนวนครั้งต่อผู้ใช้ต่อวัน (UTC) กัน account เดียวใช้โควต้า Gemini หมด (RPC consume_ai_quota, migration 20261006_ai_coach_daily_quota)
+const DAILY_LIMIT = 20;
+
 const RETRYABLE = new Set([500, 503, 504]);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cleanModel = (m: string) => m.trim().replace(/^models\//, "");
@@ -143,6 +146,9 @@ Deno.serve(async (req) => {
   );
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return json({ error: "unauthorized" }, 401);
+  if (!user.email_confirmed_at) {
+    return json({ error: "กรุณายืนยันอีเมลก่อนใช้ AI Coach" }, 403);
+  }
 
   try {
     const { prompt, context } = await req.json();
@@ -157,6 +163,23 @@ Deno.serve(async (req) => {
     // optional secret GEMINI_FALLBACK_MODEL; default is a lighter model
     const fallback = cleanModel(Deno.env.get("GEMINI_FALLBACK_MODEL") ?? "gemini-3.5-flash-lite");
     const models = fallback && fallback !== primary ? [primary, fallback] : [primary];
+
+    // Per-user daily quota (service role; the RPC is not callable by clients)
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: allowed, error: quotaErr } = await admin.rpc("consume_ai_quota", {
+      p_user: user.id,
+      p_limit: DAILY_LIMIT,
+    });
+    if (quotaErr) {
+      console.error("ai-coach quota error", quotaErr.message);
+      return json({ error: "ระบบขัดข้องชั่วคราว ลองใหม่อีกครั้ง" }, 500);
+    }
+    if (!allowed) {
+      return json({ error: `ใช้ AI Coach ครบ ${DAILY_LIMIT} ครั้งต่อวันแล้ว ลองใหม่พรุ่งนี้` }, 429);
+    }
 
     // context ยาวเกินเพดานจะถูกตัดกลางทาง: ใส่หมายเหตุให้โมเดลรู้ว่าข้อมูลไม่ครบ (ไม่งั้นมันจะตอบเหมือนข้อมูลครบ)
     // ฝั่งผู้ใช้เก็บ snapshot ของ context ด้วยการตัดแบบเดียวกัน (slice 8000) เพื่อให้แอดมินตรวจรีวิวย้อนหลังได้ตรงกัน
@@ -201,9 +224,8 @@ Deno.serve(async (req) => {
         if (RETRYABLE.has(status)) {
           return { ok: false, response: json({ error: "Gemini กำลังมีคนใช้เยอะ ลองใหม่อีกครั้งในสักครู่" }, 503) };
         }
-        let msg = "";
-        try { msg = JSON.parse(raw)?.error?.message ?? ""; } catch { /* not json */ }
-        return { ok: false, response: json({ error: `AI error (${status}, model=${used}): ${msg}`.slice(0, 300) }, 502) };
+        // รายละเอียด (โมเดล/ข้อความจาก Google) อยู่ใน log เท่านั้น ไม่ส่งให้ client
+        return { ok: false, response: json({ error: `AI ขัดข้องชั่วคราว (${status})` }, 502) };
       }
 
       if (used !== primary) console.log("ai-coach used fallback model", used);
