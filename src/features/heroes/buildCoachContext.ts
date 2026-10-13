@@ -1,6 +1,7 @@
 import type { HeroBuild, ItemSummary } from "@/types/item";
 
 // context ฝั่ง Coach Ai: บิลด์ที่เลือกบนหน้า Hero Detail (ข้อมูลจริงจาก DB เท่านั้น ไม่แต่งเพิ่ม)
+// ชื่อไอเทม/รูน/พลังแฝง/สกิลชาเลนเจอร์ ส่งเป็นภาษาอังกฤษตรงกับในเกม (คอลัมน์ name); ส่วนคำอธิบายยังเป็นไทยตามข้อมูลใน DB
 // ai-coach ตัด context ที่ 8000 ตัวอักษร (ดู supabase/functions/ai-coach) จึงเผื่อไว้ที่ 7200 แล้วย่อข้อความทีละขั้น
 const BUDGET = 7200;
 const STEPS = [
@@ -36,7 +37,7 @@ function block(build: HeroBuild, items: ItemSummary[], latestPatch: string | nul
       return [
         {
           id: it.slug,
-          name: it.nameTh || it.name,
+          name: it.name,
           phase: b.phase,
           cost: it.cost,
           ...(st.stats > 0 && it.stats.length > 0 ? { stats: it.stats.slice(0, st.stats).map((s) => squash(s, 40)) } : {}),
@@ -48,12 +49,12 @@ function block(build: HeroBuild, items: ItemSummary[], latestPatch: string | nul
     runes: build.arcana.map((a) => ({ name: a.name, color: a.color ?? null, quantity: a.quantity ?? 1 })),
     challengerSpell: build.spell
       ? {
-          name: build.spell.nameTh,
+          name: build.spell.name,
           cooldownSeconds: build.spell.cooldownSeconds,
           ...(st.reason > 0 && build.spell.description ? { description: squash(build.spell.description, st.reason) } : {}),
         }
       : null,
-    enchantments: (build.enchantments ?? []).map((e) => ({ name: e.nameTh, tier: e.tier, type: e.type })),
+    enchantments: (build.enchantments ?? []).map((e) => ({ name: e.name, tier: e.tier, type: e.type })),
   };
 }
 
