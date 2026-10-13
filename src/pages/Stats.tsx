@@ -1,17 +1,18 @@
-import { useEffect, useMemo } from "react";
-import { BarChart3 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Search } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { trackActivity } from "@/services/activity";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { Chip, RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { heroMatchesQuery } from "@/lib/heroSearch";
 import { StatBarRow } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { cn } from "@/lib/utils";
-import { RANK_LABEL, setRank, useRank, type RankBucket } from "@/lib/rank";
+import { RANK_LABEL, useRank } from "@/lib/rank";
 import type { HeroLane, HeroRole } from "@/types/hero";
 
 type Metric = "winRate" | "pickRate" | "banRate";
@@ -22,12 +23,11 @@ const METRIC_LABEL: Record<Metric, string> = {
   banRate: "Ban Rate",
 };
 
-const RANKS: RankBucket[] = ["all", "high"];
-
 export function Stats() {
   const heroesQ = useAsync(() => getHeroes(), []);
-  // แรงก์ใช้ store กลางเดียวกับปุ่มบน Header และหน้า Tier List (lib/rank.ts) — ชิปด้านล่างนี้แค่เรียก setRank ไม่มี state แยก
+  // แรงก์เลือกจากปุ่มบน Header (store กลาง lib/rank.ts) — หน้านี้อ่านค่าอย่างเดียว ไม่มีชิปเลือกแรงก์แยก
   const rank = useRank();
+  const [query, setQuery] = useState("");
   // จำค่าตัวกรองไว้แม้สลับแรงก์ (หน้าถูก remount เมื่อ rank เปลี่ยน)
   const [metric, setMetric] = usePersistedState<Metric>("rovlab:filter:stats:metric", "winRate");
   const [role, setRole] = usePersistedState<HeroRole | null>("rovlab:filter:stats:role", null);
@@ -44,11 +44,12 @@ export function Stats() {
     const filtered = heroesQ.data.filter(
       (h) =>
         h.stat.hasStats &&
+        heroMatchesQuery(h, query) &&
         (role === null || heroRoles(h).includes(role)) &&
         (lane === null || heroLanes(h).includes(lane))
     );
     return [...filtered].sort((a, b) => b.stat[metric] - a.stat[metric]);
-  }, [heroesQ, role, lane, metric]);
+  }, [heroesQ, query, role, lane, metric]);
 
   const patchLabel = heroesQ.status === "success" ? heroesQ.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
 
@@ -59,13 +60,15 @@ export function Stats() {
         <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
       </div>
 
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-text-faint">แรงก์</p>
-        <div role="group" aria-label="แรงก์" className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {RANKS.map((r) => (
-            <Chip key={r} active={rank === r} onClick={() => setRank(r)} label={RANK_LABEL[r]} />
-          ))}
-        </div>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
+        <Search className="h-4 w-4 shrink-0 text-text-faint" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="ค้นหาชื่อฮีโร่"
+          aria-label="ค้นหาชื่อฮีโร่"
+          className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
+        />
       </div>
 
       <div className="space-y-1">
@@ -101,7 +104,7 @@ export function Stats() {
         <EmptyState
           icon={BarChart3}
           title={heroesQ.data.some((h) => h.stat.hasStats) ? "ไม่พบข้อมูลในหมวดนี้" : "ยังไม่มีข้อมูลสถิติ"}
-          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
+          description={heroesQ.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนคำค้นหา หรือตัวกรอง Role/Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
         />
       )}
       {heroesQ.status === "success" && sorted.length > 0 && (
