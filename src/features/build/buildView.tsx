@@ -7,7 +7,8 @@ import { useAsync } from "@/hooks/useAsync";
 import { getCatalogEnchantments } from "@/services/gameCatalog";
 
 // พาหนะแสดงบิลด์แบบอ่านอย่างเดียว จัดวางแบบหน้าจอบิลด์ในเกม: ไอเทม / พลังแฝง / รูน / สกิล
-// ใช้ร่วมกันทั้งบิลด์แนะนำ และบิลด์ของผู้ใช้ — ทุกชิ้นกดแล้วไปหน้าคลังข้อมูลของชิ้นนั้น
+// ReadOnlyBuild = แบบเต็ม (แยกไอเทมตามช่วง) สำหรับหน้ารายละเอียด / CompactBuild = การ์ดกะทัดรัดแบบหน้า Community ในเกม
+// ทุกชิ้นกดแล้วไปหน้าคลังข้อมูลของชิ้นนั้น
 // ชื่อไอเทม/พลังแฝง/รูน/สกิลแสดงเป็นชื่ออังกฤษในเกม (คอลัมน์ name) ให้ตรงกับที่ Coach AI ใช้
 
 export type Phase = "early" | "core" | "situational";
@@ -43,8 +44,9 @@ export const catalogPath = (kind: CatalogKind, key: string) => `/game-data/${kin
 
 const ROMAN = ["", "I", "II", "III"];
 const KNOWN_COLORS: Set<string> = new Set(RUNE_COLOR_VIEW.map((c) => c.k));
+const ITEM_SLOTS = 6;
 
-// รายการบิลด์แสดง ReadOnlyBuild หลายอันพร้อมกัน — โหลดแคตตาล็อกพลังแฝงครั้งเดียวแล้วใช้ซ้ำ (ล้มเหลวแล้วลองใหม่ได้)
+// รายการบิลด์แสดงหลายอันพร้อมกัน — โหลดแคตตาล็อกพลังแฝงครั้งเดียวแล้วใช้ซ้ำ (ล้มเหลวแล้วลองใหม่ได้)
 let enchantCatalog: ReturnType<typeof getCatalogEnchantments> | null = null;
 const loadEnchantCatalog = () =>
   (enchantCatalog ??= getCatalogEnchantments().catch((e) => {
@@ -146,6 +148,87 @@ function RuneDialog({ runes, open, onOpenChange }: { runes: ViewRune[]; open: bo
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+// โนดพลังแฝงขนาดเล็กสำหรับการ์ดกะทัดรัด (ไม่มีกรอบสีที่วงกลม; keystone เป็นเพชรกรอบทอง)
+function MiniEnchant({ e, keystone, secondary }: { e: ViewEnchant; keystone: boolean; secondary: boolean }) {
+  return (
+    <Link to={catalogPath("enchantments", e.slug)} title={e.name} aria-label={e.name} className="flex h-12 shrink-0 items-center transition hover:brightness-125">
+      {keystone ? (
+        <span className="flex h-8 w-8 rotate-45 items-center justify-center overflow-hidden rounded-md border-2 border-accent bg-bg-raised">
+          <span className="-rotate-45 scale-[1.45]">
+            <Thumb src={e.icon} label={e.name} className="h-7 w-7 !rounded-none !border-0" />
+          </span>
+        </span>
+      ) : (
+        <span className={`flex ${secondary ? "h-7 w-7" : "h-9 w-9"} items-center justify-center overflow-hidden rounded-[50%] bg-bg-raised`}>
+          <Thumb src={e.icon} label={e.name} round className="h-full w-full !border-0" />
+        </span>
+      )}
+    </Link>
+  );
+}
+
+// การ์ดกะทัดรัดแบบหน้า Community ในเกม: ไอเทม 6 ช่องแถวเดียว + สกิลชาเลนเจอร์ทางขวา / แถวพลังแฝง (ชุดหลักเชื่อมเส้น | ชุดรอง) + ป้ายรูนทางขวา
+// ป้ายรูนแสดงจำนวนรูนจริง (ไม่ใช่เลเวลรวมแบบเกม เพราะยังไม่มีข้อมูลเลเวล) กดแล้วเปิดรายละเอียดรูน
+export function CompactBuild({ build }: { build: ViewBuild }) {
+  const catalog = useAsync(() => loadEnchantCatalog(), []);
+  const [runeOpen, setRuneOpen] = useState(false);
+  const keystones = new Set<string>(catalog.status === "success" ? catalog.data.list.filter((x) => x.category === "keystone").map((x) => x.slug) : []);
+  const primary = build.enchantments.filter((e) => e.type === "primary");
+  const secondary = build.enchantments.filter((e) => e.type === "secondary");
+  const totalRunes = build.runes.reduce((n, r) => n + r.quantity, 0);
+  const items = build.items.slice(0, ITEM_SLOTS);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="grid min-w-0 flex-1 grid-cols-6 gap-1.5">
+          {items.map((i) => (
+            <Link key={i.slug} to={catalogPath("items", i.slug)} title={i.name} aria-label={i.name} className="aspect-square w-full overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60">
+              <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
+            </Link>
+          ))}
+          {Array.from({ length: ITEM_SLOTS - items.length }).map((_, n) => (
+            <span key={`empty-${n}`} aria-hidden className="aspect-square w-full rounded-md border-2 border-dashed border-border/60" />
+          ))}
+        </div>
+        {build.spell && (
+          <Link to={catalogPath("spells", build.spell.slug)} title={build.spell.name} aria-label={build.spell.name} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[50%] border-2 border-border bg-bg-raised transition hover:brightness-125">
+            <Thumb src={build.spell.icon} label={build.spell.name} round className="h-full w-full" />
+          </Link>
+        )}
+      </div>
+
+      {(build.enchantments.length > 0 || build.runes.length > 0) && (
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center">
+            <div className="flex min-w-0 flex-1 items-center">
+              {primary.map((e, i) => (
+                <Fragment key={e.slug}>
+                  {i > 0 && <span className="h-0.5 min-w-2 flex-1 bg-accent/50" aria-hidden />}
+                  <MiniEnchant e={e} keystone={keystones.has(e.slug)} secondary={false} />
+                </Fragment>
+              ))}
+            </div>
+            {primary.length > 0 && secondary.length > 0 && <span className="mx-2.5 h-9 w-px shrink-0 bg-border" aria-hidden />}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {secondary.map((e) => (
+                <MiniEnchant key={e.slug} e={e} keystone={false} secondary />
+              ))}
+            </div>
+          </div>
+          {build.runes.length > 0 && (
+            <button type="button" onClick={() => setRuneOpen(true)} aria-label="ดูรายละเอียดรูน" className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full border-2 border-accent/60 bg-bg-raised leading-none transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <span className="font-display text-sm font-semibold">{totalRunes}</span>
+              <span className="mt-0.5 text-[9px] text-text-muted">รูน</span>
+            </button>
+          )}
+        </div>
+      )}
+      {build.runes.length > 0 && <RuneDialog runes={build.runes} open={runeOpen} onOpenChange={setRuneOpen} />}
+    </div>
   );
 }
 
