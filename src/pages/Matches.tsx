@@ -1,12 +1,13 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ClipboardList, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroes } from "@/services/heroes";
 import { trackActivity } from "@/services/activity";
-import { MAX_SCAN_IMAGES, deleteMatch, listMyMatches, saveMatch, scanScoreboards } from "@/services/matches";
+import { MAX_SCAN_IMAGES, DuplicateMatchError, deleteMatch, findSameSlot, listMyMatches, saveMatch, scanScoreboards } from "@/services/matches";
 import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
+import { checkDuplicate, type DupCheck } from "@/features/matches/duplicate";
 import { MIN_GAMES_FOR_INSIGHTS, buildInsights, byHero, summarize } from "@/features/matches/stats";
 import { ScanReview } from "@/features/matches/ScanReview";
 import { MatchCard } from "@/features/matches/MatchCard";
@@ -33,6 +34,15 @@ type Phase =
 
 const messageOf = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
 
+// Why saving was stopped. Any DupCheck that reaches the screen blocks the save: DUPLICATE and the same-time/other-data case
+// would be rejected by the database anyway, and INDETERMINATE must not be waved through.
+function dupMessage(c: DupCheck): string {
+  if (c.status === "DUPLICATE") return "แมตช์นี้ถูกบันทึกไว้แล้ว (ข้อมูลตรงกันทุกช่อง) จึงไม่บันทึกซ้ำ";
+  if (c.status === "INDETERMINATE")
+    return "เทียบกับแมตช์ที่บันทึกไว้ไม่ได้ว่าซ้ำหรือไม่ เพราะมีข้อมูลที่เทียบไม่ได้ (เช่น ฮีโร่ที่ไม่พบในระบบ) ตรวจและเลือกฮีโร่ให้ครบก่อน";
+  return "มีแมตช์ที่เวลาและความยาวเกมเท่ากันอยู่แล้ว แต่ข้อมูลบางช่องไม่ตรงกัน ระบบจะไม่บันทึกทับ ถ้าของเดิมอ่านผิด ให้ลบของเดิมแล้วบันทึกใหม่";
+}
+
 export function Matches() {
   const { user } = useAuth();
   const toast = useToast();
@@ -40,6 +50,9 @@ export function Matches() {
   const matchesQ = useAsync(() => listMyMatches(100), []);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false); // a ref, so two clicks in the same tick cannot both start a save
+  const [dup, setDup] = useState<DupCheck | null>(null);
+  const [showExisting, setShowExisting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MatchRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -108,15 +121,43 @@ export function Matches() {
 
   /** Moves to the next screenshot in the batch, or back to the upload box after the last one. */
   function advance() {
+    setDup(null);
+    setShowExisting(false);
     setPhase((p) => (p.kind === "review" && p.index + 1 < p.items.length ? { ...p, index: p.index + 1 } : { kind: "idle" }));
   }
 
+  function stopWith(c: DupCheck) {
+    setDup(c);
+    setShowExisting(false);
+  }
+
+  // Review -> normalize (draftToRow) -> check duplicate -> save. A failed check blocks the save (the catch below);
+  // the database unique key (user_id, played_at, duration_sec) is the real guard against races and retries.
   async function onSave() {
-    if (phase.kind !== "review" || !current || !user) return;
+    if (saveLock.current || phase.kind !== "review" || !current || !user) return;
+    saveLock.current = true;
     setSaving(true);
+    setDup(null);
     const edited = fingerprint(current.draft) !== current.initial;
     try {
-      await saveMatch(draftToRow(current.draft, heroes, user.id, edited));
+      const row = draftToRow(current.draft, heroes, user.id, edited);
+      const check = checkDuplicate(row, await findSameSlot(row.played_at, row.duration_sec));
+      if (check.status !== "NOT_DUPLICATE" || check.existing) {
+        stopWith(check);
+        return;
+      }
+      try {
+        await saveMatch(row);
+      } catch (err) {
+        if (!(err instanceof DuplicateMatchError)) throw err;
+        // Lost a race (or an earlier attempt actually went through): show what is saved instead of a bare error.
+        const again = checkDuplicate(row, await findSameSlot(row.played_at, row.duration_sec));
+        if (again.existing) {
+          stopWith(again);
+          return;
+        }
+        throw err;
+      }
       // logged only here, after the insert has succeeded
       void trackActivity("match_saved", { edited });
       toast.success("บันทึกแมตช์แล้ว");
@@ -126,11 +167,12 @@ export function Matches() {
       toast.error(messageOf(err, "บันทึกแมตช์ไม่สำเร็จ"));
     } finally {
       setSaving(false);
+      saveLock.current = false;
     }
   }
 
   function requestDelete(id: string) {
-    setPendingDelete(matches.find((m) => m.id === id) ?? null);
+    setPendingDelete(matches.find((m) => m.id === id) ?? (dup?.existing?.id === id ? dup.existing : null));
   }
 
   async function confirmDelete() {
@@ -139,6 +181,7 @@ export function Matches() {
     try {
       await deleteMatch(pendingDelete.id);
       toast.success("ลบแมตช์แล้ว");
+      setDup(null); // the blocking match is gone; the user can save again
       matchesQ.refetch();
     } catch (err) {
       toast.error(messageOf(err, "ลบแมตช์ไม่สำเร็จ"));
@@ -171,18 +214,49 @@ export function Matches() {
         </CardHeader>
         <CardContent className="space-y-3">
           {phase.kind === "review" && current ? (
-            <ScanReview
-              draft={current.draft}
-              onChange={(draft) =>
-                setPhase({ ...phase, items: phase.items.map((it, i) => (i === phase.index ? { ...it, draft } : it)) })
-              }
-              heroes={heroes}
-              issues={issues}
-              meSource={current.meSource}
-              saving={saving}
-              onSave={onSave}
-              onCancel={advance}
-            />
+            <>
+              <ScanReview
+                draft={current.draft}
+                onChange={(draft) => {
+                  setDup(null);
+                  setPhase({ ...phase, items: phase.items.map((it, i) => (i === phase.index ? { ...it, draft } : it)) });
+                }}
+                heroes={heroes}
+                issues={issues}
+                meSource={current.meSource}
+                saving={saving}
+                onSave={onSave}
+                onCancel={advance}
+              />
+              {dup && (
+                <div role="alert" className="space-y-2 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
+                  <p className="font-medium text-accent">{dupMessage(dup)}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    {dup.existing && (
+                      <button
+                        type="button"
+                        onClick={() => setShowExisting((v) => !v)}
+                        className="min-h-11 rounded-lg border border-border bg-bg-surface px-4 py-2 text-sm font-medium text-text hover:border-accent/40"
+                      >
+                        {showExisting ? "ซ่อนแมตช์ที่มีอยู่" : "ดูแมตช์ที่มีอยู่"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDup(null)}
+                      className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
+                    >
+                      กลับไปตรวจ
+                    </button>
+                  </div>
+                  {showExisting && dup.existing && (
+                    <ul>
+                      <MatchCard match={dup.existing} iconById={iconById} onDelete={requestDelete} deleting={deleting} defaultOpen />
+                    </ul>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:items-start">
               <div className="space-y-3">
