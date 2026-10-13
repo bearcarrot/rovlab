@@ -14,7 +14,7 @@ import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { Thumb } from "@/features/admin/ImageSelect";
-import { ReadOnlyBuild } from "@/features/build/buildView";
+import { CompactBuild, ReadOnlyBuild } from "@/features/build/buildView";
 import { toViewBuild } from "@/features/build/toViewBuild";
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
@@ -118,18 +118,19 @@ function Recommended({ hero }: { hero: HeroSummary }) {
 
 const dateTh = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "");
 
-// Community และ Build ของฉันใช้การ์ดเดียวกัน: หัวการ์ด (ผู้สร้าง/วันที่/สถานะ กดไปหน้ารายละเอียดเพื่อแก้ไข-จัดการ) + บิลด์เต็มแบบหน้าจอในเกม
+// Community และ Build ของฉันใช้การ์ดเดียวกันแบบหน้าจอบิลด์ในเกม: หัวการ์ด (รูป+ชื่อผู้สร้าง กดไปหน้ารายละเอียดเพื่อแก้ไข-จัดการ) + แถวไอเทม/พลังแฝง/รูน
 function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
+  const who = b.author ? (b.author.displayName ?? `@${b.author.handle}`) : null;
   return (
-    <article className="space-y-2">
-      <Link to={`/build/view/${b.id}`} className="flex items-start justify-between gap-2 rounded-card border border-border bg-bg-surface p-3 transition hover:border-accent/40">
-        <div className="flex min-w-0 items-center gap-2">
-          <Thumb src={b.hero.icon} label={b.hero.nameTh} className="h-9 w-9" />
+    <article className="overflow-hidden rounded-card border border-border bg-bg-surface">
+      <Link to={`/build/view/${b.id}`} className="flex items-center justify-between gap-2 p-3 transition hover:bg-bg-raised/50">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Thumb src={b.author?.avatarUrl ?? b.hero.icon} label={who ?? b.hero.nameTh} round className="h-11 w-11 shrink-0" />
           <div className="min-w-0">
-            <p className="truncate font-display text-sm font-medium">{b.name}</p>
+            <p className="truncate font-display text-base font-semibold leading-tight">{b.name}</p>
             <p className="truncate text-xs text-text-faint">
               {showHero ? `${b.hero.nameTh} · ` : ""}
-              {b.author ? `โดย ${b.author.displayName ?? `@${b.author.handle}`} · ` : ""}
+              {who ? `โดย ${who} · ` : ""}
               {dateTh(b.isPublic ? b.publishedAt : b.updatedAt)}
             </p>
           </div>
@@ -140,7 +141,9 @@ function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
           </span>
         )}
       </Link>
-      <ReadOnlyBuild build={b.view} />
+      <div className="border-t border-border p-3">
+        <CompactBuild build={b.view} />
+      </div>
     </article>
   );
 }
@@ -169,7 +172,7 @@ function Community({ hero }: { hero: HeroSummary }) {
         <EmptyState icon={Hammer} title="ยังไม่มี Community Build" description="สร้างบิลด์ของคุณแล้วเผยแพร่เป็นคนแรกของฮีโร่ตัวนี้" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="space-y-6">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
+        <div className="space-y-3">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
       )}
     </div>
   );
@@ -199,7 +202,7 @@ function Mine({ hero }: { hero: HeroSummary | null }) {
         <EmptyState icon={Hammer} title="ยังไม่มีบิลด์" description="เลือกฮีโร่ด้านบน แล้วกดสร้างบิลด์" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="space-y-6">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
+        <div className="space-y-3">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
       )}
     </div>
   );
