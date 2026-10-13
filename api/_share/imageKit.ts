@@ -91,6 +91,7 @@ export function heroTile(o: {
   border: number;
   radius: number;
   fontSize: number;
+  initialsColor?: string;
 }): El {
   const box = {
     display: "flex",
@@ -108,7 +109,7 @@ export function heroTile(o: {
     return el("div", box, el("img", { width: inner, height: inner, objectFit: "cover" }, undefined, { src: o.icon, width: inner, height: inner }));
   }
   const initials = o.filled && o.name ? Array.from(o.name).slice(0, 2).join("").toUpperCase() : "";
-  return el("div", { ...box, fontSize: o.fontSize, color: MUTED }, initials || " ");
+  return el("div", { ...box, fontSize: o.fontSize, color: o.initialsColor ?? MUTED }, initials || " ");
 }
 
 export const badge = (text: string, strong: boolean): El =>
