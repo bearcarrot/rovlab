@@ -3,13 +3,16 @@ import { ClipboardList, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroes } from "@/services/heroes";
+import { getItems } from "@/services/items";
 import { trackActivity } from "@/services/activity";
 import { MAX_SCAN_IMAGES, DuplicateMatchError, deleteMatch, findSameSlot, listMyMatches, saveMatch, scanScoreboards } from "@/services/matches";
 import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
 import { checkDuplicate, type DupCheck } from "@/features/matches/duplicate";
+import { guessBlueRows, type SlotGuess } from "@/features/matches/itemMatch";
 import { MIN_GAMES_FOR_INSIGHTS, buildInsights, byHero, summarize } from "@/features/matches/stats";
 import { ScanReview } from "@/features/matches/ScanReview";
+import { MyItemsEditor, type ItemSlots } from "@/features/matches/MyItemsEditor";
 import { MatchCard } from "@/features/matches/MatchCard";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -19,13 +22,23 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
+import type { ItemSummary } from "@/types/item";
 import type { MatchRecord, MeSource } from "@/types/match";
 
 const NO_HEROES: HeroSummary[] = [];
+const NO_ITEMS: ItemSummary[] = [];
 const NO_MATCHES: MatchRecord[] = [];
+const NO_SLOTS: ItemSlots = [null, null, null, null, null, null];
 
 // One analysed screenshot waiting for the user's review (up to MAX_SCAN_IMAGES per upload, reviewed one after another).
-type ReviewItem = { draft: ScanDraft; initial: string; meSource: MeSource };
+// rows = the icon matcher's guesses for the 5 blue-team rows (null: could not read); edits = what the user changed, by blue row.
+type ReviewItem = {
+  draft: ScanDraft;
+  initial: string;
+  meSource: MeSource;
+  rows: SlotGuess[][] | null;
+  edits: Record<number, ItemSlots>;
+};
 
 type Phase =
   | { kind: "idle" }
@@ -47,6 +60,7 @@ export function Matches() {
   const { user } = useAuth();
   const toast = useToast();
   const heroesQ = useAsync(() => getHeroes(), []);
+  const itemsQ = useAsync(() => getItems(), []);
   const matchesQ = useAsync(() => listMyMatches(100), []);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
@@ -57,6 +71,7 @@ export function Matches() {
   const [deleting, setDeleting] = useState(false);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : NO_HEROES;
+  const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
   const matches = matchesQ.status === "success" ? matchesQ.data : NO_MATCHES;
   const iconById = useMemo(() => new Map(heroes.map((h) => [h.id, h.icon])), [heroes]);
   const summary = useMemo(() => summarize(matches), [matches]);
@@ -64,6 +79,11 @@ export function Matches() {
   const heroLines = useMemo(() => byHero(matches).slice(0, 5), [matches]);
   const current = phase.kind === "review" ? phase.items[phase.index] : null;
   const issues = useMemo(() => (current ? checkDraft(current.draft, heroes) : []), [current, heroes]);
+
+  // The user's own row is always on the blue team; its position among the blue rows picks the icon guesses.
+  const meRow = current ? current.draft.players.filter((p) => p.team === "blue").findIndex((p) => p.isMe) : -1;
+  const mySlots: ItemSlots | null =
+    current && meRow >= 0 ? (current.edits[meRow] ?? current.rows?.[meRow]?.map((g) => g.slug) ?? NO_SLOTS) : null;
 
   async function onFiles(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -77,11 +97,11 @@ export function Matches() {
 
     // Prepare on the device first. Files rejected here (not an image / not landscape) are never sent, so they are not
     // analysis attempts and cost no quota.
-    const prepared: { name: string; base64: string }[] = [];
+    const prepared: { name: string; base64: string; file: File }[] = [];
     const rejected: string[] = [];
     for (const f of files) {
       try {
-        prepared.push({ name: f.name, base64: await fileToScoreboardBase64(f) });
+        prepared.push({ name: f.name, base64: await fileToScoreboardBase64(f), file: f });
       } catch (err) {
         rejected.push(files.length > 1 ? `${f.name}: ${messageOf(err, "อ่านไฟล์ไม่ได้")}` : messageOf(err, "อ่านไฟล์ไม่ได้"));
       }
@@ -94,13 +114,17 @@ export function Matches() {
 
     try {
       const res = await scanScoreboards(prepared.map((p) => p.base64));
+      // Item icons are read from the ORIGINAL file in the browser. Any failure there only means "no guesses" (rows = null).
+      const catalogue = await getItems().catch(() => NO_ITEMS);
       const items: ReviewItem[] = [];
       const failed: string[] = [];
       for (const r of res.results) {
         void trackActivity("match_analysis_attempted", { ok: r.ok });
         if (r.ok) {
           const draft = scanToDraft(r.scan);
-          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource });
+          const file = prepared[r.index - 1]?.file;
+          const rows = file ? await guessBlueRows(file, catalogue) : null;
+          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource, rows, edits: {} });
         } else {
           const name = prepared[r.index - 1]?.name ?? `รูปที่ ${r.index}`;
           failed.push(prepared.length > 1 ? `${name}: ${r.error}` : r.error);
@@ -146,8 +170,10 @@ export function Matches() {
         stopWith(check);
         return;
       }
+      // my_items is sent only when there is something to store (needs migration 20261013_match_my_items.sql).
+      const payload = mySlots && mySlots.some(Boolean) ? { ...row, my_items: mySlots } : row;
       try {
-        await saveMatch(row);
+        await saveMatch(payload);
       } catch (err) {
         if (!(err instanceof DuplicateMatchError)) throw err;
         // Lost a race (or an earlier attempt actually went through): show what is saved instead of a bare error.
@@ -215,6 +241,19 @@ export function Matches() {
         <CardContent className="space-y-3">
           {phase.kind === "review" && current ? (
             <>
+              {mySlots && (
+                <MyItemsEditor
+                  items={itemList}
+                  value={mySlots}
+                  guesses={current.rows?.[meRow] ?? null}
+                  onChange={(next) =>
+                    setPhase({
+                      ...phase,
+                      items: phase.items.map((it, i) => (i === phase.index ? { ...it, edits: { ...it.edits, [meRow]: next } } : it)),
+                    })
+                  }
+                />
+              )}
               <ScanReview
                 draft={current.draft}
                 onChange={(draft) => {
