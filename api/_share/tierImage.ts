@@ -7,24 +7,23 @@
 import { ImageResponse } from "@vercel/og";
 import { shortIdToUuid } from "../../src/features/share/shareId";
 import { parseTierData, tierHeroCount, TIER_KEYS, type TierKey } from "../../src/features/tierlist/tierData";
-import { OG_HEIGHT, OG_WIDTH, SITE } from "./html";
-import { CACHE, el, GOLD, heroTile, iconDataUri, loadFont, MUTED, SLUG, UUID_RE, type El, type HeroRow } from "./imageKit";
+import { OG_HEIGHT, OG_WIDTH } from "./html";
+import {
+  BORDER, brandHeader, cardTitle, CACHE, DISCLAIMER_TH, el, FAINT, footer, heroTile, ICON_STROKE, iconDataUri, loadFont, loadLogo, MUTED, rootStyle,
+  SLUG, SURFACE, UUID_RE, type El, type HeroRow,
+} from "./imageKit";
 import { restSelect } from "./supabase";
 
 const ICON = 50;
 const ROW_H = 66;
 const LABEL_W = 84;
 const CAP = 12; // icons per tier row (limits icon downloads; the rest shows as "+N")
-const FAINT = "#5C616D";
-const BORDER = "#262A33";
-const SURFACE = "#14161B";
 // theme.ts TIER_COLORS (label text is white on every tier, like components/ui/badge.tsx)
 const TIER_COLOR: Record<TierKey, string> = { "S+": "#EF4444", S: "#F97316", A: "#EAB308", B: "#22C55E", C: "#3B82F6" };
 
 const FILTER_TH = "จัดเอง";
 const EMPTY_TH = "ยังไม่มีฮีโร่";
 const HEROES_TH = "ฮีโร่";
-const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
 
 interface TierListRow {
   title: string;
@@ -39,7 +38,7 @@ function tierCard(key: TierKey, ids: string[], extra: number, heroes: Map<string
     el("div", { display: "flex", alignItems: "center", flex: 1, gap: 6, paddingLeft: 12 }, [
       empty && showThai ? el("div", { display: "flex", fontSize: 20, color: FAINT }, EMPTY_TH) : null,
       ...ids.map((id) =>
-        heroTile({ size: ICON, filled: true, name: heroes.get(id)?.name ?? null, icon: icons.get(id) ?? null, color: "rgba(255,255,255,0.12)", border: 1, radius: 9, fontSize: 17, initialsColor: FAINT })
+        heroTile({ size: ICON, filled: true, name: heroes.get(id)?.name ?? null, icon: icons.get(id) ?? null, color: ICON_STROKE, border: 1, radius: 9, fontSize: 17, initialsColor: FAINT })
       ),
       extra > 0 ? el("div", { display: "flex", fontSize: 22, color: MUTED, paddingLeft: 6 }, `+${extra}`) : null,
     ]),
@@ -65,13 +64,12 @@ export async function renderTierListImage(rawId: string): Promise<Response | nul
 
   const title = Array.from(row.title.trim()).slice(0, 50).join("");
   const patch = (row.patch ?? "").trim();
-  const thaiText = `${FILTER_TH}${EMPTY_TH}${HEROES_TH}${DISCLAIMER_TH}`;
-  const labels = `RoV LAB TIER LIST Patch S+ S A B C 0123456789 · .${patch}${thaiText}`;
+  const labels = `RoV LAB TIER LIST Patch S+ S A B C 0123456789 · .${patch}${FILTER_TH}${EMPTY_TH}${HEROES_TH}${DISCLAIMER_TH}`;
 
   const [heroRows, font, logo] = await Promise.all([
     filters.length ? restSelect<HeroRow>("heroes", `select=id,slug,name,icon_url&or=(${filters.join(",")})`) : Promise.resolve([] as HeroRow[]),
     loadFont(`${title}${labels}`),
-    iconDataUri(`${SITE}/logo.png`),
+    loadLogo(),
   ]);
   const heroes = new Map<string, HeroRow>();
   for (const h of heroRows ?? []) {
@@ -90,50 +88,16 @@ export async function renderTierListImage(rawId: string): Promise<Response | nul
   const shownPatch = font ? patch : patch.replace(/[^\x20-\x7e]/g, "").trim();
   const meta = [shownPatch ? `Patch ${shownPatch}` : "", showThai ? FILTER_TH : "", showThai ? `${total} ${HEROES_TH}` : `${total} HEROES`].filter(Boolean).join("  ·  ");
 
-  const brandMark = logo
-    ? el("img", { width: 52, height: 52, objectFit: "contain" }, undefined, { src: logo, width: 52, height: 52 })
-    : el("div", { display: "flex", width: 52, height: 52, borderRadius: 10, background: GOLD }, " ");
-
-  const root = el(
-    "div",
-    {
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      width: OG_WIDTH,
-      height: OG_HEIGHT,
-      padding: "24px 56px 22px",
-      color: "#F2F3F5",
-      fontFamily: font ? "Kanit" : "sans-serif",
-      backgroundColor: "#0A0B0E",
-      backgroundImage: "radial-gradient(circle at 85% 0%, rgba(232,163,61,0.16), rgba(232,163,61,0) 75%)",
-    },
-    [
-      el("div", { display: "flex", alignItems: "center", gap: 14 }, [
-        brandMark,
-        el("div", { display: "flex", flexDirection: "column", lineHeight: 1.1 }, [
-          el("div", { display: "flex", fontSize: 28, color: GOLD }, "RoV LAB"),
-          el("div", { display: "flex", fontSize: 18, color: MUTED, letterSpacing: 2 }, "TIER LIST"),
-        ]),
-      ]),
-      el("div", { display: "flex", flexDirection: "column" }, [
-        el("div", { display: "flex", fontSize: title.length > 28 ? 40 : 46, lineHeight: 1.25, maxHeight: 58, overflow: "hidden" }, shownTitle),
-        el("div", { display: "flex", fontSize: 24, color: MUTED }, meta),
-      ]),
-      el(
-        "div",
-        { display: "flex", flexDirection: "column", gap: 8 },
-        shown.map((s) => tierCard(s.key, s.ids, s.extra, heroes, icons, showThai))
-      ),
-      el("div", { display: "flex", flexDirection: "column" }, [
-        el("div", { display: "flex", height: 2, background: BORDER, marginBottom: 8 }, " "),
-        el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
-          el("div", { display: "flex", fontSize: 22 }, "RoV LAB  ·  rovlab.vercel.app"),
-          showThai ? el("div", { display: "flex", fontSize: 20, color: MUTED }, DISCLAIMER_TH) : null,
-        ]),
-      ]),
-    ]
-  );
+  const root = el("div", rootStyle(!!font, "24px 56px 22px"), [
+    brandHeader(logo, "TIER LIST"),
+    el("div", { display: "flex", flexDirection: "column" }, [cardTitle(shownTitle), el("div", { display: "flex", fontSize: 24, color: MUTED }, meta)]),
+    el(
+      "div",
+      { display: "flex", flexDirection: "column", gap: 8 },
+      shown.map((s) => tierCard(s.key, s.ids, s.extra, heroes, icons, showThai))
+    ),
+    footer(showThai, true),
+  ]);
 
   return new ImageResponse(root as never, {
     width: OG_WIDTH,

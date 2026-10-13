@@ -1,15 +1,22 @@
-// 1200x630 social card for a Community Draft. Rendered with @vercel/og (satori) on the edge.
-// Shows: brand, title, format / Global Ban-Pick badges, and Game 1 picks for both teams (hero icons).
-// Shared helpers (font, icon loading, tiles) live in ./imageKit.
+// 1200x630 social card for a Community Draft. Same look as the in-app share PNG (src/lib/share-image/templates/draft-assistant.ts):
+// glow background, logo header, "ทีมเรา" (green) / "ทีมศัตรู" (red) cards with icon + hero name per slot, dashed empty slots, footer.
+// Shows Game 1 of the series. The PNG's live analysis (overview meters, recommended picks) is computed in the browser and is not
+// stored with a published Draft, so it is not part of this card.
 
 import { ImageResponse } from "@vercel/og";
 import { parseSeries, TEAM_SIZE } from "../../src/features/draft/series";
 import { shortIdToUuid } from "../../src/features/share/shareId";
 import { OG_HEIGHT, OG_WIDTH } from "./html";
-import { BLUE, CACHE, el, GOLD, heroTile, iconDataUri, loadFont, MUTED, SLUG, badge, type El, type HeroRow } from "./imageKit";
+import {
+  BORDER, brandHeader, cardTitle, CACHE, DISCLAIMER_TH, el, FAINT, footer, heroTile, ICON_STROKE, iconDataUri, loadFont, loadLogo, LOSS, MUTED, rootStyle,
+  SLUG, SURFACE, WIN, type El, type HeroRow,
+} from "./imageKit";
 import { restSelect } from "./supabase";
 
-const ICON = 88;
+const ICON = 58;
+const ROW_H = 68;
+const TEAM_TH = "ทีมเรา";
+const ENEMY_TH = "ทีมศัตรู";
 
 interface DraftRow {
   title: string;
@@ -18,25 +25,21 @@ interface DraftRow {
   series: unknown;
 }
 
-function team(label: string, color: string, slugs: (string | null)[], heroes: Map<string, HeroRow>, icons: Map<string, string | null>): El {
-  return el("div", { display: "flex", flexDirection: "column", gap: 12 }, [
-    el("div", { display: "flex", fontSize: 20, color, letterSpacing: 2 }, label),
-    el(
-      "div",
-      { display: "flex", gap: 10 },
-      slugs.map((s) =>
-        heroTile({
-          size: ICON,
-          filled: !!s,
-          name: s ? heroes.get(s)?.name ?? s : null,
-          icon: s ? icons.get(s) ?? null : null,
-          color,
-          border: 3,
-          radius: 14,
-          fontSize: 28,
-        })
-      )
-    ),
+function slotRow(slug: string | null, heroes: Map<string, HeroRow>, icons: Map<string, string | null>): El {
+  const name = slug ? heroes.get(slug)?.name ?? slug : null;
+  const tile = slug
+    ? heroTile({ size: ICON, filled: true, name, icon: icons.get(slug) ?? null, color: ICON_STROKE, border: 1, radius: 10, fontSize: 20, initialsColor: FAINT })
+    : el("div", { display: "flex", width: ICON, height: ICON, borderRadius: 10, border: `2px dashed ${BORDER}` }, " ");
+  return el("div", { display: "flex", alignItems: "center", gap: 16, height: ROW_H }, [
+    tile,
+    el("div", { display: "flex", fontSize: slug ? 26 : 22, color: slug ? "#F2F3F5" : FAINT, maxWidth: 380, overflow: "hidden" }, name ?? "Empty Slot"),
+  ]);
+}
+
+function teamCard(label: string, color: string, slots: (string | null)[], heroes: Map<string, HeroRow>, icons: Map<string, string | null>): El {
+  return el("div", { display: "flex", flexDirection: "column", flex: 1, padding: "10px 20px", borderRadius: 16, background: SURFACE, border: `1px solid ${BORDER}` }, [
+    el("div", { display: "flex", alignItems: "center", height: 36, fontSize: 24, color }, label),
+    ...slots.map((s) => slotRow(s, heroes, icons)),
   ]);
 }
 
@@ -51,63 +54,43 @@ export async function renderDraftImage(rawId: string): Promise<Response | null> 
 
   const series = parseSeries(row.series);
   const game = series?.games[0];
-  const mine = game?.mine.picks ?? Array<string | null>(TEAM_SIZE).fill(null);
-  const enemy = game?.enemy.picks ?? Array<string | null>(TEAM_SIZE).fill(null);
+  const fill = (picks: (string | null)[] | undefined): (string | null)[] => Array.from({ length: TEAM_SIZE }, (_, i) => picks?.[i] ?? null);
+  const mine = fill(game?.mine.picks);
+  const enemy = fill(game?.enemy.picks);
   const slugs = [...new Set([...mine, ...enemy].filter((s): s is string => !!s && SLUG.test(s)))];
 
   const gameCount = series?.games.length ?? 1;
   const title = Array.from(row.title.trim()).slice(0, 56).join("");
-  const fmt = row.format === "single" ? "SINGLE" : row.format.toUpperCase();
-  const labels = "YOUR TEAM ENEMY RoV LAB DRAFT ASSISTANT GLOBAL BAN/PICK SINGLE GAME GAMES VS BO3 BO5 BO7 0123456789 · ";
+  const mode = [
+    row.format === "single" ? "SINGLE" : row.format.toUpperCase(),
+    row.global_ban_pick && row.format !== "single" ? "GLOBAL BAN/PICK" : "",
+    gameCount > 1 ? `GAME 1 / ${gameCount}` : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  const labels = `${TEAM_TH}${ENEMY_TH}${DISCLAIMER_TH} DRAFT ASSISTANT Empty Slot RoV LAB GLOBAL BAN/PICK SINGLE GAME BO3 BO5 BO7 0123456789 · /`;
 
-  const [heroRows, font] = await Promise.all([
+  const [heroRows, font, logo] = await Promise.all([
     slugs.length ? restSelect<HeroRow>("heroes", `select=id,slug,name,icon_url&slug=in.(${slugs.join(",")})`) : Promise.resolve([] as HeroRow[]),
     loadFont(`${title}${labels}`),
+    loadLogo(),
   ]);
   const heroes = new Map((heroRows ?? []).map((h) => [h.slug, h]));
   const iconPairs = await Promise.all(slugs.map(async (s) => [s, await iconDataUri(heroes.get(s)?.icon_url ?? null)] as const));
   const icons = new Map<string, string | null>(iconPairs);
 
-  // Without the Thai font, non-Latin characters would render as empty boxes: fall back to a generic title.
+  // Without the Thai font, Thai glyphs would render as empty boxes: fall back to English labels / a generic title.
   const shownTitle = font ? title : title.replace(/[^\x20-\x7e]/g, "").trim() || "Community Draft";
 
-  const root = el(
-    "div",
-    {
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      width: OG_WIDTH,
-      height: OG_HEIGHT,
-      padding: "40px 56px",
-      color: "#F2F3F5",
-      fontFamily: font ? "Kanit" : "sans-serif",
-      background: "linear-gradient(135deg, #0A0B0E 0%, #14161B 55%, #1C1F26 100%)",
-      borderTop: `8px solid ${GOLD}`,
-    },
-    [
-      el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
-        el("div", { display: "flex", alignItems: "baseline", gap: 14 }, [
-          el("div", { display: "flex", fontSize: 38, color: GOLD }, "RoV LAB"),
-          el("div", { display: "flex", fontSize: 20, color: MUTED, letterSpacing: 3 }, "DRAFT ASSISTANT"),
-        ]),
-        el("div", { display: "flex", gap: 12 }, [
-          badge(fmt, true),
-          row.global_ban_pick && row.format !== "single" ? badge("GLOBAL BAN/PICK", false) : null,
-        ]),
-      ]),
-      el("div", { display: "flex", fontSize: title.length > 24 ? 50 : 64, lineHeight: 1.25, maxHeight: 130, overflow: "hidden" }, shownTitle),
-      el("div", { display: "flex", alignItems: "flex-end", justifyContent: "space-between" }, [
-        team(gameCount > 1 ? "YOUR TEAM · GAME 1" : "YOUR TEAM", GOLD, mine, heroes, icons),
-        el("div", { display: "flex", fontSize: 34, color: MUTED, paddingBottom: 28 }, "VS"),
-        team("ENEMY", BLUE, enemy, heroes, icons),
-      ]),
-      el("div", { display: "flex", justifyContent: "space-between", fontSize: 22, color: MUTED }, [
-        el("div", { display: "flex" }, "rovlab.vercel.app"),
-        el("div", { display: "flex" }, gameCount > 1 ? `${gameCount} GAMES` : "1 GAME"),
-      ]),
-    ]
-  );
+  const root = el("div", rootStyle(!!font, "24px 56px 22px"), [
+    brandHeader(logo, "DRAFT ASSISTANT", el("div", { display: "flex", fontSize: 22, color: MUTED }, mode)),
+    cardTitle(shownTitle),
+    el("div", { display: "flex", gap: 32 }, [
+      teamCard(font ? TEAM_TH : "YOUR TEAM", WIN, mine, heroes, icons),
+      teamCard(font ? ENEMY_TH : "ENEMY", LOSS, enemy, heroes, icons),
+    ]),
+    footer(!!font, false),
+  ]);
 
   return new ImageResponse(root as never, {
     width: OG_WIDTH,

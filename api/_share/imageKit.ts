@@ -1,11 +1,19 @@
 // Shared building blocks for the social-card renderers (Draft, Tier List, ...). Rendered with @vercel/og (satori) on the edge.
 // Every external dependency (font, hero icons) is optional: if it fails the card still renders.
+// Look & colours mirror the in-app share PNGs (src/lib/share-image/theme.ts = tailwind.config.ts).
 
-import { SITE } from "./html";
+import { OG_HEIGHT, OG_WIDTH, SITE } from "./html";
 
 export const GOLD = "#E8A33D";
 export const BLUE = "#4C8DFF";
 export const MUTED = "#8B909B";
+export const FAINT = "#5C616D";
+export const BORDER = "#262A33";
+export const SURFACE = "#14161B";
+export const WIN = "#3DD68C";
+export const LOSS = "#E5484D";
+export const ICON_STROKE = "rgba(255,255,255,0.12)";
+export const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
 export const SLUG = /^[A-Za-z0-9_-]{1,64}$/;
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const CACHE = "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
@@ -81,6 +89,8 @@ export async function iconDataUri(url: string | null): Promise<string | null> {
   return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(abs)}&w=128&h=128&fit=cover&output=png`);
 }
 
+export const loadLogo = (): Promise<string | null> => iconDataUri(`${SITE}/logo.png`);
+
 /** Square hero tile: icon when it could be loaded, otherwise the first two letters of the hero name. */
 export function heroTile(o: {
   size: number;
@@ -101,7 +111,7 @@ export function heroTile(o: {
     height: o.size,
     borderRadius: o.radius,
     background: "#1C1F26",
-    border: `${o.border}px solid ${o.filled ? o.color : "#262A33"}`,
+    border: `${o.border}px solid ${o.filled ? o.color : BORDER}`,
     overflow: "hidden",
   };
   const inner = o.size - o.border * 2;
@@ -112,17 +122,46 @@ export function heroTile(o: {
   return el("div", { ...box, fontSize: o.fontSize, color: o.initialsColor ?? MUTED }, initials || " ");
 }
 
-export const badge = (text: string, strong: boolean): El =>
-  el(
-    "div",
-    {
-      display: "flex",
-      fontSize: 22,
-      padding: "6px 18px",
-      borderRadius: 999,
-      color: strong ? "#0A0B0E" : GOLD,
-      background: strong ? GOLD : "transparent",
-      border: `2px solid ${GOLD}`,
-    },
-    text
-  );
+/** Root card style: #0A0B0E with the gold glow top-right, like drawBackground() in the share PNG. */
+export const rootStyle = (hasFont: boolean, padding: string): Record<string, unknown> => ({
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  width: OG_WIDTH,
+  height: OG_HEIGHT,
+  padding,
+  color: "#F2F3F5",
+  fontFamily: hasFont ? "Kanit" : "sans-serif",
+  backgroundColor: "#0A0B0E",
+  backgroundImage: "radial-gradient(circle at 85% 0%, rgba(232,163,61,0.16), rgba(232,163,61,0) 75%)",
+});
+
+/** Logo + "RoV LAB" + subtitle on the left, optional element on the right. Falls back to a gold square if the logo failed to load. */
+export function brandHeader(logo: string | null, subtitle: string, right?: El | null): El {
+  const mark = logo
+    ? el("img", { width: 52, height: 52, objectFit: "contain" }, undefined, { src: logo, width: 52, height: 52 })
+    : el("div", { display: "flex", width: 52, height: 52, borderRadius: 10, background: GOLD }, " ");
+  return el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
+    el("div", { display: "flex", alignItems: "center", gap: 14 }, [
+      mark,
+      el("div", { display: "flex", flexDirection: "column", lineHeight: 1.1 }, [
+        el("div", { display: "flex", fontSize: 28, color: GOLD }, "RoV LAB"),
+        el("div", { display: "flex", fontSize: 18, color: MUTED, letterSpacing: 2 }, subtitle),
+      ]),
+    ]),
+    right,
+  ]);
+}
+
+export const cardTitle = (title: string): El =>
+  el("div", { display: "flex", fontSize: title.length > 28 ? 40 : 46, lineHeight: 1.25, maxHeight: 58, overflow: "hidden" }, title);
+
+export function footer(showThai: boolean, divider: boolean): El {
+  return el("div", { display: "flex", flexDirection: "column" }, [
+    divider ? el("div", { display: "flex", height: 2, background: BORDER, marginBottom: 8 }, " ") : null,
+    el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
+      el("div", { display: "flex", fontSize: 22 }, "RoV LAB  ·  rovlab.vercel.app"),
+      showThai ? el("div", { display: "flex", fontSize: 20, color: MUTED }, DISCLAIMER_TH) : null,
+    ]),
+  ]);
+}
