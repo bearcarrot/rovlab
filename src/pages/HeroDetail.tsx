@@ -16,6 +16,7 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
+import { StarLegend } from "@/features/heroes/MatchupStars";
 import { HeroPager } from "@/features/heroes/HeroPager";
 import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
@@ -257,7 +258,7 @@ export function HeroDetail() {
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
-          อ้างอิง {h.stat.matches.toLocaleString()} แมตช์ · {h.stat.rankTier} · Patch {h.stat.patch}
+          อ้างอิงจากแรงก์ Commander+ · Patch {h.stat.patch}
         </p>
       ) : (
         <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติสำหรับฮีโร่นี้</p>
@@ -329,16 +330,17 @@ export function HeroDetail() {
         </div>
       )}
 
+      <StarLegend />
       {/* lg+ วางการ์ดแพ้ทาง/ชนะทางคู่กัน ลดความยาวหน้าบนจอกว้าง */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader><CardTitle>{h.nameTh} แพ้ทางใครบ้าง</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
+          <CardContent><CounterList stars entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
         </Card>
 
         <Card>
           <CardHeader><CardTitle>{h.nameTh} ชนะทางใครได้</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
+          <CardContent><CounterList stars entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
         </Card>
       </div>
 
