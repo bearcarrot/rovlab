@@ -4,7 +4,7 @@ import { buildForCoach, noBuildForCoach } from "../../src/features/heroes/buildC
 
 // Run: node --experimental-strip-types --test tests/heroes/buildCoachContext.test.ts  (Node >= 22.6, no extra deps)
 const item = (slug: string, nameTh: string, passive = "x".repeat(300)) => ({
-  id: slug, slug, name: slug, nameTh, cost: 2000, stats: ["+60 พลังโจมตี", "+10% ลดคูลดาวน์"], passive, icon: "",
+  id: slug, slug, name: `EN ${slug}`, nameTh, cost: 2000, stats: ["+60 พลังโจมตี", "+10% ลดคูลดาวน์"], passive, icon: "",
 });
 const items = [item("a-sword", "ดาบเอ"), item("b-boots", "รองเท้าบี")];
 const build = {
@@ -19,7 +19,7 @@ const build = {
 
 test("C1 keeps item order, skips unknown slugs, uses Thai names and slug ids", () => {
   const ctx = buildForCoach(build, items, "27.09", { hero: "H" }) as any;
-  assert.deepEqual(ctx.build.items.map((i: any) => [i.id, i.name]), [["b-boots", "รองเท้าบี"], ["a-sword", "ดาบเอ"]]);
+  assert.deepEqual(ctx.build.items.map((i: any) => [i.id, i.name]), [["b-boots", "EN b-boots"], ["a-sword", "EN a-sword"]]);
   assert.equal(ctx.build.buildId, "b1");
   assert.equal(ctx.build.createdAt, "2026-08-13");
   assert.deepEqual(ctx.build.runes, [{ name: "Sage", color: "red", quantity: 10 }]);
