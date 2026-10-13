@@ -1,6 +1,7 @@
 // 1200x630 social card for a Community Tier List: brand, title, patch / hero-count badges and one row per non-empty tier
 // (S+ S A B C) with hero icons. Rows are capped so the card stays readable on mobile; the rest shows as "+N".
-// Hero ids in the data are heroes.id (uuid); plain slugs are accepted too.
+// Hero ids in the data are heroes.id (uuid, same as HeroSummary.id in the board); plain slugs are accepted too.
+// Colours mirror the site theme (tailwind.config.ts: colors.tier, bg, border, text) and the Badge component (white label).
 
 import { ImageResponse } from "@vercel/og";
 import { shortIdToUuid } from "../../src/features/share/shareId";
@@ -11,7 +12,8 @@ import { restSelect } from "./supabase";
 
 const ICON = 56;
 const CAP: Record<TierKey, number> = { "S+": 12, S: 12, A: 10, B: 8, C: 6 };
-const TIER_COLOR: Record<TierKey, string> = { "S+": "#FF6B6B", S: "#FF9F43", A: "#FFD166", B: "#6BCB77", C: "#4C8DFF" };
+// tailwind.config.ts -> colors.tier (sp, s, a, b, c)
+const TIER_COLOR: Record<TierKey, string> = { "S+": "#EF4444", S: "#F97316", A: "#EAB308", B: "#22C55E", C: "#3B82F6" };
 
 interface TierRow {
   title: string;
@@ -22,9 +24,9 @@ interface TierRow {
 function tierRow(key: TierKey, ids: string[], extra: number, heroes: Map<string, HeroRow>, icons: Map<string, string | null>): El {
   const color = TIER_COLOR[key];
   return el("div", { display: "flex", alignItems: "center", gap: 10 }, [
-    el("div", { display: "flex", alignItems: "center", justifyContent: "center", width: 64, height: ICON, borderRadius: 10, background: color, color: "#0A0B0E", fontSize: 30 }, key),
+    el("div", { display: "flex", alignItems: "center", justifyContent: "center", width: 64, height: ICON, borderRadius: 10, background: color, color: "#FFFFFF", fontSize: 30 }, key),
     ...ids.map((id) =>
-      heroTile({ size: ICON, filled: true, name: heroes.get(id)?.name ?? id, icon: icons.get(id) ?? null, color, border: 2, radius: 10, fontSize: 18 })
+      heroTile({ size: ICON, filled: true, name: heroes.get(id)?.name ?? null, icon: icons.get(id) ?? null, color, border: 2, radius: 10, fontSize: 18 })
     ),
     extra > 0 ? el("div", { display: "flex", fontSize: 24, color: MUTED, paddingLeft: 4 }, `+${extra}`) : null,
   ]);
@@ -41,12 +43,12 @@ export async function renderTierListImage(rawId: string): Promise<Response | nul
 
   const data = parseTierData(row.data);
   const total = tierHeroCount(data);
-  const shown = TIER_KEYS.filter((k) => data[k].length > 0).map((k) => ({
+  const capped = TIER_KEYS.filter((k) => data[k].length > 0).map((k) => ({
     key: k,
     ids: data[k].slice(0, CAP[k]),
     extra: Math.max(0, data[k].length - CAP[k]),
   }));
-  const wanted = [...new Set(shown.flatMap((s) => s.ids))];
+  const wanted = [...new Set(capped.flatMap((s) => s.ids))];
   const uuids = wanted.filter((id) => UUID_RE.test(id));
   const slugs = wanted.filter((id) => !UUID_RE.test(id) && SLUG.test(id));
   const filters = [uuids.length ? `id.in.(${uuids.join(",")})` : "", slugs.length ? `slug.in.(${slugs.join(",")})` : ""].filter(Boolean);
@@ -64,7 +66,13 @@ export async function renderTierListImage(rawId: string): Promise<Response | nul
     heroes.set(h.id, h);
     heroes.set(h.slug, h);
   }
-  const iconPairs = await Promise.all(wanted.map(async (id) => [id, await iconDataUri(heroes.get(id)?.icon_url ?? null)] as const));
+  // Like the board, skip heroes that no longer exist. If the heroes lookup itself failed, keep every id (blank tiles) instead.
+  const shown = capped
+    .map((s) => ({ ...s, ids: heroRows === null ? s.ids : s.ids.filter((id) => heroes.has(id)) }))
+    .filter((s) => s.ids.length > 0);
+  const iconPairs = await Promise.all(
+    [...new Set(shown.flatMap((s) => s.ids))].map(async (id) => [id, await iconDataUri(heroes.get(id)?.icon_url ?? null)] as const)
+  );
   const icons = new Map<string, string | null>(iconPairs);
 
   const shownTitle = font ? title : title.replace(/[^\x20-\x7e]/g, "").trim() || "Community Tier List";
