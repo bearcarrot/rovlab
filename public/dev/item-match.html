@@ -7,69 +7,132 @@
 <title>ทดสอบจับคู่ไอเทม</title>
 <style>
   body{font:14px system-ui,sans-serif;background:#111;color:#eee;margin:0;padding:12px}
-  h1{font-size:18px;margin:0 0 6px} p{margin:6px 0;color:#aaa}
+  h1{font-size:17px;margin:10px 0 4px} p{margin:6px 0;color:#aaa}
   .row{margin:10px 0;padding:8px;background:#1b1b24;border-radius:8px}
-  .row b{display:block;margin-bottom:6px;font-size:13px}
-  .g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .c{background:#242433;border-radius:6px;padding:4px;font-size:11px;line-height:1.25;word-break:break-word}
-  .c canvas{width:44px;height:44px;display:block;margin-bottom:3px}
-  .ok{outline:2px solid #3ecf6e}.mid{outline:2px solid #e8a33d}.bad{outline:2px solid #e5484d}.em{opacity:.5}
-  small{color:#888}
+  .row b{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px}
+  .row label{font-weight:400;color:#ccc}
+  .g{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+  .c{background:#242433;border-radius:6px;padding:4px;font-size:11px;display:flex;gap:6px;align-items:center}
+  .c canvas{width:44px;height:44px;flex:none}
+  .c .r{flex:1;min-width:0}
+  select{width:100%;font-size:12px;background:#111;color:#eee;border:1px solid #444;border-radius:4px;padding:3px}
+  .ok{outline:2px solid #3ecf6e}.mid{outline:2px solid #e8a33d}.bad{outline:2px solid #e5484d}.em{opacity:.6}.set{outline:2px solid #5aa7ff}
+  small{color:#888} button{font-size:14px;padding:8px 12px;margin:4px 4px 0 0;border-radius:6px;border:0;background:#3a3a55;color:#eee}
+  #sum{position:sticky;top:0;background:#111;padding:6px 0;z-index:2;color:#eee}
+  canvas.cal{width:100%;touch-action:manipulation;border-radius:6px}
 </style>
 </head>
 <body>
 <h1>ทดสอบจับคู่ไอเทมจากสกรีนชอต</h1>
 <p id="st">กำลังโหลดไอคอน…</p>
 <input id="f" type="file" accept="image/*" multiple disabled>
-<p><small>ขอบเขียว = ระยะห่าง &lt; 0.15 (มั่นใจ), เหลือง &lt; 0.30, แดง = ไม่แน่ใจ ตัวเลขคือระยะห่าง ยิ่งน้อยยิ่งตรง</small></p>
+<p><label><input id="man" type="checkbox"> ปรับตำแหน่งเอง (แตะ 2 จุดบนรูป) ใช้เมื่อตัดช่องเพี้ยน</label></p>
+<p><small>ขอบ: เขียว = มั่นใจ (ระยะห่าง &lt; 0.15) · เหลือง &lt; 0.30 · แดง = ไม่แน่ใจ · ฟ้า = คุณแก้เอง · ถ้าตรง ปล่อยไว้ ถ้าผิด เลือกชื่อที่ถูกจากรายการ แล้วติ๊ก "ตรวจแล้ว" ท้ายแถวที่เช็กครบ</small></p>
+<div id="sum"></div>
+<div>
+  <button id="cj">คัดลอก JSON</button><button id="cm">คัดลอก Markdown</button><button id="dj">ดาวน์โหลด .json</button>
+  <p id="st2"></p>
+</div>
 <div id="out"></div>
 <script>
 const API='https://mttcdaiwuasnkqlxbeqs.supabase.co',KEY='sb_publishable_O0_-OBjGvv4mEqXsTNMrfw_LeRFeeJK';
-// Slot centres measured on a 2576x1191 scoreboard; scaled by image size so other resolutions work too.
-const W0=2576,H0=1191,HALF=33;
+// Reference layout measured on a 2576x1191 scoreboard (centres of item icons). Other sizes: scaled, or 2-tap calibrated.
+const W0=2576,H0=1191,HALF=33,REF_ASPECT=W0/H0;
 const LX=[665,754,843,933,1022,1111],RX=[1728,1818,1907,1996,2086,2175],RY=[333,486,638,791,943];
+const P1=[LX[0],RY[0]],P2=[RX[5],RY[4]];
+const EMPTY='(empty)';
 const $=id=>document.getElementById(id);
 const cv=document.createElement('canvas');cv.width=cv.height=32;
 const cx=cv.getContext('2d',{willReadFrequently:true});
-// 20x20 centre of the 32x32 slot: skips the frame, so catalogue icons and in-game icons compare on the artwork only
+// 20x20 centre of the 32x32 slot: skips the frame so catalogue icons and in-game icons compare on the artwork only
 function vec(src,sx,sy,sw,sh){cx.clearRect(0,0,32,32);cx.drawImage(src,sx,sy,sw,sh,0,0,32,32);
   const d=cx.getImageData(6,6,20,20).data,v=[];for(let i=0;i<d.length;i+=4)v.push(d[i],d[i+1],d[i+2]);return v}
 function unit(v){const m=v.reduce((a,b)=>a+b,0)/v.length,c=v.map(x=>x-m);let n=0;for(const x of c)n+=x*x;n=Math.sqrt(n)||1;return c.map(x=>x/n)}
 function flat(v){let s=0;for(let ch=0;ch<3;ch++){let m=0;for(let i=ch;i<v.length;i+=3)m+=v[i];m/=400;let q=0;for(let i=ch;i<v.length;i+=3)q+=(v[i]-m)**2;s+=Math.sqrt(q/400)}return s/3<12}
 const load=src=>new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=rej;i.src=src});
-let items=[];
+let items=[],learned=[],tpl=null;const images=[];
 async function init(){
-  const r=await fetch(API+'/rest/v1/items?select=name,name_th,icon_url',{headers:{apikey:KEY}});
+  const r=await fetch(API+'/rest/v1/items?select=name,icon_url',{headers:{apikey:KEY}});
   const rows=await r.json();let fail=0;
   await Promise.all(rows.map(async it=>{try{const im=await load(it.icon_url);
-    items.push({label:it.name_th||it.name,u:unit(vec(im,0,0,im.naturalWidth,im.naturalHeight))})}catch(e){fail++}}));
-  $('st').textContent='โหลดไอคอนแล้ว '+items.length+' ชิ้น'+(fail?' (โหลดไม่ได้ '+fail+')':'')+' เลือกรูปสกรีนชอตได้เลย';
+    items.push({label:it.name,u:unit(vec(im,0,0,im.naturalWidth,im.naturalHeight))})}catch(e){fail++}}));
+  tpl=document.createElement('select');
+  tpl.appendChild(new Option('— ว่าง —',EMPTY));
+  [...new Set(rows.map(r=>r.name))].sort((a,b)=>a.localeCompare(b)).forEach(n=>tpl.appendChild(new Option(n,n)));
+  $('st').textContent='โหลดไอคอนแล้ว '+items.length+'/'+rows.length+' ชิ้น'+(fail?' (โหลดไม่ได้ '+fail+')':'')+' เลือกรูปสกรีนชอตได้เลย';
   $('f').disabled=false;
 }
 function best(v){const u=unit(v);let a=[9,''],b=[9,''];
-  for(const it of items){let d=0;for(let i=0;i<u.length;i++)d+=u[i]*it.u[i];d=1-d;
-    if(d<a[0]){b=a;a=[d,it.label]}else if(d<b[0])b=[d,it.label]}return [a,b]}
+  for(const it of items.concat(learned)){let d=0;for(let i=0;i<u.length;i++)d+=u[i]*it.u[i];d=1-d;
+    if(d<a[0]){b=a;a=[d,it.label]}else if(d<b[0])b=[d,it.label]}return {label:a[1],d:a[0],second:b[1],sd:b[0]}}
+const guess=c=>c.flat?{label:EMPTY,d:0,second:'',sd:0}:best(c.v);
+function paint(c){const g=c.g;c.box.className='c '+(c.userSet?'set':g.label===EMPTY?'em':g.d<.15?'ok':g.d<.3?'mid':'bad');
+  c.info.textContent=c.userSet?'แก้เอง (เดา: '+g.label+')':g.label===EMPTY?'':'ระยะ '+g.d.toFixed(2)+' · รอง: '+g.second}
+function stats(){let rows=0,n=0,wrong=0;for(const im of images)for(const r of im.rows)if(r.reviewed){rows++;for(const c of r.cells){n++;if(c.userSet)wrong++}}
+  $('sum').textContent=rows?'ตรวจแล้ว '+rows+' แถว ('+n+' ช่อง): ตรง '+(n-wrong)+' · แก้ '+wrong+' · แม่น '+Math.round(100*(n-wrong)/n)+'%':'ยังไม่มีแถวที่ติ๊ก "ตรวจแล้ว"'}
+function refresh(){ // user corrections become extra templates; re-guess every cell that is neither corrected nor verified
+  for(const im of images)for(const r of im.rows)if(!r.reviewed)for(const c of r.cells)if(!c.userSet){c.g=guess(c);c.sel.value=c.g.label;paint(c)}
+  stats()}
+function onPick(c){
+  c.userSet=c.sel.value!==c.g.label;
+  learned=learned.filter(l=>l.cell!==c);
+  if(c.userSet&&c.sel.value!==EMPTY)learned.push({label:c.sel.value,u:unit(c.v),cell:c});
+  paint(c);refresh()}
+function calibrate(bmp,name,why){return new Promise(res=>{
+  const box=document.createElement('div');box.className='row';box.innerHTML='<b>'+name+'</b><p></p>';
+  const msg=box.querySelector('p'),c=document.createElement('canvas');c.className='cal';c.width=bmp.width;c.height=bmp.height;
+  const g=c.getContext('2d');g.drawImage(bmp,0,0);let pts=[];
+  const ask=['1/2 แตะกลางไอคอนไอเทมช่องแรก: ทีมฟ้า แถวบนสุด ช่องซ้ายสุด','2/2 แตะกลางไอคอนไอเทมช่องสุดท้าย: ทีมแดง แถวล่างสุด ช่องขวาสุด'];
+  msg.textContent=why+' '+ask[0];
+  c.onclick=e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*bmp.width,y=(e.clientY-r.top)/r.height*bmp.height;pts.push([x,y]);
+    g.strokeStyle='#0f0';g.lineWidth=Math.max(2,bmp.width/500);g.beginPath();g.arc(x,y,bmp.width/60,0,7);g.stroke();
+    if(pts.length<2){msg.textContent=ask[1];return}
+    const ax=(pts[1][0]-pts[0][0])/(P2[0]-P1[0]),ay=(pts[1][1]-pts[0][1])/(P2[1]-P1[1]);
+    if(!(ax>0&&ay>0)){pts=[];g.drawImage(bmp,0,0);msg.textContent='ลำดับผิด ลองใหม่ '+ask[0];return}
+    box.remove();res({ax,ay,bx:pts[0][0]-ax*P1[0],by:pts[0][1]-ay*P1[1],manual:true})};
+  box.appendChild(c);$('out').appendChild(box);box.scrollIntoView()})}
 async function run(file){
-  const bmp=await createImageBitmap(file),sx=bmp.width/W0,sy=bmp.height/H0;
-  const wrap=document.createElement('div');wrap.innerHTML='<h1>'+file.name+'</h1>';
-  let n={ok:0,mid:0,bad:0,em:0};
-  for(const [team,xs] of [['ทีมฟ้า',LX],['ทีมแดง',RX]])RY.forEach((y,r)=>{
-    const row=document.createElement('div');row.className='row';row.innerHTML='<b>'+team+' แถว '+(r+1)+'</b>';
+  const bmp=await createImageBitmap(file);
+  const off=Math.abs(bmp.width/bmp.height/REF_ASPECT-1)>.015;
+  const cal=($('man').checked||off)?await calibrate(bmp,file.name,off?'สัดส่วนจอต่างจากที่วัดไว้ จึงต้องปรับเอง.':'ปรับตำแหน่งเอง.'):{ax:bmp.width/W0,ay:bmp.height/H0,bx:0,by:0,manual:false};
+  const half=HALF*(cal.ax+cal.ay)/2,im={file:file.name,w:bmp.width,h:bmp.height,cal,rows:[]};images.push(im);
+  const wrap=document.createElement('div');wrap.innerHTML='<h1>'+file.name+' <small>'+bmp.width+'×'+bmp.height+'</small></h1>';
+  for(const [team,xs] of [['ทีมฟ้า',LX],['ทีมแดง',RX]])RY.forEach((y,ri)=>{
+    const rowObj={reviewed:false,cells:[]};im.rows.push(rowObj);
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML='<b>'+team+' แถว '+(ri+1)+'<label><input type="checkbox"> ตรวจแล้ว</label></b>';
+    row.querySelector('input').onchange=e=>{rowObj.reviewed=e.target.checked;stats()};
     const g=document.createElement('div');g.className='g';
-    xs.forEach(x=>{
-      const v=vec(bmp,(x-HALF)*sx,(y-HALF)*sy,2*HALF*sx,2*HALF*sy),c=document.createElement('div');c.className='c';
-      const t=document.createElement('canvas');t.width=t.height=44;
-      t.getContext('2d').drawImage(bmp,(x-HALF)*sx,(y-HALF)*sy,2*HALF*sx,2*HALF*sy,0,0,44,44);c.appendChild(t);
-      if(flat(v)){c.classList.add('em');c.append('ว่าง');n.em++}
-      else{const [a,b]=best(v),k=a[0]<.15?'ok':a[0]<.3?'mid':'bad';n[k]++;c.classList.add(k);
-        c.append(a[1]+' ('+a[0].toFixed(2)+')');const s=document.createElement('small');s.textContent=' หรือ '+b[1]+' ('+b[0].toFixed(2)+')';c.appendChild(document.createElement('br'));c.appendChild(s)}
-      g.appendChild(c)});
+    xs.forEach((x,si)=>{
+      const px=cal.ax*x+cal.bx,py=cal.ay*y+cal.by,v=vec(bmp,px-half,py-half,2*half,2*half);
+      const c={team,row:ri+1,slot:si+1,v,flat:flat(v),userSet:false,box:document.createElement('div')};
+      c.g=guess(c);rowObj.cells.push(c);
+      const t=document.createElement('canvas');t.width=t.height=44;t.getContext('2d').drawImage(bmp,px-half,py-half,2*half,2*half,0,0,44,44);
+      const r=document.createElement('div');r.className='r';
+      c.sel=tpl.cloneNode(true);c.sel.value=c.g.label;c.sel.onchange=()=>onPick(c);
+      c.info=document.createElement('small');r.append(c.sel,c.info);c.box.append(t,r);paint(c);g.appendChild(c.box)});
     row.appendChild(g);wrap.appendChild(row)});
-  const sum=document.createElement('p');sum.textContent='มั่นใจ '+n.ok+' · เหลือง '+n.mid+' · ไม่แน่ใจ '+n.bad+' · ว่าง '+n.em;
-  wrap.insertBefore(sum,wrap.children[1]);$('out').appendChild(wrap)}
-$('f').onchange=async e=>{$('out').innerHTML='';$('st').textContent='กำลังจับคู่…';
-  try{for(const f of e.target.files)await run(f);$('st').textContent='เสร็จแล้ว เลื่อนดูแถวของคุณแล้วเทียบกับ build จริง'}
+  $('out').appendChild(wrap)}
+$('f').onchange=async e=>{$('out').innerHTML='';images.length=0;learned=[];$('st').textContent='กำลังจับคู่…';
+  try{for(const f of e.target.files)await run(f);$('st').textContent='เสร็จแล้ว หาแถวของคุณ เทียบ แก้ที่ผิด แล้วติ๊ก "ตรวจแล้ว" จากนั้นกดคัดลอกผลด้านบน';stats()}
   catch(err){$('st').textContent='ผิดพลาด: '+err.message}};
+// ---- export: only rows ticked "ตรวจแล้ว" (all rows if none ticked) ----
+function collect(){const any=images.some(im=>im.rows.some(r=>r.reviewed));
+  return images.map(im=>({file:im.file,size:im.w+'x'+im.h,
+    calibration:im.cal.manual?{manual:true,ax:+im.cal.ax.toFixed(4),ay:+im.cal.ay.toFixed(4),bx:Math.round(im.cal.bx),by:Math.round(im.cal.by)}:{manual:false},
+    slots:im.rows.filter(r=>!any||r.reviewed).flatMap(r=>r.cells.map(c=>({team:c.team==='ทีมฟ้า'?'blue':'red',row:c.row,slot:c.slot,
+      guess:c.g.label,dist:+c.g.d.toFixed(3),second:c.g.second,secondDist:+c.g.sd.toFixed(3),final:c.sel.value,corrected:c.userSet,reviewed:r.reviewed})))}))}
+function summary(d){let n=0,w=0;d.forEach(im=>im.slots.forEach(s=>{if(s.reviewed){n++;if(s.corrected)w++}}));return{reviewedSlots:n,corrected:w,accuracy:n?+((n-w)/n).toFixed(3):null}}
+const asJson=()=>{const d=collect();return JSON.stringify({exportedAt:new Date().toISOString(),ua:navigator.userAgent,learnedTemplates:learned.length,summary:summary(d),images:d},null,1)};
+function asMd(){const d=collect(),s=summary(d);
+  let m='# Item match test\n\n- reviewed slots: '+s.reviewedSlots+'\n- corrected: '+s.corrected+'\n- accuracy: '+(s.accuracy===null?'n/a':Math.round(s.accuracy*100)+'%')+'\n- learned templates: '+learned.length+'\n\n';
+  for(const im of d){m+='## '+im.file+' ('+im.size+', calibration: '+(im.calibration.manual?'manual':'auto')+')\n\n| slot | guess | dist | final | ok |\n|---|---|---|---|---|\n';
+    for(const x of im.slots)m+='| '+x.team+' r'+x.row+' s'+x.slot+' | '+x.guess+' | '+x.dist+' | '+x.final+' | '+(x.corrected?'WRONG':'ok')+' |\n';m+='\n'}return m}
+async function copy(text,label){try{await navigator.clipboard.writeText(text)}catch(e){const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
+  $('st2').textContent='คัดลอก '+label+' แล้ว ('+text.length+' ตัวอักษร) วางในแชตได้เลย'}
+$('cj').onclick=()=>copy(asJson(),'JSON');
+$('cm').onclick=()=>copy(asMd(),'Markdown');
+$('dj').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([asJson()],{type:'application/json'}));a.download='item-match-result.json';a.click()};
 init().catch(e=>$('st').textContent='โหลดไอคอนไม่สำเร็จ: '+e.message);
 </script>
 </body>
