@@ -16,10 +16,12 @@ import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
+import { StarLegend } from "@/features/heroes/MatchupStars";
 import { HeroPager } from "@/features/heroes/HeroPager";
 import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { useRank } from "@/lib/rank";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 import { HeroBuilds } from "@/features/heroes/HeroBuilds";
 import { HeroVideos } from "@/features/heroes/HeroVideos";
@@ -130,6 +132,7 @@ export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
   const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
+  const rank = useRank();
 
   // SEO: title/description/canonical/breadcrumb รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
   const loaded = hero.status === "success" ? hero.data : null;
@@ -257,7 +260,7 @@ export function HeroDetail() {
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
-          อ้างอิง {h.stat.matches.toLocaleString()} แมตช์ · {h.stat.rankTier} · Patch {h.stat.patch}
+          อ้างอิงจากแรงก์ {rank === "high" ? "Commander+" : "ทั้งหมด"} · Patch {h.stat.patch}
         </p>
       ) : (
         <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติสำหรับฮีโร่นี้</p>
@@ -329,16 +332,17 @@ export function HeroDetail() {
         </div>
       )}
 
+      <StarLegend />
       {/* lg+ วางการ์ดแพ้ทาง/ชนะทางคู่กัน ลดความยาวหน้าบนจอกว้าง */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader><CardTitle>{h.nameTh} แพ้ทางใครบ้าง</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
+          <CardContent><CounterList stars entries={h.counteredBy} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้แพ้ทางใคร" /></CardContent>
         </Card>
 
         <Card>
           <CardHeader><CardTitle>{h.nameTh} ชนะทางใครได้</CardTitle></CardHeader>
-          <CardContent><CounterList entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
+          <CardContent><CounterList stars entries={h.countersAgainst} emptyText="ยังไม่มีข้อมูลว่าฮีโร่นี้ชนะทางใคร" /></CardContent>
         </Card>
       </div>
 
