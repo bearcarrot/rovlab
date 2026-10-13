@@ -4,6 +4,7 @@ import { HeroIcon } from "@/components/HeroIcon";
 import type { CounterEntry } from "@/types/hero";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 import { cn } from "@/lib/utils";
+import { MATCHUP_STARS, StarRating } from "./MatchupStars";
 
 const STRENGTH_LABEL: Record<CounterEntry["strength"], string> = {
   best: "ชนะทางได้ดีที่สุด",
@@ -20,9 +21,11 @@ type Props = {
   icons?: Record<string, string>;
   /** จัดเป็น 2 คอลัมน์บนจอ md ขึ้นไป (ใช้เมื่อรายการอยู่เต็มความกว้างหน้า) */
   grid?: boolean;
+  /** แสดงระดับเป็นดาว (หน้ารายละเอียดฮีโร่) แทนป้ายข้อความ */
+  stars?: boolean;
 };
 
-export function CounterList({ entries, emptyText, icons, grid = false }: Props) {
+export function CounterList({ entries, emptyText, icons, grid = false, stars = false }: Props) {
   if (entries.length === 0) {
     return <p className="text-sm text-text-faint">{emptyText}</p>;
   }
@@ -52,7 +55,11 @@ export function CounterList({ entries, emptyText, icons, grid = false }: Props) 
                 <Link to={`/heroes/${c.heroSlug}`} className="font-display text-sm font-medium hover:text-accent">
                   {nameTh}
                 </Link>
-                <Badge>{STRENGTH_LABEL[c.strength]}</Badge>
+                {stars && MATCHUP_STARS[c.strength] ? (
+                  <StarRating {...MATCHUP_STARS[c.strength]} />
+                ) : (
+                  <Badge>{STRENGTH_LABEL[c.strength]}</Badge>
+                )}
               </div>
               <p className="mt-1.5 text-sm text-text-muted">{c.reason}</p>
               <p className="mt-1 text-xs text-text-faint">เลน: {c.laneTip}</p>
