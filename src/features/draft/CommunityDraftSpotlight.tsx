@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ThumbsUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { parseEffectTags } from "@/lib/effectTags";
+import type { AbilitiesByHero } from "@/services/abilities";
 import { parseSeries, TEAM_SIZE, type HeroKey, type SeriesFormat } from "@/features/draft/series";
 import { analyzeTeam } from "@/features/draft/analyzeTeam";
 import { findTeamGaps } from "@/features/draft/teamGaps";
+import { buildKits, type KitsByHero } from "@/features/draft/skillTags";
 import { DraftPreviewPanel } from "@/features/draft/DraftPreviewPanel";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -70,6 +73,25 @@ async function fetchTopLikedDraft(): Promise<TopDraft | null> {
   };
 }
 
+// แท็กสกิลของเฉพาะฮีโร่ที่อยู่ในทีม (ประมาณ 20 แถว ไม่ใช้ getAllAbilities ที่โหลดทั้งตาราง ~600 แถวพร้อมคำอธิบาย)
+// สร้าง kits ด้วย buildKits ตัวเดียวกับหน้า Draft (buildKits ใช้เฉพาะ slot + effectTags จึงไม่ต้องดึง name/description)
+// ล้มเหลว → null (กลับไปคำนวณจาก Role) ไม่ทำให้การ์ดหาย
+async function fetchKits(heroIds: string[]): Promise<KitsByHero | null> {
+  if (heroIds.length === 0) return null;
+  const { data, error } = await supabase.from("hero_abilities").select("hero_id, slot, effect_tags").in("hero_id", heroIds);
+  if (error || !data) return null;
+  const skills: AbilitiesByHero = {};
+  for (const r of data as any[]) {
+    (skills[r.hero_id as string] ??= []).push({
+      slot: String(r.slot ?? ""),
+      name: "",
+      description: "",
+      effectTags: parseEffectTags(r.effect_tags).map((t) => t.name),
+    });
+  }
+  return buildKits(skills);
+}
+
 // ไอคอนขยายตามความกว้างการ์ด (grid 5 คอลัมน์, aspect-square) แทนขนาด 32px คงที่ มือถือไม่เหลือที่ว่างขวา
 // max-w-72 จำกัดไม่ให้ไอคอนใหญ่เกินไปบนจอกว้าง
 function TeamRow({ label, slugs, bySlug }: { label: string; slugs: HeroKey[]; bySlug: Map<string, HeroSummary> }) {
@@ -107,36 +129,48 @@ function TeamRow({ label, slugs, bySlug }: { label: string; slugs: HeroKey[]; by
 
 export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummary[] }) {
   const [top, setTop] = useState<TopDraft | null>(null);
+  const [kits, setKits] = useState<KitsByHero | null>(null);
   const bySlug = useMemo(() => new Map(heroes.map((h) => [h.slug, h])), [heroes]);
 
+  // โหลดดราฟต์ก่อน แล้วจึงดึงแท็กสกิลของทีมนั้น แล้ว set พร้อมกัน การ์ดจะขึ้นครั้งเดียว ไม่กระพริบจากค่า Role เป็นค่าจากสกิล
   useEffect(() => {
     let cancelled = false;
-    fetchTopLikedDraft()
-      .then((d) => {
-        if (!cancelled) setTop(d);
-      })
-      .catch(() => {
+    (async () => {
+      const d = await fetchTopLikedDraft();
+      if (!d) {
         if (!cancelled) setTop(null);
-      });
+        return;
+      }
+      const ids = d.mine.map((s) => bySlug.get(s)?.id).filter((id): id is string => id !== undefined);
+      const k = await fetchKits(ids).catch(() => null);
+      if (!cancelled) {
+        setKits(k);
+        setTop(d);
+      }
+    })().catch(() => {
+      if (!cancelled) setTop(null);
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bySlug]);
 
-  // สถิติของทีมฝั่งผู้สร้าง (เกมที่ 1) ใช้ analyzeTeam/findTeamGaps ตัวเดียวกับหน้า Draft แต่ไม่ส่ง kits (แท็กสกิล)
-  // จึงคำนวณจาก Role เท่านั้น (ไม่มี request เพิ่ม) ค่า CC อาจต่างจากหน้า Draft เล็กน้อย
+  // สถิติของทีมฝั่งผู้สร้าง (เกมที่ 1) ใช้ analyzeTeam/findTeamGaps + kits เหมือนหน้า Draft
+  // ถ้าฮีโร่บางตัวไม่มีแท็กสกิล analyzeTeam จะ fallback ไปใช้ Role เฉพาะตัวนั้นเอง
   // ถ้าหาฮีโร่บางตัวไม่เจอในรายชื่อ จะไม่แสดงแถบสถิติ (แทนที่จะคำนวณผิด)
   const teamStats = useMemo(() => {
     if (!top) return null;
     const picked = top.mine.map((s) => bySlug.get(s));
     const mineHeroes = picked.filter((h): h is HeroSummary => h !== undefined);
     if (mineHeroes.length === 0 || mineHeroes.length < picked.length) return null;
-    const analysis = analyzeTeam(mineHeroes);
+    const analysis = analyzeTeam(mineHeroes, kits ?? undefined);
     // ระบุว่า "ขาด" เฉพาะทีมครบ 5 ตัว ทีมที่ยังไม่ครบจะขาดอยู่แล้วโดยธรรมชาติ
     const full = mineHeroes.length >= TEAM_SIZE;
-    const gaps = full ? new Set(findTeamGaps(analysis, mineHeroes).map((g) => g.key)) : new Set<string>();
-    return { analysis, gaps };
-  }, [top, bySlug]);
+    const gaps = full ? new Set(findTeamGaps(analysis, mineHeroes, kits ?? undefined).map((g) => g.key)) : new Set<string>();
+    // ทุกตัวมีแท็กสกิล = คำนวณจากสกิลครบ; ไม่ครบ = ผสม Role บางตัว
+    const fromKits = kits !== null && mineHeroes.every((h) => kits[h.id] !== undefined);
+    return { analysis, gaps, fromKits };
+  }, [top, kits, bySlug]);
 
   // ยังโหลดอยู่ / ไม่มีดราฟต์ที่มียอดถูกใจ / error → ภาพประกอบเดิม (ไม่โชว์เลข 0 หรือกล่องว่าง)
   if (!top) return <DraftPreviewPanel />;
@@ -180,7 +214,11 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
               </div>
             );
           })}
-          <p className="pt-0.5 text-[11px] text-text-faint">* ประเมินจาก Role ของทีมเรา (Heuristic) ไม่ใช่ข้อมูลระดับสกิล</p>
+          <p className="pt-0.5 text-[11px] text-text-faint">
+            {teamStats.fromKits
+              ? "* ประเมินจากแท็กสกิลของทีมเรา (บางมิติยังเป็น Heuristic จาก Role)"
+              : "* ประเมินจาก Role ของทีมเรา (Heuristic) ยังไม่ใช่ข้อมูลระดับสกิล"}
+          </p>
         </div>
       )}
     </Link>
