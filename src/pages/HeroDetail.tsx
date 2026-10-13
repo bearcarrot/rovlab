@@ -21,6 +21,7 @@ import { HeroPager } from "@/features/heroes/HeroPager";
 import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
+import { useRank } from "@/lib/rank";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 import { HeroBuilds } from "@/features/heroes/HeroBuilds";
 import { HeroVideos } from "@/features/heroes/HeroVideos";
@@ -131,6 +132,7 @@ export function HeroDetail() {
   const { slug = "" } = useParams();
   const hero = useAsync(() => getHeroBySlug(slug), [slug]);
   const { roleLabel: roleName, laneLabel: laneName } = useFilterLabels();
+  const rank = useRank();
 
   // SEO: title/description/canonical/breadcrumb รายฮีโร่ (ต้องเรียกก่อน early return ทั้งหมด)
   const loaded = hero.status === "success" ? hero.data : null;
@@ -258,7 +260,7 @@ export function HeroDetail() {
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
-          อ้างอิงจากแรงก์ Commander+ · Patch {h.stat.patch}
+          อ้างอิงจากแรงก์ {rank === "high" ? "Commander+" : "ทั้งหมด"} · Patch {h.stat.patch}
         </p>
       ) : (
         <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติสำหรับฮีโร่นี้</p>

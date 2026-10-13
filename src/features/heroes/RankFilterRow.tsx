@@ -2,7 +2,7 @@ import { setRank, useRank, RANK_LABEL, type RankBucket } from "@/lib/rank";
 import { cn } from "@/lib/utils";
 
 const OPTIONS: { value: RankBucket; label: string }[] = [
-  { value: "all", label: "ทุกแรงก์" },
+  { value: "all", label: "ทั้งหมด" },
   { value: "high", label: "Commander+" },
 ];
 
