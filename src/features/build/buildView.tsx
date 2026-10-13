@@ -43,8 +43,14 @@ export const catalogPath = (kind: CatalogKind, key: string) => `/game-data/${kin
 
 const ROMAN = ["", "I", "II", "III"];
 const KNOWN_COLORS: Set<string> = new Set(RUNE_COLOR_VIEW.map((c) => c.k));
-const ITEM_SLOTS = 6;
-const PHASE_LABEL: Record<Phase, string> = { early: "ต้นเกม", core: "ไอเทมหลัก", situational: "ตามสถานการณ์" };
+
+// รายการบิลด์แสดง ReadOnlyBuild หลายอันพร้อมกัน — โหลดแคตตาล็อกพลังแฝงครั้งเดียวแล้วใช้ซ้ำ (ล้มเหลวแล้วลองใหม่ได้)
+let enchantCatalog: ReturnType<typeof getCatalogEnchantments> | null = null;
+const loadEnchantCatalog = () =>
+  (enchantCatalog ??= getCatalogEnchantments().catch((e) => {
+    enchantCatalog = null;
+    throw e;
+  }));
 
 // ความสูงพื้นที่ไอคอนพลังแฝง (ให้เส้นเชื่อมอยู่กลางไอคอนทุกขนาด) — เพชร Tier 3 หมุน 45° เลยต้องเผื่อเป็นแนวทแยง
 const NODE_AREA = "h-[4.5rem]";
@@ -144,14 +150,13 @@ function RuneDialog({ runes, open, onOpenChange }: { runes: ViewRune[]; open: bo
 }
 
 export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
-  const catalog = useAsync(() => getCatalogEnchantments(), []);
+  const catalog = useAsync(() => loadEnchantCatalog(), []);
   const [runeOpen, setRuneOpen] = useState(false);
   const keystones = new Set<string>(catalog.status === "success" ? catalog.data.list.filter((x) => x.category === "keystone").map((x) => x.slug) : []);
 
   const primary = build.enchantments.filter((e) => e.type === "primary");
   const secondary = build.enchantments.filter((e) => e.type === "secondary");
   const reasons = build.items.filter((i) => i.reason);
-  const emptySlots = Math.max(0, ITEM_SLOTS - build.items.length);
 
   const groups = runeGroups(build.runes);
   const orderedRunes = groups.flatMap((g) => g.list);
@@ -160,22 +165,29 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
   return (
     <div className="space-y-3">
       <Panel title="ไอเทม">
-        {/* 6 ช่องตามลำดับที่บันทึก; ถ้าเกิน 6 (บิลด์แนะนำ) ขึ้นแถวใหม่ */}
-        <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-          {build.items.map((i) => (
-            <Link
-              key={i.slug}
-              to={catalogPath("items", i.slug)}
-              title={`${i.name} · ${PHASE_LABEL[i.phase]}`}
-              aria-label={i.name}
-              className="aspect-square w-full overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60"
-            >
-              <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
-            </Link>
-          ))}
-          {Array.from({ length: emptySlots }).map((_, n) => (
-            <span key={`empty-${n}`} aria-hidden className="aspect-square w-full rounded-md border-2 border-dashed border-border/60" />
-          ))}
+        <div className="space-y-3">
+          {PHASES.map(({ k, label }) => {
+            const list = build.items.filter((i) => i.phase === k);
+            if (list.length === 0) return null;
+            return (
+              <div key={k}>
+                <p className="mb-1.5 text-xs font-medium text-text-faint">{label}</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {list.map((i) => (
+                    <Link
+                      key={i.slug}
+                      to={catalogPath("items", i.slug)}
+                      title={i.name}
+                      aria-label={i.name}
+                      className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60 sm:h-16 sm:w-16"
+                    >
+                      <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
         {reasons.length > 0 && (
           <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm text-text-muted">

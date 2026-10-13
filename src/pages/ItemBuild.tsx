@@ -118,12 +118,13 @@ function Recommended({ hero }: { hero: HeroSummary }) {
 
 const dateTh = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "");
 
+// Community และ Build ของฉันใช้การ์ดเดียวกัน: หัวการ์ด (ผู้สร้าง/วันที่/สถานะ กดไปหน้ารายละเอียดเพื่อแก้ไข-จัดการ) + บิลด์เต็มแบบหน้าจอในเกม
 function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
   return (
-    <Link to={`/build/view/${b.id}`} className="block space-y-2 rounded-card border border-border bg-bg-surface p-3 transition hover:border-accent/40">
-      <div className="flex items-start justify-between gap-2">
+    <article className="space-y-2">
+      <Link to={`/build/view/${b.id}`} className="flex items-start justify-between gap-2 rounded-card border border-border bg-bg-surface p-3 transition hover:border-accent/40">
         <div className="flex min-w-0 items-center gap-2">
-          {showHero && <Thumb src={b.hero.icon} label={b.hero.nameTh} className="h-9 w-9" />}
+          <Thumb src={b.hero.icon} label={b.hero.nameTh} className="h-9 w-9" />
           <div className="min-w-0">
             <p className="truncate font-display text-sm font-medium">{b.name}</p>
             <p className="truncate text-xs text-text-faint">
@@ -138,12 +139,9 @@ function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
             {b.hidden ? "ถูกซ่อน" : b.isPublic ? "เผยแพร่แล้ว" : "ส่วนตัว"}
           </span>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {b.view.items.slice(0, 6).map((i) => <Thumb key={i.slug} src={i.icon} label={i.name} className="h-8 w-8" />)}
-        {b.view.spell && <Thumb src={b.view.spell.icon} label={b.view.spell.nameTh} round className="ml-1 h-8 w-8" />}
-      </div>
-    </Link>
+      </Link>
+      <ReadOnlyBuild build={b.view} />
+    </article>
   );
 }
 
@@ -171,7 +169,7 @@ function Community({ hero }: { hero: HeroSummary }) {
         <EmptyState icon={Hammer} title="ยังไม่มี Community Build" description="สร้างบิลด์ของคุณแล้วเผยแพร่เป็นคนแรกของฮีโร่ตัวนี้" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
+        <div className="space-y-6">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
       )}
     </div>
   );
@@ -201,7 +199,7 @@ function Mine({ hero }: { hero: HeroSummary | null }) {
         <EmptyState icon={Hammer} title="ยังไม่มีบิลด์" description="เลือกฮีโร่ด้านบน แล้วกดสร้างบิลด์" />
       )}
       {q.status === "success" && q.data.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
+        <div className="space-y-6">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero />)}</div>
       )}
     </div>
   );
