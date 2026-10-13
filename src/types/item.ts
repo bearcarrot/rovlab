@@ -64,6 +64,8 @@ export interface HeroBuild {
   arcana: BuildArcanaEntry[];
   patch: string;
   source: "curated" | "heuristic";
+  id?: string; // item_builds.id (ไม่มีในบิลด์ fallback/mock)
+  createdAt?: string; // item_builds.created_at — ตารางนี้ไม่มี updated_at
   spell?: BuildSpell | null;
   enchantments?: BuildEnchantment[];
 }

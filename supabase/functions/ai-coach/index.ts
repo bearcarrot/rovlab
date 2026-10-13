@@ -18,6 +18,12 @@ const SYSTEM = [
   "3) พูดถึงได้เฉพาะฮีโร่ที่อยู่ในข้อมูลที่ให้มา ห้ามอ้างฮีโร่อื่น",
   "4) ถ้าข้อมูลส่วนไหนไม่พอ ให้บอกตรงๆ ว่ายังไม่มีข้อมูล แทนการเดา",
   "5) ถ้าท้ายข้อมูลมีหมายเหตุว่าข้อมูลถูกตัด ให้บอกผู้ใช้สั้นๆ ว่าข้อมูลบางส่วนไม่ครบ และอย่าสรุปเรื่องส่วนที่ขาด",
+  "ถ้าข้อมูลมีฟิลด์ build (บิลด์แนะนำของฮีโร่จากฐานข้อมูล RoV LAB):",
+  "6) ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงใน build คือข้อเท็จจริงจากฐานข้อมูล ห้ามเพิ่ม ลบ หรือเปลี่ยนชื่อ ห้ามแต่ง id หรือชื่อไอเทมที่ไม่มีใน build.items",
+  '7) แยกคำตอบให้ชัดว่า "ข้อมูลในระบบ" (อ้างจาก build) ต่างจาก "คำแนะนำจาก AI" (การวิเคราะห์เชิงกลยุทธ์ของคุณ ขึ้นกับสถานการณ์เกม)',
+  "8) ถ้า build.patchIsLatest เป็น false ให้บอกสั้นๆ ว่าบิลด์อ้างอิงแพตช์เก่ากว่าปัจจุบัน และห้ามเรียกว่าเมต้าล่าสุด",
+  "9) ถ้า build.available เป็น false แปลว่าไม่มีบิลด์ในระบบ ให้บอกตรงๆ และห้ามเสนอรายการไอเทมเป็นบิลด์",
+  "10) การปรับไอเทมตามสถานการณ์ให้เลือกจาก build.items (โดยเฉพาะ phase = situational) ถ้าจำเป็นต้องเสนอสิ่งที่ไม่อยู่ใน build ให้เสนอเป็นประเภท เช่น ต้านเวท ไม่ระบุชื่อไอเทม",
 ].join("\n");
 
 // เพดานขนาด context (ตัวอักษรของ JSON) ฝั่ง client เผื่อไว้ที่ 7200 (ดู coachContext.ts)
@@ -78,6 +84,45 @@ function findUnknownHeroes(answer: string, names: string[], haystack: string): s
     const hit = isLatin(name)
       ? new RegExp(`(?<![A-Za-z0-9])${escapeRe(name)}(?![A-Za-z0-9])`).test(answer)
       : name.length >= 4 && answer.includes(name);
+    if (hit) found.push(name);
+  }
+  return found;
+}
+
+// ---- ตรวจว่า AI ไม่อ้างชื่อไอเทมที่ไม่อยู่ในข้อมูลที่ส่งไป (ใช้เฉพาะเมื่อ context มี build.items) ----
+// ข้ามชื่อสั้น (ไทย < 6 ตัว, อังกฤษ < 5 ตัว) เพราะซ้ำกับคำทั่วไปง่าย; ดึงชื่อไม่ได้ = ข้ามการตรวจ (fail open)
+let itemNameCache: { at: number; names: string[] } | null = null;
+
+// deno-lint-ignore no-explicit-any
+async function loadItemNames(sb: { from: (t: string) => any }): Promise<string[]> {
+  if (itemNameCache && Date.now() - itemNameCache.at < NAME_TTL_MS) return itemNameCache.names;
+  try {
+    const { data, error } = await sb.from("items").select("name, name_th");
+    if (error || !data) return itemNameCache?.names ?? [];
+    const set = new Set<string>();
+    for (const r of data as { name?: string; name_th?: string }[]) {
+      for (const n of [r.name, r.name_th]) {
+        if (typeof n !== "string") continue;
+        const t = n.trim();
+        if (t.length >= (isLatin(t) ? 5 : 6)) set.add(t);
+      }
+    }
+    itemNameCache = { at: Date.now(), names: [...set] };
+    return itemNameCache.names;
+  } catch {
+    return itemNameCache?.names ?? [];
+  }
+}
+
+// คืนชื่อไอเทมที่ปรากฏในคำตอบ แต่ไม่ได้อยู่ในข้อมูลที่ส่งให้ AI (haystack)
+function findUnknownItems(answer: string, names: string[], haystack: string): string[] {
+  const hay = haystack.toLowerCase();
+  const ans = answer.toLowerCase();
+  const found: string[] = [];
+  for (const name of names) {
+    const n = name.toLowerCase();
+    if (hay.includes(n)) continue;
+    const hit = isLatin(name) ? new RegExp(`(?<![a-z0-9])${escapeRe(n)}(?![a-z0-9])`).test(ans) : ans.includes(n);
     if (hit) found.push(name);
   }
   return found;
@@ -197,6 +242,26 @@ Deno.serve(async (req) => {
       if (unknown.length > 0) {
         console.warn("ai-coach still mentioned unknown heroes", unknown);
         return json({ error: "AI ตอบอ้างถึงฮีโร่ที่ไม่อยู่ในข้อมูล ลองถามใหม่อีกครั้ง" }, 502);
+      }
+    }
+
+    // บิลด์แนะนำ: ถ้าคำตอบอ้างไอเทมที่ไม่อยู่ใน build ที่ส่งไป ลองใหม่ 1 ครั้ง ถ้ายังมั่วอีกให้ปฏิเสธ (เหมือนการตรวจชื่อฮีโร่)
+    if (Array.isArray(context?.build?.items)) {
+      const itemNames = await loadItemNames(sb);
+      let badItems = findUnknownItems(out, itemNames, text);
+      if (badItems.length > 0) {
+        console.warn("ai-coach mentioned items not in context", badItems);
+        r = await run(
+          `${text}\n\nหมายเหตุ: คำตอบก่อนหน้าพูดถึงไอเทมที่ไม่อยู่ใน build (${badItems.join(", ")}) ` +
+            `ห้ามระบุชื่อไอเทมเหล่านี้ ให้ใช้เฉพาะไอเทมใน build.items หรือเสนอเป็นประเภทไอเทมแทน`,
+        );
+        if (!r.ok) return r.response;
+        out = r.out;
+        badItems = findUnknownItems(out, itemNames, text);
+        if (badItems.length > 0) {
+          console.warn("ai-coach still mentioned unknown items", badItems);
+          return json({ error: "AI ตอบอ้างถึงไอเทมที่ไม่อยู่ในบิลด์ ลองถามใหม่อีกครั้ง" }, 502);
+        }
       }
     }
 

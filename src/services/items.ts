@@ -121,26 +121,31 @@ const COLOR_ORDER: Record<ArcanaColor, number> = { red: 0, purple: 1, green: 2 }
 const publicOk = (x: any): boolean => !!x && (x.status === "active" || x.status === "seasonal") && !!x.verified_at;
 
 // บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_rune)
-// เลือกอันที่เป็น curated ก่อน แล้วเอาแพตช์ใหม่สุด; ถ้าไม่มีหรือดึงไม่สำเร็จ คืน null เพื่อใช้ fallback เดิม
-async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
+// คืนทุกบิลด์ของฮีโร่ เรียง curated ก่อน แล้วแพตช์ใหม่สุดก่อน; ไม่มีบิลด์ = [] ส่วนดึงไม่สำเร็จ throw
+async function fetchDbBuilds(hero: Pick<HeroSummary, "id" | "slug">): Promise<HeroBuild[]> {
   const { data, error } = await supabase
     .from("item_builds")
     .select(
-      "source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
+      "id, created_at, source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
     )
     .eq("hero_id", hero.id);
-  if (error || !data) return null;
+  if (error || !data) throw new Error(error?.message ?? "โหลดบิลด์ไม่สำเร็จ");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (data as any[]).filter((r) => (r.item_build_items ?? []).length > 0);
-  if (rows.length === 0) return null;
   rows.sort(
     (a, b) =>
       (a.source === "curated" ? 0 : 1) - (b.source === "curated" ? 0 : 1) ||
       String(b.patches?.released_at ?? "").localeCompare(String(a.patches?.released_at ?? ""))
   );
-  const r = rows[0];
+  return rows.flatMap((r) => {
+    const b = parseDbBuild(hero, r);
+    return b ? [b] : [];
+  });
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null {
   const items: HeroBuild["items"] = [...r.item_build_items]
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .filter((i) => i.items?.slug)
@@ -204,16 +209,42 @@ async function fetchDbBuild(hero: HeroSummary): Promise<HeroBuild | null> {
     arcana: multi.length > 0 ? multi : legacy,
     patch: r.patches?.code ?? "N/A",
     source: r.source,
+    id: r.id as string,
+    createdAt: r.created_at as string,
     spell,
     enchantments,
   };
 }
 
+// ทุกบิลด์ของฮีโร่จาก DB (ใช้หน้า Hero Detail) — [] ถ้าไม่มี (ไม่ cache ผลว่าง) / throw ถ้าดึงไม่สำเร็จ
+export async function getBuildsForHero(hero: Pick<HeroSummary, "id" | "slug">): Promise<HeroBuild[]> {
+  if (!isSupabaseConfigured) return [];
+  const list = await cached(`builds:${hero.id}`, CACHE_TTL_MS, () => fetchDbBuilds(hero), (v) => v.length > 0);
+  return list.map((b) => ({ ...b }));
+}
+
+// รหัสแพตช์ล่าสุดจากตาราง patches (ไว้เทียบว่าบิลด์เก่ากว่าแพตช์ปัจจุบันไหม); null = ไม่ทราบ
+export function getLatestPatchCode(): Promise<string | null> {
+  if (!isSupabaseConfigured) return Promise.resolve(null);
+  return cached(
+    "patch:latest",
+    CACHE_TTL_MS,
+    async () => {
+      const { data, error } = await supabase
+        .from("patches")
+        .select("code")
+        .order("released_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+      if (error || !data?.length) return null;
+      return (data[0] as { code: string }).code;
+    },
+    (v) => v !== null
+  );
+}
+
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
-  if (isSupabaseConfigured) {
-    // only a real DB build is cached (null = none/error → retry next time, then fallback below)
-    const db = await cached(`build:${hero.id}`, CACHE_TTL_MS, () => fetchDbBuild(hero), (v) => v !== null);
-    if (db) return { ...db };
-  }
+  // ดึงไม่สำเร็จ = ใช้ fallback เดิมเงียบๆ (พฤติกรรมของหน้า Item Build ไม่เปลี่ยน)
+  const [db] = await getBuildsForHero(hero).catch(() => [] as HeroBuild[]);
+  if (db) return db;
   return delay(MOCK_BUILDS[hero.slug] ?? genericBuildFor(hero));
 }

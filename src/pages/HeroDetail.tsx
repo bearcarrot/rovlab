@@ -21,6 +21,10 @@ import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { MOCK_HEROES } from "@/data/heroes.mock";
+import { HeroBuilds } from "@/features/heroes/HeroBuilds";
+import { HeroVideos } from "@/features/heroes/HeroVideos";
+import { useHeroBuilds, type HeroBuildsState } from "@/features/heroes/useHeroBuilds";
+import { buildForCoach, noBuildForCoach } from "@/features/heroes/buildCoachContext";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
 
@@ -29,7 +33,7 @@ type HeroFull = NonNullable<Awaited<ReturnType<typeof getHeroBySlug>>>;
 const GROUNDED = " ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
 
 // คำถามด่วนของ FAB Coach Ai บนหน้าฮีโร่ (ผู้ใช้พิมพ์เองไม่ได้ เลือกได้เฉพาะรายการนี้)
-function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string): QuickChat[] {
+function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string, builds: HeroBuildsState): QuickChat[] {
   const context = {
     hero: h.nameTh,
     role: roleLabel,
@@ -42,7 +46,7 @@ function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string):
     weaknesses: h.weaknesses,
     abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name, description: a.description })),
   };
-  return [
+  const chats: QuickChat[] = [
     {
       id: "how-to-play",
       label: "เล่นตัวนี้ยังไง",
@@ -74,6 +78,43 @@ function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string):
       context,
     },
   ];
+
+  // คำถามเรื่องบิลด์: เพิ่มเมื่อโหลดบิลด์เสร็จแล้วเท่านั้น (ยังโหลดอยู่/โหลดไม่สำเร็จ = ไม่แสดง จึงไม่มีทางตอบจากบิลด์ที่ไม่รู้)
+  // ใช้บิลด์เดียวกับที่เลือกอยู่ในการ์ดบิลด์แนะนำ; context เล็กกว่าด้านบน (ชื่อสกิลอย่างเดียว) เพื่อเหลืองบให้ข้อมูลบิลด์
+  if (builds.data) {
+    const base = {
+      heroId: h.id,
+      hero: h.nameTh,
+      roles: roleLabel,
+      lane: laneLabel,
+      abilities: h.abilities.map((a) => ({ slot: a.slot, name: a.name })),
+    };
+    const buildContext = builds.selected
+      ? buildForCoach(builds.selected, builds.data.items, builds.data.latestPatch, base)
+      : noBuildForCoach(base);
+    const SPLIT =
+      ' แยกคำตอบเป็น 2 ส่วน: "ข้อมูลในระบบ" (สรุปตาม build ที่ให้ตรงๆ) และ "คำแนะนำจาก AI" (การวิเคราะห์เชิงกลยุทธ์ของคุณ) ' +
+      "ชื่อไอเทมต้องมาจาก build.items เท่านั้น";
+    chats.push(
+      {
+        id: "build-why",
+        label: "ทำไมบิลด์นี้เหมาะ",
+        prompt: `อธิบายว่าบิลด์ที่ให้ในข้อมูลเหมาะกับ ${h.nameTh} เพราะอะไร ไม่เกิน 4 ข้อ` + SPLIT + GROUNDED,
+        context: buildContext,
+      },
+      {
+        id: "build-situational",
+        label: "ปรับไอเทมตามศัตรู",
+        prompt:
+          `แนะนำการปรับไอเทมของ ${h.nameTh} ตามสถานการณ์: ศัตรูดาเมจเวทเยอะ, ศัตรูมีฮีล/โล่, ศัตรูแท้งค์เยอะ, ศัตรูสายล้ม ไม่เกิน 5 ข้อ` +
+          SPLIT +
+          " ถ้าจะแนะนำสิ่งที่ไม่อยู่ในบิลด์ ให้บอกเป็นประเภท (เช่น ต้านเวท) ห้ามระบุชื่อไอเทมที่ไม่มีในข้อมูล" +
+          GROUNDED,
+        context: buildContext,
+      },
+    );
+  }
+  return chats;
 }
 
 function StatBlock({ label, value, valueClassName = "" }: { label: string; value: string; valueClassName?: string }) {
@@ -109,6 +150,9 @@ export function HeroDetail() {
       : null,
   );
 
+  // บิลด์แนะนำ: โหลดครั้งเดียว ใช้ทั้งการ์ดและ Coach Ai (ต้องเรียกก่อน early return)
+  const builds = useHeroBuilds(loaded ? { id: loaded.id, slug: loaded.slug } : null);
+
   // FAB Coach Ai: ลงทะเบียน Quick Chat ของฮีโร่ตัวนี้ (ยังโหลดไม่เสร็จ = ไม่แสดงปุ่ม) ต้องเรียกก่อน early return
   useCoachQuickChats(
     loaded
@@ -116,6 +160,7 @@ export function HeroDetail() {
           loaded,
           heroRoles(loaded).map((r) => roleName(r)).join(" / "),
           heroLanes(loaded).map((l) => laneName(l)).join(" / "),
+          builds,
         )
       : [],
     loaded?.slug ?? "",
@@ -254,6 +299,10 @@ export function HeroDetail() {
           </CardContent>
         </Card>
       )}
+
+      <HeroBuilds hero={h} state={builds} />
+
+      <HeroVideos slug={h.slug} name={h.nameTh} />
 
       {(h.strengths.length > 0 || h.weaknesses.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">

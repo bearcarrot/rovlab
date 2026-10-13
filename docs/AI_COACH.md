@@ -111,6 +111,24 @@ Every Coach Ai answer (floating chat and inline ask buttons) has a "คำตอ
   `admin_list_coach_feedback`, `admin_update_coach_feedback` and `admin_coach_feedback_counts` (all check `is_admin()`).
 - Admins review in `/admin` under the "รีวิว Coach Ai" tab and set a status: new, reviewed, fixed or dismissed, with a note.
 
+## Hero Detail build context
+
+On Hero Detail the quick chats "ทำไมบิลด์นี้เหมาะ" and "ปรับไอเทมตามศัตรู" send the build currently selected in the
+"บิลด์แนะนำ" card (`features/heroes/buildCoachContext.ts`). It is loaded once by `useHeroBuilds`, so the card and Coach Ai
+always use the same build.
+
+- `build` carries: `buildId`, `kind` (curated/heuristic), `patch`, `latestPatch`, `patchIsLatest` (false = older than the
+  current patch; null = latest patch unknown), `createdAt`, ordered `items` (`id` = `items.slug`, Thai name, phase, cost,
+  a few stats, trimmed passive/reason), `runes`, `challengerSpell`, `enchantments`. Items missing from the `items` table
+  are skipped, never invented. Text is trimmed step by step to stay under the 8000-char cut; the item/rune lists are never cut.
+- No build for the hero: context has `build: { available: false }` so the model must say so instead of inventing one.
+  While builds are loading or failed, the two build chats are not registered (the other quick chats work as before).
+- `ai-coach` rules 6-10 separate "ข้อมูลในระบบ" (database facts) from "คำแนะนำจาก AI", forbid calling an old-patch build
+  the latest meta, and limit item swaps to `build.items` (anything else only as a category, e.g. magic resist).
+- When the context has `build.items`, `ai-coach` also checks the answer for item names that are not in the context
+  (retry once, then error), same idea as the hero-name check. Item names shorter than 6 Thai / 5 Latin characters are
+  skipped (too ambiguous). This check does nothing for requests without a build, so other pages are unaffected.
+
 ## Updating Coach Ai
 
 When changing Coach Ai:
