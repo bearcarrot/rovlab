@@ -7,13 +7,13 @@ export const SITE = {
   taglineEn: "Better Tools, Better Wins",
   // First year of the project; the footer shows a range once the year passes.
   startYear: 2026,
-  // Public contact address for privacy / takedown requests. Leave empty until a
-  // real address exists — legal pages hide the contact section while it's empty.
-  contactEmail: "" as string,
+  // Public contact address for privacy / takedown requests. Footer and legal
+  // pages hide their contact UI while it's empty.
+  contactEmail: "contact.rovlab@gmail.com" as string,
 } as const;
 
 // Date the legal pages were last revised (update when the text changes).
-export const LEGAL_UPDATED = "2026-10-10";
+export const LEGAL_UPDATED = "2026-10-14";
 
 export interface FooterLink {
   to: string;
