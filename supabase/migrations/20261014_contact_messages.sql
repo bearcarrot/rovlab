@@ -1,5 +1,5 @@
 -- Contact form messages (/contact). Guests and signed-in users can send; only admins/service role can read.
--- NOT YET APPLIED to project mttcdaiwuasnkqlxbeqs. Review, then apply once (checked 2026-10-14: no existing contact_messages table).
+-- ALREADY APPLIED to project mttcdaiwuasnkqlxbeqs (migration "contact_messages", 2026-10-14). Do not run again.
 -- Clients never touch the table directly: they call submit_contact_message() (validated + rate-limited).
 -- No policies on purpose: nobody reads or writes the table through the API; read it in the Supabase dashboard
 -- (or add admin RPCs like admin_list_coach_feedback later when an in-app inbox is wanted).
