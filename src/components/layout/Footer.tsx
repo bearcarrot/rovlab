@@ -7,8 +7,8 @@ const linkCls =
 
 // Persistent footer rendered by AppShell on every page. Sits in normal document
 // flow (no position: fixed). Long-form policy text lives on the legal pages, so
-// the footer only carries: brand + one-line blurb, legal links, and a single
-// copyright / non-affiliation line.
+// the footer only carries: brand + one-line blurb, legal/contact links, and a
+// single copyright / non-affiliation line.
 export function Footer() {
   return (
     <footer className="border-t border-border bg-bg-surface px-4 pb-24 pt-8 lg:px-6 lg:pb-6">

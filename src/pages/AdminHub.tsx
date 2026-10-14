@@ -1,19 +1,22 @@
 import { useEffect, useRef } from "react";
 import { Admin } from "@/pages/Admin";
 import { AdminCoachFeedback } from "@/pages/AdminCoachFeedback";
+import { AdminContact } from "@/pages/AdminContact";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminGameData } from "@/pages/AdminGameData";
 import { AdminImport } from "@/pages/AdminImport";
 import { AdminImportBalance } from "@/pages/AdminImportBalance";
 import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
+import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "game" | "build" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "coach" | "contact" | "game" | "build" | "edit" | "import" | "balance";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
   ["coach", "รีวิว Coach Ai"],
+  ["contact", "ข้อความติดต่อ"],
   ["game", "ฐานข้อมูลเกม"],
   ["build", "บิลด์"],
   ["edit", "แก้ไขข้อมูล"],
@@ -21,11 +24,12 @@ const MODES: [Mode, string][] = [
   ["balance", "นำเข้าปรับสมดุล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "แก้ไขข้อมูล" (แท็บที่เหลือ), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "แก้ไขข้อมูล" (แท็บที่เหลือ), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
   const { isAdmin } = useIsAdmin();
+  const contactNew = useAdminContactCount();
   const [saved, setMode] = usePersistedState<Mode>("admin:mode", "dashboard");
   const mode = MODES.some(([k]) => k === saved) ? saved : "dashboard";
   const barRef = useRef<HTMLDivElement>(null);
@@ -59,6 +63,17 @@ export function AdminHub() {
               }`}
             >
               {label}
+              {k === "contact" && contactNew > 0 && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-loss px-1 align-middle text-[10px] font-semibold leading-none text-white"
+                  >
+                    {contactNew > 99 ? "99+" : contactNew}
+                  </span>
+                  <span className="sr-only"> มีข้อความใหม่ {contactNew} รายการ</span>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -69,6 +84,8 @@ export function AdminHub() {
         <AdminUsers />
       ) : mode === "coach" ? (
         <AdminCoachFeedback />
+      ) : mode === "contact" ? (
+        <AdminContact />
       ) : mode === "game" ? (
         <AdminGameData />
       ) : mode === "build" ? (

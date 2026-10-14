@@ -49,6 +49,7 @@ const TermsOfUse = lazyNamed(() => import("@/pages/Legal"), "TermsOfUse");
 const Disclaimer = lazyNamed(() => import("@/pages/Legal"), "Disclaimer");
 const DataSources = lazyNamed(() => import("@/pages/Legal"), "DataSources");
 const CommunityGuidelines = lazyNamed(() => import("@/pages/Legal"), "CommunityGuidelines");
+const Contact = lazyNamed(() => import("@/pages/Contact"), "Contact");
 
 const HOME: Crumb = { label: "หน้าแรก", to: "/" };
 const BUILD: Crumb = { label: "Item Build", to: "/build" };
@@ -158,7 +159,7 @@ export default function App() {
           path="reset-password"
           element={<WithNav crumbs={[HOME, { label: "ตั้งรหัสผ่านใหม่" }]} fallback="/login"><ResetPassword /></WithNav>}
         />
-        {/* แอดมิน: ต้องล็อกอินก่อน (สิทธิ์แอดมินยังตรวจใน AdminHub และต้องถูกบังคับท���่ RLS) */}
+        {/* แอดมิน: ต้องล็อกอินก่อน (สิทธิ์แอดมินยังตรวจใน AdminHub และต้องถูกบังคับที่ RLS) */}
         <Route
           path="admin"
           element={
@@ -175,6 +176,7 @@ export default function App() {
           path="community-guidelines"
           element={<WithNav crumbs={[HOME, { label: "Community Guidelines" }]}><CommunityGuidelines /></WithNav>}
         />
+        <Route path="contact" element={<WithNav crumbs={[HOME, { label: "ติดต่อเรา" }]}><Contact /></WithNav>} />
         {/* ทุก URL ที่ไม่ตรงกับ route ข้างบน */}
         <Route path="*" element={<WithNav crumbs={[HOME, { label: "ไม่พบหน้า" }]}><NotFound /></WithNav>} />
       </Route>
