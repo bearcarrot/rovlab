@@ -451,7 +451,7 @@ function Catalog({ kind }: { kind: CatalogKind }) {
         {kind === "items" && sel("tier", "Tier", [{ value: "1", label: "T1" }, { value: "2", label: "T2" }, { value: "3", label: "T3" }, { value: "none", label: "ยังไม่ระบุ" }])}
         {kind === "items" && sel("type", "ประเภท", ITEM_TYPES)}
         {kind === "rune" && sel("color", "สี", RUNE_COLORS)}
-        {kind === "enchantments" && sel("tree", "สาย", trees.map((t) => ({ value: t.id, label: t.name_th })))}
+        {kind === "enchantments" && sel("tree", "สาย", trees.map((t) => ({ value: t.id, label: t.name })))}
         {kind === "enchantments" && sel("tier", "Tier", [{ value: "1", label: "Tier 1" }, { value: "2", label: "Tier 2" }, { value: "3", label: "Tier 3" }, { value: "none", label: "ไม่ระบุ" }])}
         {kind === "enchantments" && sel("category", "ประเภท", ENCH_CATEGORIES)}
         <select aria-label="เรียงตาม" className={`${inp} sm:w-auto`} value={sortIdx} onChange={(e) => { setSortIdx(Number(e.target.value)); setPage(0); }}>
