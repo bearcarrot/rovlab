@@ -18,6 +18,7 @@ import {
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
+import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 
 type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -69,6 +70,7 @@ const ADMIN_ITEM: NavItem = { to: "/admin", label: "แอดมิน", icon: S
 
 export function Sidebar() {
   const { isAdmin } = useIsAdmin();
+  const contactNew = useAdminContactCount();
   // แอดมินเห็นเมนูแอดมินอยู่ใต้รายการโปรด
   const groups = NAV_GROUPS.map((g) =>
     isAdmin && g.label === "เรียนรู้" ? { ...g, items: [...g.items, ADMIN_ITEM] } : g
@@ -99,6 +101,17 @@ export function Sidebar() {
                   >
                     <Icon className="h-4 w-4" strokeWidth={2} />
                     {label}
+                    {to === "/admin" && contactNew > 0 && (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-loss px-1 text-[10px] font-semibold leading-none text-white"
+                        >
+                          {contactNew > 99 ? "99+" : contactNew}
+                        </span>
+                        <span className="sr-only">มีข้อความติดต่อใหม่ {contactNew} รายการ</span>
+                      </>
+                    )}
                   </NavLink>
                 </li>
               ))}
