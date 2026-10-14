@@ -31,6 +31,10 @@ export interface DraftSession {
   title: string;
   description: string;
   visibility: Visibility; // of the saved row (so re-saving never changes it by accident)
+  // JSON of the series as last saved/loaded: the baseline for "unsaved changes".
+  // Persisted with the session so a refresh / login redirect does not make a saved draft look unsaved.
+  // Missing (older sessions) = blank baseline, same as before.
+  savedJson?: string | null;
 }
 
 const KEY = "rovlab:draft:session";
@@ -41,7 +45,9 @@ const INITIAL: DraftSession = {
   title: "",
   description: "",
   visibility: "private",
+  savedJson: null,
 };
+const BLANK_JSON = JSON.stringify(INITIAL.series);
 const HISTORY_LIMIT = 50;
 
 const clampGame = (n: number, series: DraftSeries) => Math.min(Math.max(Math.trunc(n) || 1, 1), series.games.length);
@@ -55,6 +61,7 @@ function sanitize(raw: DraftSession): DraftSession {
     title: typeof raw?.title === "string" ? raw.title.slice(0, 80) : "",
     description: typeof raw?.description === "string" ? raw.description.slice(0, 500) : "",
     visibility: raw?.visibility === "public" ? "public" : "private",
+    savedJson: typeof raw?.savedJson === "string" ? raw.savedJson : null,
   };
 }
 
@@ -67,7 +74,7 @@ export function useDraftSession() {
   // Undo / redo cover the series only (not which game tab is open) and live in memory.
   const [past, setPast] = useState<DraftSeries[]>([]);
   const [future, setFuture] = useState<DraftSeries[]>([]);
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(INITIAL.series));
+  const savedJson = session.savedJson ?? BLANK_JSON;
 
   const write = useCallback(
     (next: DraftSession) => {
@@ -135,7 +142,6 @@ export function useDraftSession() {
     load: (next: { series: DraftSeries; draftId: string | null; title: string; description?: string; visibility?: Visibility }) => {
       setPast([]);
       setFuture([]);
-      setSavedJson(JSON.stringify(next.series));
       write({
         series: next.series,
         gameNumber: 1,
@@ -143,24 +149,30 @@ export function useDraftSession() {
         title: next.title,
         description: next.description ?? "",
         visibility: next.visibility ?? "private",
+        savedJson: JSON.stringify(next.series),
       });
     },
     /** Call after a successful save so "unsaved changes" resets and the editor remembers the saved row. */
     markSaved: (saved: { draftId: string; title: string; description: string; visibility: Visibility }) => {
-      setSavedJson(JSON.stringify(latest.current.series));
-      write({ ...latest.current, ...saved });
+      write({ ...latest.current, ...saved, savedJson: JSON.stringify(latest.current.series) });
     },
     /** The saved row was deleted: keep the content in the editor but mark it unsaved. */
     detach: () => {
-      setSavedJson("");
-      write({ ...latest.current, draftId: null, title: "", description: "", visibility: "private" });
+      write({ ...latest.current, draftId: null, title: "", description: "", visibility: "private", savedJson: "" });
     },
     startNew: () => {
       setPast([]);
       setFuture([]);
       const fresh = createSeries("single");
-      setSavedJson(JSON.stringify(fresh));
-      write({ series: fresh, gameNumber: 1, draftId: null, title: "", description: "", visibility: "private" });
+      write({
+        series: fresh,
+        gameNumber: 1,
+        draftId: null,
+        title: "",
+        description: "",
+        visibility: "private",
+        savedJson: JSON.stringify(fresh),
+      });
     },
   };
 }
