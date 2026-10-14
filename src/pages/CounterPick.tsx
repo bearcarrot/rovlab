@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { CounterList } from "@/features/heroes/CounterList";
+import { StarLegend } from "@/features/heroes/MatchupStars";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { heroMatchesQuery } from "@/lib/heroSearch";
@@ -132,7 +133,10 @@ export function CounterPick() {
           {detailQ.status === "loading" && <Skeleton className="h-40" />}
           {detailQ.status === "error" && <ErrorState message={detailQ.message} onRetry={detailQ.refetch} />}
           {detailQ.status === "success" && counters.length > 0 && (
-            <CounterList entries={counters} emptyText="" icons={iconBySlug} grid />
+            <>
+              <StarLegend />
+              <CounterList stars entries={counters} emptyText="" icons={iconBySlug} grid />
+            </>
           )}
           {detailQ.status === "success" && counters.length === 0 && (
             <EmptyState
