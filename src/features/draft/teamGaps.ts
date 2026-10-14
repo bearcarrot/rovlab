@@ -1,8 +1,8 @@
 import type { HeroSummary } from "@/types/hero";
-import type { TeamAnalysis } from "./analyzeTeam";
+import { damageGap, type TeamAnalysis } from "./analyzeTeam";
 import type { KitsByHero } from "./skillTags";
 
-// จุดที่ทีมยังขาด — ใช้เกณฑ์เดียวกับที่ recommendPicks ใช้เติมจุดอ่อน (frontline < 3, cc < 3)
+// จุดที่ทีมยังขาด — ใช้เกณฑ์เดียวกับที่ recommendPicks ใช้เติมจุดอ่อน (frontline < 3, cc < 3 และดาเมจจาก damageGap)
 // เพื่อให้ข้อความ "ขาดอะไร" ตรงกับเหตุผลที่ระบบแนะนำฮีโร่ตัวถัดไป
 export interface TeamGap {
   key: string;
@@ -12,23 +12,20 @@ export interface TeamGap {
 
 const FRONTLINE_MIN = 3;
 const CC_MIN = 3;
-const SKEW_RATIO = 0.2; // ดาเมจฝั่งที่น้อยกว่าต่ำกว่า 20% ของทั้งหมด = เอนเอียง
-const SKEW_MIN_HEROES = 3; // ฮีโร่น้อยกว่านี้ยังไม่ตัดสินว่าเอนเอียง (ยังเลือกไม่ครบ)
 
 export function findTeamGaps(analysis: TeamAnalysis, team: (HeroSummary | null)[], kits?: KitsByHero): TeamGap[] {
   const picked = team.filter((h): h is HeroSummary => h !== null);
   if (picked.length === 0) return [];
   const gaps: TeamGap[] = [];
 
-  const { physicalDamage: phys, magicDamage: mag } = analysis;
-  const total = phys + mag;
-  if (total > 0) {
-    if (phys === 0) {
+  const dmg = damageGap(analysis);
+  if (dmg) {
+    if (dmg.none && dmg.lacking === "physical") {
       gaps.push({ key: "physical", label: "ดาเมจกายภาพ", detail: "ทีมมีแต่ดาเมจเวท ศัตรูที่ออกของกันเวทจะเล่นง่ายขึ้น" });
-    } else if (mag === 0) {
+    } else if (dmg.none) {
       gaps.push({ key: "magic", label: "ดาเมจเวท", detail: "ทีมมีแต่ดาเมจกายภาพ ศัตรูที่ออกของกันกายภาพจะเล่นง่ายขึ้น" });
-    } else if (picked.length >= SKEW_MIN_HEROES && Math.min(phys, mag) / total < SKEW_RATIO) {
-      const weak = phys < mag ? "กายภาพ" : "เวท";
+    } else {
+      const weak = dmg.lacking === "physical" ? "กายภาพ" : "เวท";
       gaps.push({ key: "skew", label: `ดาเมจ${weak}น้อย`, detail: `ดาเมจเอนเอียงไปอีกฝั่งมาก ลองเพิ่มฮีโร่ดาเมจ${weak}` });
     }
   }
@@ -41,7 +38,7 @@ export function findTeamGaps(analysis: TeamAnalysis, team: (HeroSummary | null)[
   }
 
   // ฮีล/โล่ มาจากแท็กสกิลเท่านั้น: รายงานเฉพาะเมื่อทุกตัวในทีมมีข้อมูลแท็ก
-  // ไม่งั้นแยกไม่ออกว่า "ไม่มี" หรือ "ยังไม่ได้นำเข้าข้อมูล" แล้วจะแจ้งผิด
+  // ไม่งั้นแยกไม่ออกว่า "ไม่มี" หรือ "ยังไม่ได้นำเข้าข้อมูล" แล้วจะแจ้งผิด (recommendPicks ใช้เงื่อนไขเดียวกัน)
   const allHaveKit = picked.every((h) => kits?.[h.id]);
   if (allHaveKit && analysis.healShield === 0) {
     gaps.push({ key: "sustain", label: "ฮีล / โล่", detail: "ไม่มีฮีโร่ในทีมที่สกิลมีฮีลหรือโล่" });
