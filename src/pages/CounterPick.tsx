@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GitCompareArrows, Search } from "lucide-react";
 import { getHeroBySlug, getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -18,6 +18,14 @@ export function CounterPick() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const filters = useHeroFilters();
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // ผลลัพธ์อยู่ใต้ตารางฮีโร่ทั้งหมด: เลื่อนไปหาเมื่อเลือกฮีโร่ ไม่งั้นบนมือถือจะดูเหมือนกดแล้วไม่มีอะไรเกิดขึ้น
+  useEffect(() => {
+    if (!selected) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    resultRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [selected]);
 
   // ข้อมูลฮีโร่ที่ชนะทางจริงจาก Supabase (hero_counters) ผ่าน getHeroBySlug — ไม่ใช้ mock แล้ว
   const detailQ = useAsync(() => (selected ? getHeroBySlug(selected) : Promise.resolve(null)), [selected]);
@@ -91,6 +99,8 @@ export function CounterPick() {
           {filtered.map((h) => (
             <button
               key={h.id}
+              type="button"
+              aria-pressed={selected === h.slug}
               onClick={() => setSelected(h.slug)}
               className={cn(
                 "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center transition-colors",
@@ -124,7 +134,7 @@ export function CounterPick() {
       )}
 
       {selected && selectedHero && (
-        <div className="space-y-4 border-t border-border pt-4">
+        <div ref={resultRef} className="scroll-mt-20 space-y-4 border-t border-border pt-4">
           <div className="flex items-center gap-2">
             <GitCompareArrows className="h-4 w-4 text-accent" />
             <h2 className="font-display text-base font-semibold">{selectedHero.nameTh} แพ้ทางใครบ้าง</h2>
