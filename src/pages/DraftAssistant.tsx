@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -144,6 +144,8 @@ export function DraftAssistant() {
 
   const [active, setActive] = useState<Active | null>({ team: "mine", kind: "pick", index: 0 });
   const [query, setQuery] = useState("");
+  // ให้ช่องค้นหาตอบสนองทันที ส่วนกริดฮีโร่ (~100+ ใบ) กรองตามค่าที่ตามหลังเล็กน้อย
+  const deferredQuery = useDeferredValue(query);
   // คำตอบ Coach Ai ล่าสุดของปุ่มประเมินดราฟต์ (ใช้ใส่ในรูปแชร์เมื่อผู้ใช้เลือก)
   const [coachText, setCoachText] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
@@ -177,6 +179,12 @@ export function DraftAssistant() {
     [ds.game.enemy.picks, bySlug]
   );
   const seriesMode = ds.series.format !== "single";
+
+  // ช่องที่มี slug แต่หาฮีโร่ไม่เจอ (ถูกเปลี่ยนชื่อ/ลบออกจากระบบ): ช่องจะดูเหมือนว่าง แต่ยังถูกนับว่าใช้ไปแล้วและถูกบันทึกกลับไป
+  const unknownPickCount = useMemo(() => {
+    if (heroes.length === 0) return 0;
+    return [...ds.game.mine.picks, ...ds.game.enemy.picks].filter((s) => !!s && !bySlug.has(s)).length;
+  }, [heroes.length, ds.game.mine.picks, ds.game.enemy.picks, bySlug]);
 
   const analysis = useMemo(() => analyzeTeam(myTeam, kits), [myTeam, kits]);
   // จุดที่ทีมยังขาด (แสดงเหนือแถบ meter) — เกณฑ์เดียวกับที่ระบบแนะนำใช้เติมจุดอ่อน
@@ -239,6 +247,14 @@ export function DraftAssistant() {
     [allRecs]
   );
 
+  // ข้อมูลสกิล หรือคู่เคาน์เตอร์/คอมโบ ว่างทั้งที่โหลดเสร็จแล้ว (โหลดไม่ได้ หรือยังไม่ได้นำเข้า) → บอกผู้ใช้ว่าคำแนะนำอาจไม่ครบ
+  // (service ทั้งสองไม่ throw เมื่อโหลดพลาด จึงตรวจจากข้อมูลที่ว่างแทนสถานะ error)
+  const dataThin =
+    skillsQ.status === "success" &&
+    relQ.status === "success" &&
+    (Object.keys(skills).length === 0 ||
+      (relations !== undefined && relations.counters.length === 0 && relations.synergies.length === 0));
+
   const draftCtx = useMemo(
     () => ({
       mine: myTeam.map((h) => h?.nameTh ?? null),
@@ -272,7 +288,7 @@ export function DraftAssistant() {
     }
     return getAvailableHeroes({ heroes, series: ds.series, gameNumber: ds.gameNumber, team: active.team });
   }, [active, heroes, takenNow, ds.series, ds.gameNumber]);
-  const filteredPool = activePool.filter((h) => filters.match(h) && heroMatchesQuery(h, query));
+  const filteredPool = activePool.filter((h) => filters.match(h) && heroMatchesQuery(h, deferredQuery));
 
   const firstPick = (): Active => ({ team: "mine", kind: "pick", index: 0 });
 
@@ -294,11 +310,27 @@ export function DraftAssistant() {
     ds.setPick(team, index, null);
   }
 
+  // ล้างช่องที่หาฮีโร่ไม่เจอ (เฉพาะเกมที่เปิดอยู่)
+  function clearUnknownPicks() {
+    for (const team of ["mine", "enemy"] as const) {
+      ds.game[team].picks.forEach((s, i) => {
+        if (s && !bySlug.has(s)) ds.setPick(team, i, null);
+      });
+    }
+  }
+
   // กด "เลือกฮีโร่นี้" ในการ์ดแนะนำ → ใส่ช่องว่างช่องแรกของทีมเรา
   function pickForMyTeam(hero: HeroSummary) {
     const idx = myTeam.findIndex((h) => h === null);
     if (idx < 0) return;
     ds.setPick("mine", idx, hero.slug);
+    // ถ้าช่องที่กำลังเลือกอยู่คือช่องที่เพิ่งถูกเติม ให้เลื่อนไปช่องว่างถัดไปเหมือนตอนเลือกจากกล่องตัวเลือก
+    // (ไม่งั้นการกดฮีโร่ถัดไปจะไปทับตัวที่เพิ่งเลือก) — ถ้ากำลังเลือกช่องอื่น/โหมดแบน/ปิดกล่องอยู่ ไม่แตะต้อง
+    setActive((cur) => {
+      if (!cur || cur.kind !== "pick" || cur.team !== "mine" || cur.index !== idx) return cur;
+      const nextEmpty = myTeam.findIndex((h, i) => h === null && i !== idx);
+      return nextEmpty >= 0 ? { team: "mine", kind: "pick", index: nextEmpty } : null;
+    });
   }
 
   const teamFull = analysis.filledSlots === 5;
@@ -420,7 +452,11 @@ export function DraftAssistant() {
         />
       )}
 
-      {tab === "editor" && (
+      {/* รอข้อมูลฮีโร่ก่อนแสดง editor: ไม่งั้นช่องที่กู้จาก session จะดูว่างแล้วค่อยเด้งขึ้นมา และ error จะมองไม่เห็นถ้ากล่องเลือกฮีโร่ปิดอยู่ */}
+      {tab === "editor" && heroesQ.status === "loading" && <Skeleton className="h-64" />}
+      {tab === "editor" && heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
+
+      {tab === "editor" && heroesQ.status === "success" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <p className="min-w-0 flex-1 truncate text-sm">
@@ -449,6 +485,21 @@ export function DraftAssistant() {
 
           {isGlobalRuleActive(ds.series, ds.gameNumber) && (
             <GlobalRestrictionPanel mine={restricted.mine} enemy={restricted.enemy} />
+          )}
+
+          {unknownPickCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm">
+              <p className="min-w-0 flex-1 text-text-muted">
+                มี {unknownPickCount} ช่องในเกมนี้ที่หาฮีโร่ไม่เจอแล้ว (อาจถูกเปลี่ยนชื่อหรือลบออกจากระบบ) ช่องเหล่านี้ยังถูกนับว่าใช้ไปแล้ว
+              </p>
+              <button
+                type="button"
+                onClick={clearUnknownPicks}
+                className="rounded-lg border border-border px-3 py-1.5 text-text-muted hover:text-text"
+              >
+                ล้างช่องเหล่านี้
+              </button>
+            </div>
           )}
 
           {/* md+ วางทีมเรา/ทีมศัตรูคู่กัน บนมือถือยังเรียงลงมาเหมือนเดิม */}
@@ -503,12 +554,8 @@ export function DraftAssistant() {
                 />
               </div>
               <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
-              {heroesQ.status === "loading" && <Skeleton className="h-24" />}
-              {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
-              {heroesQ.status === "success" && filteredPool.length === 0 && (
-                <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
-              )}
-              {heroesQ.status === "success" && filteredPool.length > 0 && (
+              {filteredPool.length === 0 && <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>}
+              {filteredPool.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
                   {filteredPool.map((h) => (
                     <button
@@ -599,6 +646,11 @@ export function DraftAssistant() {
               <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป (ภาพรวม)</h2>
             </div>
             <p className="mb-2 text-xs text-text-muted">{MODE_TEXT[mode]} · เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ</p>
+            {dataThin && (
+              <p className="mb-2 text-xs text-amber-400">
+                ข้อมูลสกิลหรือคู่เคาน์เตอร์/คอมโบยังไม่พร้อม (โหลดไม่ได้หรือยังไม่มีข้อมูล) คำแนะนำและมิเตอร์ของทีมอาจไม่ครบ
+              </p>
+            )}
             {mineList.length > 0 && !teamFull && missingLanes.length > 0 && (
               <p className="mb-2 text-xs text-text-muted">
                 เลนที่ยังขาด: {missingLanes.map((l) => laneLabel(l as HeroLane)).join(" · ")} — แนะนำเฉพาะฮีโร่ที่เล่นเลนเหล่านี้ได้
