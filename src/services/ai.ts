@@ -1,10 +1,12 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { trackActivity } from "@/services/activity";
 
-export async function askCoach(prompt: string, context?: unknown): Promise<string> {
+// action = QuickChat.id: the server maps it to a model (supabase/functions/ai-coach/router.ts).
+// Never pass a model name from the client; it is ignored.
+export async function askCoach(prompt: string, context?: unknown, action?: string): Promise<string> {
   if (!isSupabaseConfigured) throw new Error("Supabase not configured");
   const { data, error } = await supabase.functions.invoke("ai-coach", {
-    body: { prompt, context },
+    body: { prompt, context, action },
   });
   if (error) {
     // functions.invoke ซ่อนข้อความจริงของ function ไว้ใน error.context (Response)
