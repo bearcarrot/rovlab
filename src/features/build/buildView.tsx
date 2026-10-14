@@ -62,7 +62,6 @@ const TREE_HEX: Record<string, string> = {
   afata: "#22c55e",
   "league-of-humans": "#4c8dff",
 };
-const runeHex = (color?: string) => RUNE_COLOR_VIEW.find((c) => c.k === color)?.hex ?? "#8b909b";
 
 // โหลดแคตตาล็อก (gameCatalog แคชไว้แล้ว) แล้วให้: keystone, สีสายของแต่ละพลังแฝง, และรูนที่เติมคำอธิบาย (Stat) จากคลังหากยังไม่มี
 function useCatalogMeta(runes: ViewRune[]) {
@@ -100,8 +99,8 @@ function Tier({ tier }: { tier: number | null }) {
   return <span className="text-[10px] font-semibold leading-none text-text-muted">{ROMAN[tier]}</span>;
 }
 
-// ขนาดไอคอนวงกลม: Tier 1 และ Tier 2 ขนาดเท่ากัน (ชุดรองเล็กกว่าชุดหลัก); Tier 3 เป็นเพชร keystone แยกต่างหาก
-const circleSize = (secondary: boolean) => (secondary ? "h-9 w-9" : "h-12 w-12");
+// ขนาดไอคอนวงกลม: Tier 1-2 ของสายหลักเล็กกว่าเพชร keystone (Tier 3, h-12); ชุดรองเล็กกว่าชุดหลักอีกขั้น
+const circleSize = (secondary: boolean) => (secondary ? "h-8 w-8" : "h-10 w-10");
 
 // โนดพลังแฝง: ไม่มีกรอบสีทั้งวงกลมและ keystone (เพชรไม่มีกรอบ) พร้อมเลขระดับใต้ไอคอน
 function EnchantNode({ e, keystone, secondary }: { e: ViewEnchant; keystone: boolean; secondary: boolean }) {
@@ -180,7 +179,7 @@ function RuneDialog({ runes, open, onOpenChange }: { runes: ViewRune[]; open: bo
   );
 }
 
-// โนดพลังแฝงขนาดเล็กสำหรับการ์ดกะทัดรัด (ไม่มีกรอบสีทั้งวงกลมและ keystone)
+// โนดพลังแฝงขนาดเล็กสำหรับการ์ดกะทัดรัด (ไม่มีกรอบสีทั้งวงกลมและ keystone) — Tier 1-2 เล็กกว่าเพชร keystone
 function MiniEnchant({ e, keystone, secondary }: { e: ViewEnchant; keystone: boolean; secondary: boolean }) {
   return (
     <Link to={catalogPath("enchantments", e.slug)} title={e.name} aria-label={e.name} className="flex h-12 shrink-0 items-center transition hover:brightness-125">
@@ -191,7 +190,7 @@ function MiniEnchant({ e, keystone, secondary }: { e: ViewEnchant; keystone: boo
           </span>
         </span>
       ) : (
-        <span className={`flex ${secondary ? "h-7 w-7" : "h-9 w-9"} items-center justify-center overflow-hidden rounded-[50%] bg-bg-raised`}>
+        <span className={`flex ${secondary ? "h-6 w-6" : "h-7 w-7"} items-center justify-center overflow-hidden rounded-[50%] bg-bg-raised`}>
           <Thumb src={e.icon} label={e.name} round className="h-full w-full !border-0" />
         </span>
       )}
@@ -199,7 +198,7 @@ function MiniEnchant({ e, keystone, secondary }: { e: ViewEnchant; keystone: boo
   );
 }
 
-// การ์ดกะทัดรัดแบบหน้า Community ในเกม: ไอเทม 6 ช่องแถวเดียว + สกิลชาเลนเจอร์ทางขวา / แถวพลังแฝง (ชุดหลักเชื่อมเส้นสีตามสาย | ชุดรอง) + ป้ายเลเวลรูนทางขวา (กดแล้วเปิดรายละเอียดรูน)
+// การ์ดกะทัดรัดแบบหน้า Community ในเกม: ไอเทม 6 ช่องแถวเดียว + สกิลชาเลนเจอร์ทางขวา / แถวพลังแฝง (ชุดหลักเชื่อมเส้นสีตามสาย | ชุดรอง) + ป้ายตัวเลขรูนรวมทางขวา (กดแล้วเปิดรายละเอียดรูน)
 export function CompactBuild({ build }: { build: ViewBuild }) {
   const [runeOpen, setRuneOpen] = useState(false);
   const meta = useCatalogMeta(build.runes);
@@ -253,9 +252,8 @@ export function CompactBuild({ build }: { build: ViewBuild }) {
             </div>
           </div>
           {build.runes.length > 0 && (
-            <button type="button" onClick={() => setRuneOpen(true)} aria-label={`เลเวลรูนรวม ${totals.level} ดูรายละเอียดรูน`} className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full border-2 border-accent/60 bg-bg-raised leading-none transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            <button type="button" onClick={() => setRuneOpen(true)} aria-label={`เลเวลรูนรวม ${totals.level} ดูรายละเอียดรูน`} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-accent/60 bg-bg-raised leading-none transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               <span className="font-display text-base font-semibold">{totals.level}</span>
-              <span className="mt-0.5 text-[9px] text-text-muted">Lv</span>
             </button>
           )}
         </div>
@@ -342,6 +340,7 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
 
       {build.runes.length > 0 && (
         <Panel title="รูน">
+          {/* กดที่รูนเพื่อดูรายละเอียด (Stat) ใน dialog — ไม่แสดงรายการรายละเอียดซ้ำด้านล่าง */}
           <button type="button" onClick={() => setRuneOpen(true)} aria-label="ดูรายละเอียดรูน" className="block w-full rounded-lg text-left transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
             <span className="flex flex-wrap items-start gap-4">
               {orderedRunes.map((r) => (
@@ -363,19 +362,6 @@ export function ReadOnlyBuild({ build }: { build: ViewBuild }) {
               <span className="font-medium text-text">รวม {totals.count} · เลเวลรวม {totals.level}</span>
             </span>
           </button>
-          {/* Stat ของแต่ละรูนแสดงตรงๆ (คำอธิบายที่แอดมินยืนยันแล้วจากคลัง) — รวมหน้าบิลด์แนะนำ */}
-          <ul className="mt-3 space-y-2 border-t border-border pt-3">
-            {orderedRunes.map((r) => (
-              <li key={r.key} className="flex gap-2 text-sm">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: runeHex(r.color) }} />
-                <span className="min-w-0">
-                  <Link to={catalogPath("runes", r.name)} className="font-medium hover:text-accent">{r.name}</Link>
-                  <span className="text-text-faint"> ×{r.quantity}</span>
-                  {r.description && <span className="block whitespace-pre-line text-xs text-text-muted">{r.description}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
           <RuneDialog runes={meta.runes} open={runeOpen} onOpenChange={setRuneOpen} />
         </Panel>
       )}

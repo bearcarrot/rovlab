@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild } from "@/features/build/buildView";
+import { BuildReactions } from "@/features/build/BuildReactions";
 
 const btn = "inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-sm transition disabled:opacity-50";
 
@@ -75,6 +76,8 @@ export function BuildDetail() {
       {b.note && <p className="whitespace-pre-line rounded-lg border border-border bg-bg-surface p-3 text-sm text-text-muted">{b.note}</p>}
 
       <ReadOnlyBuild build={b.view} />
+
+      {b.isPublic && !b.hidden && <BuildReactions b={b} />}
 
       {(mine || isAdmin) && (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
