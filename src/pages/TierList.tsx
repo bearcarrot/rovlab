@@ -6,7 +6,8 @@ import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useToast } from "@/components/ui/toast";
-import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, ROLE_OPTIONS, LANE_OPTIONS, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
+import { getLatestPatch } from "@/services/meta";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
@@ -76,14 +77,13 @@ export function TierList() {
   // ลิงก์ Tier List ทางการ: ?view=official&rank=high&role=mage&lane=mid&tier=S%2B → ตั้งตัวกรองตามลิงก์ แล้วลบพารามิเตอร์ออกจาก URL
   useEffect(() => {
     if (searchParams.get("view") !== "official") return;
-    const pick = (k: string) => {
-      const v = searchParams.get(k);
-      return v && /^[a-z0-9_-]{1,24}$/i.test(v) ? v : null;
-    };
+    // รับเฉพาะค่าที่มีจริง (ค่าแปลกในลิงก์จะถูกมองเป็น "ทั้งหมด" ไม่ถูกเก็บลง storage จนหน้าว่าง)
     const rankParam = searchParams.get("rank");
     if (rankParam === "all" || rankParam === "high") setRank(rankParam);
-    setRole(pick("role") as HeroRole | null);
-    setLane(pick("lane") as HeroLane | null);
+    const roleParam = searchParams.get("role");
+    const laneParam = searchParams.get("lane");
+    setRole(ROLE_OPTIONS.find((o) => o.value === roleParam)?.value ?? null);
+    setLane(LANE_OPTIONS.find((o) => o.value === laneParam)?.value ?? null);
     const t = searchParams.get("tier");
     setTier(TIER_ORDER.find((x) => x === t) ?? null);
     setMode("official");
@@ -116,7 +116,10 @@ export function TierList() {
 
   const isCurated = curated.status === "success" && curated.data !== null;
   const totalShown = grouped ? [...grouped.values()].reduce((n, l) => n + l.length, 0) : 0;
-  const patchLabel = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch ?? "—" : "—";
+  // แพตช์ล่าสุดจากตาราง patches (cache แล้ว) เพื่อให้ตรงกับลิสต์ที่แอดมินจัด แม้ยังไม่มีสถิติฮีโร่เลย; ไม่ได้ก็ใช้ค่าจากสถิติ
+  const latestPatch = useAsync(() => getLatestPatch(), []);
+  const statPatch = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch : undefined;
+  const patchLabel = (latestPatch.status === "success" ? latestPatch.data?.code : undefined) ?? statPatch ?? "—";
   const loading = heroes.status === "loading" || curated.status === "loading";
 
   // รูปแชร์ของ Tier List ทางการ: ใช้ผลที่กรองอยู่ตอนนี้ (Role/Lane/Tier เดียวกับที่เห็นบนหน้า)
@@ -182,7 +185,7 @@ export function TierList() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="โหมด Tier List">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="โหมด Tier List">
         <Chip active={mode === "official"} onClick={() => changeMode("official")} label="Tier List ทางการ" />
         <Chip active={mode === "mine"} onClick={() => changeMode("mine")} label="Tier List ของฉัน" />
         <Chip active={mode === "community"} onClick={() => changeMode("community")} label="Community" />
