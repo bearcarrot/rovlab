@@ -7,8 +7,8 @@ export const SITE = {
   taglineEn: "Better Tools, Better Wins",
   // First year of the project; the footer shows a range once the year passes.
   startYear: 2026,
-  // Public contact address for privacy / takedown requests. Footer and legal
-  // pages hide their contact UI while it's empty.
+  // Public contact address for privacy / takedown requests. The legal pages and
+  // /contact hide their email line while it's empty.
   contactEmail: "contact.rovlab@gmail.com" as string,
 } as const;
 
@@ -20,13 +20,14 @@ export interface FooterLink {
   label: string;
 }
 
-// Policy / legal routes (see src/pages/Legal.tsx).
+// Policy / legal routes (see src/pages/Legal.tsx) plus the contact page.
 export const LEGAL_LINKS: FooterLink[] = [
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms of Use" },
   { to: "/disclaimer", label: "Disclaimer" },
   { to: "/data-sources", label: "Data Sources" },
   { to: "/community-guidelines", label: "Community Guidelines" },
+  { to: "/contact", label: "Contact" },
 ];
 
 export function copyrightYears(now: Date = new Date()): string {

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Mail } from "lucide-react";
 import { SITE, LEGAL_LINKS, copyrightYears } from "@/lib/siteConfig";
 
 const linkCls =
@@ -8,8 +7,8 @@ const linkCls =
 
 // Persistent footer rendered by AppShell on every page. Sits in normal document
 // flow (no position: fixed). Long-form policy text lives on the legal pages, so
-// the footer only carries: brand + one-line blurb, legal links, contact email,
-// and a single copyright / non-affiliation line.
+// the footer only carries: brand + one-line blurb, legal/contact links, and a
+// single copyright / non-affiliation line.
 export function Footer() {
   return (
     <footer className="border-t border-border bg-bg-surface px-4 pb-24 pt-8 lg:px-6 lg:pb-6">
@@ -31,29 +30,17 @@ export function Footer() {
             </p>
           </section>
 
-          <div className="space-y-3 lg:col-span-5">
-            <nav aria-label="Legal">
-              <ul className="grid grid-cols-2 gap-x-6 gap-y-2">
-                {LEGAL_LINKS.map(({ to, label }) => (
-                  <li key={to}>
-                    <Link to={to} className={linkCls}>
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            {SITE.contactEmail && (
-              <a
-                href={`mailto:${SITE.contactEmail}`}
-                className={`${linkCls} inline-flex items-center gap-1.5 break-all`}
-                aria-label={`ติดต่อเราทางอีเมล ${SITE.contactEmail}`}
-              >
-                <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {SITE.contactEmail}
-              </a>
-            )}
-          </div>
+          <nav aria-label="Legal" className="lg:col-span-5">
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-2">
+              {LEGAL_LINKS.map(({ to, label }) => (
+                <li key={to}>
+                  <Link to={to} className={linkCls}>
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
 
         <p className="mt-6 border-t border-border pt-4 text-xs leading-relaxed text-text-muted">
