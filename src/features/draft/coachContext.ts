@@ -6,6 +6,8 @@ import { analyzeTeam, type Recommendation } from "./analyzeTeam";
 // ถ้าเกิน JSON จะขาดกลางทาง AI อ่านไม่ออก จึงเผื่อไว้ที่ 7200 แล้วค่อยๆ ย่อข้อความสกิลจนพอดี
 const BUDGET = 7200;
 const TEXT_STEPS = [320, 220, 150, 100, 60, 0];
+// จำนวน matchup สูงสุดที่ส่งให้ AI (ศัตรู 5 × เรา 5 อาจได้ถึง 50 แถว) — เหลือไว้เท่านี้พอให้ AI อธิบายกลไกหลักได้
+const MATCHUP_LIMIT = 12;
 
 // บอก AI ตรงๆ ว่าข้อมูลส่วนไหนเชื่อได้แค่ไหน (ดู system prompt ใน ai-coach ด้วย)
 const DATA_NOTE =
@@ -46,6 +48,28 @@ function skillsOf(skills: AbilitiesByHero, hero: HeroSummary, n: number) {
 
 function heroBlock(skills: AbilitiesByHero, hero: HeroSummary, n: number) {
   return { name: hero.nameTh, role: hero.role, skills: skillsOf(skills, hero, n) };
+}
+
+// ข้อความที่แอดมินกรอก (reason / laneTip) ไม่จำกัดความยาว → ย่อตามขั้นเดียวกับข้อความสกิล (ครึ่งหนึ่งของ n) และจำกัดจำนวน matchup
+// ไม่งั้น base ที่ส่งเข้ามาอาจทำให้ context เกินงบแม้ย่อสกิลจนเหลือ 0 แล้ว
+const clip = (v: unknown, n: number) => (typeof v === "string" ? (n > 0 ? squash(v, n) : "") : v);
+
+function compactRelations(base: Record<string, unknown>, n: number): Record<string, unknown> {
+  const t = Math.round(n / 2);
+  const out: Record<string, unknown> = { ...base };
+  if (Array.isArray(base.matchups)) {
+    out.matchups = base.matchups.slice(0, MATCHUP_LIMIT).map((m) => {
+      const r = m as Record<string, unknown>;
+      return { ...r, reason: clip(r.reason, t), laneTip: clip(r.laneTip, t) };
+    });
+  }
+  if (Array.isArray(base.teamCombos)) {
+    out.teamCombos = base.teamCombos.map((c) => {
+      const r = c as Record<string, unknown>;
+      return { ...r, reason: clip(r.reason, t) };
+    });
+  }
+  return out;
 }
 
 // สร้าง context โดยย่อข้อความสกิลทีละขั้นจนขนาดไม่เกิน BUDGET (ชื่อสกิลยังอยู่ครบเสมอ)
@@ -100,7 +124,7 @@ export function buildDraftContext(
 ) {
   const { mine, enemies, skills } = opts;
   return fit((n) => ({
-    ...base,
+    ...compactRelations(base, n),
     teamProfile: { mine: teamProfile(mine), enemy: teamProfile(enemies) },
     dataNote: DATA_NOTE,
     heroes: [...mine, ...enemies].map((h) => ({ team: mine.includes(h) ? "mine" : "enemy", ...heroBlock(skills, h, n) })),
