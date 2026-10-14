@@ -62,7 +62,7 @@ export function CounterList({ entries, emptyText, icons, grid = false, stars = f
                 )}
               </div>
               <p className="mt-1.5 text-sm text-text-muted">{c.reason}</p>
-              <p className="mt-1 text-xs text-text-faint">เลน: {c.laneTip}</p>
+              {c.laneTip.trim() && <p className="mt-1 text-xs text-text-faint">เลน: {c.laneTip}</p>}
             </div>
           </div>
         );
