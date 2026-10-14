@@ -42,10 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      // ถ้าอ่าน session ไม่ได้ (เครือข่าย/storage ถูกบล็อก) ถือว่ายังไม่ล็อกอิน แทนที่จะค้างหน้า loading
+      .catch(() => {})
+      .finally(() => setLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
