@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { CompactBuild } from "@/features/build/buildView";
+import { BuildReactions } from "@/features/build/BuildReactions";
 import type { UserBuild } from "@/services/userBuilds";
 
 const dateTh = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "");
 
 // Community และ Build ของฉันใช้การ์ดเดียวกันแบบหน้าจอบิลด์ในเกม: หัวการ์ด (รูป+ชื่อผู้สร้าง กดไปหน้ารายละเอียดเพื่อแก้ไข-จัดการ) + แถวไอเทม/พลังแฝง/รูน
-// ใช้ร่วมกันระหว่างหน้า Item Build และการ์ดบิลด์ในหน้ารายละเอียดฮีโร่
+// ใช้ร่วมกันระหว่างหน้า Item Build และการ์ดบิลด์ในหน้ารายละเอียดฮีโร่; บิลด์ที่เผยแพร่แล้ว (และไม่ถูกซ่อน) มีปุ่ม ถูกใจ/ไม่ถูกใจ
 export function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) {
   const who = b.author ? (b.author.displayName ?? `@${b.author.handle}`) : null;
   return (
@@ -29,8 +30,9 @@ export function BuildCard({ b, showHero }: { b: UserBuild; showHero: boolean }) 
           </span>
         )}
       </Link>
-      <div className="border-t border-border p-3">
+      <div className="space-y-3 border-t border-border p-3">
         <CompactBuild build={b.view} />
+        {b.isPublic && !b.hidden && <BuildReactions b={b} />}
       </div>
     </article>
   );

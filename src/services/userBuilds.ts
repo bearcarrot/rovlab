@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { Phase, ViewBuild } from "@/features/build/buildView";
+import { toReaction, type Reaction } from "@/features/community/reactions";
 
 // บิลด์ของผู้ใช้ (Build ของฉัน) และ Community Build (บิลด์ที่เผยแพร่แล้ว)
 // สิทธิ์บังคับที่ RLS ของตาราง user_builds*; การบันทึกทำผ่าน RPC save_user_build (ทำใน transaction เดียว)
@@ -32,6 +33,10 @@ export interface UserBuild {
     enchants: { id: string; type: "primary" | "secondary" }[];
   };
   author: BuildAuthor | null;
+  // ถูกใจ / ไม่ถูกใจ (user_build_reactions) — เติมโดย withStats; 0 เมื่อยังไม่มีข้อมูล
+  likes: number;
+  dislikes: number;
+  myValue: Reaction;
 }
 
 const SELECT =
@@ -84,6 +89,9 @@ function map(r: any): UserBuild {
       enchants: ench.map((e) => ({ id: e.enchantment_id, type: e.selection_type as "primary" | "secondary" })),
     },
     author: null,
+    likes: 0,
+    dislikes: 0,
+    myValue: 0,
   };
 }
 
@@ -96,6 +104,19 @@ async function withAuthors(list: UserBuild[]): Promise<UserBuild[]> {
   return list.map((b) => ({ ...b, author: byId.get(b.ownerId) ?? null }));
 }
 
+// จำนวนถูกใจ/ไม่ถูกใจ + ค่าที่ผู้ใช้กดไว้ (RPC get_user_build_reaction_stats) — ถ้าเรียกไม่สำเร็จให้แสดงบิลด์ต่อได้ (นับเป็น 0)
+async function withStats(list: UserBuild[]): Promise<UserBuild[]> {
+  const ids = list.filter((b) => b.isPublic && !b.hidden).map((b) => b.id);
+  if (ids.length === 0) return list;
+  const { data, error } = await db.rpc("get_user_build_reaction_stats", { p_ids: ids });
+  if (error) return list;
+  const byId = new Map<string, { likes: number; dislikes: number; myValue: Reaction }>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((data ?? []) as any[]).map((s) => [s.build_id, { likes: s.like_count ?? 0, dislikes: s.dislike_count ?? 0, myValue: toReaction(s.my_value) }])
+  );
+  return list.map((b) => ({ ...b, ...(byId.get(b.id) ?? {}) }));
+}
+
 export async function listCommunityBuilds(heroId: string, limit = 30): Promise<UserBuild[]> {
   const { data, error } = await db
     .from("user_builds")
@@ -106,13 +127,13 @@ export async function listCommunityBuilds(heroId: string, limit = 30): Promise<U
     .order("published_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
-  return withAuthors((data ?? []).map(map));
+  return withStats(await withAuthors((data ?? []).map(map)));
 }
 
 export async function listMyBuilds(userId: string): Promise<UserBuild[]> {
   const { data, error } = await db.from("user_builds").select(SELECT).eq("owner_id", userId).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(map);
+  return withStats((data ?? []).map(map));
 }
 
 // คืน null เมื่อไม่พบหรือมองไม่เห็น (private/ถูกซ่อน) — RLS กรองให้แล้ว
@@ -121,7 +142,7 @@ export async function getBuild(id: string): Promise<UserBuild | null> {
   if (error) throw new Error(error.message);
   if (!data) return null;
   const b = map(data);
-  return (await withAuthors([b]))[0];
+  return (await withStats(await withAuthors([b])))[0];
 }
 
 export interface SaveArgs {
@@ -165,6 +186,17 @@ export async function setBuildHidden(id: string, hidden: boolean) {
 
 export async function deleteBuild(id: string) {
   const { error } = await db.from("user_builds").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** value 0 = ยกเลิกที่กดไว้ หนึ่งแถวต่อ (บิลด์, ผู้ใช้): สลับ like <-> dislike เป็น upsert (เหมือน reactToTierList) */
+export async function reactToBuild(buildId: string, userId: string, value: Reaction): Promise<void> {
+  if (value === 0) {
+    const { error } = await db.from("user_build_reactions").delete().eq("build_id", buildId).eq("user_id", userId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await db.from("user_build_reactions").upsert({ build_id: buildId, user_id: userId, value }, { onConflict: "build_id,user_id" });
   if (error) throw error;
 }
 
