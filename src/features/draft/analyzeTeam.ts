@@ -52,6 +52,27 @@ export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): 
   return result;
 }
 
+// เกณฑ์ดาเมจที่ทีมยังขาด — ใช้ร่วมกันทั้งแผง "จุดที่ทีมขาด" (teamGaps) และตัวแนะนำ (recommendPicks)
+// เพื่อให้หน้าจอบอกว่าขาดอะไร กับที่ระบบดันขึ้นมาตรงกัน
+export const SKEW_RATIO = 0.2; // ดาเมจฝั่งที่น้อยกว่าต่ำกว่า 20% ของทั้งหมด = เอนเอียง
+export const SKEW_MIN_HEROES = 3; // ฮีโร่น้อยกว่านี้ยังไม่ตัดสินว่าเอนเอียง (ยังเลือกไม่ครบ)
+
+export interface DamageGap {
+  lacking: "physical" | "magic"; // ฝั่งดาเมจที่ทีมยังขาด
+  none: boolean; // true = ไม่มีเลย / false = มีแต่น้อยมาก (เอนเอียง)
+}
+
+export function damageGap(a: TeamAnalysis): DamageGap | null {
+  const total = a.physicalDamage + a.magicDamage;
+  if (total <= 0) return null;
+  if (a.physicalDamage === 0) return { lacking: "physical", none: true };
+  if (a.magicDamage === 0) return { lacking: "magic", none: true };
+  if (a.filledSlots >= SKEW_MIN_HEROES && Math.min(a.physicalDamage, a.magicDamage) / total < SKEW_RATIO) {
+    return { lacking: a.physicalDamage < a.magicDamage ? "physical" : "magic", none: false };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Recommendation
 // ---------------------------------------------------------------------------
@@ -105,7 +126,7 @@ const EXPOSURE_PENALTY_CAP = 1.5;
 const SYNERGY_POINTS = 1.5;
 const HEAL_SHIELD_POINTS = 1.5; // ทีมยังไม่มีฮีล/โล่ แล้วฮีโร่นี้มีในสกิล
 const TIER_POINTS: Record<Tier, number> = { "S+": 2.5, S: 2, A: 1, B: 0.5, C: 0 };
-const MIN_MATCHES = 100; // ต่ำกว่านี้ถือว่า Win Rate ยังไม่น่าเชื่อถือ
+const MIN_MATCHES = 100; // ต่ำกว่านี้ถือว่า Win Rate ยังไม่น่าเชื่อถือ (ใช้กับคะแนน Win Rate เท่านั้น ไม่ใช้กับ Tier ซึ่งแอดมินจัดเอง)
 const LEVEL_TH: Record<CounterStrength, string> = { best: "ดีที่สุด", good: "ดี", situational: "บางสถานการณ์" };
 const DEFAULT_LIMIT = 5;
 
@@ -155,6 +176,10 @@ export function recommendPicks(
   const rel = indexRelations(ctx.relations);
   // ทีมเรายังว่างแต่เห็นศัตรูแล้ว: ลดน้ำหนักการเติมจุดที่ขาด ให้ตัวชนะทางเด่นกว่า
   const compScale = mine.length === 0 ? 0.5 : 1;
+  // ฮีล/โล่มาจากแท็กสกิลเท่านั้น: จะบอกว่า "ทีมยังไม่มี" ได้ก็ต่อเมื่อทุกตัวในทีมมีแท็กแล้ว
+  // (ไม่งั้น 0 หมายถึง "ยังไม่รู้" ไม่ใช่ "ไม่มี") — เกณฑ์เดียวกับแผงจุดที่ทีมขาด
+  const teamKitsComplete = mine.length > 0 && mine.every((t) => !!ctx.kits?.[t.id]);
+  const dmgGap = damageGap(analysis);
 
   const scored = pool
     .filter((h) => !taken.has(h.slug))
@@ -210,40 +235,50 @@ export function recommendPicks(
       // 4) เติมจุดที่ทีมขาด (ข้ามตอน First Pick เพราะทีมยังว่าง ทุกตัวจะได้คะแนนเท่ากันหมด)
       if (mode !== "firstPick") {
         if (analysis.frontline < 3 && tag.frontline >= 2) {
-          reasons.push("ทีมยังขาดแนวหน้า ฮีโร่นี้ช่วยเปิด/รับหน้าไฟต์ได้");
+          reasons.push(
+            mine.length === 0 ? "ฮีโร่นี้เป็นสายแนวหน้า ช่วยเปิด/รับหน้าไฟต์ได้" : "ทีมยังขาดแนวหน้า ฮีโร่นี้ช่วยเปิด/รับหน้าไฟต์ได้"
+          );
           score += 2 * compScale;
         }
         if (analysis.cc < 3 && heroCc(h.role, kitH) >= 2) {
-          reasons.push("ทีมมี Crowd Control น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้");
+          reasons.push(
+            mine.length === 0 ? "ฮีโร่นี้มี Crowd Control ช่วยล็อกเป้าได้" : "ทีมมี Crowd Control น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้"
+          );
           score += 2 * compScale;
         }
-        // ฮีล/โล่ จากแท็กสกิลในเกม: นับเฉพาะตอนทีมเรามีคนแล้ว และทีมยังไม่มีใครมีฮีล/โล่เลย
-        if (kitH && mine.length > 0 && analysis.healShield === 0 && (kitH.heal || kitH.shield)) {
+        // ฮีล/โล่ จากแท็กสกิลในเกม: นับเฉพาะตอนทีมเรามีคนแล้ว และทุกคนในทีมมีแท็กครบ (ไม่งั้น 0 อาจแค่ "ยังไม่มีข้อมูล") และทีมยังไม่มีใครมีฮีล/โล่เลย
+        if (kitH && teamKitsComplete && analysis.healShield === 0 && (kitH.heal || kitH.shield)) {
           const what = kitH.heal && kitH.shield ? "ฮีลและโล่" : kitH.heal ? "ฮีล" : "โล่";
           reasons.push(`ทีมยังไม่มีฮีล/โล่ สกิลของฮีโร่นี้มี${what}`);
           score += HEAL_SHIELD_POINTS * compScale;
         }
-        // เช็คเฉพาะตอนมีคนในทีมแล้ว (ทีมว่างไม่ใช่ "มีแต่ดาเมจชนิดเดียว")
-        if (analysis.physicalDamage > 0 && analysis.magicDamage === 0 && dmgH.magic >= 1) {
-          reasons.push("ทีมมีแต่ดาเมจกายภาพ ฮีโร่นี้ช่วยให้เจาะเกราะเวทได้");
-          score += 1.5;
-        }
-        if (analysis.magicDamage > 0 && analysis.physicalDamage === 0 && dmgH.physical >= 1) {
-          reasons.push("ทีมมีแต่ดาเมจเวท ฮีโร่นี้ช่วยให้เจาะเกราะกายภาพได้");
-          score += 1.5;
+        // ดาเมจทีมเอนเอียง — ใช้เกณฑ์เดียวกับแผงจุดที่ทีมขาด (damageGap) ทั้งกรณีไม่มีเลยและมีน้อยมาก
+        if (dmgGap) {
+          const fills = dmgGap.lacking === "magic" ? dmgH.magic : dmgH.physical;
+          if (fills >= 1) {
+            const lackTh = dmgGap.lacking === "magic" ? "เวท" : "กายภาพ";
+            const otherTh = dmgGap.lacking === "magic" ? "กายภาพ" : "เวท";
+            reasons.push(
+              dmgGap.none
+                ? `ทีมมีแต่ดาเมจ${otherTh} ฮีโร่นี้ช่วยให้เจาะเกราะ${lackTh}ได้`
+                : `ดาเมจ${lackTh}ของทีมยังน้อย ฮีโร่นี้ช่วยเพิ่มดาเมจ${lackTh}ได้`
+            );
+            score += 1.5;
+          }
         }
       }
 
       // 5) สถิติแพตช์
       const stat = h.stat;
+      // จำนวนแมตช์กั้นเฉพาะ Win Rate (Tier แอดมินจัดเองจึงไม่ผูกกับจำนวนแมตช์); matches = 0 หมายถึงไม่ทราบจำนวน ถือว่าใช้ได้
       const reliable = stat.hasStats && (stat.matches === 0 || stat.matches >= MIN_MATCHES);
       if (mode === "firstPick") {
         tags.push("firstPick");
         if (stat.hasStats) {
           // อัตราแบนไม่ถูกนำมาคิด: ตอนเลือกตัว ช่วงแบนจบแล้ว ตัวที่ถูกแบนไม่อยู่ในพูล
           reasons.push(`First Pick: Tier ${stat.tier} · Win Rate ${stat.winRate.toFixed(1)}% (แพตช์ ${stat.patch})`);
+          score += TIER_POINTS[stat.tier];
           if (reliable) {
-            score += TIER_POINTS[stat.tier];
             if (stat.winRate > 0) score += clamp((stat.winRate - 50) * 0.5, -1, 1.5);
           } else {
             reasons.push(`ตัวอย่างแมตช์ยังน้อย (${stat.matches}) จึงยังไม่นับ Win Rate`);
