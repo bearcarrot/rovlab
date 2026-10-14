@@ -10,7 +10,7 @@ import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
 import { checkDuplicate, type DupCheck } from "@/features/matches/duplicate";
 import { guessBlueRows, type SlotGuess } from "@/features/matches/itemMatch";
-import { MIN_GAMES_FOR_INSIGHTS, buildInsights, byHero, summarize } from "@/features/matches/stats";
+import { MatchAnalytics } from "@/features/matches/MatchAnalytics";
 import { ScanReview } from "@/features/matches/ScanReview";
 import { MyItemsEditor, type ItemSlots } from "@/features/matches/MyItemsEditor";
 import { MatchCard } from "@/features/matches/MatchCard";
@@ -29,6 +29,7 @@ const NO_HEROES: HeroSummary[] = [];
 const NO_ITEMS: ItemSummary[] = [];
 const NO_MATCHES: MatchRecord[] = [];
 const NO_SLOTS: ItemSlots = [null, null, null, null, null, null];
+const MATCH_LOAD_LIMIT = 100; // how many of the newest matches are loaded; the analytics say so when this is reached
 
 // One analysed screenshot waiting for the user's review (up to MAX_SCAN_IMAGES per upload, reviewed one after another).
 // rows = the icon matcher's guesses for the 5 blue-team rows (null: could not read); edits = what the user changed, by blue row.
@@ -61,7 +62,7 @@ export function Matches() {
   const toast = useToast();
   const heroesQ = useAsync(() => getHeroes(), []);
   const itemsQ = useAsync(() => getItems(), []);
-  const matchesQ = useAsync(() => listMyMatches(100), []);
+  const matchesQ = useAsync(() => listMyMatches(MATCH_LOAD_LIMIT), []);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false); // a ref, so two clicks in the same tick cannot both start a save
@@ -74,9 +75,6 @@ export function Matches() {
   const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
   const matches = matchesQ.status === "success" ? matchesQ.data : NO_MATCHES;
   const iconById = useMemo(() => new Map(heroes.map((h) => [h.id, h.icon])), [heroes]);
-  const summary = useMemo(() => summarize(matches), [matches]);
-  const insights = useMemo(() => buildInsights(matches), [matches]);
-  const heroLines = useMemo(() => byHero(matches).slice(0, 5), [matches]);
   const current = phase.kind === "review" ? phase.items[phase.index] : null;
   const issues = useMemo(() => (current ? checkDraft(current.draft, heroes) : []), [current, heroes]);
 
@@ -350,70 +348,7 @@ export function Matches() {
         />
       )}
 
-      {summary && (
-        <section aria-labelledby="summary-heading" className="space-y-3">
-          <h2 id="summary-heading" className="font-display text-base font-semibold">
-            สรุป {summary.games} แมตช์ที่บันทึก
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="อัตราชนะ" value={`${Math.round(summary.winRate * 100)}%`} sub={`${summary.wins} ชนะ / ${summary.games - summary.wins} แพ้`} />
-            <Stat label="KDA เฉลี่ย" value={summary.kda.toFixed(2)} sub={`${summary.avgKills.toFixed(1)} / ${summary.avgDeaths.toFixed(1)} / ${summary.avgAssists.toFixed(1)}`} />
-            <Stat label="ทองเฉลี่ย" value={Math.round(summary.avgGold).toLocaleString()} />
-            <Stat label="คะแนนเฉลี่ย" value={summary.avgRating.toFixed(1)} sub={summary.mvpCount > 0 ? `MVP ${summary.mvpCount} ครั้ง` : undefined} />
-          </div>
-
-          {heroLines.length > 0 && (
-            <div className="rounded-card border border-border bg-bg-surface p-3">
-              <p className="mb-2 text-xs font-medium text-text-muted">ฮีโร่ที่เล่นบ่อย</p>
-              <ul className="space-y-1 text-sm">
-                {heroLines.map((h) => (
-                  <li key={h.heroId ?? h.heroName} className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {h.heroId && iconById.get(h.heroId) ? (
-                        <img src={iconById.get(h.heroId)} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-6 w-6 rounded object-cover" />
-                      ) : null}
-                      <span className="truncate">{h.heroName}</span>
-                    </span>
-                    <span className="flex shrink-0 gap-3 text-xs tabular-nums text-text-muted">
-                      <span>{h.games} เกม</span>
-                      <span>ชนะ {Math.round(h.winRate * 100)}%</span>
-                      <span>KDA {h.kda.toFixed(1)}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
-
-      {summary && (
-        <section aria-labelledby="insights-heading" className="space-y-3">
-          <h2 id="insights-heading" className="font-display text-base font-semibold">ข้อสังเกตจากแมตช์ของคุณ</h2>
-          {matches.length < MIN_GAMES_FOR_INSIGHTS ? (
-            <p className="text-sm text-text-muted">
-              บันทึกอีก {MIN_GAMES_FOR_INSIGHTS - matches.length} แมตช์เพื่อดูข้อสังเกต (ข้อมูลน้อยเกินไปจะทำให้สรุปผิด)
-            </p>
-          ) : insights.length === 0 ? (
-            <p className="text-sm text-text-muted">ยังไม่พบจุดที่โดดเด่นเป็นพิเศษจากแมตช์ล่าสุด</p>
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {insights.map((i) => (
-                <li
-                  key={i.id}
-                  className={cn("rounded-card border p-3", i.tone === "warn" ? "border-accent/40 bg-accent/5" : "border-win/30 bg-win/5")}
-                >
-                  <p className={cn("font-display text-sm font-medium", i.tone === "warn" ? "text-accent" : "text-win")}>{i.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-text-muted">{i.detail}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-[11px] text-text-faint">
-            * คำนวณจากแมตช์ที่คุณบันทึกเอง เทียบกับเพื่อนร่วมทีมในรูปเดียวกัน ไม่ใช่ข้อมูลทางการของเกม
-          </p>
-        </section>
-      )}
+      {matches.length > 0 && <MatchAnalytics matches={matches} iconById={iconById} loadLimit={MATCH_LOAD_LIMIT} />}
 
       {matches.length > 0 && (
         <section aria-labelledby="list-heading" className="space-y-3">
@@ -449,16 +384,6 @@ export function Matches() {
         busy={deleting}
         onConfirm={confirmDelete}
       />
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-card border border-border bg-bg-surface p-3">
-      <p className="text-xs text-text-muted">{label}</p>
-      <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">{value}</p>
-      {sub && <p className="text-[11px] text-text-faint tabular-nums">{sub}</p>}
     </div>
   );
 }
