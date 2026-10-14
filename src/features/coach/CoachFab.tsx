@@ -69,7 +69,8 @@ export function CoachFab() {
     push("user", q.label);
     setBusy(true);
     try {
-      const text = await askCoach(q.prompt, q.context);
+      // q.id = action id ให้ server เลือกโมเดล (supabase/functions/ai-coach/router.ts)
+      const text = await askCoach(q.prompt, q.context, q.id);
       if (id === reqId.current) {
         push("coach", text || "ยังไม่ได้คำตอบ ลองกดถามใหม่อีกครั้ง", text ? q : undefined);
         // ให้หน้าที่ลงทะเบียนรับคำตอบไปใช้ต่อ (เช่น ใส่ในรูปแชร์ของ Draft)
