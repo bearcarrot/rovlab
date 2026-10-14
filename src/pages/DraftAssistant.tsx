@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -9,7 +9,6 @@ import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
@@ -17,6 +16,7 @@ import { TeamSlots } from "@/features/draft/TeamSlots";
 import { TeamMeters } from "@/features/draft/TeamMeters";
 import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
+import { HeroPickButton } from "@/features/draft/HeroPickButton";
 import { DraftShareBar } from "@/features/draft/DraftShareBar";
 import { DraftLinkShare } from "@/features/draft/DraftLinkShare";
 import {
@@ -53,9 +53,7 @@ import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes } from "@/lib/heroPositions";
 import { heroMatchesQuery } from "@/lib/heroSearch";
-import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroLane, HeroSummary } from "@/types/hero";
-import { cn } from "@/lib/utils";
 
 type Tab = "editor" | "my" | "community";
 // ช่อง Pick (เดิม) หรือโหมดเลือกฮีโร่เพื่อแบน (เฉพาะโหมดซีรีส์)
@@ -77,6 +75,7 @@ const DRAFT_PROMPT =
   "ประเมินดราฟต์นี้เป็นข้อๆ ไม่เกิน 6 ข้อ สั้นกระชับ: 1) จุดแข็งของทีมเรา 2) จุดที่ทีมยังขาด " +
   "3) คอมโบของสกิลในทีมเรา (อ้างชื่อสกิลจริงจาก heroes[].skills และใช้ teamCombos ถ้ามี) " +
   "4) สกิลศัตรูที่อันตรายที่สุดและวิธีหลบ/ตัดจังหวะด้วยสกิลของเรา (ใช้ matchups ถ้ามี) 5) แผนเล่นช่วงต้น-กลาง-ท้ายเกม " +
+  "ถ้ามี series.bans หรือ series.globalBpUsed ให้ถือว่าฮีโร่เหล่านั้นถูกแบน/ใช้ไปแล้ว ห้ามแนะนำให้เลือก " +
   "ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ";
 
 // prompt ถาม Coach Ai เรื่องฮีโร่ที่ระบบแนะนำตัวหนึ่ง (เดิมอยู่ในปุ่มบนการ์ดแนะนำ)
@@ -270,10 +269,35 @@ export function DraftAssistant() {
   // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
+  // โหมดซีรีส์: บอก Coach Ai ว่าใครถูกแบน และใครถูกใช้ไปแล้วตามกฎ Global BP (โหมดเกมเดียวไม่ส่ง context เปลี่ยนไปจากเดิม)
+  const seriesCtx = useMemo(() => {
+    if (!seriesMode) return {};
+    const names = (slugs: string[]) => slugs.map((s) => bySlug.get(s)?.nameTh).filter((n): n is string => !!n);
+    const globalBp = isGlobalRuleActive(ds.series, ds.gameNumber);
+    return {
+      series: {
+        game: ds.gameNumber,
+        bans: { mine: names(ds.game.mine.bans), enemy: names(ds.game.enemy.bans) },
+        ...(globalBp
+          ? {
+              globalBpUsed: {
+                mine: restricted.mine.flatMap((r) => r.heroes.map((h) => h.nameTh)),
+                enemy: restricted.enemy.flatMap((r) => r.heroes.map((h) => h.nameTh)),
+              },
+            }
+          : {}),
+      },
+    };
+  }, [seriesMode, bySlug, ds.series, ds.gameNumber, ds.game.mine.bans, ds.game.enemy.bans, restricted]);
+
   // context ของปุ่มประเมินดราฟต์: ข้อมูลภาพรวม + สกิลของทุกตัวที่เลือกไว้ (ย่อให้พอดีเพดาน 8000 ตัวอักษรของ edge function)
   const draftCoachCtx = useMemo(
-    () => buildDraftContext({ ...draftCtx, analysis, ...relationCtx }, { mine: mineList, enemies: enemyList, skills }),
-    [draftCtx, analysis, relationCtx, mineList, enemyList, skills]
+    () =>
+      buildDraftContext(
+        { ...draftCtx, analysis, ...relationCtx, ...seriesCtx },
+        { mine: mineList, enemies: enemyList, skills }
+      ),
+    [draftCtx, analysis, relationCtx, seriesCtx, mineList, enemyList, skills]
   );
 
   // พูลของตัวเลือกฮีโร่: pick = ไม่ซ้ำในเกมนี้ + ไม่ผิดกฎ Global BP ของทีมที่กำลังเลือก
@@ -305,6 +329,11 @@ export function DraftAssistant() {
     const nextEmpty = team.findIndex((h, i) => h === null && i !== active.index);
     setActive(nextEmpty >= 0 ? { team: active.team, kind: "pick", index: nextEmpty } : null);
   }
+
+  // callback ตัวเดียวที่คงที่ให้ปุ่มฮีโร่ (memo) ใช้ — เรียก assign เวอร์ชันล่าสุดผ่าน ref จึงไม่ทำให้กริดเรนเดอร์ใหม่ทุกครั้ง
+  const assignRef = useRef(assign);
+  assignRef.current = assign;
+  const onPickHero = useCallback((hero: HeroSummary) => assignRef.current(hero), []);
 
   function clearSlot(team: TeamKey, index: number) {
     ds.setPick(team, index, null);
@@ -558,39 +587,7 @@ export function DraftAssistant() {
               {filteredPool.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
                   {filteredPool.map((h) => (
-                    <button
-                      key={h.id}
-                      onClick={() => assign(h)}
-                      className={cn(
-                        "flex flex-col items-center gap-1 overflow-hidden rounded-lg border border-border bg-bg p-0 pb-1 text-center hover:border-accent/40"
-                      )}
-                    >
-                      <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
-                        {h.icon ? (
-                          <img
-                            src={h.icon}
-                            alt={h.nameTh}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                            }}
-                          />
-                        ) : null}
-
-                        <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
-                          {h.name.slice(0, 2).toUpperCase()}
-                        </span>
-                        {/* Tier มุมซ้ายบน และไอคอน buff/nerf/rework มุมขวาล่างแบบเดียวกับการ์ดในหน้าฮีโร่ทั้งหมด */}
-                        <div className="absolute left-1.5 top-1.5">
-                          {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
-                        </div>
-                        <HeroBalanceBadge heroId={h.id} size="md" inside />
-                      </div>
-                      <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
-                    </button>
+                    <HeroPickButton key={h.id} hero={h} onSelect={onPickHero} />
                   ))}
                 </div>
               )}
