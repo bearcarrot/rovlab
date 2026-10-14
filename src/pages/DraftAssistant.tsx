@@ -179,7 +179,8 @@ export function DraftAssistant() {
   );
   const seriesMode = ds.series.format !== "single";
 
-  // ช่องที่มี slug แต่หาฮีโร่ไม่เจอ (ถูกเปลี่ยนชื่อ/ลบออกจากระบบ): ช่องจะดูเหมือนว่าง แต่ยังถูกนับว่าใช้ไปแล้วและถูกบันทึกกลับไป
+  // ช่องที่มี slug แต่หาฮีโร่ไม่เจอ (ถูกเปลี่ยนชื่อ/ลบออกจากระบบ): ช่องจะดูเหมือนว่างแต่ slug ยังค้างและถูกบันทึกกลับไป
+  // (ไม่ได้บล็อกฮีโร่ตัวไหน เพราะตัวนั้นไม่อยู่ในพูลอยู่แล้ว)
   const unknownPickCount = useMemo(() => {
     if (heroes.length === 0) return 0;
     return [...ds.game.mine.picks, ...ds.game.enemy.picks].filter((s) => !!s && !bySlug.has(s)).length;
@@ -266,7 +267,7 @@ export function DraftAssistant() {
   useEffect(() => {
     setCoachText("");
   }, [draftKey]);
-  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
+  // คอมโบในทีมเรา + เคานเตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
   // โหมดซีรีส์: บอก Coach Ai ว่าใครถูกแบน และใครถูกใช้ไปแล้วตามกฎ Global BP (โหมดเกมเดียวไม่ส่ง context เปลี่ยนไปจากเดิม)
@@ -519,7 +520,7 @@ export function DraftAssistant() {
           {unknownPickCount > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm">
               <p className="min-w-0 flex-1 text-text-muted">
-                มี {unknownPickCount} ช่องในเกมนี้ที่หาฮีโร่ไม่เจอแล้ว (อาจถูกเปลี่ยนชื่อหรือลบออกจากระบบ) ช่องเหล่านี้ยังถูกนับว่าใช้ไปแล้ว
+                มี {unknownPickCount} ช่องในเกมนี้ที่หาข้อมูลฮีโร่ไม่เจอแล้ว (อาจถูกเปลี่ยนชื่อหรือลบออกจากระบบ) ช่องเหล่านี้แสดงเป็นช่องว่าง แต่ข้อมูลยังค้างอยู่ใน Draft ที่บันทึก
               </p>
               <button
                 type="button"
