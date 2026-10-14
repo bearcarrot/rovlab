@@ -14,6 +14,7 @@ import {
   EMPTY_CLOUD,
   editorHasUnsavedWork,
   fromMyList,
+  hasLocalWork,
   readCloud,
   sigOf,
   toCustom,
@@ -59,7 +60,7 @@ export function MyTierListWorkspace({
     setCloudState(c);
   }, []);
 
-  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : Object.values(current.tiers).some((l) => l.length > 0);
+  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers);
   const name = current.name.trim() || DEFAULT_CUSTOM_NAME;
 
   function replaceBoard(list: CustomTierList, nextCloud: CloudState) {

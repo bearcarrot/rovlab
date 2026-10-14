@@ -160,11 +160,12 @@ test("reactions: one state per user, toggling and switching", () => {
 });
 
 test("parseTierData keeps known tiers, strings only, each hero once", () => {
+  const byLabel = (d: ReturnType<typeof parseTierData>) => Object.fromEntries(d.map((r) => [r.label, r.heroes]));
   const d = parseTierData({ "S+": ["a", "b", 3, ""], S: ["a", "c"], Z: ["z"], A: "nope", B: [null, "d"], C: ["x".repeat(65)] });
-  assert.deepEqual(d, { "S+": ["a", "b"], S: ["c"], A: [], B: ["d"], C: [] });
+  assert.deepEqual(byLabel(d), { "S+": ["a", "b"], S: ["c"], A: [], B: ["d"], C: [] });
   assert.equal(tierHeroCount(d), 4);
-  assert.deepEqual(parseTierData(null), { "S+": [], S: [], A: [], B: [], C: [] });
-  assert.deepEqual(parseTierData("x"), { "S+": [], S: [], A: [], B: [], C: [] });
+  assert.deepEqual(byLabel(parseTierData(null)), { "S+": [], S: [], A: [], B: [], C: [] });
+  assert.deepEqual(byLabel(parseTierData("x")), { "S+": [], S: [], A: [], B: [], C: [] });
   const many = parseTierData({ A: Array.from({ length: 500 }, (_, i) => "h" + i) });
   assert.equal(tierHeroCount(many), 200);
 });

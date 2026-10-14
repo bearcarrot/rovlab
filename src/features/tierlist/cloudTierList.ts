@@ -1,7 +1,7 @@
 import type { Visibility } from "@/services/draftSeries";
 import type { MyTierList } from "@/services/userTierLists";
 import { NAME_MAX, createDefault, loadCustom, type CustomTierList } from "./customTierList";
-import { TIER_KEYS, parseTierData, tierHeroCount, type TierData } from "./tierData";
+import { parseTierData, rowsCustomized, tierHeroCount, tierSig, type TierData } from "./tierData";
 
 // Glue between the local editor ("Tier List ของฉัน", localStorage) and the cloud lists (My / Community).
 // The editor keeps autosaving locally; "บันทึก" copies it to the account. This record remembers which cloud
@@ -18,8 +18,10 @@ export interface CloudState {
 export const EMPTY_CLOUD: CloudState = { id: null, description: "", patch: "", visibility: "private", savedSig: "" };
 export const CLOUD_KEY = "rovlab:tier:cloud";
 
-export const sigOf = (l: { name: string; tiers: TierData }): string =>
-  JSON.stringify([l.name.trim(), TIER_KEYS.map((t) => l.tiers[t])]);
+export const sigOf = (l: { name: string; tiers: TierData }): string => JSON.stringify([l.name.trim(), tierSig(l.tiers)]);
+
+/** Never-saved editor content worth warning about: heroes placed, or rows changed from the default five. */
+export const hasLocalWork = (tiers: TierData): boolean => tierHeroCount(tiers) > 0 || rowsCustomized(tiers);
 
 export function readCloud(): CloudState {
   try {
@@ -50,7 +52,7 @@ export function editorHasUnsavedWork(): boolean {
   const l = loadCustom();
   if (!l) return false;
   const cloud = readCloud();
-  return cloud.id ? sigOf(l) !== cloud.savedSig : tierHeroCount(l.tiers) > 0;
+  return cloud.id ? sigOf(l) !== cloud.savedSig : hasLocalWork(l.tiers);
 }
 
 export const toCustom = (src: { name: string; patch: string; data: TierData }): CustomTierList => ({

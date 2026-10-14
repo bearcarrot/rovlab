@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
-import { parseTierData, type TierData } from "@/features/tierlist/tierData";
+import { parseTierData, serializeTierData, tierHeroCount, type TierData } from "@/features/tierlist/tierData";
 import type { Visibility } from "@/services/draftSeries";
 import { trackActivity } from "@/services/activity";
 
@@ -50,7 +50,6 @@ function check(error: { message?: string } | null): void {
   if (error) throw new Error(error.message || "เกิดข้อผิดพลาด");
 }
 
-const countHeroes = (d: TierData) => Object.values(d).reduce((n, l) => n + l.length, 0);
 const COLS = "id, name, description, patch, visibility, updated_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +61,7 @@ const toMine = (r: any): MyTierList => {
     description: r.description ?? "",
     patch: r.patch ?? "",
     visibility: r.visibility === "public" ? "public" : "private",
-    heroCount: countHeroes(data),
+    heroCount: tierHeroCount(data),
     updatedAt: r.updated_at,
     data,
   };
@@ -97,7 +96,7 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
     description: input.description.trim() || null,
     patch: input.patch.trim().slice(0, TIER_PATCH_MAX),
     visibility: input.visibility,
-    data: parseTierData(input.data),
+    data: serializeTierData(input.data),
   };
   if (input.id) {
     const { data, error } = await supabase.from("user_tier_lists").update(row).eq("id", input.id).select("id").single();
