@@ -31,9 +31,6 @@ export async function submitContactMessage(input: ContactInput): Promise<void> {
     p_email: input.email.trim(),
     p_topic: input.topic,
     p_message: input.message.trim().slice(0, MAX_MESSAGE),
-    p_page: document.referrer && new URL(document.referrer, window.location.origin).origin === window.location.origin
-      ? new URL(document.referrer).pathname.slice(0, 300)
-      : null,
   });
   if (error) throw new Error(error.message || "ส่งข้อความไม่สำเร็จ");
 }
