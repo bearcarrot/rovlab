@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, RotateCcw, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { HeroIcon } from "@/components/HeroIcon";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
+import { confirmDialog } from "@/features/community/confirm";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
 import {
@@ -15,20 +15,11 @@ import {
 } from "@/lib/share-image";
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
-import type { HeroSummary, Tier } from "@/types/hero";
-import {
-  CUSTOM_TIERS,
-  DEFAULT_CUSTOM_NAME,
-  NAME_MAX,
-  clearCustom,
-  createDefault,
-  findTier,
-  loadCustom,
-  moveHero,
-  saveCustom,
-  shiftHero,
-  type CustomTierList,
-} from "./customTierList";
+import type { HeroSummary } from "@/types/hero";
+import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, saveCustom, type CustomTierList } from "./customTierList";
+import { MAX_ROWS, addRow, deleteRow, findTier, moveHero, moveRow, shiftHero, updateRow } from "./tierData";
+import { TierLabel } from "./TierRows";
+import { TierRowEditor } from "./TierRowEditor";
 
 const DRAG_TYPE = "text/rovlab-hero";
 
@@ -56,7 +47,8 @@ export function CustomTierBoard({
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
-  const [dragOver, setDragOver] = useState<Tier | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [editRows, setEditRows] = useState(false);
   const filters = useHeroFilters("custom");
   const resetTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -73,7 +65,7 @@ export function CustomTierBoard({
   // Patch ที่แสดงบนรูป: ค่าล่าสุดจากข้อมูลเสมอ (ไม่ใช้ค่าที่ค้างใน storage)
   const patchLabel = patch || list.patch || "—";
 
-  const placed = useMemo(() => new Set(CUSTOM_TIERS.flatMap((t) => list.tiers[t])), [list.tiers]);
+  const placed = useMemo(() => new Set(list.tiers.flatMap((r) => r.heroes)), [list.tiers]);
   const match = filters.match;
   const pool = useMemo(
     () => heroes.filter((h) => !placed.has(h.id) && match(h) && heroMatchesQuery(h, query)),
@@ -82,9 +74,24 @@ export function CustomTierBoard({
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
 
-  function place(id: string, tier: Tier | null, index?: number) {
-    update((l) => ({ ...l, tiers: moveHero(l.tiers, id, tier, index) }));
-    if (tier === null) setSelected(null);
+  function place(id: string, rowId: string | null, index?: number) {
+    update((l) => ({ ...l, tiers: moveHero(l.tiers, id, rowId, index) }));
+    if (rowId === null) setSelected(null);
+  }
+
+  async function removeRow(rowId: string) {
+    const row = list.tiers.find((r) => r.id === rowId);
+    if (!row) return;
+    if (row.heroes.length > 0) {
+      const ok = await confirmDialog({
+        title: `ลบแถว “${row.label}”?`,
+        message: `ฮีโร่ ${row.heroes.length} ตัวในแถวนี้จะกลับไปอยู่ในฮีโร่ที่ยังไม่ได้จัด`,
+        confirmLabel: "ลบแถว",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId) }));
   }
 
   function reset() {
@@ -108,9 +115,10 @@ export function CustomTierBoard({
       title: list.name.trim() || DEFAULT_CUSTOM_NAME,
       patch: patchLabel,
       filterLabel: "จัดเอง",
-      tiers: CUSTOM_TIERS.map((t) => ({
-        tier: t,
-        heroes: list.tiers[t].flatMap((id) => {
+      tiers: list.tiers.map((r) => ({
+        tier: r.label,
+        color: r.color,
+        heroes: r.heroes.flatMap((id) => {
           const h = byId.get(id);
           return h ? [{ id: h.id, name: h.name, icon: h.icon }] : [];
         }),
@@ -121,20 +129,20 @@ export function CustomTierBoard({
   }, [list, patchLabel, byId]);
   const share = useShareImage(tierListTemplate, buildShare);
 
-  const totalPlaced = CUSTOM_TIERS.reduce((n, t) => n + list.tiers[t].filter((id) => byId.has(id)).length, 0);
+  const totalPlaced = list.tiers.reduce((n, r) => n + r.heroes.filter((id) => byId.has(id)).length, 0);
 
   // โหลดไอคอนที่จัดแล้วล่วงหน้า ให้การกดแชร์ครั้งแรกเร็ว
   useEffect(() => {
-    preloadImages(CUSTOM_TIERS.flatMap((t) => list.tiers[t].map((id) => byId.get(id)?.icon ?? "")));
+    preloadImages(list.tiers.flatMap((r) => r.heroes.map((id) => byId.get(id)?.icon ?? "")));
   }, [list.tiers, byId]);
 
-  const selectedTier = selected ? findTier(list.tiers, selected) : null;
+  const selectedRowId = selected ? findTier(list.tiers, selected) : null;
   const selectedHero = selected ? byId.get(selected) : undefined;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-2">
-        <label className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="min-w-[10rem] flex-1">
           <span className="mb-1 block text-xs text-text-faint">ชื่อ Tier List (แสดงบนรูปที่แชร์)</span>
           <input
             value={list.name}
@@ -144,6 +152,18 @@ export function CustomTierBoard({
             className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent/60"
           />
         </label>
+        <button
+          type="button"
+          aria-pressed={editRows}
+          onClick={() => setEditRows((e) => !e)}
+          className={cn(
+            "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+            editRows ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
+          )}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          แก้ไขแถว
+        </button>
         <button
           type="button"
           onClick={reset}
@@ -162,46 +182,69 @@ export function CustomTierBoard({
       </p>
 
       <div className="space-y-2">
-        {CUSTOM_TIERS.map((t) => {
-          const ids = list.tiers[t].filter((id) => byId.has(id));
+        {list.tiers.map((row, i) => {
+          const ids = row.heroes.filter((id) => byId.has(id));
           return (
-            <div
-              key={t}
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes(DRAG_TYPE)) {
-                  e.preventDefault();
-                  setDragOver(t);
-                }
-              }}
-              onDragLeave={() => setDragOver((d) => (d === t ? null : d))}
-              onDrop={(e) => {
-                const id = e.dataTransfer.getData(DRAG_TYPE);
-                setDragOver(null);
-                if (id) place(id, t);
-              }}
-              className={cn(
-                "flex min-h-[3.5rem] items-stretch gap-2 rounded-card border bg-bg-surface p-2",
-                dragOver === t ? "border-accent" : "border-border"
-              )}
-            >
-              <Badge tier={t} className="w-10 shrink-0 self-stretch text-base">{t}</Badge>
-              <div className="flex flex-1 flex-wrap content-start gap-1.5">
-                {ids.length === 0 && <span className="self-center text-xs text-text-faint">ยังไม่มีฮีโร่</span>}
-                {ids.map((id) => {
-                  const h = byId.get(id)!;
-                  return (
-                    <HeroTile
-                      key={id}
-                      hero={h}
-                      active={selected === id}
-                      onSelect={() => setSelected(selected === id ? null : id)}
-                    />
-                  );
-                })}
+            <div key={row.id} className="space-y-1.5">
+              <div
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes(DRAG_TYPE)) {
+                    e.preventDefault();
+                    setDragOver(row.id);
+                  }
+                }}
+                onDragLeave={() => setDragOver((d) => (d === row.id ? null : d))}
+                onDrop={(e) => {
+                  const id = e.dataTransfer.getData(DRAG_TYPE);
+                  setDragOver(null);
+                  if (id) place(id, row.id);
+                }}
+                className={cn(
+                  "flex min-h-[3.5rem] items-stretch gap-2 rounded-card border bg-bg-surface p-2",
+                  dragOver === row.id ? "border-accent" : "border-border"
+                )}
+              >
+                <TierLabel row={row} className="w-12 shrink-0 self-stretch sm:w-14" />
+                <div className="flex flex-1 flex-wrap content-start gap-1.5">
+                  {ids.length === 0 && <span className="self-center text-xs text-text-faint">ยังไม่มีฮีโร่</span>}
+                  {ids.map((id) => {
+                    const h = byId.get(id)!;
+                    return (
+                      <HeroTile
+                        key={id}
+                        hero={h}
+                        active={selected === id}
+                        onSelect={() => setSelected(selected === id ? null : id)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
+              {editRows && (
+                <TierRowEditor
+                  row={row}
+                  index={i}
+                  count={list.tiers.length}
+                  onLabel={(label) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { label }) }))}
+                  onColor={(color) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { color }) }))}
+                  onMove={(dir) => update((l) => ({ ...l, tiers: moveRow(l.tiers, row.id, dir) }))}
+                  onDelete={() => void removeRow(row.id)}
+                />
+              )}
             </div>
           );
         })}
+        {editRows && (
+          <button
+            type="button"
+            disabled={list.tiers.length >= MAX_ROWS}
+            onClick={() => update((l) => ({ ...l, tiers: addRow(l.tiers) }))}
+            className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border px-3 py-2 text-sm text-text-muted hover:text-text disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            {list.tiers.length >= MAX_ROWS ? `ครบ ${MAX_ROWS} แถวแล้ว` : "เพิ่มแถว"}
+          </button>
+        )}
       </div>
 
       {selectedHero && (
@@ -213,21 +256,23 @@ export function CustomTierBoard({
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {CUSTOM_TIERS.map((t) => (
+            {list.tiers.map((row, i) => (
               <button
-                key={t}
+                key={row.id}
                 type="button"
-                aria-pressed={selectedTier === t}
-                onClick={() => place(selectedHero.id, t)}
+                aria-pressed={selectedRowId === row.id}
+                aria-label={`ย้ายไปแถว ${row.label} (แถวที่ ${i + 1})`}
+                onClick={() => place(selectedHero.id, row.id)}
                 className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm font-semibold",
-                  selectedTier === t ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold",
+                  selectedRowId === row.id ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
                 )}
               >
-                {t}
+                <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                <span className="max-w-[6rem] truncate">{row.label}</span>
               </button>
             ))}
-            {selectedTier && (
+            {selectedRowId && (
               <>
                 <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
                   <ArrowLeft className="h-4 w-4" />
