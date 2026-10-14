@@ -210,7 +210,8 @@ export function CompactBuild({ build }: { build: ViewBuild }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <div className="grid min-w-0 flex-1 grid-cols-6 gap-1.5">
+        {/* max-w จำกัดความกว้างกริด ไม่ให้ไอเทมขยายเต็มแถวบนจอใหญ่ (ช่องละ ~46px พอดีกับสกิล h-12); มือถือยังยืดตามความกว้างจริง */}
+        <div className="grid min-w-0 max-w-[19rem] flex-1 grid-cols-6 gap-1.5">
           {items.map((i) => (
             <Link key={i.slug} to={catalogPath("items", i.slug)} title={i.name} aria-label={i.name} className="aspect-square w-full overflow-hidden rounded-md border-2 border-border bg-bg-raised transition hover:border-accent/60">
               <Thumb src={i.icon} label={i.name} className="h-full w-full !rounded-none !border-0" />
