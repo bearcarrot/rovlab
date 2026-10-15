@@ -13,6 +13,10 @@ export const FILTER_KEYS = {
   enchTier: "rovlab:filter:gamedata:enchantments:tier",
 } as const;
 
+// บางแถวเก็บคำอธิบายยาวไว้ใน stats — แสดงเฉพาะบรรทัดสั้น (ใช้ร่วมกันทั้งหน้ารายการและหน้ารายละเอียด)
+export const MAX_STAT_LENGTH = 40;
+export const shortStats = (stats: string[]): string[] => stats.filter((s) => s.length <= MAX_STAT_LENGTH);
+
 // ลำดับสีรูนที่แสดง: แดง → ม่วง → เขียว (สีอื่น/ไม่ระบุไปท้ายสุด)
 const RUNE_ORDER = ["red", "purple", "green"];
 
@@ -56,15 +60,20 @@ export function spellList(all: CatalogSpell[], f: { q: string }): CatalogSpell[]
   return all.filter((s) => match(f.q, s.name, s.nameTh, s.slug));
 }
 
+// สายพลังแฝงที่จำไว้ใน sessionStorage อาจไม่มีอยู่แล้ว (ถูกลบ/เปลี่ยน id) — ถ้าไม่พบในข้อมูลปัจจุบันให้ถือว่าไม่ได้กรองสาย
+// ไม่งั้นลิสต์จะว่างและไม่มี chip ไหนถูกเลือก
+export const validTreeFilter = (trees: EnchantmentTree[], tree: string): string => (tree !== "" && trees.some((t) => t.id === tree) ? tree : "");
+
 // พลังแฝง: แบ่งกลุ่มตามสาย (ลำดับสายจากฐานข้อมูล) แล้วแบ่งย่อยตาม Tier ภายในสาย; สายที่ไม่รู้จักไปกลุ่ม "Other"
 export type EnchantmentGroup = { tree: EnchantmentTree; rows: CatalogEnchantment[] };
 export function enchantmentGroups(data: { trees: EnchantmentTree[]; list: CatalogEnchantment[] }, f: { q: string; tree: string; tier: string }): EnchantmentGroup[] {
+  const tree = validTreeFilter(data.trees, f.tree);
   const list = data.list.filter(
-    (e) => match(f.q, e.name, e.nameTh, e.slug) && (f.tree === "" || e.treeId === f.tree) && (f.tier === "" || tierKey(e.tier) === f.tier)
+    (e) => match(f.q, e.name, e.nameTh, e.slug) && (tree === "" || e.treeId === tree) && (f.tier === "" || tierKey(e.tier) === f.tier)
   );
   const groups: EnchantmentGroup[] = data.trees.map((t) => ({ tree: t, rows: list.filter((e) => e.treeId === t.id) })).filter((g) => g.rows.length > 0);
   const orphans = list.filter((e) => !data.trees.some((t) => t.id === e.treeId));
-  if (orphans.length > 0) groups.push({ tree: { id: "other", name: "Other", nameTh: "อื่น ๆ" }, rows: orphans });
+  if (orphans.length > 0) groups.push({ tree: { id: "other", slug: "other", name: "Other", nameTh: "อื่น ๆ", icon: "" }, rows: orphans });
   return groups;
 }
 export const flattenEnchantmentGroups = (groups: EnchantmentGroup[]): CatalogEnchantment[] =>
