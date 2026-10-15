@@ -1,6 +1,6 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { matchHero, type Issue, type ScanDraft } from "@/features/matches/scan";
+import { matchHero, matchHeroInTeam, type Issue, type ScanDraft } from "@/features/matches/scan";
 import { ColIcon } from "@/features/matches/ScoreIcons";
 import { HeroCombobox } from "@/features/matches/HeroCombobox";
 import type { HeroSummary } from "@/types/hero";
@@ -82,8 +82,10 @@ function TeamTable({
           </thead>
           <tbody>
             {rows.map(({ p, i }) => {
-              const match = matchHero(p.hero, heroes);
+              const match = matchHeroInTeam(i, draft.players, heroes);
               const unknown = heroes.length > 0 && p.hero.trim() !== "" && match.kind === "none";
+              // Same name for a Mage and a Carry, settled by the teammates' roles (see matchHeroInTeam).
+              const autoPicked = match.kind === "found" && matchHero(p.hero, heroes).kind === "ambiguous";
               return (
                 <tr key={i} className={cn("border-t border-border", p.isMe && "bg-accent/10")}>
                   <td className="px-2 py-1.5">
@@ -112,6 +114,9 @@ function TeamTable({
                     {unknown && <p className="mt-0.5 text-[10px] text-loss">ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)</p>}
                     {match.kind === "ambiguous" && (
                       <p className="mt-0.5 text-[10px] text-accent">มีหลายฮีโร่ชื่อนี้ กดช่องแล้วเลือกจากรายการ ({match.heroes.map((h) => h.name).join(" / ")})</p>
+                    )}
+                    {autoPicked && match.kind === "found" && (
+                      <p className="mt-0.5 text-[10px] text-text-faint">เลือกให้อัตโนมัติ: {match.hero.name} (กดช่องเพื่อเปลี่ยน)</p>
                     )}
                   </td>
                   <td className="px-1 py-1.5"><Num label="Kill" value={p.kills} onChange={(v) => onPlayer(i, { kills: v })} className="w-14" /></td>
