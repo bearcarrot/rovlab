@@ -94,6 +94,31 @@ export function resolveHero(name: string, heroes: HeroSummary[]): HeroSummary | 
   return m.kind === "found" ? m.hero : null;
 }
 
+/**
+ * Like matchHero, but for a name shared by exactly one Mage and one Carry (Flowborn) the player's teammates decide:
+ * the team already has a Mage -> the Carry; already has a Carry (marksman) -> the Mage. Both or neither -> still
+ * ambiguous, the user picks. Only teammates that resolve to a single hero count. A name the user picked from the list
+ * is an exact match, so it never reaches this rule.
+ */
+export function matchHeroInTeam(index: number, players: ScanPlayer[], heroes: HeroSummary[]): HeroMatch {
+  const m = matchHero(players[index].hero, heroes);
+  if (m.kind !== "ambiguous" || m.heroes.length !== 2) return m;
+  const mage = m.heroes.find((h) => h.role === "mage");
+  const carry = m.heroes.find((h) => h.role === "marksman");
+  if (!mage || !carry) return m;
+
+  const mates = players.flatMap((p, i) => {
+    if (i === index || p.team !== players[index].team) return [];
+    const r = matchHero(p.hero, heroes);
+    return r.kind === "found" ? [r.hero] : [];
+  });
+  const hasMage = mates.some((h) => h.role === "mage");
+  const hasCarry = mates.some((h) => h.role === "marksman");
+  if (hasMage && !hasCarry) return { kind: "found", hero: carry };
+  if (hasCarry && !hasMage) return { kind: "found", hero: mage };
+  return m;
+}
+
 export function scanToDraft(scan: ScanResult): ScanDraft {
   return {
     result: scan.result ?? "",
@@ -131,7 +156,7 @@ export function checkDraft(d: ScanDraft, heroes: HeroSummary[] = []): Issue[] {
     issues.push({ code: "me", message: "เลือกแถวของคุณ (วงกลมหน้าชื่อฮีโร่)", blocking: true });
   } else if (heroes.length > 0) {
     // Only the user's own hero must be exact: it drives the hero stats. Other rows may stay as typed.
-    const m = matchHero(mine[0].hero, heroes);
+    const m = matchHeroInTeam(d.players.indexOf(mine[0]), d.players, heroes);
     if (m.kind === "ambiguous") {
       issues.push({
         code: "hero_ambiguous",
@@ -180,8 +205,9 @@ export function draftToRow(d: ScanDraft, heroes: HeroSummary[], userId: string, 
   const sec = parseDuration(d.duration);
   if (!me || sec === null || !d.result) throw new Error("ข้อมูลยังไม่ครบ");
 
-  const players = d.players.map((p) => {
-    const h = resolveHero(p.hero, heroes);
+  const players = d.players.map((p, i) => {
+    const m = matchHeroInTeam(i, d.players, heroes);
+    const h = m.kind === "found" ? m.hero : null;
     return {
       team: p.team,
       hero: h?.name ?? p.hero.trim(),
