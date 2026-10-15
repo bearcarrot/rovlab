@@ -21,7 +21,7 @@ import { HeroPager } from "@/features/heroes/HeroPager";
 import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
-import { useRank } from "@/lib/rank";
+import { useRank, type RankBucket } from "@/lib/rank";
 import { MOCK_HEROES } from "@/data/heroes.mock";
 import { HeroBuilds } from "@/features/heroes/HeroBuilds";
 import { HeroVideos } from "@/features/heroes/HeroVideos";
@@ -29,6 +29,9 @@ import { useHeroBuilds, type HeroBuildsState } from "@/features/heroes/useHeroBu
 import { buildForCoach, noBuildForCoach } from "@/features/heroes/buildCoachContext";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
+
+// ชื่อแหล่งสถิติที่แสดงใต้กล่อง Win/Pick/Ban (ตาม RankBucket ที่เลือกอยู่)
+const RANK_NAME: Record<RankBucket, string> = { all: "ทั้งหมด", high: "Commander+", pro: "Pro League" };
 
 type HeroFull = NonNullable<Awaited<ReturnType<typeof getHeroBySlug>>>;
 
@@ -260,10 +263,12 @@ export function HeroDetail() {
       </div>
       {h.stat.hasStats ? (
         <p className="text-center text-[11px] text-text-faint">
-          อ้างอิงจากแรงก์ {rank === "high" ? "Commander+" : "ทั้งหมด"} · Patch {h.stat.patch}
+          {rank === "pro"
+            ? "อ้างอิงจาก RoV Pro League · ข้อมูลจาก Liquipedia"
+            : `อ้างอิงจากแรงก์ ${RANK_NAME[rank]} · Patch ${h.stat.patch}`}
         </p>
       ) : (
-        <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติสำหรับฮีโร่นี้</p>
+        <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติ ({RANK_NAME[rank]}) สำหรับฮีโร่นี้</p>
       )}
 
       {h.description.trim() && (
