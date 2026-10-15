@@ -21,8 +21,9 @@ export async function scanScoreboards(images: string[]): Promise<ScanBatchRespon
   return data as ScanBatchResponse;
 }
 
+// my_items needs migration 20261013_match_my_items.sql (applied in production).
 const COLS =
-  "id, result, score_blue, score_red, duration_sec, played_at, my_team, my_hero_id, my_hero_name, my_kills, my_deaths, my_assists, my_gold, my_rating, my_mvp, players, ocr_edited, created_at";
+  "id, result, score_blue, score_red, duration_sec, played_at, my_team, my_hero_id, my_hero_name, my_kills, my_deaths, my_assists, my_gold, my_rating, my_mvp, my_items, players, ocr_edited, created_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRecord = (r: any): MatchRecord => ({
@@ -41,6 +42,7 @@ const toRecord = (r: any): MatchRecord => ({
   gold: r.my_gold,
   rating: Number(r.my_rating),
   mvp: r.my_mvp === true,
+  myItems: Array.isArray(r.my_items) ? (r.my_items as (string | null)[]).map((s) => s ?? null) : [],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   players: ((r.players ?? []) as any[]).map(
     (p): StoredPlayer => ({

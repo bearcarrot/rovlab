@@ -77,6 +77,8 @@ export interface MatchRecord {
   rating: number;
   mvp: boolean;
   players: StoredPlayer[];
+  /** The user's own six item slots as saved (item slugs, null = empty slot). Empty for matches saved before items were read. */
+  myItems?: (string | null)[];
   ocrEdited: boolean;
   createdAt: string;
 }

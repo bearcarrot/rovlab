@@ -2,7 +2,10 @@ import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/features/matches/scan";
 import { STAT_GRID, StatHeader } from "@/features/matches/ScoreIcons";
+import type { ItemSummary } from "@/types/item";
 import type { MatchRecord, StoredPlayer, TeamSide } from "@/types/match";
+
+const NO_ITEMS = new Map<string, ItemSummary>();
 
 function when(iso: string): string {
   const d = new Date(iso); // wall-clock time from the scoreboard, parsed as local time
@@ -17,6 +20,41 @@ function HeroThumb({ src, name, size }: { src?: string; name: string; size: stri
     <span className={cn(size, "flex shrink-0 items-center justify-center rounded bg-bg-raised font-display text-[10px] text-text-faint")}>
       {name.slice(0, 2).toUpperCase()}
     </span>
+  );
+}
+
+// The items bought in this match (the user's own six slots, empty slots skipped). 24 px icons with a 4 px gap: all six take
+// 164 px, which fits beside the hero icon on a phone. Matches saved before items were read show nothing.
+function ItemRow({ slugs, itemBySlug }: { slugs: (string | null)[] | undefined; itemBySlug: Map<string, ItemSummary> }) {
+  const owned = (slugs ?? []).filter((s): s is string => !!s);
+  if (owned.length === 0) return null;
+  return (
+    <ul aria-label="ไอเทมที่ซื้อ" className="mt-1 flex gap-1">
+      {owned.map((slug, i) => {
+        const it = itemBySlug.get(slug);
+        const name = it?.name ?? slug;
+        return (
+          <li key={i} title={name}>
+            {it?.icon ? (
+              <img
+                src={it.icon}
+                alt={name}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-6 w-6 rounded bg-bg-raised object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.visibility = "hidden";
+                }}
+              />
+            ) : (
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-bg-raised text-[9px] text-text-faint">
+                {name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -72,12 +110,15 @@ function TeamBlock({ team, match, iconById }: { team: TeamSide; match: MatchReco
 export function MatchCard({
   match,
   iconById,
+  itemBySlug = NO_ITEMS,
   onDelete,
   deleting,
   defaultOpen = false,
 }: {
   match: MatchRecord;
   iconById: Map<string, string>;
+  /** Catalogue lookup for the item icons; without it the items show as two-letter placeholders. */
+  itemBySlug?: Map<string, ItemSummary>;
   onDelete: (id: string) => void;
   deleting: boolean;
   defaultOpen?: boolean;
@@ -105,6 +146,7 @@ export function MatchCard({
             <span>{formatDuration(match.durationSec)} นาที</span>
             <span>{match.scoreBlue}:{match.scoreRed}</span>
           </p>
+          <ItemRow slugs={match.myItems} itemBySlug={itemBySlug} />
         </div>
         <button
           type="button"
