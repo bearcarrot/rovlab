@@ -14,13 +14,13 @@ export const COLORS = {
   loss: "#E5484D",
 } as const;
 
-// ตัวอักษรป้าย Tier เป็นสีเข้ม accentFg ทุกระดับ (ให้ตรงกับ components/ui/badge.tsx) — คอนทราสต์ผ่าน WCAG AA 4.5:1
+// ตัวอักษรป้าย Tier เป็นสีขาวทุกระดับ (ให้ตรงกับ components/ui/badge.tsx)
 export const TIER_COLORS: Record<string, { bg: string; fg: string }> = {
-  "S+": { bg: "#EF4444", fg: COLORS.accentFg },
-  S: { bg: "#F97316", fg: COLORS.accentFg },
-  A: { bg: "#EAB308", fg: COLORS.accentFg },
-  B: { bg: "#22C55E", fg: COLORS.accentFg },
-  C: { bg: "#3B82F6", fg: COLORS.accentFg },
+  "S+": { bg: "#DC2626", fg: "#FFFFFF" },
+  S: { bg: "#F97316", fg: "#FFFFFF" },
+  A: { bg: "#EAB308", fg: "#FFFFFF" },
+  B: { bg: "#22C55E", fg: "#FFFFFF" },
+  C: { bg: "#3B82F6", fg: "#FFFFFF" },
 };
 
 // ชื่อฟอนต์ตรงกับ index.html (Google Fonts) และ tailwind fontFamily

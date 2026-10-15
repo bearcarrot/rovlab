@@ -3,14 +3,12 @@ import { cn } from "@/lib/utils";
 
 // สีป้าย Tier ทุกหน้าใช้ที่นี่ที่เดียว (ค่าสีอยู่ใน tailwind.config.ts → colors.tier)
 // S+ แดง · S ส้ม · A เหลือง · B เขียว · C ฟ้า (ชื่อคลาสเขียนเต็มเพื่อให้ Tailwind สแกนเจอ)
-// ตัวอักษรใช้ accent-fg (#0A0B0E) ทุกระดับ: คอนทราสต์ S+ 5.23 · S 7.02 · A 10.26 · B 8.64 · C 5.35 (ผ่าน WCAG AA 4.5:1)
-// ห้ามใช้ text-white: ได้แค่ 1.92–3.76 ไม่ผ่านเกณฑ์
 const TIER_STYLES: Record<string, string> = {
-  "S+": "bg-tier-sp text-accent-fg",
-  S: "bg-tier-s text-accent-fg",
-  A: "bg-tier-a text-accent-fg",
-  B: "bg-tier-b text-accent-fg",
-  C: "bg-tier-c text-accent-fg",
+  "S+": "bg-tier-sp text-white",
+  S: "bg-tier-s text-white",
+  A: "bg-tier-a text-white",
+  B: "bg-tier-b text-white",
+  C: "bg-tier-c text-white",
 };
 
 // สีป้ายระดับความยากของคู่มือ: ง่าย เขียว · ปานกลาง เหลือง · ยาก ส้ม

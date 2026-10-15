@@ -25,7 +25,7 @@ export type TierData = TierRow[];
 
 // Same colors as the official tier badges (tailwind colors.tier / share-image TIER_COLORS).
 const DEFAULT_ROWS = [
-  { id: "s-plus", label: "S+", color: "#EF4444" },
+  { id: "s-plus", label: "S+", color: "#DC2626" },
   { id: "s", label: "S", color: "#F97316" },
   { id: "a", label: "A", color: "#EAB308" },
   { id: "b", label: "B", color: "#22C55E" },
