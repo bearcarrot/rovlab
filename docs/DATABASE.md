@@ -58,7 +58,7 @@ Typical tables:
 
 ### Builds
 
-- `item_builds`
+- `item_builds` — `source` = `top_server` (คัดลอกจาก Top 10 Server ในเกม ต้องมี `server_rank` 1–10 + `captured_at`) | `curated` | `heuristic`; `source_note` = หมายเหตุที่มา
 - `item_build_items`
 - `item_build_arcana`
 - `item_build_enchantments` — พลังแฝงในบิลด์ (`selection_type` = `primary` | `secondary`, `sort_order` = ช่อง)

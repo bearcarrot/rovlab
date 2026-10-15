@@ -120,13 +120,15 @@ const COLOR_ORDER: Record<ArcanaColor, number> = { red: 0, purple: 1, green: 2 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const publicOk = (x: any): boolean => !!x && (x.status === "active" || x.status === "seasonal") && !!x.verified_at;
 
+const SOURCE_ORDER: Record<HeroBuild["source"], number> = { top_server: 0, curated: 1, heuristic: 2 };
+
 // บิลด์ที่แอดมินสร้างใน Supabase (item_builds + item_build_items + item_build_rune)
-// คืนทุกบิลด์ของฮีโร่ เรียง curated ก่อน แล้วแพตช์ใหม่สุดก่อน; ไม่มีบิลด์ = [] ส่วนดึงไม่สำเร็จ throw
+// คืนทุกบิลด์ของฮีโร่ เรียง top_server (ตามอันดับ) → curated แล้วแพตช์ใหม่สุดก่อน; ไม่มีบิลด์ = [] ส่วนดึงไม่สำเร็จ throw
 async function fetchDbBuilds(hero: Pick<HeroSummary, "id" | "slug">): Promise<HeroBuild[]> {
   const { data, error } = await supabase
     .from("item_builds")
     .select(
-      "id, created_at, source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
+      "id, created_at, source, server_rank, captured_at, source_note, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
     )
     .eq("hero_id", hero.id);
   if (error || !data) throw new Error(error?.message ?? "โหลดบิลด์ไม่สำเร็จ");
@@ -135,7 +137,8 @@ async function fetchDbBuilds(hero: Pick<HeroSummary, "id" | "slug">): Promise<He
   const rows = (data as any[]).filter((r) => (r.item_build_items ?? []).length > 0);
   rows.sort(
     (a, b) =>
-      (a.source === "curated" ? 0 : 1) - (b.source === "curated" ? 0 : 1) ||
+      SOURCE_ORDER[a.source as HeroBuild["source"]] - SOURCE_ORDER[b.source as HeroBuild["source"]] ||
+      (a.server_rank ?? 99) - (b.server_rank ?? 99) ||
       String(b.patches?.released_at ?? "").localeCompare(String(a.patches?.released_at ?? ""))
   );
   return rows.flatMap((r) => {
@@ -211,6 +214,9 @@ function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null
     source: r.source,
     id: r.id as string,
     createdAt: r.created_at as string,
+    serverRank: r.server_rank ?? null,
+    capturedAt: r.captured_at ?? null,
+    sourceNote: r.source_note ?? null,
     spell,
     enchantments,
   };

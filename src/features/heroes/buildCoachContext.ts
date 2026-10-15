@@ -22,9 +22,13 @@ function block(build: HeroBuild, items: ItemSummary[], latestPatch: string | nul
   const bySlug = new Map(items.map((i) => [i.slug, i]));
   return {
     // บอก AI ว่าข้อมูลก้อนนี้คือข้อเท็จจริงจากฐานข้อมูล ส่วนคำแนะนำเชิงกลยุทธ์เป็นของ AI
-    dataSource: "ฐานข้อมูล RoV LAB (ข้อเท็จจริง ไม่ใช่การประเมินของ AI)",
+    dataSource:
+      build.source === "top_server"
+        ? "บิลด์ Top 10 Server จากในเกม บันทึกไว้ในฐานข้อมูล RoV LAB (ข้อเท็จจริง ณ เวลาที่คัดลอก)"
+        : "ฐานข้อมูล RoV LAB (ข้อเท็จจริง ไม่ใช่การประเมินของ AI)",
     buildId: build.id ?? null,
-    kind: build.source === "curated" ? "curated" : "heuristic",
+    kind: build.source,
+    ...(build.source === "top_server" ? { serverRank: build.serverRank ?? null, capturedAt: build.capturedAt ? build.capturedAt.slice(0, 10) : null } : {}),
     patch: build.patch,
     latestPatch,
     // null = ไม่ทราบแพตช์ล่าสุด; false = บิลด์เก่ากว่าแพตช์ปัจจุบัน ห้ามเรียกว่าเมต้าล่าสุด

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Hammer, LogIn, Plus, Search } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getBuildForHero, getItems } from "@/services/items";
+import { getBuildForHero, getBuildsForHero, getItems } from "@/services/items";
+import { buildProvenance, NO_TOP_SERVER_NOTE } from "@/features/build/provenance";
 import { listCommunityBuilds, listMyBuilds, type UserBuild } from "@/services/userBuilds";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -92,27 +93,43 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
 
 function Recommended({ hero }: { hero: HeroSummary }) {
   const q = useAsync(async () => {
-    const [build, items] = await Promise.all([getBuildForHero(hero), getItems()]);
-    const view = toViewBuild(build, items);
-    return { patch: build.patch, source: build.source, view };
+    const [builds, items] = await Promise.all([getBuildsForHero(hero).catch(() => []), getItems()]);
+    // ไม่มีบิลด์ใน DB = แนวทางทั่วไป (heuristic) ที่ติดป้ายชัดเจน
+    const list = builds.length > 0 ? builds : [await getBuildForHero(hero)];
+    return { list, items };
   }, [hero.id]);
+  const [index, setIndex] = useState(0);
+  useEffect(() => setIndex(0), [hero.id]);
 
   if (q.status === "loading") return <Skeleton className="h-48" />;
   if (q.status === "error") return <ErrorState message={q.message} onRetry={q.refetch} />;
-  const { patch, source, view } = q.data;
+  const { list, items } = q.data;
+  const build = list[Math.min(index, list.length - 1)];
+  const prov = buildProvenance(build);
+  const date = build.source === "top_server" ? build.capturedAt : build.createdAt;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Hammer className="h-4 w-4 text-accent" />
         <h2 className="font-display text-base font-semibold">บิลด์แนะนำ: {hero.nameTh}</h2>
-        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">Patch {patch}</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">Patch {build.patch}</span>
       </div>
-      {source === "heuristic" && (
-        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-          * ยังไม่มีบิลด์เฉพาะฮีโร่นี้ นี่คือแนวทางทั่วไปตาม Role (Heuristic) ไม่ใช่บิลด์ที่ทีมงานเขียนเอง
-        </p>
+      {list.length > 1 && (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="เลือกบิลด์">
+          {list.map((b, i) => (
+            <Chip key={b.id ?? i} active={i === index} onClick={() => setIndex(i)} label={b.source === "top_server" && b.serverRank ? `Top ${b.serverRank}` : `บิลด์ ${i + 1}`} />
+          ))}
+        </div>
       )}
-      <ReadOnlyBuild build={view} />
+      <p className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
+        <span className="rounded-full border border-accent/40 px-2 py-0.5 text-accent">{prov.label}</span>
+        {date && <span>{build.source === "top_server" ? "คัดลอกจากเกมเมื่อ" : "บันทึกเมื่อ"} {new Date(date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</span>}
+        {build.sourceNote && <span>{build.sourceNote}</span>}
+      </p>
+      {!list.some((b) => b.source === "top_server") && (
+        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">* {NO_TOP_SERVER_NOTE}</p>
+      )}
+      <ReadOnlyBuild build={toViewBuild(build, items)} />
     </div>
   );
 }

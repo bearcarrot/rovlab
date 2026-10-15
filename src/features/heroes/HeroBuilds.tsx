@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { BuildCard } from "@/features/build/BuildCard";
 import { toViewBuild } from "@/features/build/toViewBuild";
+import { buildProvenance, NO_TOP_SERVER_NOTE } from "@/features/build/provenance";
 import { useAsync } from "@/hooks/useAsync";
 import { listCommunityBuilds } from "@/services/userBuilds";
 import { Chip } from "./HeroFilters";
@@ -87,18 +88,27 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
                 {data.builds.length > 1 && (
                   <div className="flex flex-wrap gap-2" role="tablist" aria-label="เลือกบิลด์">
                     {data.builds.map((b, i) => (
-                      <Chip key={b.id ?? i} active={i === index} onClick={() => setIndex(i)} label={`บิลด์ ${i + 1} · Patch ${b.patch}`} />
+                      <Chip key={b.id ?? i} active={i === index} onClick={() => setIndex(i)} label={b.source === "top_server" && b.serverRank ? `Top ${b.serverRank} · Patch ${b.patch}` : `บิลด์ ${i + 1} · Patch ${b.patch}`} />
                     ))}
                   </div>
                 )}
 
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-muted">
                   <span className="rounded-full border border-accent/40 px-2 py-0.5 text-accent">
-                    {selected.source === "curated" ? "บิลด์ทีมงาน RoV LAB" : "แนวทางทั่วไป (Heuristic)"}
+                    {buildProvenance(selected).label}
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5">Patch {selected.patch}</span>
-                  {selected.createdAt && <span>บันทึกเมื่อ {dateTh(selected.createdAt)}</span>}
+                  {selected.source === "top_server" && selected.capturedAt ? (
+                    <span>คัดลอกจากเกมเมื่อ {dateTh(selected.capturedAt)}</span>
+                  ) : (
+                    selected.createdAt && <span>บันทึกเมื่อ {dateTh(selected.createdAt)}</span>
+                  )}
+                  {selected.sourceNote && <span>{selected.sourceNote}</span>}
                 </div>
+
+                {!data.builds.some((b) => b.source === "top_server") && (
+                  <p className="text-xs text-text-faint">{NO_TOP_SERVER_NOTE}</p>
+                )}
 
                 {/* ห้ามเรียกบิลด์ที่เก่ากว่าแพตช์ปัจจุบันว่าเมต้าล่าสุด */}
                 {data.latestPatch && selected.patch !== data.latestPatch && (

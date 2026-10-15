@@ -58,12 +58,18 @@ export interface BuildEnchantment {
   type: "primary" | "secondary";
 }
 
+// top_server = บิลด์ Top 10 Server จากในเกม · curated = ทีมงาน RoV LAB เขียนเอง · heuristic = ระบบ RoV LAB ประมวลผล
+export type BuildSource = "top_server" | "curated" | "heuristic";
+
 export interface HeroBuild {
   heroSlug: string;
   items: BuildItemEntry[];
   arcana: BuildArcanaEntry[];
   patch: string;
-  source: "curated" | "heuristic";
+  source: BuildSource;
+  serverRank?: number | null; // อันดับ 1–10 ในหน้า Top 10 Server ของเกม (เฉพาะ top_server)
+  capturedAt?: string | null; // เวลาที่คัดลอกบิลด์จากเกม (เฉพาะ top_server)
+  sourceNote?: string | null;
   id?: string; // item_builds.id (ไม่มีในบิลด์ fallback/mock)
   createdAt?: string; // item_builds.created_at — ตารางนี้ไม่มี updated_at
   spell?: BuildSpell | null;
