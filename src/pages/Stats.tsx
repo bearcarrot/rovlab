@@ -7,7 +7,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { heroMatchesQuery } from "@/lib/heroSearch";
-import { StatBarRow } from "@/features/stats/StatBarRow";
+import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -21,6 +21,13 @@ const METRIC_LABEL: Record<Metric, string> = {
   winRate: "Win Rate",
   pickRate: "Pick Rate",
   banRate: "Ban Rate",
+};
+
+// สีเดียวกับสแนปช็อตบนหน้า Home
+const METRIC_TONE: Record<Metric, StatTone> = {
+  winRate: "success",
+  pickRate: "default",
+  banRate: "danger",
 };
 
 export function Stats() {
@@ -110,7 +117,7 @@ export function Stats() {
       {heroesQ.status === "success" && sorted.length > 0 && (
         <div className="grid gap-2 md:grid-cols-2">
           {sorted.map((h) => (
-            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} />
+            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} tone={METRIC_TONE[metric]} />
           ))}
         </div>
       )}
