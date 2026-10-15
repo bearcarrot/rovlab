@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GitCompareArrows } from "lucide-react";
 import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
@@ -224,6 +224,15 @@ export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const [a, setA] = useState<HeroSummary | null>(null);
   const [b, setB] = useState<HeroSummary | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // ผลอยู่ใต้ตารางเลือกฮีโร่ทั้งสองฝั่ง: เมื่อเลือกครบทั้งคู่ให้เลื่อนไปหาผล ไม่งั้นบนมือถือต้องเลื่อนลงมาดูเอง (เหมือนหน้า Counter Pick)
+  useEffect(() => {
+    if (!a || !b) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    resultRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [a?.slug, b?.slug]);
+
   const matchupQ = useAsync(() => (a && b ? getMatchup(a, b) : Promise.resolve(null)), [a?.slug, b?.slug]);
   // สกิลของทั้งสองตัว ใช้เป็นข้อมูลให้ Coach Ai (โหลดไม่สำเร็จก็ยังถาม Coach Ai ได้ แค่ไม่มีข้อมูลสกิล)
   const detailsQ = useAsync(
@@ -250,7 +259,7 @@ export function Matchup() {
       )}
 
       {a && b && (
-        <div className="space-y-3 border-t border-border pt-4">
+        <div ref={resultRef} className="scroll-mt-20 space-y-3 border-t border-border pt-4">
           <div className="flex items-center justify-center gap-3 text-center">
             <span className="font-display text-lg font-semibold">{a.nameTh}</span>
             <GitCompareArrows className="h-4 w-4 text-accent" />
