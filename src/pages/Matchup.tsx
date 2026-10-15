@@ -11,6 +11,7 @@ import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { StatCompare } from "@/features/matchup/StatCompare";
+import { heroLanes } from "@/lib/heroPositions";
 import type { HeroDetail, HeroSummary } from "@/types/hero";
 import type { MatchupDetail } from "@/types/matchup";
 import { cn } from "@/lib/utils";
@@ -101,7 +102,7 @@ function heroContext(s: HeroSummary, d: HeroDetail | null, laneLabel: (code: str
   return {
     name: s.nameTh,
     roles: s.roles,
-    lanes: s.lanes.map((l) => laneLabel(l)),
+    lanes: heroLanes(s).map((l) => laneLabel(l)),
     difficulty: s.difficulty,
     stat: s.stat.hasStats
       ? { patch: s.stat.patch, winRate: s.stat.winRate, pickRate: s.stat.pickRate, banRate: s.stat.banRate, tier: s.stat.tier, matches: s.stat.matches }
@@ -125,6 +126,8 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
   // แผนที่เก็บไว้ทิศ B vs A เขียนจากมุมมองของ B (ฝั่งศัตรูของผู้ใช้) ไม่ใช่มุมมองของ A ที่ผู้ใช้เลือก
   const reversedPlan = hasPlan && !!m.planFor && m.planFor !== a.slug;
   const hasAnything = hasPlan || showBars || !!m.summary || notes.length > 0;
+  // ไม่มีเลนร่วม (เฉพาะผลแบบ heuristic) = ปกติสองตัวนี้ไม่เจอกันในเลนเดียว ห้ามแสดงเลนที่ไม่จริง
+  const noSharedLane = m.source === "heuristic" && !lane;
 
   const matchupContext = {
     source:
@@ -133,7 +136,7 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
         : reversedPlan
           ? `แผนเล่นที่ทีมงานเขียนไว้สำหรับฝั่ง ${b.nameTh} (ศัตรูของผู้เล่น) เมื่อเจอ ${a.nameTh} ไม่ใช่แผนของผู้เล่น`
           : "แผนเล่นที่ทีมงานเขียนไว้",
-    lane,
+    lane: noSharedLane ? "ไม่มีเลนร่วมกัน (ปกติไม่ได้เจอกันในเลนเดียว)" : lane,
     difficulty: m.difficulty,
     ...(m.early ? { early: m.early } : {}),
     ...(m.mid ? { mid: m.mid } : {}),
@@ -166,6 +169,11 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
           * ยังไม่มีแผนเล่นเจาะจงคู่นี้ แสดงเฉพาะข้อมูลที่มีจากสถิติจริง ถาม Coach Ai เพื่อให้สรุปจากสกิลและสถิติของทั้งสองตัวได้
         </p>
       )}
+      {noSharedLane && (
+        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
+          * {a.nameTh} กับ {b.nameTh} ปกติไม่ได้เจอกันในเลนเดียวกัน ข้อมูลด้านล่างเป็นเพียงการเทียบสถิติของแต่ละตัว ไม่ใช่แมตช์อัปในเลน
+        </p>
+      )}
       {reversedPlan && (
         <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
           * แผนเล่นด้านล่างทีมงานเขียนไว้จากมุมมองของ {b.nameTh} เมื่อเจอ {a.nameTh} คือแผนของฝั่งศัตรู ใช้ดูว่าศัตรูจะเล่นอย่างไร ไม่ใช่แผนของ {a.nameTh}
@@ -173,8 +181,13 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
       )}
       <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4 text-sm">
         <p>
-          <span className="font-medium text-text">เลน: </span>
-          <span className="text-text-muted">{lane}</span> · <span className="font-medium text-text">ความยาก: </span>
+          {!noSharedLane && (
+            <>
+              <span className="font-medium text-text">เลน: </span>
+              <span className="text-text-muted">{lane}</span> ·{" "}
+            </>
+          )}
+          <span className="font-medium text-text">ความยาก: </span>
           <span className="text-text-muted">{m.difficulty}</span>
         </p>
 

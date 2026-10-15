@@ -2,6 +2,7 @@ import { MOCK_MATCHUPS } from "@/data/matchups.mock";
 import type { MatchupCounterNote, MatchupDetail } from "@/types/matchup";
 import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { heroLanes } from "@/lib/heroPositions";
 
 // ลำดับการหาข้อมูลของคู่ A vs B:
 //  1) ตาราง matchups (แผนเล่นที่แอดมินเขียนไว้ source = curated) ดูได้ทั้งสองทิศทางของคู่
@@ -31,10 +32,13 @@ function statSummary(a: HeroSummary, b: HeroSummary): string {
 }
 
 function heuristicMatchup(a: HeroSummary, b: HeroSummary, counterNotes: MatchupCounterNote[]): MatchupDetail {
+  // เลนที่ทั้งสองตัวไปได้ร่วมกัน ("mid" หรือ "mid/jungle") ถ้าไม่มีเลนร่วมปล่อยว่าง ("") หน้าเว็บจะแจ้งว่าไม่ได้เจอกันในเลนเดียว
+  const bLanes = heroLanes(b);
+  const sharedLanes = heroLanes(a).filter((l) => bLanes.includes(l));
   return {
     heroA: a.slug,
     heroB: b.slug,
-    lane: a.lane === b.lane ? a.lane : `${a.lane}/${b.lane}`,
+    lane: sharedLanes.join("/"),
     difficulty: a.difficulty === "hard" || b.difficulty === "hard" ? "ยาก" : a.difficulty === "medium" || b.difficulty === "medium" ? "ปานกลาง" : "ง่าย",
     early: "",
     mid: "",

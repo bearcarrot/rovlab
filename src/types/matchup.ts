@@ -9,7 +9,7 @@ export interface MatchupCounterNote {
 export interface MatchupDetail {
   heroA: string;
   heroB: string;
-  lane: string;
+  lane: string; // "" = (heuristic) สองตัวนี้ไม่มีเลนที่ไปได้ร่วมกัน
   difficulty: "ง่าย" | "ปานกลาง" | "ยาก";
   // ข้อความแผนเล่น: ว่าง ("") = ยังไม่มีข้อมูล หน้าเว็บจะไม่แสดงหัวข้อนั้น
   early: string;
