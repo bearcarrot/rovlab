@@ -5,8 +5,8 @@ import type { ItemSummary } from "@/types/item";
 // Each of the 6 icon slots is compared with the catalogue icons (public.items.icon_url). A wrong guess is possible, so the
 // caller always shows the result in an editable dropdown, and a slot whose best match is not clearly ahead is flagged.
 
-// Layout of that page, measured on a 2576x1191 screenshot: centre of every item icon in the BLUE (left) team. The user's own
-// row is always blue (the OCR function only ever marks a blue row as "me").
+// Layout of that page, measured on a 2576x1191 iPhone screenshot: centre of every item icon in the BLUE (left) team. The
+// user's own row is always blue (the OCR function only ever marks a blue row as "me").
 const W0 = 2576;
 const H0 = 1191;
 const HALF = 33;
@@ -27,16 +27,33 @@ export interface SlotGuess {
 }
 
 /**
- * How far (as a fraction) a screenshot's width/height ratio may differ from the measured one. The slot positions above are
- * scaled separately on each axis, so a wider or narrower picture moves every icon window by about (difference x width): 1.5%
- * was up to ~39 px at 2576 px wide, more than an icon's half-size (HALF = 33), which gave confident wrong guesses instead of
- * "cannot read". 0.6% is at most ~15 px. Recent iPhones (ratio about 2.164-2.174) are inside it; a 20:9 Android screen
- * (2.222) is ~2.7% off and is refused until its layout has been measured.
+ * The game scales this page by the screen HEIGHT and centres it horizontally, so a wider screen only adds empty margin.
+ * Measured on 60 icon slots of two 2644x1208 Android screenshots: icon centre x = 15.5 + 1.0141 * x0 (this model predicts
+ * 15.6 + 1.0143 * x0), while scaling each axis separately (what this file did before) was 4.5 px off on average and 15 px
+ * at worst on the same pictures.
  */
-export const LAYOUT_TOLERANCE = 0.006;
+export function slotBox(w: number, h: number, col: number, row: number): { cx: number; cy: number; half: number } {
+  const s = h / H0;
+  return { cx: (w - s * W0) / 2 + BLUE_X[col] * s, cy: ROW_Y[row] * s, half: HALF * s };
+}
 
-/** Other phone shapes lay the page out differently; only guess when the picture has the measured proportions. */
-export const layoutFits = (w: number, h: number) => h > 0 && Math.abs(w / h / (W0 / H0) - 1) <= LAYOUT_TOLERANCE;
+/**
+ * Narrower than the measured shape: only this much (rounding between phone models). A narrower screen may make the game
+ * fit the page to the width instead, which has not been measured, so it is refused.
+ */
+export const NARROWER_TOLERANCE = 0.006;
+/**
+ * Wider than the measured shape: up to this much. Checked on a picture 1.2% wider (2644x1208, Android); up to ~3.5% (20:9
+ * phones such as 2400x1080 are +2.7%) is the same centring rule applied further, not yet checked on such a phone.
+ */
+export const WIDER_LIMIT = 0.035;
+
+/** Only guess when the picture has a shape the layout above is known (or expected) to hold for. */
+export const layoutFits = (w: number, h: number) => {
+  if (!(h > 0)) return false;
+  const d = w / h / (W0 / H0) - 1;
+  return d >= -NARROWER_TOLERANCE && d <= WIDER_LIMIT;
+};
 
 /** Mean-removed, unit-length copy, so brightness/contrast differences do not matter (correlation distance). */
 export function unit(v: number[]): number[] {
@@ -144,11 +161,12 @@ export async function guessBlueRows(file: File, items: ItemSummary[]): Promise<S
     const bmp = await createImageBitmap(file);
     try {
       if (!layoutFits(bmp.width, bmp.height)) return null;
-      const sx = bmp.width / W0;
-      const sy = bmp.height / H0;
       const ctx = makeCtx();
-      return ROW_Y.map((y) =>
-        BLUE_X.map((x) => guessSlot(iconVector(ctx, bmp, (x - HALF) * sx, (y - HALF) * sy, 2 * HALF * sx, 2 * HALF * sy), templates)),
+      return ROW_Y.map((_, row) =>
+        BLUE_X.map((_, col) => {
+          const b = slotBox(bmp.width, bmp.height, col, row);
+          return guessSlot(iconVector(ctx, bmp, b.cx - b.half, b.cy - b.half, 2 * b.half, 2 * b.half), templates);
+        }),
       );
     } finally {
       bmp.close();

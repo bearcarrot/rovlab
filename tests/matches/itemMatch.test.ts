@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CONFIDENT_MARGIN, guessSlot, isFlat, layoutFits, unit } from "../../src/features/matches/itemMatch.ts";
+import { CONFIDENT_MARGIN, guessSlot, isFlat, layoutFits, slotBox, unit } from "../../src/features/matches/itemMatch.ts";
 
 // Run: node --experimental-strip-types --test tests/matches/itemMatch.test.ts  (the canvas part is browser-only and not covered)
 let seed = 7;
@@ -38,19 +38,27 @@ test("an empty slot (flat colour) is null, not a guess", () => {
   assert.equal(isFlat(pattern()), false);
 });
 
-test("only screenshots with the measured proportions are read", () => {
-  assert.equal(layoutFits(2778, 1284), true);
-  assert.equal(layoutFits(2576, 1191), true);
-  assert.equal(layoutFits(2622, 1206), true); // 0.52% wider than the measured one: still inside the tolerance
-  assert.equal(layoutFits(2400, 1080), false); // 20:9 phone
+test("only pictures with a shape the layout holds for are read", () => {
+  assert.equal(layoutFits(2778, 1284), true); // iPhone
+  assert.equal(layoutFits(2576, 1191), true); // the measured iPhone picture
+  assert.equal(layoutFits(2644, 1208), true); // measured Android picture, +1.2% wider
+  assert.equal(layoutFits(2400, 1080), true); // 20:9, +2.7%: wider only adds margin
+  assert.equal(layoutFits(2412, 1080), true); // +3.3%
+  assert.equal(layoutFits(2520, 1080), false); // 21:9, +7.9%
+  assert.equal(layoutFits(2316, 1080), false); // narrower: the game may fit the page to the width instead
   assert.equal(layoutFits(2048, 1536), false); // tablet
   assert.equal(layoutFits(100, 0), false);
 });
 
-test("a proportion that is only a little off is refused instead of shifting every icon window", () => {
-  assert.equal(layoutFits(2589, 1191), true); // +0.5%
-  assert.equal(layoutFits(2563, 1191), true); // -0.5%
-  assert.equal(layoutFits(2597, 1191), false); // +0.8%: icon windows could be ~20 px off
-  assert.equal(layoutFits(2555, 1191), false); // -0.8%
-  assert.equal(layoutFits(2316, 1080), false); // 19.3:9 Android, -0.9%
+test("slot boxes: scaled by the height and centred horizontally", () => {
+  const near = (a: number, b: number, eps = 0.6) => assert.ok(Math.abs(a - b) <= eps, `${a} is not within ${eps} of ${b}`);
+  let b = slotBox(2576, 1191, 0, 0); // the measured iPhone picture: unchanged
+  near(b.cx, 665); near(b.cy, 333); near(b.half, 33);
+  b = slotBox(2644, 1208, 0, 0); // measured Android picture: 15.62 + 665 * 1.01427, 333 * 1.01427
+  near(b.cx, 690.1); near(b.cy, 337.8); near(b.half, 33.5);
+  b = slotBox(2644, 1208, 5, 4); // last slot of the last row: 15.62 + 1111 * 1.01427, 943 * 1.01427
+  near(b.cx, 1142.5); near(b.cy, 956.5);
+  // a wider picture only moves everything right by half of the extra width
+  const narrow = slotBox(2576, 1191, 2, 1), wide = slotBox(2576 + 100, 1191, 2, 1);
+  near(wide.cx - narrow.cx, 50, 0.01); near(wide.cy, narrow.cy, 0.01);
 });
