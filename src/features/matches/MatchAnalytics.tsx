@@ -23,6 +23,7 @@ import {
   type RangePreset,
   type TrendPoint,
 } from "./stats";
+import { ImageSelect, type ImgOpt } from "@/features/admin/ImageSelect";
 import { cn } from "@/lib/utils";
 import type { MatchRecord } from "@/types/match";
 
@@ -65,6 +66,17 @@ export function MatchAnalytics({
   const [heroSort, setHeroSort] = useState<HeroSort>("games");
 
   const options = useMemo(() => heroOptions(matches), [matches]);
+  // ตัวเลือกของ dropdown ฮีโร่ (แสดงไอคอน + ชื่อ + จำนวนเกม; ค้นหาได้เมื่อมีฮีโร่มากกว่า 8 ตัว)
+  const heroImgOptions = useMemo<ImgOpt[]>(
+    () =>
+      options.map((o) => ({
+        id: o.key,
+        label: `${o.heroName} (${o.games})`,
+        alt: o.heroName,
+        icon: o.heroId ? iconById.get(o.heroId) : undefined,
+      })),
+    [options, iconById]
+  );
   // A hero that disappeared (its matches were deleted) must not leave the page stuck on an empty filter.
   const activeFilters = useMemo<Filters>(
     () => (filters.heroKey && !options.some((o) => o.key === filters.heroKey) ? { ...filters, heroKey: null } : filters),
@@ -83,8 +95,6 @@ export function MatchAnalytics({
 
   const isFiltered = activeFilters.range !== "all" || activeFilters.heroKey !== null;
   const reset = () => setFilters(DEFAULT_FILTERS);
-  const selectedHero = options.find((o) => o.key === activeFilters.heroKey);
-  const selectedIcon = selectedHero?.heroId ? iconById.get(selectedHero.heroId) : undefined;
 
   return (
     <div className="space-y-6">
@@ -103,25 +113,15 @@ export function MatchAnalytics({
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 sm:max-w-xs">
-            {selectedIcon ? (
-              <img src={selectedIcon} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-6 w-6 rounded object-cover" />
-            ) : null}
-            <span className="sr-only">ฮีโร่</span>
-            <select
+        <div className="flex flex-wrap items-start gap-2">
+          <div role="group" aria-label="ฮีโร่" className="min-w-0 flex-1 sm:max-w-xs">
+            <ImageSelect
               value={activeFilters.heroKey ?? ""}
-              onChange={(e) => setFilters({ ...activeFilters, heroKey: e.target.value || null })}
-              className="w-full min-w-0 bg-transparent text-sm outline-none"
-            >
-              <option value="">ทุกฮีโร่</option>
-              {options.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.heroName} ({o.games})
-                </option>
-              ))}
-            </select>
-          </label>
+              options={heroImgOptions}
+              onChange={(id) => setFilters({ ...activeFilters, heroKey: id || null })}
+              placeholder="ทุกฮีโร่"
+            />
+          </div>
           {isFiltered && (
             <button
               type="button"
