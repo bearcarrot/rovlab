@@ -8,7 +8,8 @@ import { withNext } from "@/features/auth/nav";
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <Skeleton className="h-40" />;
+  // CLS: สูงเท่า Suspense fallback ใน AppShell (min-h-[60vh]) กันขนาดกระโดด 160px → 60vh → เนื้อหาจริง
+  if (loading) return <Skeleton className="min-h-[60vh]" />;
   if (!user) {
     return <Navigate to={withNext("/login", location.pathname + location.search)} replace />;
   }
