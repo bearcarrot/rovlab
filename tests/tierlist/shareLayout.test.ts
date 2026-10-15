@@ -52,8 +52,8 @@ test("many rows and many heroes never overflow the footer", () => {
   }
 });
 
-test("label text color stays readable and keeps white on the default tier colors", () => {
-  for (const c of ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#3B82F6", "#000000"]) assert.equal(readableTextColor(c), "#FFFFFF", c);
-  for (const c of ["#FFFFFF", "#F5F5F5", "#FDE68A"]) assert.equal(readableTextColor(c), "#0A0B0E", c);
+test("label text color picks the higher-contrast option (default tier colors get dark text for WCAG AA)", () => {
+  for (const c of ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#3B82F6", "#FFFFFF", "#F5F5F5", "#FDE68A"]) assert.equal(readableTextColor(c), "#0A0B0E", c);
+  for (const c of ["#000000", "#1D4ED8", "#B91C1C"]) assert.equal(readableTextColor(c), "#FFFFFF", c);
   assert.equal(readableTextColor("nope"), "#FFFFFF");
 });
