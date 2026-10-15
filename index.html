@@ -33,12 +33,12 @@
     <link rel="preconnect" href="https://mttcdaiwuasnkqlxbeqs.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Fonts load without blocking first paint: the stylesheet is fetched as print-only, then switched to all media once loaded. display=swap keeps text visible meanwhile. -->
+    <!-- Fonts load without blocking first paint: the stylesheet is fetched as print-only, then switched to all media once loaded (by the inline script at the end of <body>, not an onload attribute, so CSP needs no 'unsafe-inline'). display=swap keeps text visible meanwhile. -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap"
       media="print"
-      onload="this.media='all'"
+      id="fonts-css"
     />
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -57,6 +57,12 @@
       // กู้จอค้างที่ "RoV LAB": ถ้าแอปไม่ขึ้นใน 8 วิ (เช่น ไฟล์ JS เก่า/แคชเสีย หลัง deploy ใหม่) โหลดหน้าใหม่ 1 ครั้ง
       // ถ้ายังไม่ขึ้นอีก แสดงปุ่มโหลดใหม่แทนจอดำ
       (function () {
+        // ฟอนต์: สลับ media เป็น all เมื่อโหลดเสร็จ (แทน onload attribute เพื่อให้ CSP ไม่ต้องใช้ 'unsafe-inline')
+        var fonts = document.getElementById("fonts-css");
+        if (fonts) {
+          if (fonts.sheet) fonts.media = "all";
+          else fonts.addEventListener("load", function () { fonts.media = "all"; });
+        }
         function reloadOnce() {
           try {
             if (sessionStorage.getItem("boot-reload")) return false;
