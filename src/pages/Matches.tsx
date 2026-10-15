@@ -75,6 +75,7 @@ export function Matches() {
   const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
   const matches = matchesQ.status === "success" ? matchesQ.data : NO_MATCHES;
   const iconById = useMemo(() => new Map(heroes.map((h) => [h.id, h.icon])), [heroes]);
+  const itemBySlug = useMemo(() => new Map(itemList.map((it) => [it.slug, it])), [itemList]);
   const current = phase.kind === "review" ? phase.items[phase.index] : null;
   const issues = useMemo(() => (current ? checkDraft(current.draft, heroes) : []), [current, heroes]);
 
@@ -288,7 +289,14 @@ export function Matches() {
                   </div>
                   {showExisting && dup.existing && (
                     <ul>
-                      <MatchCard match={dup.existing} iconById={iconById} onDelete={requestDelete} deleting={deleting} defaultOpen />
+                      <MatchCard
+                        match={dup.existing}
+                        iconById={iconById}
+                        itemBySlug={itemBySlug}
+                        onDelete={requestDelete}
+                        deleting={deleting}
+                        defaultOpen
+                      />
                     </ul>
                   )}
                 </div>
@@ -359,6 +367,7 @@ export function Matches() {
                 key={m.id}
                 match={m}
                 iconById={iconById}
+                itemBySlug={itemBySlug}
                 onDelete={requestDelete}
                 deleting={deleting && pendingDelete?.id === m.id}
                 defaultOpen={idx === 0}
