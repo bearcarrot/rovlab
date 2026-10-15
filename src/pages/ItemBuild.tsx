@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Hammer, LogIn, Plus, Search } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -57,6 +57,7 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
             <button
               key={h.id}
               type="button"
+              aria-pressed={value?.slug === h.slug}
               onClick={() => onChange(h)}
               className={cn(
                 "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
@@ -183,6 +184,16 @@ export function ItemBuild() {
   const slug = params.get("hero") ?? "";
   const selected = useMemo(() => heroes.find((h) => h.slug === slug) ?? null, [heroes, slug]);
   const tab: Tab = TABS.some(([t]) => t === params.get("tab")) ? (params.get("tab") as Tab) : "recommended";
+  const resultRef = useRef<HTMLDivElement>(null);
+  const scrollOnSelect = useRef(false);
+
+  // ผลลัพธ์อยู่ใต้ตารางฮีโร่: เลื่อนไปหาเฉพาะตอนผู้ใช้กดเลือกฮีโร่ (ไม่เลื่อนตอนเปิดลิงก์ ?hero= ตรง ๆ)
+  useEffect(() => {
+    if (!selected || !scrollOnSelect.current) return;
+    scrollOnSelect.current = false;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    resultRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [selected?.slug]);
 
   const update = (k: string, v: string) =>
     setParams(
@@ -216,10 +227,19 @@ export function ItemBuild() {
 
       {heroesQ.status === "loading" && <Skeleton className="h-48" />}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
-      {heroesQ.status === "success" && <HeroPicker heroes={heroes} value={selected} onChange={(h) => update("hero", h.slug)} />}
+      {heroesQ.status === "success" && (
+        <HeroPicker
+          heroes={heroes}
+          value={selected}
+          onChange={(h) => {
+            if (h.slug !== slug) scrollOnSelect.current = true;
+            update("hero", h.slug);
+          }}
+        />
+      )}
 
       {heroesQ.status === "success" && (
-        <div className="border-t border-border pt-4">
+        <div ref={resultRef} className="scroll-mt-20 border-t border-border pt-4">
           {tab === "mine" && <Mine hero={selected} />}
           {tab !== "mine" && !selected && <EmptyState icon={Hammer} title="ยังไม่ได้เลือกฮีโร่" description="เลือกฮีโร่ด้านบนเพื่อดูบิลด์" />}
           {tab === "recommended" && selected && <Recommended hero={selected} />}
