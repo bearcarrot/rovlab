@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, FileUp, Link2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
+import { ProStatsImport } from "@/features/admin/ProStatsImport";
 
 // client แบบ untyped เพราะเรียก RPC / ตารางที่ไม่มี generated types
 const db: any = supabase;
@@ -399,6 +400,8 @@ export function AdminImport() {
           </ul>
         </section>
       )}
+
+      <ProStatsImport />
     </div>
   );
 }
