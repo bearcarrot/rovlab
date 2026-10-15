@@ -26,8 +26,17 @@ export interface SlotGuess {
   margin: number;
 }
 
+/**
+ * How far (as a fraction) a screenshot's width/height ratio may differ from the measured one. The slot positions above are
+ * scaled separately on each axis, so a wider or narrower picture moves every icon window by about (difference x width): 1.5%
+ * was up to ~39 px at 2576 px wide, more than an icon's half-size (HALF = 33), which gave confident wrong guesses instead of
+ * "cannot read". 0.6% is at most ~15 px. Recent iPhones (ratio about 2.164-2.174) are inside it; a 20:9 Android screen
+ * (2.222) is ~2.7% off and is refused until its layout has been measured.
+ */
+export const LAYOUT_TOLERANCE = 0.006;
+
 /** Other phone shapes lay the page out differently; only guess when the picture has the measured proportions. */
-export const layoutFits = (w: number, h: number) => h > 0 && Math.abs(w / h / (W0 / H0) - 1) <= 0.015;
+export const layoutFits = (w: number, h: number) => h > 0 && Math.abs(w / h / (W0 / H0) - 1) <= LAYOUT_TOLERANCE;
 
 /** Mean-removed, unit-length copy, so brightness/contrast differences do not matter (correlation distance). */
 export function unit(v: number[]): number[] {
