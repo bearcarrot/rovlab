@@ -70,9 +70,9 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center">
-            {/* โลโก้เต็มมีคำว่า RoV LAB อยู่แล้ว ไม่ต้องใส่ข้อความซ้ำ */}
-            <img src="/v1/logo-640.webp" alt="RoV LAB" width={64} height={36} className="h-9 w-auto shrink-0" />
+          <div className="flex items-center gap-2.5">
+            <img src="/v1/logo-64.webp" alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
+            <span className="font-display text-lg font-semibold">RoV LAB</span>
           </div>
           <button
             onClick={onClose}

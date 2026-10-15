@@ -15,11 +15,10 @@ export function Footer() {
       <div className="mx-auto w-full max-w-6xl">
         <div className="grid gap-6 lg:grid-cols-12">
           <section aria-labelledby="footer-about" className="space-y-2 lg:col-span-7">
-            <div className="flex items-center gap-3">
-              {/* โลโก้เต็มสะกดชื่อแบรนด์แล้ว — ใช้เป็นภาพประกอบ; ชื่อหัวข้อยังอยู่ให้ screen reader (sr-only) */}
-              <img src="/v1/logo-640.webp" alt="" width={71} height={40} loading="lazy" decoding="async" className="h-10 w-auto shrink-0" />
+            <div className="flex items-center gap-2.5">
+              <img src="/v1/logo-64.webp" alt="" width={28} height={28} loading="lazy" decoding="async" className="h-7 w-7 shrink-0" />
               <div>
-                <h2 id="footer-about" className="sr-only">
+                <h2 id="footer-about" className="font-display text-base font-semibold leading-tight">
                   {SITE.name}
                 </h2>
                 <p className="text-xs text-text-muted">{SITE.taglineEn}</p>
