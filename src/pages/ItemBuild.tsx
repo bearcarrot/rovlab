@@ -16,6 +16,7 @@ import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { BuildCard } from "@/features/build/BuildCard";
+import { ItemUsage } from "@/features/build/ItemUsage";
 import { toViewBuild } from "@/features/build/toViewBuild";
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
@@ -125,6 +126,7 @@ function Recommended({ hero }: { hero: HeroSummary }) {
       </p>
       <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">* {IN_GAME_TOP_SERVER_NOTE}</p>
       <ReadOnlyBuild build={toViewBuild(build, items)} />
+      <ItemUsage hero={hero} items={items} />
     </div>
   );
 }
