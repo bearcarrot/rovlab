@@ -51,8 +51,6 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
   const [tab, setTab] = useState<BuildTab>("recommended");
   const view = useMemo(() => (data && selected ? toViewBuild(selected, data.items, true) : null), [data, selected]);
 
-  const itemBuildHref = `/build?hero=${hero.slug}`;
-  const linkCls = "text-sm text-accent hover:underline";
 
   return (
     <Card>
@@ -112,10 +110,6 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
                 )}
 
                 <ReadOnlyBuild build={view} />
-                <p className="flex flex-wrap gap-x-4 gap-y-1">
-                  <Link to={itemBuildHref} className={linkCls}>ดูรายละเอียดที่หน้า Item Build →</Link>
-                  <Link to={`${itemBuildHref}&tab=community`} className={linkCls}>Community Build →</Link>
-                </p>
               </>
             )}
           </>

@@ -53,7 +53,7 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
       {list.length === 0 ? (
         <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับคำค้นหาหรือตัวกรอง</p>
       ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
           {list.map((h) => (
             <button
               key={h.id}
