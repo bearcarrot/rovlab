@@ -32,6 +32,7 @@ function block(build: HeroBuild, items: ItemSummary[], latestPatch: string | nul
     // null = ไม่ทราบแพตช์ล่าสุด; false = บิลด์เก่ากว่าแพตช์ปัจจุบัน ห้ามเรียกว่าเมต้าล่าสุด
     patchIsLatest: latestPatch ? build.patch === latestPatch : null,
     createdAt: build.createdAt ? build.createdAt.slice(0, 10) : null,
+    updatedAt: (build.updatedAt ?? build.createdAt)?.slice(0, 10) ?? null,
     // เรียงตามลำดับในบิลด์; id = slug ของ items (คีย์ที่ไม่ซ้ำใน DB); ข้ามไอเทมที่ไม่พบใน items
     items: build.items.flatMap((b) => {
       const it = bySlug.get(b.itemSlug);

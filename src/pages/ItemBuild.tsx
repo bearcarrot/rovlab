@@ -121,7 +121,7 @@ function Recommended({ hero }: { hero: HeroSummary }) {
       )}
       <p className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
         <span className="rounded-full border border-accent/40 px-2 py-0.5 text-accent">{buildSourceLabel(build)}</span>
-        {build.createdAt && <span>บันทึกเมื่อ {new Date(build.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</span>}
+        {(build.updatedAt ?? build.createdAt) && <span>อัปเดตเมื่อ {new Date((build.updatedAt ?? build.createdAt)!).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</span>}
       </p>
       <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">* {IN_GAME_TOP_SERVER_NOTE}</p>
       <ReadOnlyBuild build={toViewBuild(build, items)} />

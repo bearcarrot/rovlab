@@ -126,7 +126,7 @@ async function fetchDbBuilds(hero: Pick<HeroSummary, "id" | "slug">): Promise<He
   const { data, error } = await supabase
     .from("item_builds")
     .select(
-      "id, created_at, source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
+      "id, created_at, updated_at, source, patches(code, released_at), rune(name, description, icon_url, color), item_build_items(phase, reason, sort_order, items(slug)), item_build_rune(quantity, reason, sort_order, rune(name, description, icon_url, color)), challenger_spells(slug, name, name_th, description, cooldown_seconds, status, icon_url, verified_at), item_build_enchantments(selection_type, sort_order, enchantments(slug, name, name_th, description, tier_level, category, status, icon_url, verified_at))"
     )
     .eq("hero_id", hero.id);
   if (error || !data) throw new Error(error?.message ?? "โหลดบิลด์ไม่สำเร็จ");
@@ -211,6 +211,7 @@ function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null
     source: r.source,
     id: r.id as string,
     createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
     spell,
     enchantments,
   };

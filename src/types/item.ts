@@ -65,7 +65,8 @@ export interface HeroBuild {
   patch: string;
   source: "curated" | "heuristic";
   id?: string; // item_builds.id (ไม่มีในบิลด์ fallback/mock)
-  createdAt?: string; // item_builds.created_at — ตารางนี้ไม่มี updated_at
+  createdAt?: string; // item_builds.created_at (วันที่ลงแถว)
+  updatedAt?: string; // item_builds.updated_at (วันที่บันทึก/แก้ไขจริง อัปเดตเองด้วย trigger)
   spell?: BuildSpell | null;
   enchantments?: BuildEnchantment[];
 }

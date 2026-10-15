@@ -96,7 +96,7 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
                     {buildSourceLabel(selected)}
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5">Patch {selected.patch}</span>
-                  {selected.createdAt && <span>บันทึกเมื่อ {dateTh(selected.createdAt)}</span>}
+                  {(selected.updatedAt ?? selected.createdAt) && <span>อัปเดตเมื่อ {dateTh(selected.updatedAt ?? selected.createdAt)}</span>}
                 </div>
 
                 <p className="text-xs text-text-faint">{IN_GAME_TOP_SERVER_NOTE}</p>
