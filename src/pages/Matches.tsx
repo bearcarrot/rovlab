@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ClipboardList, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -33,12 +33,14 @@ const MATCH_LOAD_LIMIT = 100; // how many of the newest matches are loaded; the 
 
 // One analysed screenshot waiting for the user's review (up to MAX_SCAN_IMAGES per upload, reviewed one after another).
 // rows = the icon matcher's guesses for the 5 blue-team rows (null: could not read); edits = what the user changed, by blue row.
+// imageUrl = a blob: URL of the user's own file, only so they can compare it with the numbers; it is never uploaded or stored.
 type ReviewItem = {
   draft: ScanDraft;
   initial: string;
   meSource: MeSource;
   rows: SlotGuess[][] | null;
   edits: Record<number, ItemSlots>;
+  imageUrl: string | null;
 };
 
 type Phase =
@@ -72,6 +74,9 @@ export function Matches() {
   const [deleting, setDeleting] = useState(false);
   // Opt-in to the anonymous community item statistics, asked per match and never pre-ticked.
   const [shareItems, setShareItems] = useState(false);
+  // every blob: URL made for the review preview, so leaving the page frees them all
+  const blobUrls = useRef<string[]>([]);
+  useEffect(() => () => blobUrls.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : NO_HEROES;
   const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
@@ -125,7 +130,10 @@ export function Matches() {
           const draft = scanToDraft(r.scan);
           const file = prepared[r.index - 1]?.file;
           const rows = file ? await guessBlueRows(file, catalogue) : null;
-          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource, rows, edits: {} });
+          // local preview only (never uploaded): lets the user compare the screenshot with what was read
+          const imageUrl = file ? URL.createObjectURL(file) : null;
+          if (imageUrl) blobUrls.current.push(imageUrl);
+          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource, rows, edits: {}, imageUrl });
         } else {
           const name = prepared[r.index - 1]?.name ?? `รูปที่ ${r.index}`;
           failed.push(prepared.length > 1 ? `${name}: ${r.error}` : r.error);
@@ -150,6 +158,10 @@ export function Matches() {
     setDup(null);
     setShowExisting(false);
     setShareItems(false); // consent is asked again for every match
+    if (current?.imageUrl) {
+      URL.revokeObjectURL(current.imageUrl); // done with this picture
+      blobUrls.current = blobUrls.current.filter((u) => u !== current.imageUrl);
+    }
     setPhase((p) => (p.kind === "review" && p.index + 1 < p.items.length ? { ...p, index: p.index + 1 } : { kind: "idle" }));
   }
 
@@ -249,6 +261,31 @@ export function Matches() {
         <CardContent className="space-y-3">
           {phase.kind === "review" && current ? (
             <>
+              {current.imageUrl && (
+                <details open className="rounded-lg border border-border bg-bg-surface">
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-text-muted">
+                    รูปของแมตช์นี้ (ไว้เทียบกับไอเทมและตัวเลขด้านล่าง)
+                  </summary>
+                  <div className="space-y-1.5 p-2">
+                    <img
+                      src={current.imageUrl}
+                      alt="สกรีนชอตหน้าประวัติการเล่นของแมตช์นี้"
+                      className="max-h-[60vh] w-full rounded-md border border-border object-contain"
+                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-faint">
+                      <span>แสดงจากไฟล์ในเครื่องคุณ ระบบไม่เก็บรูปไว้</span>
+                      <a
+                        href={current.imageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent underline underline-offset-2"
+                      >
+                        เปิดภาพเต็ม (ซูมได้)
+                      </a>
+                    </div>
+                  </div>
+                </details>
+              )}
               {mySlots && (
                 <>
                   <MyItemsEditor
