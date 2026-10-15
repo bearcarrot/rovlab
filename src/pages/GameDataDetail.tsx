@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { CatalogPager } from "@/features/gameData/CatalogPager";
 import { useCatalogNeighbors } from "@/features/gameData/useCatalogNeighbors";
+import { shortStats } from "@/features/gameData/catalogOrder";
 import { ITEM_TYPES, RUNE_COLORS } from "@/lib/catalogAdmin";
 
 // หน้าคลังข้อมูลของแต่ละชิ้น (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง) — แสดงเฉพาะรายการที่ยืนยันกับเกมแล้ว
@@ -93,6 +94,7 @@ export function GameDataDetail() {
 
   const round = f.k === "runes" || f.k === "spells";
   const icon = f.v.icon || undefined;
+  const stats = f.k === "items" ? shortStats(f.v.stats) : [];
 
   return (
     <div className="space-y-4 pb-4">
@@ -120,7 +122,7 @@ export function GameDataDetail() {
                 {f.v.cost.toLocaleString()}
               </span>
             </Row>
-            {f.v.tier && <Row label="Tier">T{f.v.tier}</Row>}
+            {f.v.tier && <Row label="Tier">Tier {f.v.tier}</Row>}
             {f.v.roleTags.length > 0 && <Row label="ประเภท">{f.v.roleTags.map((t) => ITEM_TYPES.find((o) => o.value === t)?.label ?? t).join(" · ")}</Row>}
           </>
         )}
@@ -141,9 +143,9 @@ export function GameDataDetail() {
         )}
       </div>
 
-      {f.k === "items" && f.v.stats.filter((s) => s.length <= 40).length > 0 && (
+      {stats.length > 0 && (
         <ul className="space-y-1 rounded-card border border-border bg-bg-surface p-4 text-sm text-text-muted">
-          {f.v.stats.filter((s) => s.length <= 40).map((s) => <li key={s}>{s}</li>)}
+          {stats.map((s) => <li key={s}>{s}</li>)}
         </ul>
       )}
       {f.k === "items" && f.v.passive && <p className="whitespace-pre-line rounded-card border border-border bg-bg-surface p-4 text-sm text-text-muted">{f.v.passive}</p>}
