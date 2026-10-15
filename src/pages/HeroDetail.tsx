@@ -266,10 +266,12 @@ export function HeroDetail() {
         <p className="text-center text-[11px] text-text-faint">* ยังไม่มีข้อมูลสถิติสำหรับฮีโร่นี้</p>
       )}
 
-      <Card>
-        <CardHeader><CardTitle>เกี่ยวกับฮีโร่</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-text-muted">{h.description}</p></CardContent>
-      </Card>
+      {h.description.trim() && (
+        <Card>
+          <CardHeader><CardTitle>เกี่ยวกับฮีโร่</CardTitle></CardHeader>
+          <CardContent><p className="text-sm text-text-muted">{h.description}</p></CardContent>
+        </Card>
+      )}
 
       <HeroBalance heroId={h.id} />
 
