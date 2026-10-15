@@ -1,9 +1,9 @@
-import { ArrowLeftRight, Triangle } from "lucide-react";
+import { Scale, Triangle } from "lucide-react";
 import { HeroHelmetPlusIcon } from "@/components/HeroHelmetPlusIcon";
 import { BALANCE_LABEL, type BalanceKind } from "@/services/balance";
 
 // บัฟ = สามเหลี่ยมชี้ขึ้น (เขียว) · เนิฟ = สามเหลี่ยมชี้ลง (แดง)
-// ปรับสมดุลทั่วไป = ลูกศรสลับซ้าย-ขวา (เหลือง) · รีเวิร์ก = หมวกฮีโร่ + เครื่องหมาย + (ส้ม)
+// ปรับสมดุลทั่วไป = ตราชั่ง (ฟ้า info) · รีเวิร์ก = หมวกฮีโร่ + เครื่องหมาย + (ส้ม)
 export const BALANCE_YELLOW = "#eab308";
 export const BALANCE_ORANGE = "#f97316";
 
@@ -15,7 +15,7 @@ export function BalanceIcon({ kind, className = "h-4 w-4" }: { kind: BalanceKind
     return <Triangle role="img" aria-label={label} className={`${className} rotate-180 text-loss`} fill="currentColor" />;
   if (kind === "rework")
     return <HeroHelmetPlusIcon role="img" aria-label={label} className={className} style={{ color: BALANCE_ORANGE }} />;
-  return <ArrowLeftRight role="img" aria-label={label} className={className} style={{ color: BALANCE_YELLOW }} />;
+  return <Scale role="img" aria-label={label} className={`${className} text-rift`} />;
 }
 
 // สีของป้าย/ขอบในการ์ดหน้ารายละเอียด
