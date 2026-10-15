@@ -95,16 +95,17 @@ export function resolveHero(name: string, heroes: HeroSummary[]): HeroSummary | 
 }
 
 /**
- * Like matchHero, but for a name shared by exactly one Mage and one Carry (Flowborn) the player's teammates decide:
- * the team already has a Mage -> the Carry; already has a Carry (marksman) -> the Mage. Both or neither -> still
- * ambiguous, the user picks. Only teammates that resolve to a single hero count. A name the user picked from the list
- * is an exact match, so it never reaches this rule.
+ * Like matchHero, but for a name shared by exactly one mid-lane hero (Mage) and one abyssal-lane hero (Carry), i.e.
+ * Flowborn, the player's teammates decide by LANE, not role: the team already has a mid-laner -> the Carry (abyssal);
+ * already has an abyssal-laner -> the Mage (mid). Both or neither -> still ambiguous, the user picks. Only teammates
+ * that resolve to a single hero count. A name the user picked from the list is an exact match, so it never reaches
+ * this rule.
  */
 export function matchHeroInTeam(index: number, players: ScanPlayer[], heroes: HeroSummary[]): HeroMatch {
   const m = matchHero(players[index].hero, heroes);
   if (m.kind !== "ambiguous" || m.heroes.length !== 2) return m;
-  const mage = m.heroes.find((h) => h.role === "mage");
-  const carry = m.heroes.find((h) => h.role === "marksman");
+  const mage = m.heroes.find((h) => h.lane === "mid");
+  const carry = m.heroes.find((h) => h.lane === "abyssal");
   if (!mage || !carry) return m;
 
   const mates = players.flatMap((p, i) => {
@@ -112,10 +113,10 @@ export function matchHeroInTeam(index: number, players: ScanPlayer[], heroes: He
     const r = matchHero(p.hero, heroes);
     return r.kind === "found" ? [r.hero] : [];
   });
-  const hasMage = mates.some((h) => h.role === "mage");
-  const hasCarry = mates.some((h) => h.role === "marksman");
-  if (hasMage && !hasCarry) return { kind: "found", hero: carry };
-  if (hasCarry && !hasMage) return { kind: "found", hero: mage };
+  const hasMid = mates.some((h) => h.lane === "mid");
+  const hasAbyssal = mates.some((h) => h.lane === "abyssal");
+  if (hasMid && !hasAbyssal) return { kind: "found", hero: carry };
+  if (hasAbyssal && !hasMid) return { kind: "found", hero: mage };
   return m;
 }
 
