@@ -3,495 +3,325 @@ RoV LAB
 Better Tools, Better Wins
 เครื่องมือดี มีชัยไปกว่าครึ่ง
 
-RoV LAB is a community-oriented companion for Arena of Valor (RoV), bringing hero research, draft planning, counter picks, matchup analysis, build sharing, game data, and match analysis together in one web application.
+RoV LAB is an independent, Thai-first strategy and analytics platform for Arena of Valor (RoV). It brings hero research, tier lists, counter picks, matchup analysis, draft planning, build management, game data, match analytics, and AI-assisted coaching into one web application.
 
-* Live site: https://rovlab.vercel.app
-* Repository: https://github.com/bearcarrot/rovlab
-* Language: Thai-first experience with English branding
-
-⸻
-
-Table of Contents
-
-* Overview
-* Features
-* Application Routes
-* Technology Stack
-* Project Structure
-* Getting Started
-* Environment Variables
-* Available Scripts
-* Backend and Data
-* AI Coach
-* Development Guidelines
-* Documentation
-* Disclaimer
-
-⸻
+Live Site: https://rovlab.vercel.app
 
 Overview
 
-RoV LAB is designed to help players make better-informed decisions before, during, and after a match.
+RoV LAB helps players make more informed decisions before, during, and after a match.
 
-The application combines structured game information with practical tools for analyzing heroes, evaluating matchups, preparing team compositions, managing builds, and reviewing match performance.
+The platform combines structured game data, competitive insights, team-composition analysis, customizable tier lists, build tools, and personal match history. It also provides community features for sharing strategies and reviewing player-created content.
 
-The project also supports community participation through user profiles, shared content, feedback, and social features.
-
-Core Principles
-
-* Practicality: Turn game information into useful decisions.
-* Clarity: Present complex information in an accessible interface.
-* Consistency: Reuse shared components and structured game data.
-* Performance: Keep navigation and interactions responsive.
-* Maintainability: Separate pages, components, services, and data access.
-* Data integrity: Validate imported and user-submitted data before relying on it.
-
-⸻
+The project prioritizes data consistency, practical mobile usability, transparent recommendations, and a unified experience across its tools.
 
 Features
 
 1. Hero Database
 
-Explore the RoV hero roster and inspect individual hero profiles.
+* Browse and search the hero roster.
+* View individual hero profiles and available game information.
+* Explore available abilities, counters, synergies, and matchup-related information.
+* Access hero data used by tier lists, draft recommendations, build tools, and other analysis features.
+* Display contextual hero information without presenting empty or invalid records as meaningful data.
 
-* Browse and search heroes.
-* View hero details and available game information.
-* Navigate between the hero directory and individual hero pages.
-* Use the hero database as a foundation for other analysis tools.
+Hero information depends on the completeness and freshness of the maintained database.
 
 2. Tier List
 
-Organize heroes into tiers to evaluate their relative usefulness.
+Explore hero rankings through the available tier-list views and statistical categories.
 
-* View the tier-list interface.
-* Work with hero rankings and tier organization.
-* Access shared tier-list pages where supported.
-* Use the application’s existing hero assets rather than requiring users to upload custom hero icons.
+* Browse hero rankings and available statistics.
+* Filter by supported roles, lanes, tiers, and views.
+* View patch context when available.
+* Share supported tier-list views.
+* Generate shareable tier-list images where supported.
+* Use tier indicators and balance-change labels to help interpret hero rankings.
 
-3. Draft Assistant
+Custom Tier Lists
 
-Plan team compositions and evaluate draft decisions.
+Create personalized tier lists with user-defined rows.
 
-* Select heroes for draft scenarios.
-* Review team composition and role coverage.
-* Evaluate draft considerations using the application’s available heuristics.
-* Access shareable draft scenarios where supported.
+* Add, rename, recolor, reorder, and delete tier rows.
+* Assign heroes from the existing hero database.
+* Use the application’s own hero icons rather than uploading arbitrary hero images.
+* Preserve hero identity through database identifiers.
+* Support legacy saved tier-list formats where compatible.
 
-Draft recommendations are decision-support tools, not guarantees of match outcomes.
+Custom tier lists are intended for personal rankings and community sharing, not as an official statement of hero strength.
+
+Competitive Statistics
+
+Tier-list views can use available statistical datasets, including supported rank categories such as All Ranks and Commander+.
+
+Statistics and rankings must be interpreted in context. Sample size, patch selection, rank distribution, and source coverage can affect their reliability.
+
+3. Pro Statistics — In Development
+
+PR #237 introduces a planned Pro statistics bucket using competitive statistics published by Liquipedia.
+
+The proposed workflow includes:
+
+* Importing RoV Pro League statistics.
+* Storing statistics against the relevant game patch to preserve historical snapshots.
+* Using combined Picks & Bans (∑) as a measure of competitive presence.
+* Calculating relative tiers against the highest Picks & Bans (∑) value in the selected dataset.
+
+The proposed tier thresholds are:
+
+Tier	Relative Picks & Bans (∑)
+S+	≥ 80%
+S	≥ 60% and < 80%
+A	≥ 40% and < 60%
+B	≥ 20% and < 40%
+C	< 20%
+
+The relative value is calculated as:
+
+Hero Picks & Bans (∑) / Highest Picks & Bans (∑) × 100
+
+This is a relative competitive-presence indicator, not a win-rate measurement or a guarantee of performance.
+
+Status: The Pro statistics feature is associated with PR #237 and should not be considered production-ready until the pull request is merged, the required data and database changes are applied, and the feature is verified.
+
+Competitive statistics derived from Liquipedia must retain appropriate attribution and comply with the source’s applicable licensing terms, including CC BY-SA where relevant.
 
 4. Counter Pick
 
-Research potential counter picks against opposing heroes.
+Research potential counter picks for a selected hero.
 
-* Identify possible counter-pick options.
-* Use matchup knowledge to inform hero selection.
-* Present counter relationships in a format that supports quick decisions.
+* Browse counter recommendations using available hero data.
+* Review matchup-related information and explanations where available.
+* Display lane tips only when meaningful lane-tip data exists.
+* Navigate directly to results after selecting a hero, improving usability on mobile devices.
+* Reuse counter information in supported hero-detail views.
 
-Counter-pick quality depends on the accuracy and completeness of the underlying game data.
+Counter recommendations depend on the available matchup data and should be evaluated alongside team composition, player skill, builds, and game conditions.
 
 5. Matchup Analysis
 
-Compare heroes and evaluate their interactions.
+Compare two heroes and explore their matchup context.
 
-* Review hero matchups.
-* Assess relative strengths and weaknesses.
-* Use matchup information to support lane and team-fight decisions.
+* Select heroes for side-by-side analysis.
+* Review available matchup results and supporting context.
+* Use shared-lane information for heuristic comparisons.
+* Avoid presenting an unrelated primary lane as though both heroes normally meet there.
+* Navigate automatically to results after selecting both heroes.
+* Pass relevant matchup context to Coach Ai where supported.
 
-Actual results can vary with player skill, item builds, team composition, patches, and game conditions.
+Curated matchup information may contain manually maintained guidance, while heuristic results depend on the available data and analysis logic. These result types should not be treated as interchangeable.
 
-6. Builds
+6. Draft Assistant
 
-Explore and manage hero builds.
+Plan team compositions and evaluate draft choices.
 
-* Browse available builds.
-* View individual build details.
-* Access build editing where permitted.
-* Share builds through supported application routes.
+* Explore available hero choices for a team draft.
+* Review team composition and role coverage.
+* Evaluate team needs such as damage distribution, healing, and shielding when supported by available hero data.
+* Use hero skill-kit information to improve team composition analysis.
+* Review tier-related indicators and draft balance information.
+* Share supported draft scenarios.
 
-Build effectiveness depends on the game version, enemy composition, and match situation.
+Recommendations are intended to support decision-making rather than replace player judgment. They depend on the quality of the underlying hero data and the assumptions used by the analysis.
 
-7. Game Data
+7. Build Management
 
-Browse structured game information through the game-data section.
+Browse, create, and manage supported hero builds.
 
-* Explore supported data categories.
-* Open individual data records.
-* Use centralized game information across compatible features.
+* Select a hero and explore available build information.
+* Manage item, rune, and enchantment selections where supported.
+* View build details through supported routes.
+* Create and edit builds according to account permissions.
+* Share builds through supported application links.
+* Use item selection interfaces with search and contextual item information.
 
-The available categories and fields depend on the data currently maintained by the project.
+The build interface supports game-specific configuration rather than arbitrary image uploads for hero selection.
 
-8. Match Analysis and OCR
+Build effectiveness depends on the current game version, matchup, team composition, and player preferences.
 
-Analyze supported match screenshots using the application’s match-analysis workflow.
+8. Game Database
 
-* Submit supported match images.
-* Extract match information through the OCR workflow.
-* Review recognized information and analysis results.
-* Use the resulting data for match-history and performance-related features where supported.
+RoV LAB maintains structured game information used by its tools.
 
-OCR results may contain recognition errors. Extracted information should be checked before being treated as accurate.
+Supported data categories include:
 
-9. Player Profiles
+* Heroes
+* Items
+* Runes
+* Challenger spells
+* Enchantments
+* Patch and balance information
+* Other maintained game-data records
 
-Provide profile and player-related pages for the community.
+Authorized administrators can manage supported records through the administration interface.
 
-* View player profile pages.
-* Access public user pages through supported handles.
-* Display available profile and contribution information.
+Data-management workflows include validation and verification controls where implemented. Records should be reviewed before being treated as authoritative, and changes to shared data should be checked for downstream effects.
 
-The information visible on a profile depends on account settings, permissions, and available data.
+9. Match Analysis and Personal Match History
 
-10. Community Features
+Review recorded matches and explore performance trends.
 
-Support participation and interaction across the application.
+Match Screenshot OCR
 
-Depending on authentication status and feature availability, community functionality includes:
+* Submit supported match screenshots.
+* Extract match information and item selections through the OCR workflow.
+* Review recognized information before saving it.
+* Use supported match records for subsequent analysis.
 
-* User accounts and profiles.
-* Favorites.
-* Match records.
-* Community feed.
-* Notifications.
-* Comments and reactions on supported content.
-* User contributions and shared content.
+OCR results can be affected by image dimensions, screenshot layout, scaling, and visual clarity. Extracted values should be checked before being treated as accurate.
 
-Authenticated features require a properly configured backend and appropriate access permissions.
+Analytics Dashboard
 
-11. AI Coach
+The match analytics interface supports analysis of recorded matches, including:
 
-Provide AI-assisted guidance for game-related questions through the Coach AI feature.
+* Filtering by period and hero where available.
+* Reviewing performance trends over time.
+* Comparing recent results against a previous period.
+* Sorting hero-related statistics.
+* Exploring match-level summaries and analytical insights.
+* Reviewing insights with sample-size context.
+* Accounting for limitations when the loaded match history reaches its configured limit.
 
-* Offer contextual guidance through the available interface.
-* Support predefined quick-question workflows.
-* Use configured AI services and backend logic.
-* Keep model access and API credentials on the server side.
+Derived metrics may be unavailable or excluded when the underlying records are incomplete or inconsistent. Insights should distinguish observed facts from suggestions.
 
-AI-generated advice can be incomplete or incorrect. Important gameplay recommendations should be evaluated against current game mechanics and reliable data.
+10. Coach Ai
 
-12. Administration
+Coach Ai provides AI-assisted guidance for supported RoV workflows.
 
-Provide administrative pages for managing supported application operations.
+* Access supported quick-question experiences.
+* Receive contextual guidance for supported hero and matchup scenarios.
+* Use available application data as context for AI responses.
+* Route supported requests through configured AI models.
+* Collect feedback on responses where the relevant functionality and backend configuration are available.
+* Support administrative review workflows for submitted feedback where configured.
 
-Administrative capabilities may include:
+The model-routing architecture is intended to balance response quality, latency, and resource usage by selecting suitable models for supported request types.
 
-* Dashboard and operational views.
-* Game-data management and imports.
-* User and community administration.
-* Contact submissions.
-* Coach AI feedback and related records.
+AI-generated responses may be incomplete, outdated, or incorrect. They should be checked against current game mechanics and reliable sources.
 
-Administrative access must be enforced by the backend and appropriate authorization policies, not merely by hiding interface elements.
+11. Community and Sharing
 
-⸻
+Community features allow users to access and share supported content.
 
-Application Routes
+Depending on account status and feature availability, these include:
 
-The following table summarizes the main routes defined by the application’s routing structure. Some routes require authentication or depend on the availability of the relevant record.
+* User profiles and public player pages.
+* Community feed and notifications.
+* Shared tier lists and draft scenarios.
+* Supported build and strategy links.
+* Favorites and personal match records.
+* Feedback and moderation workflows.
 
-Route	Purpose
-/	Home
-/heroes	Hero directory
-/heroes/:slug	Hero details
-/tier-list	Tier-list interface
-/tier-list/:shareId	Shared tier list
-/counter-pick	Counter-pick research
-/matchup	Matchup analysis
-/draft	Draft assistant
-/draft/:shareId	Shared draft
-/build	Build directory
-/build/view/:id	Build details
-/build/edit/:id	Build editor
-/game-data	Game-data directory
-/game-data/:kind/:key	Game-data details
-/stats	Statistics
-/learn	Learning resources
-/learn/:slug	Learning resource details
-/favorites	User favorites
-/matches	Match records
-/notifications	Notifications
-/feed	Community feed
-/profile	User profile
-/players/:id	Player profile
-/u/:handle	Public user page
-/login	Sign in
-/register	Registration
-/forgot-password	Password recovery
-/reset-password	Password reset
-/admin	Administration
-/privacy	Privacy policy
-/terms	Terms of service
-/disclaimer	Disclaimer
-/data-sources	Data-source information
-/community-guidelines	Community guidelines
-/contact	Contact
+User-generated content should be handled according to the application’s authorization and community rules.
 
-Additional routes, redirects, and error handling may be defined elsewhere in the application.
+12. Accounts and Administration
 
-⸻
+The application includes supported account workflows such as:
+
+* Registration and login.
+* Password recovery and reset.
+* User profiles.
+* Restricted administrative pages.
+* Game-data management.
+* Supported community moderation and review workflows.
+
+Administrative actions require appropriate authorization. Access to administrative functionality must not rely solely on hiding controls in the client interface.
+
+Application Areas
+
+Area	Purpose
+Home	Feature discovery and game overview
+Heroes	Hero directory and hero profiles
+Tier List	Hero rankings and custom tier lists
+Counter Pick	Counter-pick research
+Matchup	Hero matchup analysis
+Draft	Team composition planning
+Builds	Build browsing and management
+Game Data	Structured game information
+Stats	Available statistical views
+Learn	Learning resources
+Matches	Match history and analytics
+Feed	Community content
+Profile / Players	User and player profiles
+Favorites	Saved content
+Notifications	User notifications
+Admin	Restricted administrative tools
+
+Availability may depend on authentication, permissions, database configuration, and the completeness of the relevant data.
+
+User Experience and Accessibility
+
+RoV LAB includes ongoing improvements to usability and accessibility.
+
+* Responsive layouts for supported screen sizes.
+* Searchable selection controls for supported hero and item workflows.
+* Automatic navigation to relevant results in selected analysis flows.
+* Reduced-motion preferences for supported scrolling behavior.
+* Accessible control states and labels where implemented.
+* Improved handling of empty states, query failures, and invalid shared-link parameters.
+* More reliable item recognition across supported screenshot layouts.
+* Improved visual contrast for the S+ tier indicator.
+
+The application continues to evolve, and individual interfaces may have different levels of testing and verification.
+
+Security and Reliability
+
+Security and reliability work includes:
+
+* Enforced Content Security Policy (CSP) with a hash-based allowance for the inline boot script.
+* Avoiding unsafe-inline and unsafe-eval for scripts in the enforced script policy.
+* Database access controls and backend authorization for protected workflows.
+* Validation of shared-link parameters and imported data.
+* Error handling that distinguishes failed queries from genuinely empty results.
+* Defensive handling of malformed or incomplete records.
+* Recovery behavior for supported stale-asset loading failures.
+
+Security configuration and database policies should be reviewed whenever deployment behavior, third-party integrations, or application entry points change.
 
 Technology Stack
 
-RoV LAB uses the following technologies in its frontend and supporting infrastructure.
+RoV LAB uses the following technologies:
 
-Technology	Purpose
-React 18	User interface
-TypeScript	Static typing
-Vite	Development server and build tooling
-React Router	Client-side routing
-Tailwind CSS	Utility-first styling
-Radix UI	Accessible interface primitives
-Lucide React	Icons
-Supabase	Backend services and database integration
-Vercel	Deployment and hosting platform
-Vercel Analytics	Usage analytics integration
-Vercel Speed Insights	Performance monitoring integration
+* React 18
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* Radix UI
+* Lucide React
+* Supabase for supported database and backend functionality
+* Supabase Edge Functions for selected server-side workflows
+* Vercel for deployment, analytics, and performance insights
 
-The exact services and features enabled in a deployed environment depend on the project’s configuration.
+Selected server-side workflows include AI coaching, avatar handling, hero video support, and match screenshot OCR.
 
-⸻
+Data Quality Principles
 
-Project Structure
-
-The repository is organized around application pages, reusable components, shared libraries, services, and backend functions.
-
-rovlab/
-├── docs/                   # Project documentation
-├── public/                 # Static assets
-├── scripts/                # Build and utility scripts
-├── src/
-│   ├── components/         # Reusable UI components
-│   ├── lib/                # Shared configuration and utilities
-│   ├── pages/              # Application pages
-│   ├── services/           # Data access and business logic
-│   └── App.tsx             # Application routing and setup
-├── supabase/
-│   └── functions/          # Supabase Edge Functions
-├── package.json
-├── README.md
-└── vite.config.ts
-
-The actual repository may contain additional directories and files. Consult the source tree for the current implementation.
-
-Architectural Guidelines
-
-* Keep route-level page components in src/pages/.
-* Extract reusable interface elements into src/components/.
-* Keep shared configuration and reusable utilities in src/lib/.
-* Put reusable data access and business logic in suitable services.
-* Keep sensitive operations and secrets on the backend.
-* Avoid duplicating hero data or other shared game information across unrelated pages.
-
-⸻
-
-Getting Started
-
-Prerequisites
-
-Install the following before developing locally:
-
-* Node.js compatible with the project’s dependencies.
-* npm.
-* Git.
-* A configured Supabase project for features that require backend services.
-
-1. Clone the Repository
-
-git clone https://github.com/bearcarrot/rovlab.git
-cd rovlab
-
-2. Install Dependencies
-
-npm install
-
-3. Configure Environment Variables
-
-Create a local .env file in the project root and configure the variables required by the application.
-
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-Use the correct values for your own Supabase project.
-
-Do not commit private keys, service-role credentials, AI provider keys, or other secrets to source control.
-
-4. Start the Development Server
-
-npm run dev
-
-Vite will display the local development URL in the terminal.
-
-5. Check the Production Build
-
-npm run build
-
-6. Preview the Production Build
-
-npm run preview
-
-Some pages may require valid backend configuration and seeded data to work correctly.
-
-⸻
-
-Environment Variables
-
-Frontend Variables
-
-Variable	Purpose
-VITE_SUPABASE_URL	Supabase project URL
-VITE_SUPABASE_ANON_KEY	Supabase publishable/anonymous client key, according to the project’s Supabase configuration
-
-Vite exposes variables prefixed with VITE_ to client-side code. Never put server-side secrets in these variables.
-
-Backend Configuration
-
-Supabase Edge Functions and other server-side integrations may require additional environment variables configured in the backend deployment environment.
-
-Examples include AI provider credentials and service-specific configuration. The exact variable names must be taken from the corresponding function implementation and deployment configuration.
-
-Do not assume that setting frontend variables alone configures every backend feature.
-
-⸻
-
-Available Scripts
-
-The following scripts are defined in the project’s package configuration.
-
-Command	Purpose
-npm run dev	Start the development server
-npm run build	Run the production build and metadata prerendering script
-npm run typecheck	Check TypeScript types
-npm run lint	Run linting
-npm run preview	Preview the production build locally
-
-Run these checks before submitting significant changes.
-
-⸻
-
-Backend and Data
-
-RoV LAB integrates with Supabase for supported backend functionality.
-
-The repository includes Edge Functions associated with features such as:
-
-* AI Coach.
-* Avatar handling.
-* Hero video functionality.
-* Scoreboard OCR.
-
-The responsibilities of each function should be confirmed from its implementation and associated documentation before changing its behavior.
-
-Data Integrity
-
-Game data is central to counter picks, matchups, hero pages, draft analysis, and other features.
-
-When modifying or importing data:
-
-1. Preserve existing identifiers and relationships.
-2. Validate required fields and data types.
-3. Avoid introducing duplicate records.
-4. Check that references point to valid entities.
-5. Consider the impact on every feature that consumes the affected data.
-6. Document important source and transformation assumptions.
-
-Security
-
-* Enforce authorization on the backend.
-* Apply appropriate database access policies.
-* Validate untrusted input.
-* Avoid exposing private user information.
-* Never expose service-role keys or AI provider secrets to the browser.
+* Preserve relationships and stable identifiers when updating game data.
+* Validate imports and avoid duplicate or malformed records.
+* Associate time-sensitive statistics with their relevant patch and source.
+* Preserve historical data where required for comparison.
+* Avoid presenting missing data as confirmed information.
+* Distinguish manually curated guidance from heuristic recommendations.
+* Check downstream tools after changes to shared datasets.
 * Treat OCR output and user-generated content as untrusted input.
+* Keep AI-generated conclusions appropriately qualified.
 
-⸻
+Data Sources and Attribution
 
-AI Coach
+Game balance, hero abilities, item effects, competitive statistics, and strategies can change over time. Information should be interpreted in the context of the relevant game version, patch, and source.
 
-AI Coach is a game-assistance feature, not a source of guaranteed game truth.
+Competitive statistics imported from Liquipedia must retain appropriate attribution and comply with the applicable source licensing terms.
 
-When developing or optimizing the Coach AI system, consider:
-
-* Model selection based on task complexity.
-* Response quality and consistency.
-* Latency and user-perceived responsiveness.
-* Provider quotas and request limits.
-* Server-side caching for repeatable requests where appropriate.
-* Error handling, timeouts, and provider failures.
-* Prompt and output validation.
-* Fallback behavior when a model is unavailable.
-* Monitoring without unnecessarily storing sensitive user information.
-
-Simple predefined questions may be suitable for lightweight models or deterministic responses. Questions requiring detailed reasoning may need a stronger model.
-
-Any model routing or caching strategy should preserve answer quality and must not return stale or inappropriate results when the game data or relevant context has changed.
-
-See the AI Coach documentation in docs/AI_COACH.md for implementation-specific details.
-
-⸻
-
-Development Guidelines
-
-Before Changing a Feature
-
-1. Inspect the relevant page in src/pages/.
-2. Trace its imported components, hooks, services, and data sources.
-3. Identify all other pages that consume the same data.
-4. Review relevant backend functions and database policies.
-5. Check loading, empty, error, and permission-denied states.
-6. Run the relevant validation scripts.
-
-When Adding a Feature
-
-* Follow existing project conventions.
-* Reuse established components and utilities.
-* Preserve mobile responsiveness and accessibility.
-* Provide meaningful loading and error feedback.
-* Handle missing and invalid data safely.
-* Avoid unnecessary dependencies.
-* Update documentation when behavior, setup, or routes change.
-
-Validation Checklist
-
-Before considering a change complete:
-
-* [ ]	The feature works in its intended route.
-* [ ]	Loading, empty, and error states are handled.
-* [ ]	Authentication and authorization are respected.
-* [ ]	Mobile layouts remain usable.
-* [ ]	Shared data consumers have been checked.
-* [ ]	Type checking passes.
-* [ ]	Linting passes.
-* [ ]	The production build succeeds.
-* [ ]	Documentation reflects any relevant changes.
-
-⸻
-
-Documentation
-
-Refer to the documentation available in the repository for implementation-specific information.
-
-Document	Subject
-docs/ARCHITECTURE.md	Application architecture
-docs/AI_COACH.md	AI Coach implementation
-docs/DATABASE.md	Database structure and usage
-docs/DATA_SOURCES.md	Game-data sources
-docs/MATCH_OCR.md	Match screenshot OCR
-docs/CONTRIBUTING.md	Contribution guidelines
-docs/LEGAL.md	Legal and policy information
-docs/community.md	Community-related documentation
-
-If a document has been moved or renamed, use the current repository tree as the source of truth.
-
-⸻
+Arena of Valor, game characters, artwork, icons, and related trademarks may belong to their respective owners.
 
 Disclaimer
 
-RoV LAB is an independent community project created to support Arena of Valor players.
+RoV LAB is an independent community project and is not an official Garena or Tencent product.
 
-It is not an official Garena or Tencent product unless explicitly stated otherwise. Game names, characters, icons, and other related assets may belong to their respective owners.
+The platform provides tools and information to support research, planning, and decision-making. Rankings, matchup recommendations, build suggestions, analytics, and AI-generated responses do not guarantee competitive results.
 
-Game balance, hero abilities, item effects, and competitive strategies may change with updates. Information and recommendations provided by RoV LAB should be checked against the current game version when accuracy is important.
-
-The project is intended to assist players with research and decision-making. It does not guarantee competitive results.
+Always consider the current game version, source quality, team composition, and actual match conditions when applying recommendations.
 
 ⸻
 
