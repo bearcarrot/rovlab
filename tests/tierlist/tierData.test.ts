@@ -29,7 +29,7 @@ test("legacy fixed-tier data migrates to five default rows with hero order intac
   assert.deepEqual(heroes(d, "s-plus"), ["a", "b"]);
   assert.deepEqual(heroes(d, "b"), ["d", "e", "f"]);
   assert.deepEqual(heroes(d, "c"), []);
-  assert.equal(d[0].color, "#EF4444");
+  assert.equal(d[0].color, "#DC2626");
   assert.deepEqual(parseTierData({}), emptyTierData());
 });
 
