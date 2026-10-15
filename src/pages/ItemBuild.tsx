@@ -231,12 +231,6 @@ export function ItemBuild() {
         <p className="mt-1 text-sm text-text-muted">บิลด์แนะนำ ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝง สร้างเอง และแบ่งปันให้คนอื่น</p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
-        {TABS.map(([t, label]) => (
-          <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
-        ))}
-      </div>
-
       {heroesQ.status === "loading" && <Skeleton className="h-48" />}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
       {heroesQ.status === "success" && (
@@ -251,7 +245,12 @@ export function ItemBuild() {
       )}
 
       {heroesQ.status === "success" && (
-        <div ref={resultRef} className="scroll-mt-20 border-t border-border pt-4">
+        <div ref={resultRef} className="scroll-mt-20 space-y-4 border-t border-border pt-4">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
+            {TABS.map(([t, label]) => (
+              <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
+            ))}
+          </div>
           {tab === "mine" && <Mine hero={selected} />}
           {tab !== "mine" && !selected && <EmptyState icon={Hammer} title="ยังไม่ได้เลือกฮีโร่" description="เลือกฮีโร่ด้านบนเพื่อดูบิลด์" />}
           {tab === "recommended" && selected && <Recommended hero={selected} />}
