@@ -1,10 +1,6 @@
 import type { HeroBuild } from "@/types/item";
 
-// ป้ายที่มาของบิลด์ ใช้ร่วมกันทุกหน้า (Hero Detail, Item Build) — บิลด์ไหนไม่ใช่ top_server ห้ามเรียกว่า Top Server
-export function buildProvenance(b: Pick<HeroBuild, "source" | "serverRank">) {
-  if (b.source === "top_server") return { label: b.serverRank ? `Top Server อันดับ ${b.serverRank} (จากในเกม)` : "Top Server (จากในเกม)", fromGame: true };
-  if (b.source === "curated") return { label: "บิลด์ทีมงาน RoV LAB (ไม่ใช่บิลด์ Top Server)", fromGame: false };
-  return { label: "แนวทางทั่วไปจากระบบ RoV LAB (Heuristic)", fromGame: false };
-}
+export const buildSourceLabel = (b: Pick<HeroBuild, "source">) => (b.source === "curated" ? "บิลด์ทีมงาน RoV LAB" : "แนวทางทั่วไป (Heuristic)");
 
-export const NO_TOP_SERVER_NOTE = "ยังไม่มีบิลด์ Top Server ที่ยืนยันแล้วของฮีโร่นี้ บิลด์ด้านล่างเป็นคำแนะนำของ RoV LAB";
+// บิลด์ในระบบเป็นของ RoV LAB เอง ไม่ใช่ข้อมูล Top Server — เกมมีบิลด์ Top 10 Server ของฮีโร่แต่ละตัวที่อัปเดตเรียลไทม์กว่า
+export const IN_GAME_TOP_SERVER_NOTE = "บิลด์ของ RoV LAB อาจอัปเดตไม่เท่าในเกม แนะนำให้ดูบิลด์ Top 10 Server ของฮีโร่ตัวนี้ในเกมเป็นหลัก (อัปเดตเรียลไทม์)";

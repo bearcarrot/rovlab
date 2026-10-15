@@ -110,7 +110,6 @@ type Cfg = {
 
 const TIERS = ["S+", "S", "A", "B", "C"];
 const SOURCES = ["curated", "heuristic"];
-const BUILD_SOURCES = ["top_server", ...SOURCES];
 const REF_TYPES: string[] = ["hero", "item", "rune", "patch", "guideCat"];
 const BUCKET = "hero-icons";
 // แรงก์ที่ใช้ใน DB (hero_stats.rank_tier / tier_lists.rank_tier): all = ทั้งหมด, high = Commander ขึ้นไป — ชุดเดียวกันทั้งแท็บสถิติและ Tier List
@@ -311,9 +310,7 @@ const CFG: Record<string, Cfg> = {
     filter: heroFilter("hero_id"),
     cols: [
       { k: "patch_id", label: "แพตช์", type: "patch" },
-      { k: "source", label: "แหล่งที่มา (top_server = Top 10 Server ในเกม)", type: "sel", opts: BUILD_SOURCES },
-      { k: "server_rank", label: "อันดับใน Top 10 Server (1–10 · เฉพาะ top_server)", type: "num" },
-      { k: "source_note", label: "หมายเหตุที่มา (เช่น เซิร์ฟเวอร์/แรงก์)" },
+      { k: "source", type: "sel", opts: SOURCES },
       { k: "rune_id", label: "รูนชุดเดียว (แบบเดิม)", type: "rune" },
     ],
   },
