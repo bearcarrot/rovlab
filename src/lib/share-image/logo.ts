@@ -1,23 +1,25 @@
-import { roundRectPath } from "./draw";
-import { COLORS, LOGO_URL } from "./theme";
+import { font, text } from "./draw";
+import { COLORS, LOGO_URL, SITE_LABEL } from "./theme";
 import type { ImageStore } from "./types";
 
 /**
- * วาดโลโก้ RoV LAB ลงกรอบ size×size (คงอัตราส่วน ไม่ crop)
- * ถ้าโหลดโลโก้ไม่ได้ จะวาดกรอบสีหลักแทน เพื่อให้ตำแหน่งหัวรูปไม่เพี้ยน
+ * วาดโลโก้ RoV LAB (แนวกว้าง) โดยกำหนด "ความสูง" ส่วนความกว้างคำนวณจากอัตราส่วนจริง (ไม่ crop ไม่บีบ)
+ * คืนค่าความกว้างที่วาดจริง เพื่อให้ผู้เรียกวางข้อความถัดไปต่อท้ายได้
+ * ถ้าโหลดโลโก้ไม่ได้ จะวาดข้อความ "RoV LAB" สีหลักแทน เพื่อให้หัวรูปยังมีชื่อแบรนด์และตำแหน่งไม่เพี้ยน
  */
-export function drawLogo(ctx: CanvasRenderingContext2D, images: ImageStore, x: number, y: number, size: number) {
+export function drawLogo(ctx: CanvasRenderingContext2D, images: ImageStore, x: number, y: number, height: number): number {
   const img = images.get(LOGO_URL);
   if (!img) {
-    roundRectPath(ctx, x, y, size, size, Math.round(size * 0.2));
-    ctx.fillStyle = COLORS.accent;
-    ctx.fill();
-    return;
+    const f = font(700, 30, "display");
+    ctx.font = f;
+    const w = Math.ceil(ctx.measureText(SITE_LABEL).width);
+    text(ctx, SITE_LABEL, x, y + height * 0.62, { font: f, color: COLORS.accent });
+    return w;
   }
   const w = "naturalWidth" in img ? img.naturalWidth : img.width;
   const h = "naturalHeight" in img ? img.naturalHeight : img.height;
-  const s = Math.min(size / w, size / h);
-  const dw = w * s;
-  const dh = h * s;
-  ctx.drawImage(img, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
+  const dh = height;
+  const dw = (w / h) * height;
+  ctx.drawImage(img, x, y, dw, dh);
+  return Math.ceil(dw);
 }

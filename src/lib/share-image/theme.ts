@@ -29,7 +29,8 @@ export const FONT_BODY = '"IBM Plex Sans Thai", "Inter", sans-serif';
 
 export const SITE_LABEL = "RoV LAB";
 export const SITE_URL = "rovlab.vercel.app";
-// โลโก้อยู่ใน public/ (same-origin) จึงวาดลง Canvas แล้ว export ได้โดยไม่ติด CORS
-export const LOGO_URL = "/logo.png";
+// โลโก้เต็ม (แนวกว้าง) อยู่ใน public/v1/ (same-origin) จึงวาดลง Canvas แล้ว export ได้โดยไม่ติด CORS
+// ไฟล์เดิม /logo.png ยังอยู่ใน public/ เพื่อใช้ rollback
+export const LOGO_URL = "/v1/logo-share.png";
 export const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
 export const CREDIT_TH = "ชื่อและไอคอนฮีโร่เป็นลิขสิทธิ์ของเจ้าของเกม · RoV LAB เป็นโปรเจกต์ชุมชนอิสระ";

@@ -18,8 +18,8 @@ export interface TierListImageData {
   generatedDate: string;
 }
 
-const LOGO_SIZE = 58;
-const BRAND_X = PAD + LOGO_SIZE + 16;
+// ความสูงโลโก้เต็ม (ความกว้างคำนวณจากอัตราส่วนจริง)
+const LOGO_H = 64;
 
 export const tierListTemplate: ImageTemplate<TierListImageData> = {
   id: "tier-list",
@@ -29,10 +29,9 @@ export const tierListTemplate: ImageTemplate<TierListImageData> = {
   draw({ ctx, images }, d) {
     drawBackground(ctx, W, H);
 
-    // Header: โลโก้ + ชื่อแบรนด์
-    drawLogo(ctx, images, PAD, 34, LOGO_SIZE);
-    text(ctx, SITE_LABEL, BRAND_X, 62, { font: font(700, 30, "display"), color: COLORS.accent });
-    text(ctx, "TIER LIST", BRAND_X, 90, { font: font(500, 20, "display"), color: COLORS.muted });
+    // Header: โลโก้เต็ม (มีชื่อแบรนด์อยู่ในโลโก้แล้ว) + ชื่อหน้า
+    const logoW = drawLogo(ctx, images, PAD, 28, LOGO_H);
+    text(ctx, "TIER LIST", PAD + logoW + 20, 68, { font: font(500, 24, "display"), color: COLORS.muted });
     const maxTitleW = W - PAD * 2;
     const size = fitFontSize(ctx, d.title, maxTitleW, 700, 64, 30);
     text(ctx, d.title, PAD, 160, { font: font(700, size, "display"), color: COLORS.text, maxWidth: maxTitleW });

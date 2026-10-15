@@ -1,0 +1,16 @@
+{
+  "name": "RoV LAB",
+  "short_name": "RoV LAB",
+  "description": "วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV ด้วยข้อมูลจริง",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0b0e",
+  "theme_color": "#0b1020",
+  "icons": [
+    { "src": "/v1/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/v1/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/v1/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
