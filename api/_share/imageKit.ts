@@ -89,7 +89,8 @@ export async function iconDataUri(url: string | null): Promise<string | null> {
   return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(abs)}&w=128&h=128&fit=cover&output=png`);
 }
 
-export const loadLogo = (): Promise<string | null> => iconDataUri(`${SITE}/logo.png`);
+// Full wordmark logo (640x362 PNG, 175 KB). Old square logo stays at /logo.png for rollback.
+export const loadLogo = (): Promise<string | null> => iconDataUri(`${SITE}/v1/logo-share.png`);
 
 /** Square hero tile: icon when it could be loaded, otherwise the first two letters of the hero name. */
 export function heroTile(o: {
@@ -136,21 +137,29 @@ export const rootStyle = (hasFont: boolean, padding: string): Record<string, unk
   backgroundImage: "radial-gradient(circle at 85% 0%, rgba(232,163,61,0.16), rgba(232,163,61,0) 75%)",
 });
 
-/** Logo + "RoV LAB" + subtitle on the left, optional element on the right. Falls back to a gold square if the logo failed to load. */
+// Wordmark box (aspect 640:362 -> 99x56). Same ratio as public/v1/logo-share.png.
+const LOGO_H = 56;
+const LOGO_W = Math.round((LOGO_H * 640) / 362);
+
+/**
+ * Wordmark logo + subtitle on the left, optional element on the right.
+ * The wordmark already spells "RoV LAB", so no separate brand text next to it.
+ * If the logo failed to load: gold square + "RoV LAB" text + subtitle (previous look), so the brand never disappears.
+ */
 export function brandHeader(logo: string | null, subtitle: string, right?: El | null): El {
-  const mark = logo
-    ? el("img", { width: 52, height: 52, objectFit: "contain" }, undefined, { src: logo, width: 52, height: 52 })
-    : el("div", { display: "flex", width: 52, height: 52, borderRadius: 10, background: GOLD }, " ");
-  return el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
-    el("div", { display: "flex", alignItems: "center", gap: 14 }, [
-      mark,
-      el("div", { display: "flex", flexDirection: "column", lineHeight: 1.1 }, [
-        el("div", { display: "flex", fontSize: 28, color: GOLD }, "RoV LAB"),
-        el("div", { display: "flex", fontSize: 18, color: MUTED, letterSpacing: 2 }, subtitle),
-      ]),
-    ]),
-    right,
-  ]);
+  const left = logo
+    ? el("div", { display: "flex", alignItems: "center", gap: 18 }, [
+        el("img", { width: LOGO_W, height: LOGO_H, objectFit: "contain" }, undefined, { src: logo, width: LOGO_W, height: LOGO_H }),
+        el("div", { display: "flex", fontSize: 20, color: MUTED, letterSpacing: 2 }, subtitle),
+      ])
+    : el("div", { display: "flex", alignItems: "center", gap: 14 }, [
+        el("div", { display: "flex", width: 52, height: 52, borderRadius: 10, background: GOLD }, " "),
+        el("div", { display: "flex", flexDirection: "column", lineHeight: 1.1 }, [
+          el("div", { display: "flex", fontSize: 28, color: GOLD }, "RoV LAB"),
+          el("div", { display: "flex", fontSize: 18, color: MUTED, letterSpacing: 2 }, subtitle),
+        ]),
+      ]);
+  return el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [left, right]);
 }
 
 export const cardTitle = (title: string): El =>
