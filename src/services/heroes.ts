@@ -151,7 +151,7 @@ export function getHeroes(rank: RankBucket = getRank()): Promise<HeroSummary[]> 
 function fallbackDetail(summary: HeroSummary, description: string | null, strengths: string[] | null, weaknesses: string[] | null): Omit<HeroDetail, "abilities" | "counteredBy" | "countersAgainst" | "synergies"> {
   return {
     ...summary,
-    description: description ?? "ยังไม่มีคำอธิบายเชิงลึกสำหรับฮีโร่นี้ในระบบ",
+    description: description ?? "",
     strengths: strengths ?? [],
     weaknesses: weaknesses ?? [],
   };
@@ -171,7 +171,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     return (
       MOCK_HERO_DETAILS[slug] ?? {
         ...summary,
-        description: "ยังไม่มีคำอธิบายเชิงลึกสำหรับฮีโร่นี้ในระบบ",
+        description: "",
         strengths: [],
         weaknesses: [],
         abilities: [],
@@ -202,6 +202,11 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     supabase.from("hero_synergies").select("reason, partner:heroes!hero_synergies_partner_hero_id_fkey(slug, name, icon_url)").eq("hero_id", heroRow.id),
   ]);
 
+  // อย่ากลืน error ของ query ย่อย: ไม่งั้นหน้าจะขึ้น "ยังไม่มีข้อมูล" ทั้งที่จริงโหลดไม่สำเร็จ (และถูกแคชไว้)
+  for (const res of [abilitiesRes, counteredByRes, countersAgainstRes, synergiesRes]) {
+    if (res.error) throw new Error(res.error.message);
+  }
+
   const [summary] = applyCuratedTiers([toSummary(heroRow, statMap)], curated);
   const base = fallbackDetail(summary, heroRow.description, heroRow.strengths, heroRow.weaknesses);
 
@@ -222,6 +227,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
       reason: c.reason,
       laneTip: c.lane_tip ?? "",
     }))
+    .filter((c) => c.heroSlug)
     .sort(byStrength);
 
   const countersAgainst: CounterEntry[] = (countersAgainstRes.data ?? [])
@@ -233,6 +239,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
       reason: c.reason,
       laneTip: c.lane_tip ?? "",
     }))
+    .filter((c) => c.heroSlug)
     .sort(byStrength);
 
   const synergies: SynergyEntry[] = (synergiesRes.data ?? []).map((s: any) => ({
@@ -240,7 +247,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     heroNameTh: s.partner?.name,
     heroIcon: s.partner?.icon_url ?? undefined,
     reason: s.reason,
-  }));
+  })).filter((s) => s.heroSlug);
 
   return { ...base, abilities, counteredBy, countersAgainst, synergies };
 }
