@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const OPTIONS: { value: RankBucket; label: string }[] = [
   { value: "all", label: "ทั้งหมด" },
   { value: "high", label: "Commander+" },
+  { value: "pro", label: "Pro" },
 ];
 
 export function RankToggle({ className }: { className?: string }) {

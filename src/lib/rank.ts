@@ -1,18 +1,20 @@
 import { useSyncExternalStore } from "react";
 
 // Global stats-bucket toggle. Matches hero_stats.rank_tier values.
-// "high" = Commander and above (in-game definition); "all" = every rank.
-export type RankBucket = "all" | "high";
+// "high" = Commander and above (in-game definition); "all" = every rank;
+// "pro" = RoV Pro League (Liquipedia), tier cut automatically from picks+bans.
+export type RankBucket = "all" | "high" | "pro";
 
 export const RANK_LABEL: Record<RankBucket, string> = {
   all: "ทุกแรงก์",
   high: "Commander ขึ้นไป",
+  pro: "RoV Pro League",
 };
 
 const STORAGE_KEY = "rovlab.rank";
 
 function isRank(v: unknown): v is RankBucket {
-  return v === "all" || v === "high";
+  return v === "all" || v === "high" || v === "pro";
 }
 
 // Priority: ?rank=high in the URL (shareable link) > last choice in localStorage > "all".
