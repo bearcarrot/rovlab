@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { BuildCard } from "@/features/build/BuildCard";
 import { toViewBuild } from "@/features/build/toViewBuild";
+import { buildSourceLabel, IN_GAME_TOP_SERVER_NOTE } from "@/features/build/provenance";
 import { useAsync } from "@/hooks/useAsync";
 import { listCommunityBuilds } from "@/services/userBuilds";
 import { Chip } from "./HeroFilters";
@@ -50,8 +51,6 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
   const [tab, setTab] = useState<BuildTab>("recommended");
   const view = useMemo(() => (data && selected ? toViewBuild(selected, data.items, true) : null), [data, selected]);
 
-  const itemBuildHref = `/build?hero=${hero.slug}`;
-  const linkCls = "text-sm text-accent hover:underline";
 
   return (
     <Card>
@@ -94,11 +93,13 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
 
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-muted">
                   <span className="rounded-full border border-accent/40 px-2 py-0.5 text-accent">
-                    {selected.source === "curated" ? "บิลด์ทีมงาน RoV LAB" : "แนวทางทั่วไป (Heuristic)"}
+                    {buildSourceLabel(selected)}
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5">Patch {selected.patch}</span>
                   {selected.createdAt && <span>บันทึกเมื่อ {dateTh(selected.createdAt)}</span>}
                 </div>
+
+                <p className="text-xs text-text-faint">{IN_GAME_TOP_SERVER_NOTE}</p>
 
                 {/* ห้ามเรียกบิลด์ที่เก่ากว่าแพตช์ปัจจุบันว่าเมต้าล่าสุด */}
                 {data.latestPatch && selected.patch !== data.latestPatch && (
@@ -109,10 +110,6 @@ export function HeroBuilds({ hero, state }: { hero: BuildHero; state: HeroBuilds
                 )}
 
                 <ReadOnlyBuild build={view} />
-                <p className="flex flex-wrap gap-x-4 gap-y-1">
-                  <Link to={itemBuildHref} className={linkCls}>ดูรายละเอียดที่หน้า Item Build →</Link>
-                  <Link to={`${itemBuildHref}&tab=community`} className={linkCls}>Community Build →</Link>
-                </p>
               </>
             )}
           </>

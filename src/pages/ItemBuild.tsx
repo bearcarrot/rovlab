@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Hammer, LogIn, Plus, Search } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getBuildForHero, getItems } from "@/services/items";
+import { getBuildForHero, getBuildsForHero, getItems } from "@/services/items";
+import { buildSourceLabel, IN_GAME_TOP_SERVER_NOTE } from "@/features/build/provenance";
 import { listCommunityBuilds, listMyBuilds, type UserBuild } from "@/services/userBuilds";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -52,7 +53,7 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
       {list.length === 0 ? (
         <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับคำค้นหาหรือตัวกรอง</p>
       ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
           {list.map((h) => (
             <button
               key={h.id}
@@ -92,27 +93,38 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
 
 function Recommended({ hero }: { hero: HeroSummary }) {
   const q = useAsync(async () => {
-    const [build, items] = await Promise.all([getBuildForHero(hero), getItems()]);
-    const view = toViewBuild(build, items);
-    return { patch: build.patch, source: build.source, view };
+    const [builds, items] = await Promise.all([getBuildsForHero(hero).catch(() => []), getItems()]);
+    // ไม่มีบิลด์ใน DB = แนวทางทั่วไป (heuristic) ที่ติดป้ายชัดเจน
+    const list = builds.length > 0 ? builds : [await getBuildForHero(hero)];
+    return { list, items };
   }, [hero.id]);
+  const [index, setIndex] = useState(0);
+  useEffect(() => setIndex(0), [hero.id]);
 
   if (q.status === "loading") return <Skeleton className="h-48" />;
   if (q.status === "error") return <ErrorState message={q.message} onRetry={q.refetch} />;
-  const { patch, source, view } = q.data;
+  const { list, items } = q.data;
+  const build = list[Math.min(index, list.length - 1)];
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Hammer className="h-4 w-4 text-accent" />
         <h2 className="font-display text-base font-semibold">บิลด์แนะนำ: {hero.nameTh}</h2>
-        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">Patch {patch}</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">Patch {build.patch}</span>
       </div>
-      {source === "heuristic" && (
-        <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-          * ยังไม่มีบิลด์เฉพาะฮีโร่นี้ นี่คือแนวทางทั่วไปตาม Role (Heuristic) ไม่ใช่บิลด์ที่ทีมงานเขียนเอง
-        </p>
+      {list.length > 1 && (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="เลือกบิลด์">
+          {list.map((b, i) => (
+            <Chip key={b.id ?? i} active={i === index} onClick={() => setIndex(i)} label={`บิลด์ ${i + 1}`} />
+          ))}
+        </div>
       )}
-      <ReadOnlyBuild build={view} />
+      <p className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
+        <span className="rounded-full border border-accent/40 px-2 py-0.5 text-accent">{buildSourceLabel(build)}</span>
+        {build.createdAt && <span>บันทึกเมื่อ {new Date(build.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</span>}
+      </p>
+      <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">* {IN_GAME_TOP_SERVER_NOTE}</p>
+      <ReadOnlyBuild build={toViewBuild(build, items)} />
     </div>
   );
 }
@@ -219,12 +231,6 @@ export function ItemBuild() {
         <p className="mt-1 text-sm text-text-muted">บิลด์แนะนำ ไอเทม รูน สกิลชาเลนเจอร์ พลังแฝง สร้างเอง และแบ่งปันให้คนอื่น</p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
-        {TABS.map(([t, label]) => (
-          <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
-        ))}
-      </div>
-
       {heroesQ.status === "loading" && <Skeleton className="h-48" />}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
       {heroesQ.status === "success" && (
@@ -239,7 +245,12 @@ export function ItemBuild() {
       )}
 
       {heroesQ.status === "success" && (
-        <div ref={resultRef} className="scroll-mt-20 border-t border-border pt-4">
+        <div ref={resultRef} className="scroll-mt-20 space-y-4 border-t border-border pt-4">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="หมวดบิลด์">
+            {TABS.map(([t, label]) => (
+              <Chip key={t} active={tab === t} onClick={() => update("tab", t)} label={label} />
+            ))}
+          </div>
           {tab === "mine" && <Mine hero={selected} />}
           {tab !== "mine" && !selected && <EmptyState icon={Hammer} title="ยังไม่ได้เลือกฮีโร่" description="เลือกฮีโร่ด้านบนเพื่อดูบิลด์" />}
           {tab === "recommended" && selected && <Recommended hero={selected} />}

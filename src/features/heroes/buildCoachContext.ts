@@ -25,6 +25,8 @@ function block(build: HeroBuild, items: ItemSummary[], latestPatch: string | nul
     dataSource: "ฐานข้อมูล RoV LAB (ข้อเท็จจริง ไม่ใช่การประเมินของ AI)",
     buildId: build.id ?? null,
     kind: build.source === "curated" ? "curated" : "heuristic",
+    // บิลด์นี้เป็นของ RoV LAB ไม่ใช่ Top Server — ให้แนะนำผู้ใช้ดูบิลด์ Top 10 Server ในเกมควบคู่
+    note: "บิลด์นี้เป็นของ RoV LAB อาจอัปเดตไม่เท่าในเกม ไม่ใช่ข้อมูล Top Server",
     patch: build.patch,
     latestPatch,
     // null = ไม่ทราบแพตช์ล่าสุด; false = บิลด์เก่ากว่าแพตช์ปัจจุบัน ห้ามเรียกว่าเมต้าล่าสุด
