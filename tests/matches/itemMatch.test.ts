@@ -41,7 +41,16 @@ test("an empty slot (flat colour) is null, not a guess", () => {
 test("only screenshots with the measured proportions are read", () => {
   assert.equal(layoutFits(2778, 1284), true);
   assert.equal(layoutFits(2576, 1191), true);
+  assert.equal(layoutFits(2622, 1206), true); // 0.52% wider than the measured one: still inside the tolerance
   assert.equal(layoutFits(2400, 1080), false); // 20:9 phone
   assert.equal(layoutFits(2048, 1536), false); // tablet
   assert.equal(layoutFits(100, 0), false);
+});
+
+test("a proportion that is only a little off is refused instead of shifting every icon window", () => {
+  assert.equal(layoutFits(2589, 1191), true); // +0.5%
+  assert.equal(layoutFits(2563, 1191), true); // -0.5%
+  assert.equal(layoutFits(2597, 1191), false); // +0.8%: icon windows could be ~20 px off
+  assert.equal(layoutFits(2555, 1191), false); // -0.8%
+  assert.equal(layoutFits(2316, 1080), false); // 19.3:9 Android, -0.9%
 });
