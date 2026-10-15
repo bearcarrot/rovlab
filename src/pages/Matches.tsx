@@ -70,6 +70,8 @@ export function Matches() {
   const [showExisting, setShowExisting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MatchRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Opt-in to the anonymous community item statistics, asked per match and never pre-ticked.
+  const [shareItems, setShareItems] = useState(false);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : NO_HEROES;
   const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
@@ -134,6 +136,7 @@ export function Matches() {
         setPhase({ kind: "idle" });
         return;
       }
+      setShareItems(false);
       setPhase({ kind: "review", items, index: 0, remaining: res.remaining });
     } catch (err) {
       prepared.forEach(() => void trackActivity("match_analysis_attempted", { ok: false }));
@@ -146,6 +149,7 @@ export function Matches() {
   function advance() {
     setDup(null);
     setShowExisting(false);
+    setShareItems(false); // consent is asked again for every match
     setPhase((p) => (p.kind === "review" && p.index + 1 < p.items.length ? { ...p, index: p.index + 1 } : { kind: "idle" }));
   }
 
@@ -170,7 +174,12 @@ export function Matches() {
         return;
       }
       // my_items is sent only when there is something to store (needs migration 20261013_match_my_items.sql).
-      const payload = mySlots && mySlots.some(Boolean) ? { ...row, my_items: mySlots } : row;
+      // share_items is sent only when the user ticked the box AND all 6 slots are filled (needs 20261016b_match_item_obs.sql);
+      // the database only builds a community observation from a complete, catalogue-valid build.
+      const payload =
+        mySlots && mySlots.some(Boolean)
+          ? { ...row, my_items: mySlots, ...(shareItems && mySlots.every(Boolean) ? { share_items: true } : {}) }
+          : row;
       try {
         await saveMatch(payload);
       } catch (err) {
@@ -241,17 +250,35 @@ export function Matches() {
           {phase.kind === "review" && current ? (
             <>
               {mySlots && (
-                <MyItemsEditor
-                  items={itemList}
-                  value={mySlots}
-                  guesses={current.rows?.[meRow] ?? null}
-                  onChange={(next) =>
-                    setPhase({
-                      ...phase,
-                      items: phase.items.map((it, i) => (i === phase.index ? { ...it, edits: { ...it.edits, [meRow]: next } } : it)),
-                    })
-                  }
-                />
+                <>
+                  <MyItemsEditor
+                    items={itemList}
+                    value={mySlots}
+                    guesses={current.rows?.[meRow] ?? null}
+                    onChange={(next) =>
+                      setPhase({
+                        ...phase,
+                        items: phase.items.map((it, i) => (i === phase.index ? { ...it, edits: { ...it.edits, [meRow]: next } } : it)),
+                      })
+                    }
+                  />
+                  {mySlots.every(Boolean) && (
+                    <label className="flex items-start gap-2 text-xs text-text-muted">
+                      <input
+                        type="checkbox"
+                        checked={shareItems}
+                        onChange={(e) => setShareItems(e.target.checked)}
+                        disabled={saving}
+                        className="mt-0.5 h-4 w-4 accent-[#E8A33D]"
+                      />
+                      <span>
+                        แชร์ไอเทม 6 ช่องของแมตช์นี้เข้าสถิติรวมของชุมชน (ไม่ระบุตัวตน ไม่มีชื่อ และเห็นเฉพาะตัวเลขรวมเมื่อมีผู้ร่วมแชร์หลายคน)
+                        เลือกหรือไม่เลือกก็ไม่กระทบการบันทึกแมตช์ ดู{" "}
+                        <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>
+                      </span>
+                    </label>
+                  )}
+                </>
               )}
               <ScanReview
                 draft={current.draft}
