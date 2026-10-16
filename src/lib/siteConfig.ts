@@ -30,6 +30,21 @@ export const LEGAL_LINKS: FooterLink[] = [
   { to: "/contact", label: "Contact" },
 ];
 
+export type SocialId = "facebook" | "instagram" | "tiktok";
+
+export interface SocialLink {
+  id: SocialId; // matches the brand glyph ids in features/profile/ContactAppIcon
+  label: string;
+  href: string;
+}
+
+// Official RoV LAB channels. The only place these URLs live — Footer and Data Sources both read this list.
+export const SOCIAL_LINKS: SocialLink[] = [
+  { id: "facebook", label: "Facebook", href: "https://fb.com/rovlab" },
+  { id: "instagram", label: "Instagram", href: "https://www.instagram.com/rovlab.app/" },
+  { id: "tiktok", label: "TikTok", href: "https://www.tiktok.com/@rovlab.app" },
+];
+
 export function copyrightYears(now: Date = new Date()): string {
   const y = now.getFullYear();
   return y > SITE.startYear ? `${SITE.startYear}–${y}` : String(SITE.startYear);

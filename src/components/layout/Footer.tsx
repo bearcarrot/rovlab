@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { SITE, LEGAL_LINKS, copyrightYears } from "@/lib/siteConfig";
+import { SocialLinks } from "@/components/layout/SocialLinks";
 
 const linkCls =
   "rounded text-sm text-text-muted underline-offset-4 transition-colors hover:text-text hover:underline " +
@@ -28,6 +29,12 @@ export function Footer() {
               เว็บไซต์ชุมชนและเครื่องมือช่วยวิเคราะห์ข้อมูลสำหรับเกม RoV (Arena of Valor)
               ใช้ประกอบการตัดสินใจเท่านั้น ข้อมูลอาจเปลี่ยนแปลงตามการอัปเดตของเกม
             </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+              <h3 id="footer-follow" className="text-sm font-medium text-text">
+                Follow {SITE.name}
+              </h3>
+              <SocialLinks />
+            </div>
           </section>
 
           <nav aria-label="Legal" className="lg:col-span-5">

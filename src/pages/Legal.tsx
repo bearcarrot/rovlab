@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SITE, LEGAL_UPDATED } from "@/lib/siteConfig";
+import { SocialLinks } from "@/components/layout/SocialLinks";
 
 function LegalLayout({
   title,
@@ -354,35 +355,192 @@ export function Disclaimer() {
   );
 }
 
+type SourceKind = "game" | "external" | "community" | "analysis";
+
+const KIND_LABEL: Record<SourceKind, string> = {
+  game: "ข้อมูลจากเกม",
+  external: "แหล่งอ้างอิงภายนอก",
+  community: "ชุมชน",
+  analysis: `${SITE.name} คัดเลือก/วิเคราะห์`,
+};
+
+interface SourceEntry {
+  kind: SourceKind;
+  title: string;
+  provides: string;
+  usedIn: string;
+  links?: { href: string; label: string }[];
+}
+
+// Every entry below was checked against the code (services, Edge Functions, admin import pages) and the
+// Supabase schema. Add a link only after opening it; never describe an automated feed that is not in the code.
+const SOURCES: SourceEntry[] = [
+  {
+    kind: "game",
+    title: "แพตช์และการปรับบาลานซ์ฮีโร่",
+    provides:
+      "รหัสและวันที่ของแพตช์ที่ทีมงานบันทึกเอง และรายการบัฟ/เนิร์ฟ/รีเวิร์กของฮีโร่ ซึ่งทีมงานนำเข้าจากไฟล์ผลลัพธ์ข้อมูลเกม (getlatestadjustlist) ที่บันทึกไว้ แล้วตรวจก่อนบันทึก ไม่มีการดึงโน้ตแพตช์จากเว็บไซต์ทางการอัตโนมัติ",
+    usedIn: "ป้าย/ส่วนบัฟ-เนิร์ฟในหน้ารายละเอียดฮีโร่ รายการฮีโร่ Tier List Counter Pick และ Matchup และแพตช์ที่ใช้อ้างอิงสถิติ",
+  },
+  {
+    kind: "analysis",
+    title: "ฮีโร่และสกิล",
+    provides:
+      "ข้อมูลฮีโร่ บทบาท เลน และสกิล ที่ทีมงานบันทึกและดูแลในฐานข้อมูลของ RoV LAB (แท็กเอฟเฟกต์ของสกิลเป็นการจัดหมวดโดยทีมงาน) ไม่ได้ดึงจากเว็บไซต์ทางการแบบอัตโนมัติ",
+    usedIn: "/heroes, หน้ารายละเอียดฮีโร่, Draft, Coach Ai",
+  },
+  {
+    kind: "game",
+    title: "สถิติฮีโร่ (Win / Pick / Ban Rate) และ Tier",
+    provides:
+      "ตัวเลขสถิติรายแพตช์ของกลุ่มแรงก์ “ทั้งหมด” และ “Commander+” ทีมงานนำเข้าจากไฟล์ผลลัพธ์ข้อมูลเกม (getranklist) ที่บันทึกไว้ ผ่านหน้าแอดมิน ไม่ใช่การดึงอัตโนมัติ Tier ใช้ค่าจากไฟล์ หรือจัดโดยทีมงานเมื่อมีการกำหนดเอง เว็บแสดงเฉพาะแพตช์ล่าสุดที่มีข้อมูล",
+    usedIn: "/stats, /tier-list, หน้ารายละเอียดฮีโร่, หน้าแรก",
+  },
+  {
+    kind: "external",
+    title: "สถิติ RoV Pro League (รวมข้อมูลรายซีซัน)",
+    provides:
+      "สถิติแข่งขันอาชีพของฮีโร่ (จำนวนครั้งที่ถูกเลือก/แบน และอัตราชนะ) แอดมินเป็นผู้กดดึงจากหน้า Statistics ของ RoV Pro League บน Liquipedia ทีละหน้า (ปี/ซีซัน) แล้วตรวจก่อนบันทึก ตัวเลขถูกบันทึกในกลุ่ม “Pro League” ภายใต้แพตช์ที่เลือก ระบบไม่ได้เก็บข้อมูลแยกตามซีซัน จึงยังไม่มีสถิติย้อนหลังรายซีซันให้ดู และ Tier ของกลุ่มนี้คำนวณอัตโนมัติจากจำนวนเลือก+แบน ข้อมูลจาก Liquipedia เผยแพร่ภายใต้สัญญาอนุญาต CC BY-SA 3.0",
+    usedIn: "ตัวเลือกกลุ่มแรงก์ Pro League ในหน้าแรก /stats /tier-list และหน้ารายละเอียดฮีโร่",
+    links: [
+      { href: "https://liquipedia.net/honorofkings/", label: "Liquipedia" },
+      { href: "https://creativecommons.org/licenses/by-sa/3.0/", label: "CC BY-SA 3.0" },
+    ],
+  },
+  {
+    kind: "analysis",
+    title: "ไอเทม รูน เอนแชนต์เมนต์ และสกิลชาเลนเจอร์",
+    provides:
+      "รายการ ราคา สเตตัส และคำอธิบายที่ทีมงานบันทึกในฐานข้อมูล แต่ละรายการมีสถานะ “ตรวจสอบแล้ว” ที่แอดมินเป็นผู้กำหนด ไอคอนจัดเก็บบนพื้นที่เก็บไฟล์ของ RoV LAB ไอคอนและชื่อเป็นทรัพย์สินของเจ้าของสิทธิ์เกม",
+    usedIn: "/game-data, /build, บิลด์ของผู้ใช้",
+  },
+  {
+    kind: "analysis",
+    title: "บิลด์ไอเทมและรูน",
+    provides:
+      "บิลด์ของแต่ละฮีโร่ที่ทีมงานเรียบเรียงเองและระบุแพตช์ไว้ หากฮีโร่ยังไม่มีบิลด์ ระบบจะแสดงบิลด์สำรองที่คำนวณตามบทบาทและติดป้าย “heuristic” ข้อมูลบิลด์ Top Server ในเกมไม่ได้ถูกเก็บหรือดึงมา แนะนำให้ดูบิลด์ Top 10 Server ในเกมเป็นหลักเพราะอัปเดตเรียลไทม์",
+    usedIn: "/build, หน้ารายละเอียดฮีโร่, Coach Ai",
+  },
+  {
+    kind: "analysis",
+    title: "Counter, Synergy และ Matchup",
+    provides:
+      "Counter ส่วนใหญ่ได้จากรายชื่อฮีโร่ที่ชนะทางสูงสุด 3 อันดับในไฟล์สถิติเกม ที่ทีมงานนำเข้า และมีหมายเหตุที่ทีมงานเขียนเพิ่ม Synergy เป็นข้อมูลที่ทีมงานบันทึกเอง ยังมีจำนวนไม่มาก Matchup ที่ทีมงานเขียนแผนเล่นไว้มีเพียงบางคู่ คู่อื่นระบบคำนวณแบบ heuristic จาก Win Rate และ Counter และติดป้ายกำกับในหน้านั้น",
+    usedIn: "/counter-pick, /matchup, /draft, หน้ารายละเอียดฮีโร่",
+  },
+  {
+    kind: "community",
+    title: "Tier List และดราฟต์ของชุมชน",
+    provides:
+      "Tier List และดราฟต์ที่ผู้ใช้สร้างและเลือกเผยแพร่เอง รวมถึงรีแอคชันและความคิดเห็น เป็นความเห็นของผู้ใช้แต่ละคน ไม่ใช่ข้อมูลที่ RoV LAB ตรวจสอบหรือรับรอง",
+    usedIn: "/tier-list (ส่วนของชุมชน), /draft, ความคิดเห็นในหน้าฮีโร่",
+  },
+  {
+    kind: "community",
+    title: "การวิเคราะห์เกมและสถิติการใช้ไอเทมจากสกรีนชอต",
+    provides:
+      "ผู้ใช้อัปโหลดสกรีนชอตหน้าสรุปผลการเล่น ระบบอ่านตัวเลขด้วย Gemini API ผู้ใช้ตรวจแก้ก่อนบันทึก และสถิติส่วนตัวคำนวณด้วยโค้ดจากตัวเลขที่บันทึก ไม่เก็บรูปต้นฉบับ สถิติการใช้ไอเทมของฮีโร่ในภาพรวมคำนวณจากไอเทม 6 ช่องที่ผู้ใช้ติ๊กเลือกแชร์เป็นรายแมตช์เท่านั้น แบบไม่ระบุตัวตน และไม่แสดงผลหากมีผู้ร่วมแชร์ไม่ถึง 5 คน ตัวอย่างมาจากผู้ใช้ RoV LAB จึงอาจไม่แทนผู้เล่นทั้งหมด",
+    usedIn: "/matches และสถิติการใช้ไอเทมในหน้า /build",
+  },
+  {
+    kind: "analysis",
+    title: "คู่มือ",
+    provides: "บทความที่ทีมงานเขียนและดูแลในฐานข้อมูลของ RoV LAB",
+    usedIn: "/learn",
+  },
+  {
+    kind: "external",
+    title: "วิดีโอแนะนำฮีโร่",
+    provides:
+      "รายการวิดีโอล่าสุดของฮีโร่จาก YouTube Data API ผ่านฟังก์ชันฝั่งเซิร์ฟเวอร์ และเก็บแคชไว้ชั่วคราว (ค่าเริ่มต้น 24 ชั่วโมง) เป็นลิงก์ไปยังวิดีโอของเจ้าของช่อง ไม่ได้เก็บไฟล์วิดีโอไว้ที่ RoV LAB",
+    usedIn: "หน้ารายละเอียดฮีโร่",
+  },
+  {
+    kind: "analysis",
+    title: "Coach Ai",
+    provides:
+      "คำตอบสร้างโดยโมเดล AI (Gemini API) จากข้อมูลบนหน้าและคำถามของผู้ใช้ อาจคลาดเคลื่อน ไม่ใช่แหล่งข้อมูลต้นทาง",
+    usedIn: "ปุ่มถาม Coach Ai (สำหรับผู้ที่เข้าสู่ระบบ)",
+  },
+];
+
+const KIND_ORDER: SourceKind[] = ["game", "external", "community", "analysis"];
+
+function SourceList() {
+  return (
+    <div className="space-y-4">
+      {KIND_ORDER.map((kind) => {
+        const items = SOURCES.filter((s) => s.kind === kind);
+        if (items.length === 0) return null;
+        return (
+          <section key={kind} aria-labelledby={`src-${kind}`} className="space-y-3">
+            <h2 id={`src-${kind}`} className="font-display text-base font-semibold">
+              {KIND_LABEL[kind]}
+            </h2>
+            <ul className="space-y-3">
+              {items.map((s) => (
+                <li key={s.title} className="space-y-1.5 rounded-card border border-border bg-bg-surface p-4 shadow-card">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold">{s.title}</h3>
+                    <span className="rounded-full border border-border bg-bg-raised px-2 py-0.5 text-xs text-text-muted">
+                      {KIND_LABEL[s.kind]}
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-text-muted">{s.provides}</p>
+                  <p className="text-xs text-text-faint">ใช้ที่: {s.usedIn}</p>
+                  {s.links && (
+                    <p className="text-xs text-text-muted">
+                      ลิงก์:{" "}
+                      {s.links.map((l, i) => (
+                        <span key={l.href}>
+                          {i > 0 && " · "}
+                          <a className={inlineLink} href={l.href} target="_blank" rel="noopener noreferrer">
+                            {l.label}
+                          </a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DataSources() {
   return (
     <LegalLayout
       title="Data Sources"
-      intro="เราใช้แหล่งข้อมูลสาธารณะหลายแหล่งเพื่อรวบรวมและตรวจสอบข้อมูล โดยข้อมูลอาจมีการเปลี่ยนแปลงตามการอัปเดตของเกม"
+      intro={`ที่มาของข้อมูลใน ${SITE.name} แยกตามประเภท: ข้อมูลจากเกม แหล่งอ้างอิงภายนอก ข้อมูลจากชุมชน และข้อมูลที่ ${SITE.name} คัดเลือกหรือวิเคราะห์เอง ข้อมูลอาจเปลี่ยนแปลงตามการอัปเดตของเกม`}
+      updated
     >
-      <Section title="ประเภทแหล่งข้อมูล">
-        <p>ข้อมูลในเว็บไซต์อาจมาจากหลายแหล่ง เช่น</p>
+      <Section title="อ่านก่อน">
         <Bullets
           items={[
-            "ข้อมูลเกมและข้อมูลสาธารณะที่เผยแพร่โดยผู้ให้บริการเกม",
-            "เว็บไซต์/ฐานข้อมูล RoV ที่เผยแพร่ข้อมูลต่อสาธารณะ",
-            `ข้อมูลที่รวบรวมและจัดโครงสร้างโดยทีมพัฒนา ${SITE.name}`,
-            "ข้อมูลจากชุมชนหรือผู้เล่น",
-            `ข้อมูลที่คำนวณหรือประมวลผลโดยระบบของ ${SITE.name}`,
+            `${SITE.name} เป็นโปรเจกต์อิสระ ไม่ได้เชื่อมต่อกับระบบหรือเว็บไซต์ทางการของ Garena และยังไม่มีการดึงข้อมูลจากเว็บไซต์ทางการแบบอัตโนมัติ ข้อมูลจากเกมถูกนำเข้าโดยทีมงานด้วยตนเอง`,
+            "ข้อมูลไม่ได้ถูกรีเฟรชตามรอบเวลาที่กำหนด จึงอาจไม่ตรงกับแพตช์ล่าสุดในเกมเสมอไป",
+            "Tier, Counter, Synergy, Matchup และบิลด์เป็นข้อมูลเชิงวิเคราะห์ ไม่ใช่ข้อมูลต้นฉบับจากผู้ให้บริการเกม",
+            "ชื่อ โลโก้ ตัวละคร ภาพ ไอคอน และทรัพย์สินทางปัญญาที่เกี่ยวข้องกับเกมเป็นของ Garena หรือเจ้าของสิทธิ์ที่เกี่ยวข้อง",
           ]}
         />
       </Section>
-      <Section title="ข้อมูลต้นฉบับ vs ข้อมูลที่วิเคราะห์เอง">
-        <p>
-          Build และ Matchup แต่ละรายการระบุที่มาในระบบเป็น “curated” (เรียบเรียงโดยทีมงาน) หรือ
-          “heuristic” (ประมวลผลโดยระบบ) ส่วน Tier, Counter และ Synergy เป็นข้อมูลเชิงวิเคราะห์
-          ไม่ใช่ข้อมูลต้นฉบับจากผู้ให้บริการเกม บิลด์ของ RoV LAB อาจอัปเดตไม่เท่าในเกม แนะนำให้ดูบิลด์ Top 10 Server ในเกมเป็นหลัก
-        </p>
-      </Section>
+
+      <SourceList />
+
       <Section title="ลิงก์อ้างอิงต้นทาง">
         <p>
-          ขณะนี้ยังไม่ได้แสดงลิงก์ต้นทางรายรายการ จะเพิ่มเมื่อระบบมีข้อมูลแหล่งที่มาสำหรับรายการนั้น ๆ
+          ลิงก์ด้านบนแสดงเฉพาะแหล่งที่ตรวจสอบแล้ว ส่วนข้อมูลรายรายการยังไม่มีลิงก์ต้นทางแยกรายการ
+          จะเพิ่มเมื่อระบบมีข้อมูลแหล่งที่มาสำหรับรายการนั้น ๆ
         </p>
+      </Section>
+
+      <Section title={`ติดตาม ${SITE.name}`}>
+        <p>ข่าวสารและการอัปเดตอยู่ที่ช่องทางทางการของเรา</p>
+        <SocialLinks variant="labeled" />
       </Section>
     </LegalLayout>
   );
