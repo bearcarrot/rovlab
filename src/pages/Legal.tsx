@@ -368,6 +368,7 @@ interface SourceEntry {
   title: string;
   provides: string;
   usedIn: string;
+  links?: { href: string; label: string }[]; // only pages that were opened and confirmed
   basedOn?: string; // public-facing reference only; never name non-public files or sites
 }
 
@@ -378,6 +379,7 @@ const SOURCES: SourceEntry[] = [
     kind: "analysis",
     title: "แพตช์และการปรับบาลานซ์ฮีโร่",
     basedOn: "การปรับบาลานซ์ฮีโร่ของแต่ละแพตช์ในเกม RoV",
+    links: [{ href: "https://rov.in.th/", label: "RoV Thailand (rov.in.th)" }],
     provides: "รหัสและวันที่ของแพตช์ รวมถึงรายการบัฟ/เนิร์ฟ/รีเวิร์กของฮีโร่ในแต่ละแพตช์ จัดทำและตรวจสอบโดยทีมงาน",
     usedIn: "ป้าย/ส่วนบัฟ-เนิร์ฟในหน้ารายละเอียดฮีโร่ รายการฮีโร่ Tier List Counter Pick และ Matchup และแพตช์ที่ใช้อ้างอิงสถิติ",
   },
@@ -385,6 +387,7 @@ const SOURCES: SourceEntry[] = [
     kind: "analysis",
     title: "ฮีโร่และสกิล",
     basedOn: "ข้อมูลฮีโร่และสกิลในเกม RoV",
+    links: [{ href: "https://rov.in.th/", label: "RoV Thailand (rov.in.th)" }],
     provides:
       "ข้อมูลฮีโร่ บทบาท เลน และสกิล ที่ทีมงานบันทึกและดูแลในฐานข้อมูลของ RoV LAB (แท็กเอฟเฟกต์ของสกิลเป็นการจัดหมวดโดยทีมงาน)",
     usedIn: "/heroes, หน้ารายละเอียดฮีโร่, Draft, Coach Ai",
@@ -401,6 +404,10 @@ const SOURCES: SourceEntry[] = [
     kind: "analysis",
     title: "สถิติระดับ Pro League",
     basedOn: "สถิติ RoV Pro League จาก Liquipedia (CC BY-SA 3.0)",
+    links: [
+      { href: "https://liquipedia.net/honorofkings/", label: "Liquipedia" },
+      { href: "https://creativecommons.org/licenses/by-sa/3.0/", label: "CC BY-SA 3.0" },
+    ],
     provides:
       "สถิติฮีโร่ในระดับการแข่งขันอาชีพ (จำนวนครั้งที่ถูกเลือก/แบน และอัตราชนะ) จัดทำโดยทีมงานและบันทึกในกลุ่ม “Pro League” ภายใต้แพตช์ที่เลือก ระบบไม่ได้เก็บข้อมูลแยกตามซีซัน จึงยังไม่มีสถิติย้อนหลังรายซีซันให้ดู Tier ของกลุ่มนี้คำนวณอัตโนมัติจากจำนวนเลือก+แบน",
     usedIn: "ตัวเลือกกลุ่มแรงก์ Pro League ในหน้าแรก /stats /tier-list และหน้ารายละเอียดฮีโร่",
@@ -488,6 +495,19 @@ function SourceList() {
                   </div>
                   <p className="text-sm leading-relaxed text-text-muted">{s.provides}</p>
                   {s.basedOn && <p className="text-xs text-text-muted">อ้างอิงจาก: {s.basedOn}</p>}
+                  {s.links && (
+                    <p className="text-xs text-text-muted">
+                      ลิงก์ต้นทาง:{" "}
+                      {s.links.map((l, i) => (
+                        <span key={l.href}>
+                          {i > 0 && " · "}
+                          <a className={inlineLink} href={l.href} target="_blank" rel="noopener noreferrer">
+                            {l.label}
+                          </a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
                   <p className="text-xs text-text-faint">ใช้ที่: {s.usedIn}</p>
                 </li>
               ))}
