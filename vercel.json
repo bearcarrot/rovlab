@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/draft/:shareId", "destination": "/api/share-meta?kind=draft&id=:shareId" },
     { "source": "/tier-list/:shareId", "destination": "/api/share-meta?kind=tier-list&id=:shareId" },
+    { "source": "/heroes/:slug", "destination": "/api/hero-meta?slug=:slug" },
     { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
   ],
   "headers": [
