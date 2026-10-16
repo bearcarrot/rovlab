@@ -539,12 +539,6 @@ export function DataSources() {
 
       <SourceList />
 
-      <Section title="ลิงก์อ้างอิงต้นทาง">
-        <p>
-          ขณะนี้ยังไม่ได้แสดงลิงก์ต้นทางรายรายการ จะเพิ่มเมื่อระบบมีข้อมูลแหล่งที่มาสำหรับรายการนั้น ๆ
-        </p>
-      </Section>
-
       <Section title={`ติดตาม ${SITE.name}`}>
         <p>ข่าวสารและการอัปเดตอยู่ที่ช่องทางทางการของเรา</p>
         <SocialLinks variant="labeled" />

@@ -19,13 +19,13 @@ export function SocialLinks({ variant = "icons", className }: { variant?: "icons
             aria-label={`${SITE.name} บน ${label} (เปิดในแท็บใหม่)`}
             title={label}
             className={cn(
-              "group flex items-center gap-2 rounded-xl text-sm text-text-muted transition-colors hover:text-text",
+              "group flex items-center gap-2 rounded-xl p-1 text-sm text-text-muted transition-colors hover:text-text",
               focusCls
             )}
           >
             <ContactAppIcon
               app={id}
-              className="h-9 w-9 opacity-90 transition group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
+              className="h-7 w-7 opacity-90 transition group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
             />
             {variant === "labeled" && <span>{label}</span>}
           </a>
