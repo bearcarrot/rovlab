@@ -368,6 +368,7 @@ interface SourceEntry {
   title: string;
   provides: string;
   usedIn: string;
+  basedOn?: string; // public-facing reference only; never name non-public files or sites
 }
 
 // Every entry below was checked against the code (services, Edge Functions, admin import pages) and the
@@ -376,12 +377,14 @@ const SOURCES: SourceEntry[] = [
   {
     kind: "analysis",
     title: "แพตช์และการปรับบาลานซ์ฮีโร่",
+    basedOn: "การปรับบาลานซ์ฮีโร่ของแต่ละแพตช์ในเกม RoV",
     provides: "รหัสและวันที่ของแพตช์ รวมถึงรายการบัฟ/เนิร์ฟ/รีเวิร์กของฮีโร่ในแต่ละแพตช์ จัดทำและตรวจสอบโดยทีมงาน",
     usedIn: "ป้าย/ส่วนบัฟ-เนิร์ฟในหน้ารายละเอียดฮีโร่ รายการฮีโร่ Tier List Counter Pick และ Matchup และแพตช์ที่ใช้อ้างอิงสถิติ",
   },
   {
     kind: "analysis",
     title: "ฮีโร่และสกิล",
+    basedOn: "ข้อมูลฮีโร่และสกิลในเกม RoV",
     provides:
       "ข้อมูลฮีโร่ บทบาท เลน และสกิล ที่ทีมงานบันทึกและดูแลในฐานข้อมูลของ RoV LAB (แท็กเอฟเฟกต์ของสกิลเป็นการจัดหมวดโดยทีมงาน)",
     usedIn: "/heroes, หน้ารายละเอียดฮีโร่, Draft, Coach Ai",
@@ -389,6 +392,7 @@ const SOURCES: SourceEntry[] = [
   {
     kind: "analysis",
     title: "สถิติฮีโร่ (Win / Pick / Ban Rate) และ Tier",
+    basedOn: "สถิติฮีโร่ในเกม RoV",
     provides:
       "ตัวเลขสถิติรายแพตช์ของกลุ่มแรงก์ “ทั้งหมด” และ “Commander+” พร้อม Tier จัดทำโดยทีมงาน เว็บแสดงเฉพาะแพตช์ล่าสุดที่มีข้อมูล",
     usedIn: "/stats, /tier-list, หน้ารายละเอียดฮีโร่, หน้าแรก",
@@ -396,6 +400,7 @@ const SOURCES: SourceEntry[] = [
   {
     kind: "analysis",
     title: "สถิติระดับ Pro League",
+    basedOn: "ผลการแข่งขัน RoV Pro League",
     provides:
       "สถิติฮีโร่ในระดับการแข่งขันอาชีพ (จำนวนครั้งที่ถูกเลือก/แบน และอัตราชนะ) จัดทำโดยทีมงานและบันทึกในกลุ่ม “Pro League” ภายใต้แพตช์ที่เลือก ระบบไม่ได้เก็บข้อมูลแยกตามซีซัน จึงยังไม่มีสถิติย้อนหลังรายซีซันให้ดู Tier ของกลุ่มนี้คำนวณอัตโนมัติจากจำนวนเลือก+แบน",
     usedIn: "ตัวเลือกกลุ่มแรงก์ Pro League ในหน้าแรก /stats /tier-list และหน้ารายละเอียดฮีโร่",
@@ -403,6 +408,7 @@ const SOURCES: SourceEntry[] = [
   {
     kind: "analysis",
     title: "ไอเทม รูน เอนแชนต์เมนต์ และสกิลชาเลนเจอร์",
+    basedOn: "ข้อมูลไอเทม รูน เอนแชนต์เมนต์ และสกิลชาเลนเจอร์ในเกม RoV",
     provides:
       "รายการ ราคา สเตตัส และคำอธิบายที่ทีมงานบันทึกในฐานข้อมูล แต่ละรายการมีสถานะ “ตรวจสอบแล้ว” ที่แอดมินเป็นผู้กำหนด ไอคอนจัดเก็บบนพื้นที่เก็บไฟล์ของ RoV LAB ไอคอนและชื่อเป็นทรัพย์สินของเจ้าของสิทธิ์เกม",
     usedIn: "/game-data, /build, บิลด์ของผู้ใช้",
@@ -417,6 +423,7 @@ const SOURCES: SourceEntry[] = [
   {
     kind: "analysis",
     title: "Counter, Synergy และ Matchup",
+    basedOn: "สถิติฮีโร่ในเกม RoV (เฉพาะ Counter)",
     provides:
       "Counter จัดทำโดยทีมงาน พร้อมหมายเหตุที่ทีมงานเขียนเพิ่ม Synergy เป็นข้อมูลที่ทีมงานบันทึกเอง ยังมีจำนวนไม่มาก Matchup ที่ทีมงานเขียนแผนเล่นไว้มีเพียงบางคู่ คู่อื่นระบบคำนวณแบบ heuristic จาก Win Rate และ Counter และติดป้ายกำกับในหน้านั้น",
     usedIn: "/counter-pick, /matchup, /draft, หน้ารายละเอียดฮีโร่",
@@ -480,6 +487,7 @@ function SourceList() {
                     </span>
                   </div>
                   <p className="text-sm leading-relaxed text-text-muted">{s.provides}</p>
+                  {s.basedOn && <p className="text-xs text-text-muted">อ้างอิงจาก: {s.basedOn}</p>}
                   <p className="text-xs text-text-faint">ใช้ที่: {s.usedIn}</p>
                 </li>
               ))}
