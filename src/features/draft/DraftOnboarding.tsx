@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BarChart3, GripVertical, Link2, Share2, Swords, Users } from "lucide-react";
-import { Modal } from "@/features/community/Modal";
+import { GripVertical } from "lucide-react";
 
 // แฟลกเดียวใน localStorage (ไม่เก็บ Draft/ข้อมูลผู้ใช้) — เก็บไม่ได้ = ไม่เปิดอัตโนมัติ ผู้ใช้ยังกด "วิธีใช้งาน" เองได้
-const KEY = "rovlab:draft:onboarding:v1";
+const KEY = "rovlab:draft:onboarding:v2";
 
 function hasSeen(): boolean {
   try {
@@ -30,7 +29,7 @@ export function useDraftOnboarding(ready: boolean) {
     checked.current = true;
     if (!hasSeen()) setOpen(true);
   }, [ready]);
-  // ปิดด้วยวิธีไหนก็ตาม (ข้าม/เสร็จสิ้น/Esc/กดพื้นหลัง) = ไม่เปิดเองอีก
+  // ปิดด้วยวิธีไหนก็ตาม (ข้าม/เสร็จสิ้น/Esc) = ไม่เปิดเองอีก
   const close = useCallback(() => {
     markSeen();
     setOpen(false);
@@ -39,10 +38,10 @@ export function useDraftOnboarding(ready: boolean) {
   return { open, close, show };
 }
 
-// ตัวอย่างสลับช่อง: กล่องเปล่าไม่มีข้อมูลฮีโร่จริง ไม่แตะ Draft ของผู้ใช้; ปิดแอนิเมชันเมื่อผู้ใช้ตั้ง reduced motion
+// ตัวอย่างสลับช่อง (ใช้เมื่อยังไม่มีฮีโร่ในช่องให้ชี้): กล่องเปล่า ไม่แตะ Draft ของผู้ใช้; หยุดแอนิเมชันเมื่อเปิด reduced motion
 function SwapDemo() {
   return (
-    <div aria-hidden className="flex justify-center py-2">
+    <div aria-hidden className="flex justify-center py-1">
       <style>{`
         @keyframes rov-swap-a{0%,20%{transform:translateX(0)}45%,70%{transform:translateX(3.5rem)}95%,100%{transform:translateX(0)}}
         @keyframes rov-swap-b{0%,20%{transform:translateX(0)}45%,70%{transform:translateX(-3.5rem)}95%,100%{transform:translateX(0)}}
@@ -68,120 +67,238 @@ function SwapDemo() {
   );
 }
 
-function Row({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <li className="flex gap-2">
-      <span className="mt-0.5 shrink-0 text-accent">{icon}</span>
-      <span>{children}</span>
-    </li>
-  );
-}
-
 interface Step {
+  /** ค่า data-tour ของ element จริงบนหน้าที่จะไฮไลต์ (ไม่มี = การ์ดกลางจอ) */
+  target?: string;
+  /** ใช้เมื่อหา target ไม่เจอ (เช่น ยังไม่มีฮีโร่ในช่องจึงยังไม่มีที่จับ) */
+  fallback?: string;
   title: string;
-  body: ReactNode;
+  body: (found: boolean) => ReactNode;
 }
 
-// เนื้อหาทุกข้อมาจาก UI ที่มีอยู่จริงของหน้านี้ (ดู DraftAssistant / TeamSlots / RecommendedPickCard / DraftShareBar)
+// ทุกขั้นชี้ element จริงของหน้า Draft Assistant (data-tour ใน DraftAssistant / TeamSlots)
 const STEPS: Step[] = [
   {
     title: "Draft Assistant คืออะไร?",
-    body: (
+    body: () => (
       <p>
         ช่วยวางดราฟต์ ดูว่าทีมของคุณขาดอะไร เทียบเคาน์เตอร์/คอมโบกับทีมศัตรู และแนะนำฮีโร่ตัวถัดไป
-        ผลที่ได้เป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ ใช้ประกอบการตัดสินใจ ไม่ใช่คำตอบตายตัว
+        ผลเป็นการประเมินเบื้องต้นจากสถิติและข้อมูลในระบบ ใช้ประกอบการตัดสินใจ ไม่ใช่คำตอบตายตัว
+        จะพาไปดูทีละจุดบนหน้านี้
       </p>
     ),
   },
   {
-    title: "เลือกฮีโร่ใน Draft",
-    body: (
-      <ul className="space-y-2">
-        <Row icon={<Users className="h-4 w-4" />}>มี 2 ทีม คือ “ทีมของคุณ” และ “ทีมศัตรู” ทีมละ 5 ช่อง</Row>
-        <Row icon={<span className="text-sm font-bold">+</span>}>
-          แตะช่อง + แล้วเลือกฮีโร่จากรายการด้านล่าง ค้นหาด้วยชื่อ หรือกรองตามบทบาท/เลนได้
-        </Row>
-        <Row icon={<span className="text-sm font-bold">×</span>}>
-          กด × ที่มุมช่องเพื่อเอาออก หรือแตะช่องที่มีฮีโร่อยู่แล้วเลือกตัวใหม่เพื่อเปลี่ยน
-        </Row>
-        <Row icon={<Swords className="h-4 w-4" />}>
-          ถ้าเลือกโหมดซีรีส์ (BO3/BO5/BO7) จะมีช่องแบนเพิ่มของแต่ละทีม
-        </Row>
-      </ul>
+    target: "team-mine",
+    title: "ช่องทีมของคุณ",
+    body: () => (
+      <p>
+        5 ช่องนี้คือทีมของคุณ แตะช่อง + เพื่อเลือกว่าจะใส่ฮีโร่ช่องไหน แตะช่องที่มีฮีโร่แล้วเพื่อเปลี่ยนตัว
+        กด × มุมขวาบนของช่องเพื่อเอาฮีโร่ออก
+      </p>
     ),
   },
   {
-    title: "จัดตำแหน่งฮีโร่ได้ตามต้องการ",
-    body: (
+    target: "team-enemy",
+    title: "ช่องทีมศัตรู",
+    body: () => (
+      <p>
+        ใส่ฮีโร่ที่ศัตรูเลือกไว้ตรงนี้ ระบบจะใช้หาตัวที่ชนะทางศัตรูและเตือนตัวที่ศัตรูชนะทาง
+        ถ้าเลือกโหมดซีรีส์ (BO3/BO5/BO7) จะมีช่องแบนเพิ่มใต้แต่ละทีม
+      </p>
+    ),
+  },
+  {
+    target: "picker",
+    fallback: "team-mine",
+    title: "รายการเลือกฮีโร่",
+    body: (found) => (
+      <p>
+        {found
+          ? "แตะฮีโร่ในรายการเพื่อใส่ช่องที่เลือกอยู่ (ชื่อช่องอยู่ในช่องค้นหา) พิมพ์ชื่อเพื่อค้นหา หรือกรองตามบทบาท/เลน ฮีโร่ที่ถูกใช้หรือแบนในเกมนี้แล้วจะไม่แสดง"
+          : "รายการเลือกฮีโร่จะเปิดเมื่อคุณแตะช่องในทีม แล้วแตะฮีโร่ในรายการเพื่อใส่ช่องนั้น ค้นหาด้วยชื่อหรือกรองตามบทบาท/เลนได้"}
+      </p>
+    ),
+  },
+  {
+    target: "drag-handle",
+    fallback: "team-mine",
+    title: "ลากสลับตำแหน่ง",
+    body: (found) => (
       <div className="space-y-2">
-        <SwapDemo />
+        {!found && <SwapDemo />}
         <p>
-          จับที่ไอคอน <GripVertical className="inline h-4 w-4 align-text-bottom" /> มุมซ้ายล่างของช่อง แล้วลากไปวางบนอีกช่องของทีมเดียวกันเพื่อสลับ
-          หรือวางบนช่องว่างเพื่อย้ายฮีโร่ไปช่องนั้น
+          {found
+            ? "ไอคอนจุดตรงนี้คือที่จับ ลากไปวางบนช่องอื่นของทีมเดียวกันเพื่อสลับตำแหน่ง หรือวางบนช่องว่างเพื่อย้ายฮีโร่ไปช่องนั้น"
+            : "เมื่อมีฮีโร่ในช่อง จะมีไอคอนจุดที่มุมซ้ายล่างของช่อง ลากไอคอนนั้นไปวางบนอีกช่องของทีมเดียวกันเพื่อสลับตำแหน่งหรือย้ายเข้าช่องว่าง"}
         </p>
         <p className="text-text-muted">
-          บนมือถือ แตะที่ไอคอนนั้นแล้วลากได้เลย (ลากที่อื่นยังเลื่อนหน้าตามปกติ) หรือแตะช่อง แล้วกดปุ่มลูกศรซ้าย/ขวาใต้ช่อง ลากข้ามทีมไม่ได้
+          บนมือถือแตะไอคอนนี้แล้วลากได้เลย (ลากที่อื่นยังเลื่อนหน้าได้ปกติ) หรือแตะช่อง แล้วกดปุ่มลูกศรซ้าย/ขวาใต้ช่อง
+          ลากข้ามทีมไม่ได้
         </p>
       </div>
     ),
   },
   {
-    title: "อ่านผลวิเคราะห์ก่อนเลือกตัว",
-    body: (
-      <ul className="space-y-2">
-        <Row icon={<BarChart3 className="h-4 w-4" />}>
-          “ภาพรวมทีมของคุณ” มีมิเตอร์ เช่น แนวหน้า, Crowd Control, ความคล่องตัว และจุดที่ทีมยังขาด เป็นค่าประเมินคร่าวๆ
-        </Row>
-        <Row icon={<Swords className="h-4 w-4" />}>
-          “ชนะทางศัตรู” คือฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว
-        </Row>
-        <Row icon={<Link2 className="h-4 w-4" />}>“คอมโบกับทีมของคุณ” คือฮีโร่ที่เข้ากับตัวที่คุณเลือกไว้</Row>
-        <Row icon={<Users className="h-4 w-4" />}>
-          การ์ดแนะนำมีดาว (ยิ่งมากยิ่งเหมาะตามคะแนนของระบบ), Tier, ความเสี่ยง ต่ำ/กลาง/สูง ซึ่งอิงระดับความยากของฮีโร่ และเหตุผลสั้นๆ ข้อความสีเหลืองคือคำเตือน เช่น ศัตรูชนะทางตัวนี้
-        </Row>
-      </ul>
+    target: "meters",
+    fallback: "team-mine",
+    title: "มิเตอร์ทีมของคุณ",
+    body: () => (
+      <p>
+        แถบเหล่านี้ประเมินทีมของคุณคร่าวๆ เช่น แนวหน้า, Crowd Control, ความคล่องตัว ยิ่งแถบเต็มยิ่งทีมมีด้านนั้นมาก
+        เป็นค่าประเมินเบื้องต้น ไม่ใช่สถิติที่วัดจริง ส่วน “จุดที่ทีมขาด” ด้านบนบอกว่าควรเติมอะไร
+      </p>
     ),
   },
   {
-    title: "แชร์ Draft ให้เพื่อน",
-    body: (
-      <ul className="space-y-2">
-        <Row icon={<Share2 className="h-4 w-4" />}>
-          ใต้ช่องฮีโร่มีปุ่มแชร์รูปและแชร์ลิงก์ รูปคือเกมที่เปิดอยู่ ส่วนลิงก์คือทั้งซีรีส์
-        </Row>
-        <Row icon={<Link2 className="h-4 w-4" />}>
-          แชร์ลิงก์ต้องเข้าสู่ระบบ และจะบันทึก/เผยแพร่ใน Community ก่อน ผู้รับเปิดดูได้โดยไม่ต้องล็อกอิน
-        </Row>
-        <Row icon={<span className="text-xs font-bold">💾</span>}>
-          กด “บันทึก” เพื่อเก็บไว้ในแท็บ “Draft ของฉัน”
-        </Row>
-      </ul>
+    target: "recs",
+    fallback: "team-mine",
+    title: "แนะนำตัวถัดไป",
+    body: () => (
+      <div className="space-y-2">
+        <p>
+          การ์ดฮีโร่ที่ระบบแนะนำ ดาวยิ่งมากยิ่งเหมาะกับดราฟต์นี้ตามคะแนนของระบบ ความเสี่ยง ต่ำ/กลาง/สูง อิงระดับความยากของฮีโร่
+          ข้อความสีเหลืองคือคำเตือน เช่น ศัตรูชนะทางตัวนี้ กด “เลือกฮีโร่นี้” เพื่อใส่ช่องว่างช่องแรกของทีมคุณ
+        </p>
+        <p className="text-text-muted">
+          เมื่อเลือกทีมศัตรูแล้วจะมีหัวข้อ “ชนะทางศัตรู” และ “คอมโบกับทีมของคุณ” แยกให้
+        </p>
+      </div>
+    ),
+  },
+  {
+    target: "share",
+    fallback: "team-mine",
+    title: "แชร์ Draft",
+    body: () => (
+      <p>
+        ปุ่มแชร์รูปและแชร์ลิงก์อยู่ตรงนี้ (กดได้เมื่อเลือกฮีโร่แล้ว) รูปคือเกมที่เปิดอยู่ ส่วนลิงก์คือทั้งซีรีส์
+        การแชร์ลิงก์ต้องเข้าสู่ระบบ แต่ผู้รับเปิดดูได้โดยไม่ต้องล็อกอิน
+      </p>
+    ),
+  },
+  {
+    target: "save",
+    title: "บันทึก Draft",
+    body: () => (
+      <p>
+        กดบันทึกเพื่อเก็บ Draft ไว้ดูต่อในแท็บ “Draft ของฉัน” ต้องเข้าสู่ระบบ
+        และกดปุ่ม “วิธีใช้งาน” ข้างหัวข้อหน้าเมื่อไหร่ก็ได้เพื่อเปิดคู่มือนี้อีกครั้ง
+      </p>
     ),
   },
 ];
 
+interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+const PAD = 6;
+
+const find = (name?: string) =>
+  name ? document.querySelector<HTMLElement>(`[data-tour="${name}"]`) : null;
+
+// ทัวร์ไฮไลต์: วงสว่างรอบ element จริง + การ์ดอธิบายอยู่ฝั่งตรงข้าม (บน/ล่างของจอ) ไม่บังจุดที่ไฮไลต์
 export function DraftOnboarding({ onClose }: { onClose: () => void }) {
   const [i, setI] = useState(0);
+  const [rect, setRect] = useState<Rect | null>(null);
+  const [found, setFound] = useState(false);
+  const nextRef = useRef<HTMLButtonElement>(null);
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
 
-  return (
-    <Modal title={step.title} onClose={onClose}>
-      <div className="space-y-4 text-sm leading-relaxed">
-        <div>{step.body}</div>
+  useEffect(() => {
+    const primary = find(step.target);
+    const el = primary ?? find(step.fallback);
+    setFound(primary !== null);
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    };
+    // เลื่อนแบบ smooth ใช้เวลา: วัดซ้ำสั้นๆ แล้วคอยตามตอนเลื่อน/ย่อขยายจอ
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = () => {
+      update();
+      if (performance.now() - t0 < 700) raf = requestAnimationFrame(tick);
+    };
+    tick();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [step]);
 
-        <div className="flex items-center justify-center gap-1.5" aria-hidden>
-          {STEPS.map((_, n) => (
-            <span key={n} className={`h-1.5 rounded-full ${n === i ? "w-5 bg-accent" : "w-1.5 bg-border"}`} />
-          ))}
+  useEffect(() => {
+    nextRef.current?.focus({ preventScroll: true });
+  }, [i]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // ไฮไลต์อยู่ครึ่งบนของจอ → การ์ดอยู่ล่าง / อยู่ครึ่งล่าง → การ์ดอยู่บน
+  const cardAtTop = rect !== null && rect.top + rect.height / 2 > window.innerHeight / 2;
+  const cardPos = rect
+    ? cardAtTop
+      ? { top: "max(0.75rem, env(safe-area-inset-top))" }
+      : { bottom: "max(0.75rem, env(safe-area-inset-bottom))" }
+    : { top: "50%", transform: "translateY(-50%)" };
+
+  return (
+    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label={step.title}>
+      {rect ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed rounded-xl border-2 border-accent transition-[top,left,width,height] duration-200 motion-reduce:transition-none motion-safe:animate-pulse"
+          style={{
+            top: rect.top - PAD,
+            left: rect.left - PAD,
+            width: rect.width + PAD * 2,
+            height: rect.height + PAD * 2,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.65)",
+          }}
+        />
+      ) : (
+        <div aria-hidden className="fixed inset-0 bg-black/65" />
+      )}
+
+      <div
+        className="fixed left-3 right-3 mx-auto max-h-[60vh] max-w-sm overflow-y-auto rounded-card border border-border bg-bg-surface p-4 shadow-card"
+        style={cardPos}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 font-display text-base font-semibold">{step.title}</h2>
+          <span className="shrink-0 text-xs text-text-faint">
+            {i + 1}/{STEPS.length}
+          </span>
         </div>
+
+        <div className="text-sm leading-relaxed">{step.body(found)}</div>
+
         <p className="sr-only" aria-live="polite">{`ขั้นที่ ${i + 1} จาก ${STEPS.length}`}</p>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="mt-4 flex items-center justify-between gap-2">
           {last ? (
             <span />
           ) : (
-            <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-text-muted hover:text-text">
+            <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-text-muted hover:text-text">
               ข้าม
             </button>
           )}
@@ -190,21 +307,22 @@ export function DraftOnboarding({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => setI(i - 1)}
-                className="rounded-lg border border-border px-3 py-2 text-text-muted hover:text-text"
+                className="rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text"
               >
                 ย้อนกลับ
               </button>
             )}
             <button
+              ref={nextRef}
               type="button"
               onClick={() => (last ? onClose() : setI(i + 1))}
-              className="rounded-lg bg-accent px-4 py-2 font-semibold text-accent-fg"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
             >
               {last ? "เสร็จสิ้น" : "ถัดไป"}
             </button>
           </div>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
