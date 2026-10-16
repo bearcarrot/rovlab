@@ -132,6 +132,7 @@ export function TeamSlots({
   }
 
   const filledCount = team.filter(Boolean).length;
+  const firstFilled = team.findIndex(Boolean);
   const activeHero = activeIndex !== null ? team[activeIndex] ?? null : null;
   const ghostHero = dragging && drag ? team[drag.from] : null;
 
@@ -139,7 +140,7 @@ export function TeamSlots({
     <div>
       <p className="mb-2 text-xs font-medium text-text-faint">{label}</p>
 
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
+      <div data-tour={`team-${teamId}`} className="grid grid-cols-5 gap-2 sm:gap-3">
         {team.map((hero, i) => {
           const isSource = dragging && drag?.from === i;
           const isOver = dragging && drag?.over === i;
@@ -179,6 +180,7 @@ export function TeamSlots({
                   </button>
                   <button
                     type="button"
+                    data-tour={i === firstFilled ? "drag-handle" : undefined}
                     ref={(el) => {
                       handleRefs.current[i] = el;
                     }}
