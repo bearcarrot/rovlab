@@ -117,6 +117,9 @@ const RANK_CHIPS = [
   { value: "all", label: "ทั้งหมด" },
   { value: "high", label: "Commander+" },
 ];
+// แท็บสถิติเท่านั้นมีชิป Pro: สถิติ Pro นำเข้าจาก Liquipedia และตัด Tier อัตโนมัติ จึงไม่มี Tier List ที่แอดมินจัดเอง (ไม่ใส่ใน RANK_CHIPS)
+// ใช้แก้/เติมแถวของฮีโร่ที่ชื่อบน Liquipedia ไม่ตรงกับ DB — ค่าที่แก้มือถูกทับเมื่อนำเข้า Pro ใหม่
+const STAT_RANK_CHIPS = [...RANK_CHIPS, { value: "pro", label: "Pro" }];
 // ตารางสีแท็กสกิล: แก้แล้วต้องล้างแคชสีที่หน้าเว็บโหลดไว้
 const TAG_STYLES_TABLE = "effect_tag_styles";
 // หน้ารูนในเกมมี 30 ช่อง = แดง 10 + ม่วง 10 + เขียว 10
@@ -350,8 +353,8 @@ const CFG: Record<string, Cfg> = {
     add: true,
     clientSearch: true,
     heroChips: true,
-    // ชิปแรงก์ (ทั้งหมด / Commander+) เหมือนแท็บ Tier List: กรองแถวสถิติตาม rank_tier และใช้เป็นค่าตอนเพิ่มแถวใหม่
-    rankChips: RANK_CHIPS,
+    // ชิปแรงก์ (ทั้งหมด / Commander+ / Pro) กรองแถวสถิติตาม rank_tier และใช้เป็นค่าตอนเพิ่มแถวใหม่ (Tier List มีแค่ทั้งหมด / Commander+)
+    rankChips: STAT_RANK_CHIPS,
     cols: [
       { k: "hero_id", label: "ฮีโร่", type: "hero" },
       { k: "rank_tier" },
@@ -1250,7 +1253,7 @@ function Editor({
                   onChange={setFvSaved}
                 />
               )}
-              {/* สถิติ: ชิปแรงก์ (ทั้งหมด / Commander+) หน้าตาเหมือนแท็บ Tier List */}
+              {/* สถิติ: ชิปแรงก์ (ทั้งหมด / Commander+ / Pro) หน้าตาเหมือนแท็บ Tier List */}
               {cfg.rankChips && (
                 <div role="group" aria-label="แรงก์" className="flex flex-wrap gap-2">
                   {cfg.rankChips.map((o) => (
