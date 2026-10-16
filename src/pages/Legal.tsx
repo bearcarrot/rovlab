@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SITE, LEGAL_UPDATED } from "@/lib/siteConfig";
-import { SocialLinks } from "@/components/layout/SocialLinks";
 
 function LegalLayout({
   title,
@@ -538,11 +537,6 @@ export function DataSources() {
       </Section>
 
       <SourceList />
-
-      <Section title={`ติดตาม ${SITE.name}`}>
-        <p>ข่าวสารและการอัปเดตอยู่ที่ช่องทางทางการของเรา</p>
-        <SocialLinks variant="labeled" />
-      </Section>
     </LegalLayout>
   );
 }
