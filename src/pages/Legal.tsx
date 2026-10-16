@@ -355,13 +355,12 @@ export function Disclaimer() {
   );
 }
 
-type SourceKind = "game" | "external" | "community" | "analysis";
+type SourceKind = "external" | "community" | "analysis";
 
 const KIND_LABEL: Record<SourceKind, string> = {
-  game: "ข้อมูลจากเกม",
+  analysis: "จัดทำโดยทีมงาน",
   external: "แหล่งอ้างอิงภายนอก",
   community: "ชุมชน",
-  analysis: `${SITE.name} คัดเลือก/วิเคราะห์`,
 };
 
 interface SourceEntry {
@@ -369,17 +368,15 @@ interface SourceEntry {
   title: string;
   provides: string;
   usedIn: string;
-  links?: { href: string; label: string }[];
 }
 
 // Every entry below was checked against the code (services, Edge Functions, admin import pages) and the
 // Supabase schema. Add a link only after opening it; never describe an automated feed that is not in the code.
 const SOURCES: SourceEntry[] = [
   {
-    kind: "game",
+    kind: "analysis",
     title: "แพตช์และการปรับบาลานซ์ฮีโร่",
-    provides:
-      "รหัสและวันที่ของแพตช์ที่ทีมงานบันทึกเอง และรายการบัฟ/เนิร์ฟ/รีเวิร์กของฮีโร่ ซึ่งทีมงานนำเข้าจากไฟล์ผลลัพธ์ข้อมูลเกม (getlatestadjustlist) ที่บันทึกไว้ แล้วตรวจก่อนบันทึก ไม่มีการดึงโน้ตแพตช์จากเว็บไซต์ทางการอัตโนมัติ",
+    provides: "รหัสและวันที่ของแพตช์ รวมถึงรายการบัฟ/เนิร์ฟ/รีเวิร์กของฮีโร่ในแต่ละแพตช์ จัดทำและตรวจสอบโดยทีมงาน",
     usedIn: "ป้าย/ส่วนบัฟ-เนิร์ฟในหน้ารายละเอียดฮีโร่ รายการฮีโร่ Tier List Counter Pick และ Matchup และแพตช์ที่ใช้อ้างอิงสถิติ",
   },
   {
@@ -390,22 +387,18 @@ const SOURCES: SourceEntry[] = [
     usedIn: "/heroes, หน้ารายละเอียดฮีโร่, Draft, Coach Ai",
   },
   {
-    kind: "game",
+    kind: "analysis",
     title: "สถิติฮีโร่ (Win / Pick / Ban Rate) และ Tier",
     provides:
-      "ตัวเลขสถิติรายแพตช์ของกลุ่มแรงก์ “ทั้งหมด” และ “Commander+” ทีมงานนำเข้าจากไฟล์ผลลัพธ์ข้อมูลเกม (getranklist) ที่บันทึกไว้ ผ่านหน้าแอดมิน ไม่ใช่การดึงอัตโนมัติ Tier ใช้ค่าจากไฟล์ หรือจัดโดยทีมงานเมื่อมีการกำหนดเอง เว็บแสดงเฉพาะแพตช์ล่าสุดที่มีข้อมูล",
+      "ตัวเลขสถิติรายแพตช์ของกลุ่มแรงก์ “ทั้งหมด” และ “Commander+” พร้อม Tier จัดทำโดยทีมงาน ผ่านหน้าแอดมิน ไม่ใช่การดึงอัตโนมัติ เว็บแสดงเฉพาะแพตช์ล่าสุดที่มีข้อมูล",
     usedIn: "/stats, /tier-list, หน้ารายละเอียดฮีโร่, หน้าแรก",
   },
   {
-    kind: "external",
-    title: "สถิติ RoV Pro League (รวมข้อมูลรายซีซัน)",
+    kind: "analysis",
+    title: "สถิติระดับ Pro League",
     provides:
-      "สถิติแข่งขันอาชีพของฮีโร่ (จำนวนครั้งที่ถูกเลือก/แบน และอัตราชนะ) แอดมินเป็นผู้กดดึงจากหน้า Statistics ของ RoV Pro League บน Liquipedia ทีละหน้า (ปี/ซีซัน) แล้วตรวจก่อนบันทึก ตัวเลขถูกบันทึกในกลุ่ม “Pro League” ภายใต้แพตช์ที่เลือก ระบบไม่ได้เก็บข้อมูลแยกตามซีซัน จึงยังไม่มีสถิติย้อนหลังรายซีซันให้ดู และ Tier ของกลุ่มนี้คำนวณอัตโนมัติจากจำนวนเลือก+แบน ข้อมูลจาก Liquipedia เผยแพร่ภายใต้สัญญาอนุญาต CC BY-SA 3.0",
+      "สถิติฮีโร่ในระดับการแข่งขันอาชีพ (จำนวนครั้งที่ถูกเลือก/แบน และอัตราชนะ) จัดทำโดยทีมงานและบันทึกในกลุ่ม “Pro League” ภายใต้แพตช์ที่เลือก ระบบไม่ได้เก็บข้อมูลแยกตามซีซัน จึงยังไม่มีสถิติย้อนหลังรายซีซันให้ดู Tier ของกลุ่มนี้คำนวณอัตโนมัติจากจำนวนเลือก+แบน",
     usedIn: "ตัวเลือกกลุ่มแรงก์ Pro League ในหน้าแรก /stats /tier-list และหน้ารายละเอียดฮีโร่",
-    links: [
-      { href: "https://liquipedia.net/honorofkings/", label: "Liquipedia" },
-      { href: "https://creativecommons.org/licenses/by-sa/3.0/", label: "CC BY-SA 3.0" },
-    ],
   },
   {
     kind: "analysis",
@@ -425,7 +418,7 @@ const SOURCES: SourceEntry[] = [
     kind: "analysis",
     title: "Counter, Synergy และ Matchup",
     provides:
-      "Counter ส่วนใหญ่ได้จากรายชื่อฮีโร่ที่ชนะทางสูงสุด 3 อันดับในไฟล์สถิติเกม ที่ทีมงานนำเข้า และมีหมายเหตุที่ทีมงานเขียนเพิ่ม Synergy เป็นข้อมูลที่ทีมงานบันทึกเอง ยังมีจำนวนไม่มาก Matchup ที่ทีมงานเขียนแผนเล่นไว้มีเพียงบางคู่ คู่อื่นระบบคำนวณแบบ heuristic จาก Win Rate และ Counter และติดป้ายกำกับในหน้านั้น",
+      "Counter จัดทำโดยทีมงาน พร้อมหมายเหตุที่ทีมงานเขียนเพิ่ม Synergy เป็นข้อมูลที่ทีมงานบันทึกเอง ยังมีจำนวนไม่มาก Matchup ที่ทีมงานเขียนแผนเล่นไว้มีเพียงบางคู่ คู่อื่นระบบคำนวณแบบ heuristic จาก Win Rate และ Counter และติดป้ายกำกับในหน้านั้น",
     usedIn: "/counter-pick, /matchup, /draft, หน้ารายละเอียดฮีโร่",
   },
   {
@@ -464,7 +457,7 @@ const SOURCES: SourceEntry[] = [
   },
 ];
 
-const KIND_ORDER: SourceKind[] = ["game", "external", "community", "analysis"];
+const KIND_ORDER: SourceKind[] = ["analysis", "external", "community"];
 
 function SourceList() {
   return (
@@ -488,19 +481,6 @@ function SourceList() {
                   </div>
                   <p className="text-sm leading-relaxed text-text-muted">{s.provides}</p>
                   <p className="text-xs text-text-faint">ใช้ที่: {s.usedIn}</p>
-                  {s.links && (
-                    <p className="text-xs text-text-muted">
-                      ลิงก์:{" "}
-                      {s.links.map((l, i) => (
-                        <span key={l.href}>
-                          {i > 0 && " · "}
-                          <a className={inlineLink} href={l.href} target="_blank" rel="noopener noreferrer">
-                            {l.label}
-                          </a>
-                        </span>
-                      ))}
-                    </p>
-                  )}
                 </li>
               ))}
             </ul>
@@ -515,13 +495,13 @@ export function DataSources() {
   return (
     <LegalLayout
       title="Data Sources"
-      intro={`ที่มาของข้อมูลใน ${SITE.name} แยกตามประเภท: ข้อมูลจากเกม แหล่งอ้างอิงภายนอก ข้อมูลจากชุมชน และข้อมูลที่ ${SITE.name} คัดเลือกหรือวิเคราะห์เอง ข้อมูลอาจเปลี่ยนแปลงตามการอัปเดตของเกม`}
+      intro={`ที่มาของข้อมูลใน ${SITE.name} แยกตามประเภท: ข้อมูลที่จัดทำโดยทีมงาน แหล่งอ้างอิงภายนอก และข้อมูลจากชุมชน ข้อมูลอาจเปลี่ยนแปลงตามการอัปเดตของเกม`}
       updated
     >
       <Section title="อ่านก่อน">
         <Bullets
           items={[
-            `${SITE.name} เป็นโปรเจกต์อิสระ ไม่ได้เชื่อมต่อกับระบบหรือเว็บไซต์ทางการของ Garena และยังไม่มีการดึงข้อมูลจากเว็บไซต์ทางการแบบอัตโนมัติ ข้อมูลจากเกมถูกนำเข้าโดยทีมงานด้วยตนเอง`,
+            `${SITE.name} เป็นโปรเจกต์อิสระ ไม่ได้เชื่อมต่อกับระบบหรือเว็บไซต์ทางการของ Garena ข้อมูลเกมส่วนใหญ่จัดทำและอัปเดตโดยทีมงานด้วยตนเอง ไม่ได้ดึงจากเว็บไซต์ทางการแบบอัตโนมัติ`,
             "ข้อมูลไม่ได้ถูกรีเฟรชตามรอบเวลาที่กำหนด จึงอาจไม่ตรงกับแพตช์ล่าสุดในเกมเสมอไป",
             "Tier, Counter, Synergy, Matchup และบิลด์เป็นข้อมูลเชิงวิเคราะห์ ไม่ใช่ข้อมูลต้นฉบับจากผู้ให้บริการเกม",
             "ชื่อ โลโก้ ตัวละคร ภาพ ไอคอน และทรัพย์สินทางปัญญาที่เกี่ยวข้องกับเกมเป็นของ Garena หรือเจ้าของสิทธิ์ที่เกี่ยวข้อง",
@@ -533,8 +513,7 @@ export function DataSources() {
 
       <Section title="ลิงก์อ้างอิงต้นทาง">
         <p>
-          ลิงก์ด้านบนแสดงเฉพาะแหล่งที่ตรวจสอบแล้ว ส่วนข้อมูลรายรายการยังไม่มีลิงก์ต้นทางแยกรายการ
-          จะเพิ่มเมื่อระบบมีข้อมูลแหล่งที่มาสำหรับรายการนั้น ๆ
+          ขณะนี้ยังไม่ได้แสดงลิงก์ต้นทางรายรายการ จะเพิ่มเมื่อระบบมีข้อมูลแหล่งที่มาสำหรับรายการนั้น ๆ
         </p>
       </Section>
 
