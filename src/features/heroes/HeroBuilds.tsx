@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { AlertTriangle, Hammer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -37,10 +36,6 @@ function HeroCommunityBuilds({ hero }: { hero: BuildHero }) {
       {q.status === "success" && q.data.length > 0 && (
         <div className="space-y-3">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
       )}
-      <p className="flex flex-wrap gap-x-4 gap-y-1">
-        <Link to={`/build?hero=${hero.slug}&tab=community`} className="text-sm text-accent hover:underline">ดูที่หน้า Item Build →</Link>
-        <Link to={`/build/edit/new?hero=${hero.slug}`} className="text-sm text-accent hover:underline">สร้างบิลด์ {hero.nameTh} →</Link>
-      </p>
     </div>
   );
 }
