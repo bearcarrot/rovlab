@@ -8,7 +8,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CoachChatProvider } from "@/features/coach/CoachChatContext";
-import { CoachFab } from "@/features/coach/CoachFab";
+import { CoachFabLoader } from "@/features/coach/CoachFabLoader";
 import { useRank } from "@/lib/rank";
 
 // App shell: persistent sidebar on desktop, header + bottom nav + slide-out
@@ -46,8 +46,8 @@ export function AppShell() {
         </div>
         <BottomNav onOpenDrawer={() => setDrawerOpen(true)} />
         <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-        {/* ปุ่มลอย Coach Ai: โผล่เฉพาะหน้าที่ลงทะเบียน Quick Chat (ตอนนี้: รายละเอียดฮีโร่) */}
-        <CoachFab />
+        {/* ปุ่มลอย Coach Ai: โผล่เฉพาะหน้าที่ลงทะเบียน Quick Chat (ตอนนี้: รายละเอียดฮีโร่) — โหลดแบบ lazy เฉพาะตอนมี chats */}
+        <CoachFabLoader />
       </div>
     </CoachChatProvider>
   );
