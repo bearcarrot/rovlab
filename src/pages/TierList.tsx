@@ -123,8 +123,8 @@ export function TierList() {
   const statPatch = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch : undefined;
   const patchLabel = (latestPatch.status === "success" ? latestPatch.data?.code : undefined) ?? statPatch ?? "—";
   const loading = heroes.status === "loading" || curated.status === "loading";
-  // คู่มือใช้งานครั้งแรก (ใช้ตัวทัวร์เดียวกับ Draft Assistant): เปิดเองเมื่อโหมดทางการโหลดเสร็จและยังไม่เคยดู
-  const tour = useDraftOnboarding(mode === "official" && !loading && heroes.status === "success", TIER_TOUR_KEY);
+  // คู่มือใช้งานครั้งแรกของโหมด “Tier List ของฉัน” (ใช้ตัวทัวร์เดียวกับ Draft Assistant): เปิดเองเมื่อโหลดฮีโร่เสร็จและยังไม่เคยดู
+  const tour = useDraftOnboarding(mode === "mine" && heroes.status === "success", TIER_TOUR_KEY);
 
   // รูปแชร์ของ Tier List ทางการ: ใช้ผลที่กรองอยู่ตอนนี้ (Role/Lane/Tier เดียวกับที่เห็นบนหน้า)
   const buildShare = useCallback(() => {
@@ -182,7 +182,7 @@ export function TierList() {
           <h1 className="font-display text-xl font-semibold">Tier List</h1>
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
-            {mode === "official" && heroes.status === "success" && (
+            {mode === "mine" && heroes.status === "success" && (
               <button type="button" onClick={tour.show} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text">
                 <HelpCircle className="h-4 w-4" />
                 วิธีใช้งาน
@@ -197,7 +197,7 @@ export function TierList() {
         )}
       </div>
 
-      <div data-tour="tier-modes" className="flex flex-wrap gap-2" role="group" aria-label="โหมด Tier List">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="โหมด Tier List">
         <Chip active={mode === "official"} onClick={() => changeMode("official")} label="Tier List ทางการ" />
         <Chip active={mode === "mine"} onClick={() => changeMode("mine")} label="Tier List ของฉัน" />
         <Chip active={mode === "community"} onClick={() => changeMode("community")} label="Community" />
@@ -228,22 +228,20 @@ export function TierList() {
 
       {mode === "official" && (
         <>
-          <div data-tour="tier-filters" className="space-y-2">
+          <div className="space-y-2">
             <RoleFilterRow value={role} onChange={setRole} />
             <LaneFilterRow value={lane} onChange={setLane} />
             <TierFilterRow value={tier} onChange={setTier} />
           </div>
 
           {!loading && grouped && totalShown > 0 && (
-            <div data-tour="tier-share">
-              <ShareImageButtons
-                busy={share.busy}
-                pending={share.pending}
-                onShare={share.share}
-                onDownload={share.download}
-                extra={<ShareLinkButton build={buildOfficialLink} />}
-              />
-            </div>
+            <ShareImageButtons
+              busy={share.busy}
+              pending={share.pending}
+              onShare={share.share}
+              onDownload={share.download}
+              extra={<ShareLinkButton build={buildOfficialLink} />}
+            />
           )}
 
           {loading && (
@@ -261,8 +259,8 @@ export function TierList() {
           )}
           {!loading && grouped && totalShown > 0 && (
             <div className="space-y-5">
-              {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((t, idx) => (
-                <div key={t} data-tour={idx === 0 ? "tier-group" : undefined}>
+              {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((t) => (
+                <div key={t}>
                   <div className="mb-2 flex items-center gap-2">
                     <Badge tier={t} className="text-sm px-2.5 py-1">{t}</Badge>
                     <span className="text-xs text-text-faint">{grouped.get(t)?.length} ฮีโร่</span>
