@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { Switch } from "@/features/community/Switch";
 import { ItemSlots, RuneSlots, type ItemOpt, type RowMove } from "@/features/admin/BuildSlots";
 import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
 import { ITEM_TYPE_CHOICES, PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
@@ -307,14 +308,13 @@ export function BuildEditor() {
         />
       </section>
 
-      <section className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-        <label className="flex items-start gap-3">
-          <input type="checkbox" className="mt-1 h-4 w-4 accent-[#E8A33D]" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
-          <span className="text-sm">
-            <span className="font-medium">เผยแพร่เป็น Community Build</span>
-            <span className="block text-xs text-text-muted">คนอื่นเห็นชื่อบิลด์ โน๊ต และชื่อผู้สร้าง ชื่อและโน๊ตถูกตรวจคำไม่เหมาะสม และแอดมินซ่อนบิลด์ได้หากฝ่าฝืนกฎชุมชน</span>
-          </span>
-        </label>
+      <section className="space-y-1 rounded-card border border-border bg-bg-surface p-3">
+        <Switch checked={isPublic} onChange={setIsPublic} label={<span className="font-medium">เผยแพร่เป็น Community Build</span>} />
+        <p className="text-xs text-text-muted">
+          {isPublic
+            ? "คนอื่นเห็นชื่อบิลด์ โน๊ต และชื่อผู้สร้าง ชื่อและโน๊ตถูกตรวจคำไม่เหมาะสม และแอดมินซ่อนบิลด์ได้หากฝ่าฝืนกฎชุมชน"
+            : "ส่วนตัว — เห็นเฉพาะคุณ"}
+        </p>
       </section>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

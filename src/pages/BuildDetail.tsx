@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Check, Eye, EyeOff, Globe, Hammer, Loader2, Lock, Pencil, Trash2, X } from "lucide-react";
+import { Check, Eye, EyeOff, Hammer, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { buildError, deleteBuild, getBuild, setBuildHidden, setBuildPublic } from "@/services/userBuilds";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { Switch } from "@/features/community/Switch";
 import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { BuildReactions } from "@/features/build/BuildReactions";
@@ -80,14 +81,17 @@ export function BuildDetail() {
       {b.isPublic && !b.hidden && <BuildReactions b={b} />}
 
       {(mine || isAdmin) && (
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           {mine && (
             <>
               <Link to={`/build/edit/${b.id}`} className={`${btn} border-border bg-bg-raised text-text hover:border-text-faint`}><Pencil className="h-4 w-4" />แก้ไข</Link>
-              <button type="button" disabled={busy} onClick={() => void run(() => setBuildPublic(b.id, !b.isPublic), b.isPublic ? "เปลี่ยนเป็นส่วนตัวแล้ว" : "เผยแพร่แล้ว")} className={`${btn} border-border bg-bg-raised text-text hover:border-text-faint`}>
-                {b.isPublic ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
-                {b.isPublic ? "ยกเลิกการเผยแพร่" : "เผยแพร่เป็น Community Build"}
-              </button>
+              <Switch
+                checked={b.isPublic}
+                disabled={busy}
+                onChange={(on) => void run(() => setBuildPublic(b.id, on), on ? "เผยแพร่แล้ว" : "เปลี่ยนเป็นส่วนตัวแล้ว")}
+                label="เผยแพร่เป็น Community Build"
+                className="h-10 rounded-lg border border-border bg-bg-raised px-3"
+              />
             </>
           )}
           {isAdmin && (
