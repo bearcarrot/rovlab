@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, HelpCircle } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
@@ -14,6 +14,8 @@ import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/My
 import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
 import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
+import { DraftOnboarding, useDraftOnboarding } from "@/features/draft/DraftOnboarding";
+import { TIER_TOUR_KEY, TIER_TOUR_STEPS } from "@/features/tierlist/tierTour";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { ShareLinkButton } from "@/features/share/ShareLinkButton";
 import { shortIdToUuid } from "@/features/share/shareId";
@@ -121,6 +123,8 @@ export function TierList() {
   const statPatch = heroes.status === "success" ? heroes.data.find((h) => h.stat.hasStats)?.stat.patch : undefined;
   const patchLabel = (latestPatch.status === "success" ? latestPatch.data?.code : undefined) ?? statPatch ?? "—";
   const loading = heroes.status === "loading" || curated.status === "loading";
+  // คู่มือใช้งานครั้งแรกของโหมด “Tier List ของฉัน” (ใช้ตัวทัวร์เดียวกับ Draft Assistant): เปิดเองเมื่อโหลดฮีโร่เสร็จและยังไม่เคยดู
+  const tour = useDraftOnboarding(mode === "mine" && heroes.status === "success", TIER_TOUR_KEY);
 
   // รูปแชร์ของ Tier List ทางการ: ใช้ผลที่กรองอยู่ตอนนี้ (Role/Lane/Tier เดียวกับที่เห็นบนหน้า)
   const buildShare = useCallback(() => {
@@ -176,7 +180,15 @@ export function TierList() {
       <div>
         <div className="flex items-center justify-between">
           <h1 className="font-display text-xl font-semibold">Tier List</h1>
-          <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-faint">Patch {patchLabel} · {RANK_LABEL[rank]}</span>
+            {mode === "mine" && heroes.status === "success" && (
+              <button type="button" onClick={tour.show} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text">
+                <HelpCircle className="h-4 w-4" />
+                วิธีใช้งาน
+              </button>
+            )}
+          </div>
         </div>
         {mode === "official" && (
           <p className="mt-1 text-xs text-text-faint">
@@ -289,6 +301,7 @@ export function TierList() {
           )}
         </>
       )}
+      {tour.open && <DraftOnboarding steps={TIER_TOUR_STEPS} onClose={tour.close} />}
       <ConfirmHost />
     </div>
   );
