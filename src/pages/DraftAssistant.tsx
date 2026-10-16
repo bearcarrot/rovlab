@@ -523,6 +523,7 @@ export function DraftAssistant() {
             </p>
             <button
               type="button"
+              data-tour="save"
               onClick={onSaveClick}
               className="flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-fg"
             >
@@ -595,18 +596,20 @@ export function DraftAssistant() {
           </div>
 
           {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — รูป = เกมที่เปิดอยู่ / ลิงก์ = ทั้งซีรีส์ */}
-          <DraftShareBar
-            myTeam={myTeam}
-            enemyTeam={enemyTeam}
-            recs={teamFull ? [] : recs}
-            analysis={analysis}
-            mode={mode}
-            coachText={analysis.filledSlots > 0 ? coachText : ""}
-            linkShare={<DraftLinkShare ds={ds} onNeedLogin={() => setLoginNotice(true)} />}
-          />
+          <div data-tour="share">
+            <DraftShareBar
+              myTeam={myTeam}
+              enemyTeam={enemyTeam}
+              recs={teamFull ? [] : recs}
+              analysis={analysis}
+              mode={mode}
+              coachText={analysis.filledSlots > 0 ? coachText : ""}
+              linkShare={<DraftLinkShare ds={ds} onNeedLogin={() => setLoginNotice(true)} />}
+            />
+          </div>
 
           {active && (
-            <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
+            <div data-tour="picker" className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
               <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
                 <Search className="h-4 w-4 shrink-0 text-text-faint" />
                 <input
@@ -635,7 +638,7 @@ export function DraftAssistant() {
           <section>
             <h2 className="mb-2 font-display text-base font-semibold">ภาพรวมทีมของคุณ</h2>
             <TeamGaps gaps={gaps} filledSlots={analysis.filledSlots} />
-            <div className="rounded-card border border-border bg-bg-surface p-4">
+            <div data-tour="meters" className="rounded-card border border-border bg-bg-surface p-4">
               <TeamMeters analysis={analysis} />
             </div>
 
@@ -675,7 +678,7 @@ export function DraftAssistant() {
             />
           )}
 
-          <section>
+          <section data-tour="recs">
             <div className="mb-1 flex items-center gap-2">
               <Users className="h-4 w-4 text-accent" />
               <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป (ภาพรวม)</h2>
