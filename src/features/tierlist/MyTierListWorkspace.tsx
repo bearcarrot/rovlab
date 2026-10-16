@@ -152,7 +152,7 @@ export function MyTierListWorkspace({
           </span>
           {dirty && cloud.id && <span className="ml-2 text-xs text-amber-400">ยังไม่ได้บันทึกการแก้ไข</span>}
         </p>
-        <button type="button" onClick={onSaveClick} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg">
+        <button type="button" data-tour="custom-save" onClick={onSaveClick} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg">
           <Bookmark className="h-4 w-4" />
           บันทึก
         </button>
