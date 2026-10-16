@@ -46,21 +46,6 @@ function Bullets({ items }: { items: string[] }) {
 
 const inlineLink = "underline underline-offset-4 hover:text-text";
 
-// Shown only once SITE.contactEmail is set — never a made-up address.
-function ContactSection() {
-  if (!SITE.contactEmail) return null;
-  return (
-    <Section title="ติดต่อเรา">
-      <p>
-        หากมีคำถามหรือต้องการใช้สิทธิ์เกี่ยวกับข้อมูล ติดต่อได้ที่{" "}
-        <a className={inlineLink} href={`mailto:${SITE.contactEmail}`}>
-          {SITE.contactEmail}
-        </a>
-      </p>
-    </Section>
-  );
-}
-
 export function PrivacyPolicy() {
   return (
     <LegalLayout
@@ -153,14 +138,14 @@ export function PrivacyPolicy() {
           ตามกฎหมายคุ้มครองข้อมูลส่วนบุคคลของไทย (PDPA) คุณมีสิทธิขอเข้าถึง แก้ไข ลบ
           หรือถอนความยินยอมเกี่ยวกับข้อมูลส่วนบุคคลของคุณ รวมถึงคัดค้านหรือจำกัดการประมวลผลในกรณีที่กฎหมายกำหนด
           คุณแก้ไขข้อมูลโปรไฟล์ได้เองที่หน้า <Link className={inlineLink} to="/profile">โปรไฟล์</Link>{" "}
-          และสามารถติดต่อเราเพื่อขอลบบัญชีและข้อมูลที่เกี่ยวข้อง
+          และสามารถ<Link className={inlineLink} to="/contact">ติดต่อเรา</Link>เพื่อขอลบบัญชีและข้อมูลที่เกี่ยวข้อง
         </p>
       </Section>
 
       <Section title="9. ผู้ใช้ที่เป็นเด็ก">
         <p>
           เว็บไซต์ไม่ได้มุ่งเก็บข้อมูลจากเด็กโดยเจตนา หากผู้ปกครองพบว่าบุตรหลานสมัครสมาชิกโดยไม่ได้รับความยินยอม
-          สามารถติดต่อเราเพื่อขอลบข้อมูลได้
+          สามารถ<Link className={inlineLink} to="/contact">ติดต่อเรา</Link>เพื่อขอลบข้อมูลได้
         </p>
       </Section>
 
@@ -170,8 +155,6 @@ export function PrivacyPolicy() {
           การใช้งานต่อหลังการปรับปรุงถือว่ารับทราบนโยบายฉบับใหม่
         </p>
       </Section>
-
-      <ContactSection />
     </LegalLayout>
   );
 }
@@ -232,7 +215,7 @@ export function TermsOfUse() {
           ห้ามคัดลอกเพื่อนำไปเผยแพร่เชิงพาณิชย์โดยไม่ได้รับอนุญาต
         </p>
         <p>
-          หากคุณเป็นเจ้าของสิทธิ์และต้องการให้แก้ไขหรือนำเนื้อหาออก โปรดติดต่อเรา เราจะพิจารณาโดยเร็ว
+          หากคุณเป็นเจ้าของสิทธิ์และต้องการให้แก้ไขหรือนำเนื้อหาออก โปรด<Link className={inlineLink} to="/contact">ติดต่อเรา</Link> เราจะพิจารณาโดยเร็ว
         </p>
       </Section>
 
@@ -265,8 +248,6 @@ export function TermsOfUse() {
           ข้อกำหนดนี้อยู่ภายใต้กฎหมายแห่งราชอาณาจักรไทย
         </p>
       </Section>
-
-      <ContactSection />
     </LegalLayout>
   );
 }
@@ -310,12 +291,10 @@ export function CommunityGuidelines() {
           โดยเราจะพิจารณาตามความเหมาะสมของแต่ละกรณี
         </p>
         <p>
-          ขณะนี้ระบบยังไม่มีปุ่มรายงานเนื้อหา หากพบเนื้อหาที่ไม่เหมาะสมให้แจ้งเราผ่านช่องทางติดต่อ
+          ขณะนี้ระบบยังไม่มีปุ่มรายงานเนื้อหา หากพบเนื้อหาที่ไม่เหมาะสมให้แจ้งเราผ่านหน้า <Link className={inlineLink} to="/contact">ติดต่อเรา</Link>
           โดยระบุหน้าและข้อความที่พบ
         </p>
       </Section>
-
-      <ContactSection />
     </LegalLayout>
   );
 }
