@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { GitCompareArrows } from "lucide-react";
 import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
@@ -6,6 +7,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
@@ -220,6 +222,20 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
   );
 }
 
+// ไอคอนฮีโร่ในหัวผล Matchup (แทนชื่อ) กดแล้วไปหน้ารายละเอียดฮีโร่ ชื่ออยู่ใน aria-label/title สำหรับ screen reader และ tooltip
+function MatchupHeroIcon({ hero }: { hero: HeroSummary }) {
+  return (
+    <Link to={`/heroes/${hero.slug}`} aria-label={hero.nameTh} title={hero.nameTh} className="shrink-0">
+      <HeroIcon
+        icon={hero.icon}
+        name={hero.nameTh}
+        fallback={hero.name.slice(0, 2).toUpperCase()}
+        className="h-16 w-16 rounded-lg border border-border sm:h-20 sm:w-20"
+      />
+    </Link>
+  );
+}
+
 export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
   const [a, setA] = useState<HeroSummary | null>(null);
@@ -260,10 +276,10 @@ export function Matchup() {
 
       {a && b && (
         <div ref={resultRef} className="scroll-mt-20 space-y-3 border-t border-border pt-4">
-          <div className="flex items-center justify-center gap-3 text-center">
-            <span className="font-display text-lg font-semibold">{a.nameTh}</span>
-            <GitCompareArrows className="h-4 w-4 text-accent" />
-            <span className="font-display text-lg font-semibold">{b.nameTh}</span>
+          <div className="flex items-center justify-center gap-4 text-center">
+            <MatchupHeroIcon hero={a} />
+            <GitCompareArrows className="h-5 w-5 text-accent" />
+            <MatchupHeroIcon hero={b} />
           </div>
 
           {matchupQ.status === "loading" && <Skeleton className="h-56" />}
