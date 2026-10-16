@@ -21,6 +21,7 @@ import {
   type SeriesFormat,
   type TeamKey,
 } from "./series";
+import { movePick as movePickFn } from "./movePick";
 
 // Editor state for the Draft Assistant: the series, which game is open, and which saved draft (if any) it came from.
 // Persisted in sessionStorage so it survives a login redirect / refresh: a draft is never silently discarded.
@@ -115,6 +116,9 @@ export function useDraftSession() {
     setGame: (n: number) => write({ ...latest.current, gameNumber: clampGame(n, latest.current.series) }),
     setPick: (team: TeamKey, index: number, hero: HeroKey | null) =>
       commit((s) => setPickAt(s, latest.current.gameNumber, team, index, hero)),
+    /** Swap two slots of the same team (or move a hero into an empty slot) as one undoable step. */
+    movePick: (team: TeamKey, from: number, to: number) =>
+      commit((s) => movePickFn(s, latest.current.gameNumber, team, from, to)),
     addBan: (team: TeamKey, hero: HeroKey) => commit((s) => addBan(s, latest.current.gameNumber, team, hero)),
     removeBan: (team: TeamKey, hero: HeroKey) => commit((s) => removeBan(s, latest.current.gameNumber, team, hero)),
     setFormat: (format: SeriesFormat) => commit((s) => changeFormat(s, format)),

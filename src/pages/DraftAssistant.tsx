@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Bookmark, FilePlus2, Link2, Search, Swords, Users } from "lucide-react";
+import { Bookmark, FilePlus2, HelpCircle, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
 import { getAllAbilities } from "@/services/abilities";
@@ -19,6 +19,7 @@ import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import { HeroPickButton } from "@/features/draft/HeroPickButton";
 import { DraftShareBar } from "@/features/draft/DraftShareBar";
 import { DraftLinkShare } from "@/features/draft/DraftLinkShare";
+import { DraftOnboarding, useDraftOnboarding } from "@/features/draft/DraftOnboarding";
 import {
   analyzeTeam,
   describeDraft,
@@ -152,6 +153,8 @@ export function DraftAssistant() {
   const [loginNotice, setLoginNotice] = useState(false);
   const filters = useHeroFilters();
   const { laneLabel } = useFilterLabels();
+  // คู่มือใช้งานครั้งแรก: เปิดอัตโนมัติเมื่อ editor พร้อม (โหลดฮีโร่เสร็จ) และยังไม่เคยดู / เปิดซ้ำได้จากปุ่ม "วิธีใช้งาน"
+  const onboarding = useDraftOnboarding(tab === "editor" && heroesQ.status === "success");
 
   // ลิงก์ /draft/<id> ที่ id เสีย → กลับหน้าปกติพร้อมแจ้งผู้ใช้
   useEffect(() => {
@@ -340,6 +343,19 @@ export function DraftAssistant() {
     ds.setPick(team, index, null);
   }
 
+  // สลับ/ย้ายช่องในทีมเดียวกัน (ลากหรือปุ่มลูกศร) แล้วให้ช่องที่กำลังเลือกตามตัวฮีโร่ไป ไม่ชี้ผิดตัว
+  function moveSlot(team: TeamKey, from: number, to: number) {
+    if (from === to) return;
+    ds.movePick(team, from, to);
+    setActive((cur) => {
+      if (!cur || cur.kind !== "pick" || cur.team !== team) return cur;
+      if (cur.index === from) return { ...cur, index: to };
+      if (cur.index === to) return { ...cur, index: from };
+      return cur;
+    });
+    toast.success("สลับตำแหน่งแล้ว");
+  }
+
   // ล้างช่องที่หาฮีโร่ไม่เจอ (เฉพาะเกมที่เปิดอยู่)
   function clearUnknownPicks() {
     for (const team of ["mine", "enemy"] as const) {
@@ -460,9 +476,21 @@ export function DraftAssistant() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-xl font-semibold">Draft Assistant</h1>
-        <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ทีละช่อง ระบบจะประเมินคอมโพสิชันและแนะนำตัวถัดไป</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl font-semibold">Draft Assistant</h1>
+          <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ทีละช่อง ระบบจะประเมินคอมโพสิชันและแนะนำตัวถัดไป</p>
+        </div>
+        {tab === "editor" && heroesQ.status === "success" && (
+          <button
+            type="button"
+            onClick={onboarding.show}
+            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text"
+          >
+            <HelpCircle className="h-4 w-4" />
+            วิธีใช้งาน
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="โหมด Draft">
@@ -495,6 +523,7 @@ export function DraftAssistant() {
             </p>
             <button
               type="button"
+              data-tour="save"
               onClick={onSaveClick}
               className="flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-fg"
             >
@@ -532,16 +561,25 @@ export function DraftAssistant() {
             </div>
           )}
 
+          {/* ยังไม่ได้เลือกฮีโร่สักตัว: บอกขั้นแรกให้ชัด */}
+          {analysis.filledSlots === 0 && enemyList.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-text-muted">
+              ยังไม่ได้เลือกฮีโร่ — แตะช่อง + ด้านล่างแล้วเลือกฮีโร่จากรายการ ระบบจะเริ่มวิเคราะห์ให้ทันที
+            </p>
+          )}
+
           {/* md+ วางทีมเรา/ทีมศัตรูคู่กัน บนมือถือยังเรียงลงมาเหมือนเดิม */}
           <div className="grid gap-5 md:grid-cols-2">
             {(["mine", "enemy"] as const).map((team) => (
               <div key={team}>
                 <TeamSlots
                   label={TEAM_LABEL[team]}
+                  teamId={team}
                   team={team === "mine" ? myTeam : enemyTeam}
                   activeIndex={active?.kind === "pick" && active.team === team ? active.index : null}
                   onSelectSlot={(i) => setActive({ team, kind: "pick", index: i })}
                   onClearSlot={(i) => clearSlot(team, i)}
+                  onMove={(from, to) => moveSlot(team, from, to)}
                 />
                 {seriesMode && (
                   <BanRow
@@ -558,18 +596,20 @@ export function DraftAssistant() {
           </div>
 
           {/* แชร์ผลดราฟต์เป็นรูป PNG (สร้างในเบราว์เซอร์ ไม่อัปโหลดขึ้นเซิร์ฟเวอร์) — รูป = เกมที่เปิดอยู่ / ลิงก์ = ทั้งซีรีส์ */}
-          <DraftShareBar
-            myTeam={myTeam}
-            enemyTeam={enemyTeam}
-            recs={teamFull ? [] : recs}
-            analysis={analysis}
-            mode={mode}
-            coachText={analysis.filledSlots > 0 ? coachText : ""}
-            linkShare={<DraftLinkShare ds={ds} onNeedLogin={() => setLoginNotice(true)} />}
-          />
+          <div data-tour="share">
+            <DraftShareBar
+              myTeam={myTeam}
+              enemyTeam={enemyTeam}
+              recs={teamFull ? [] : recs}
+              analysis={analysis}
+              mode={mode}
+              coachText={analysis.filledSlots > 0 ? coachText : ""}
+              linkShare={<DraftLinkShare ds={ds} onNeedLogin={() => setLoginNotice(true)} />}
+            />
+          </div>
 
           {active && (
-            <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
+            <div data-tour="picker" className="space-y-2 rounded-card border border-border bg-bg-surface p-3 sm:p-4">
               <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
                 <Search className="h-4 w-4 shrink-0 text-text-faint" />
                 <input
@@ -598,7 +638,7 @@ export function DraftAssistant() {
           <section>
             <h2 className="mb-2 font-display text-base font-semibold">ภาพรวมทีมของคุณ</h2>
             <TeamGaps gaps={gaps} filledSlots={analysis.filledSlots} />
-            <div className="rounded-card border border-border bg-bg-surface p-4">
+            <div data-tour="meters" className="rounded-card border border-border bg-bg-surface p-4">
               <TeamMeters analysis={analysis} />
             </div>
 
@@ -638,7 +678,7 @@ export function DraftAssistant() {
             />
           )}
 
-          <section>
+          <section data-tour="recs">
             <div className="mb-1 flex items-center gap-2">
               <Users className="h-4 w-4 text-accent" />
               <h2 className="font-display text-base font-semibold">แนะนำตัวถัดไป (ภาพรวม)</h2>
@@ -693,6 +733,7 @@ export function DraftAssistant() {
           </div>
         </Modal>
       )}
+      {onboarding.open && <DraftOnboarding onClose={onboarding.close} />}
       <ConfirmHost />
     </div>
   );
