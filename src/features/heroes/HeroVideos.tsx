@@ -1,4 +1,4 @@
-import { PlayCircle } from "lucide-react";
+import { Youtube } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -17,7 +17,7 @@ export function HeroVideos({ slug, name }: { slug: string; name: string }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <PlayCircle className="h-4 w-4 text-accent" />
+          <Youtube className="h-4 w-4 text-accent" />
           <CardTitle>วิดีโอแนะนำล่าสุด {name}</CardTitle>
         </div>
       </CardHeader>
