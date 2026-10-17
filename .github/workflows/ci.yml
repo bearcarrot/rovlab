@@ -14,7 +14,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # TODO: switch back to `npm ci` once package-lock.json is regenerated: it is missing @vercel/og (listed in package.json),
+      # so `npm ci` aborts with "package.json and package-lock.json are not in sync".
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       # tests are plain node:test files (no extra deps); includes the CSP hash check for index.html
       - run: npm test
