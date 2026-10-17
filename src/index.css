@@ -53,7 +53,6 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    animation: home-gradient-pan 7s linear infinite;
   }
   .home-float { animation: home-float 6s ease-in-out infinite; will-change: transform; }
   .home-fade-up { animation: home-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
@@ -116,7 +115,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-gold-text, .home-float, .home-fade-up, .home-ping, .home-marquee-track, .home-cta:hover::after {
+  .home-float, .home-ping, .home-marquee-track, .home-cta:hover::after {
     animation: none !important;
   }
   .home-glow, .home-cta { transition: none; }

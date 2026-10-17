@@ -165,10 +165,6 @@ export function Home() {
               FOCUS
             )}
           >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-accent/20 blur-3xl transition-opacity group-hover:opacity-100"
-            />
             <span className="home-glow-tile relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">
               <NotebookPen className="h-7 w-7" strokeWidth={2} />
             </span>
@@ -216,10 +212,6 @@ export function Home() {
         aria-labelledby="draft-heading"
         className="home-glass relative grid gap-6 overflow-hidden rounded-3xl p-5 sm:p-7 md:grid-cols-2 md:items-center"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-rift/10 blur-3xl"
-        />
         <div className="relative space-y-4">
           <SectionHeading
             id="draft-heading"
@@ -325,10 +317,6 @@ export function Home() {
         aria-label="เริ่มใช้งาน"
         className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/20 via-bg-surface to-bg-surface p-6 text-center sm:p-10"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/30 blur-3xl"
-        />
         <div className="relative space-y-4">
           <h2 className="font-display text-xl font-semibold sm:text-2xl">
             ดราฟต์ให้ขาด <span className="home-gold-text">ชนะตั้งแต่ก่อนเริ่มเกม</span>
@@ -386,20 +374,18 @@ function Hero({
   const restText = rest.join(" ");
 
   return (
-    <section className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-bg-raised via-bg-surface to-bg px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14">
+    <section
+      className="relative overflow-hidden rounded-3xl border border-white/10 bg-bg-surface px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14"
+      style={{
+        backgroundImage:
+          "radial-gradient(60% 70% at 100% 0%, rgba(232,163,61,0.22), transparent 70%), radial-gradient(55% 60% at 0% 100%, rgba(76,141,255,0.14), transparent 70%)",
+      }}
+    >
       {/* ฉากหลัง: ตาราง + แสงทอง/ฟ้า */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 -top-32 -z-10 h-96 w-96 rounded-full bg-accent/25 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-40 -left-24 -z-10 h-96 w-96 rounded-full bg-rift/15 blur-3xl"
-      />
 
       <div className="grid items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-5">
-          <p className="home-fade-up inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-accent">
+          <p className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-accent">
             <span className="relative flex h-2 w-2">
               <span className="home-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-70" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
@@ -408,7 +394,7 @@ function Hero({
           </p>
 
           <h1
-            className="home-fade-up font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl"
+            className="font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl"
             style={{ animationDelay: "80ms" }}
           >
             {first}
@@ -421,14 +407,14 @@ function Hero({
           </h1>
 
           <p
-            className="home-fade-up max-w-xl text-base leading-relaxed text-text-muted"
+            className="max-w-xl text-base leading-relaxed text-text-muted"
             style={{ animationDelay: "160ms" }}
           >
             วิเคราะห์องค์ประกอบทีม หาเคาน์เตอร์ และเลือกฮีโร่ให้เข้ากับแผนการเล่น
           </p>
 
           <div
-            className="home-fade-up flex flex-col gap-3 sm:flex-row"
+            className="flex flex-col gap-3 sm:flex-row"
             style={{ animationDelay: "240ms" }}
           >
             <Link
@@ -453,7 +439,7 @@ function Hero({
 
           {/* สถิติสั้นๆ ของระบบ */}
           <dl
-            className="home-fade-up grid max-w-md grid-cols-3 gap-2 pt-2"
+            className="grid max-w-md grid-cols-3 gap-2 pt-2"
             style={{ animationDelay: "320ms" }}
             aria-label={metaLabel || "ภาพรวมข้อมูล"}
           >
@@ -465,7 +451,6 @@ function Hero({
 
         {/* โมเสกฮีโร่ลอยได้ (เฉพาะจอกว้าง) */}
         <div aria-hidden className="relative hidden md:block">
-          <div className="absolute inset-6 rounded-full bg-accent/15 blur-3xl" />
           <div className="relative grid grid-cols-3 gap-3 [transform:rotate(-6deg)]">
             {mosaic.length === 0
               ? Array.from({ length: MOSAIC_SIZE }).map((_, i) => (
