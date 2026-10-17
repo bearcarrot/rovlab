@@ -71,7 +71,8 @@ export function createAnnouncementStore(deps: StoreDeps): AnnouncementStore {
     if (inflight !== null && !force) return inflight;
     const gen = ++generation; // a newer request supersedes any older one still in flight
     if (snapshot.status === "idle") setSnapshot({ ...snapshot, status: "loading" });
-    const p: Promise<void> = (async () => {
+    let p!: Promise<void>; // assigned right below; the IIFE's finally block compares against it
+    p = (async () => {
       try {
         const [items, schedule] = await Promise.all([deps.fetchItems(), deps.fetchSchedule()]);
         if (gen !== generation) return; // stale response
