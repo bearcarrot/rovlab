@@ -4,6 +4,7 @@ import { AlertCircle, Check, FileUp, Link2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { ProStatsImport } from "@/features/admin/ProStatsImport";
+import { GameFetchCard } from "@/features/admin/GameFetchCard";
 
 // client แบบ untyped เพราะเรียก RPC / ตารางที่ไม่มี generated types
 const db: any = supabase;
@@ -32,7 +33,7 @@ type Result = {
   tierMode?: "tid" | "keep";
 };
 
-// ไฟล์ที่เซฟจากตัวดัก request มักมีหัว "POST https://... 200 / Request Headers ..." นำหน้า JSON ผลลัพธ์
+// ไฟล์ที่เซฟจากตัวดักมักมีหัว "POST https://... 200 / Request Headers ..." นำหน้า JSON ผลลัพธ์
 // รองรับทั้ง JSON ล้วน ๆ และไฟล์แบบมีหัว — อ่านบนเบราว์เซอร์เท่านั้น ส่งขึ้น DB เฉพาะตัวเลขสถิติ
 function extractJson(text: string): any {
   const t = text.replace(/^\uFEFF/, "").trim();
@@ -152,6 +153,20 @@ export function AdminImport() {
     }
   }
 
+  // ผลที่ดึงตรงจากเกม (game-fetch) เข้าทางเดียวกับไฟล์: parse ชุดเดิม → พรีวิว → ยืนยันนำเข้า
+  function onFetched(text: string, key?: "high" | "all") {
+    setResult(null);
+    setConfirming(false);
+    setParsed(null);
+    setFileName("");
+    if (key) setRank(key);
+    try {
+      setParsed(parseRankList(text));
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   const known = new Set(heroes.map((h) => h.hero_id).filter((x): x is number => x != null));
   const unmatched = parsed ? parsed.rows.filter((r) => !known.has(r.id)) : [];
   const freeHeroes = heroes.filter((h) => h.hero_id == null);
@@ -189,6 +204,8 @@ export function AdminImport() {
 
   return (
     <div className="space-y-4 pb-24">
+      <GameFetchCard kind="rank" onFetched={onFetched} />
+
       <section className={card}>
         <h2 className="font-display text-base font-semibold">1. เลือกไฟล์ getranklist.json</h2>
         <p className="text-xs text-text-muted">
