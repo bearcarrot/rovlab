@@ -242,7 +242,7 @@ export function recommendPicks(
         }
         if (analysis.cc < 3 && heroCc(h.role, kitH) >= 2) {
           reasons.push(
-            mine.length === 0 ? "ฮีโร่นี้มี Crowd Control ช่วยล็อกเป้าได้" : "ทีมมี Crowd Control น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้"
+            mine.length === 0 ? "ฮีโร่นี้มี CC ช่วยล็อกเป้าได้" : "ทีมมี CC น้อย ฮีโร่นี้เพิ่มการล็อกเป้าได้"
           );
           score += 2 * compScale;
         }
