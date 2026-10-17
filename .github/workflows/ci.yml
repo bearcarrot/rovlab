@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # TODO: switch back to `npm ci` once package-lock.json is regenerated: it is missing @vercel/og (listed in package.json),
+      # so `npm ci` aborts with "package.json and package-lock.json are not in sync".
+      - run: npm install --no-audit --no-fund
+      # TODO: remove continue-on-error once the 16 existing type errors on main are fixed
+      # (Home.tsx x11, DraftAssistant.tsx x2, HeroHelmetIcon.tsx, HeroHelmetPlusIcon.tsx, Admin.tsx). Until then it only reports.
+      - run: npm run typecheck
+        continue-on-error: true
+      # tests are plain node:test files (no extra deps); includes the CSP hash check for index.html
+      - run: npm test
+      # vite build only: the full `npm run build` also runs prerender-meta.mjs, which needs the live database
+      - run: npx vite build
