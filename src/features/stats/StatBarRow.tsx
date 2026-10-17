@@ -17,10 +17,13 @@ export function StatBarRow({
   hero,
   metric,
   tone = "default",
+  rank,
 }: {
   hero: HeroSummary;
   metric: number;
   tone?: StatTone;
+  /** อันดับ (1 = แรก) แสดงเป็นเลขนำหน้าแถว; ไม่ส่ง = ไม่แสดง (หน้าอื่นใช้เหมือนเดิม) */
+  rank?: number;
 }) {
   const pct = Math.min(100, Math.max(0, metric));
   const styles = TONE_STYLES[tone];
@@ -29,6 +32,16 @@ export function StatBarRow({
       to={`/heroes/${hero.slug}`}
       className={cn("flex items-center gap-3 rounded-lg border border-border bg-bg-surface p-2.5", styles.hover)}
     >
+      {rank !== undefined && (
+        <span
+          className={cn(
+            "w-5 shrink-0 text-center font-display text-sm font-semibold tabular-nums",
+            rank === 1 ? "text-accent" : rank <= 3 ? "text-text" : "text-text-faint"
+          )}
+        >
+          {rank}
+        </span>
+      )}
       {/* ไม่ใส่ overflow-hidden ที่กรอบ เพราะ HeroBalanceBadge ต้องโผล่ขอบขวาล่าง → ตัดมุมที่ตัวรูปแทน */}
       <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
         {hero.icon ? (
