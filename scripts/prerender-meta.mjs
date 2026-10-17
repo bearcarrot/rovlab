@@ -2,6 +2,7 @@
 // โดยคัดลอก dist/index.html แล้วใส่ title/description/canonical/og ของแต่ละหน้า
 // + เนื้อหา HTML จริง (h1, สกิล, ลิงก์ <a href>) ต่อท้าย #boot เพื่อให้ Google เห็นเนื้อหาและลิงก์โดยไม่ต้องรัน JavaScript
 // (React createRoot แทนที่ #root ทั้งหมดตอนแอปเริ่มทำงาน จึงไม่มี hydration mismatch)
+// และสร้าง dist/sitemap.xml ใหม่: คงหน้าใน public/sitemap.xml ไว้ แต่แทนรายการ /heroes/<slug> และ /learn/<slug> ด้วยข้อมูลจาก DB (ฮีโร่/บทความใหม่เข้า sitemap เองทุก build)
 // สคริปต์นี้ไม่ทำให้ build ล้ม: ถ้าดึงข้อมูลไม่ได้จะข้ามไป (เว็บยังใช้ meta จาก JavaScript เหมือนเดิม)
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -82,6 +83,39 @@ function heroesIndexBody(heroes) {
   return `<h1>ฮีโร่ทั้งหมด</h1><ul>${heroes.map((h) => `<li><a href="/heroes/${esc(h.slug)}">${esc(h.name)}</a></li>`).join("")}</ul>${toolNav()}`;
 }
 
+// รายการ sitemap ของหน้าสาธารณะที่ยังไม่มีใน public/sitemap.xml (เติมให้เฉพาะที่ขาด)
+const EXTRA_PAGES = [
+  ["/build", "weekly", "0.6"],
+  ["/game-data", "weekly", "0.6"],
+  ["/contact", "yearly", "0.2"],
+];
+
+// heroes/guides = null หมายถึงดึงจาก DB ไม่สำเร็จ -> คงรายการเดิมของกลุ่มนั้นไว้ ไม่ลบทิ้ง
+async function writeSitemap(heroes, guides) {
+  let xml;
+  try {
+    xml = await readFile(path.join(DIST, "sitemap.xml"), "utf8");
+  } catch {
+    return false;
+  }
+  const entries = xml.match(/<url>[\s\S]*?<\/url>/g) ?? [];
+  const isGroup = (e, group) => new RegExp(`<loc>[^<]*/${group}/[^<]+</loc>`).test(e);
+  const keep = entries.filter((e) => !(heroes && isGroup(e, "heroes")) && !(guides && isGroup(e, "learn")));
+  const has = (p) => keep.some((e) => e.includes(`<loc>${SITE}${p}</loc>`));
+  const url = (p, rest) => `  <url><loc>${SITE}${esc(p)}</loc>${rest}</url>`;
+  const out = [
+    ...keep.map((e) => `  ${e}`),
+    ...EXTRA_PAGES.filter(([p]) => !has(p)).map(([p, f, pr]) => url(p, `<changefreq>${f}</changefreq><priority>${pr}</priority>`)),
+    ...(heroes ?? []).map((h) => url(`/heroes/${encodeURIComponent(h.slug)}`, "<priority>0.6</priority>")),
+    ...(guides ?? []).map((g) => url(`/learn/${encodeURIComponent(g.slug)}`, "<priority>0.5</priority>")),
+  ];
+  await writeFile(
+    path.join(DIST, "sitemap.xml"),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${out.join("\n")}\n</urlset>\n`,
+  );
+  return true;
+}
+
 async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.log("[prerender-meta] skipped: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY not set");
@@ -90,9 +124,12 @@ async function main() {
   const template = await readFile(path.join(DIST, "index.html"), "utf8");
   let heroCount = 0;
   let guideCount = 0;
+  let heroList = null;
+  let guideList = null;
 
   try {
     const heroes = (await fetchRows("heroes", "select=id,slug,name,description,strengths,weaknesses&order=name.asc")).filter((h) => h.slug && h.name);
+    heroList = heroes;
     // สกิลเป็นส่วนเสริม: ดึงไม่สำเร็จก็ยังสร้างหน้าได้ (shortcut: ~5 สกิล/ฮีโร่ ต่ำกว่าเพดาน 1000 แถวของ PostgREST, ถ้าเกินให้แบ่งหน้า)
     const abilitiesByHero = new Map();
     try {
@@ -127,9 +164,9 @@ async function main() {
   }
 
   try {
-    const guides = await fetchRows("guides", "select=slug,title");
+    const guides = (await fetchRows("guides", "select=slug,title")).filter((g) => g.slug && g.title);
+    guideList = guides;
     for (const g of guides) {
-      if (!g.slug || !g.title) continue;
       await writePage(template, `/learn/${g.slug}`, {
         title: `${g.title} | RoV LAB`,
         description: `${g.title} \u2014 \u0e04\u0e39\u0e48\u0e21\u0e37\u0e2d RoV \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e1c\u0e39\u0e49\u0e40\u0e25\u0e48\u0e19`,
@@ -140,6 +177,9 @@ async function main() {
     console.warn("[prerender-meta] guides skipped:", e.message);
   }
 
+  // heroes ว่างเปล่า = น่าจะผิดปกติ (เช่น RLS/ตารางว่าง) จึงไม่แตะรายการฮีโร่เดิมใน sitemap
+  const sitemapOk = await writeSitemap(heroList?.length ? heroList : null, guideList);
+  console.log(`[prerender-meta] sitemap ${sitemapOk ? "updated" : "not found, left as is"}`);
   console.log(`[prerender-meta] wrote ${heroCount} hero pages, ${guideCount} guide pages`);
 }
 
