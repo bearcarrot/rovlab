@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowLeftRight, GitCompareArrows, X } from "lucide-react";
 import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -271,12 +272,20 @@ function MatchupHeroIcon({ hero }: { hero: HeroSummary }) {
 
 export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
-  const [a, setA] = useState<HeroSummary | null>(null);
-  const [b, setB] = useState<HeroSummary | null>(null);
-  // ช่องที่กำลังเลือกจากกริด และสถานะเปิดกริดซ้ำหลังเลือกครบแล้ว (เลือกครบ = พับกริดเพื่อให้เห็นผลทันที)
+  // เก็บเฉพาะ slug ของฮีโร่ที่เลือกไว้ใน sessionStorage (ผ่าน usePersistedState เหมือนตัวกรอง) เพื่อให้รอดตอนรีเฟรชและตอนสลับแรงก์ (หน้า remount)
+  // แล้วหา HeroSummary จากรายชื่อที่โหลดมา slug ที่ไม่มีในรายชื่อแล้ว (เช่น ฮีโร่ถูกลบ) จะถือว่ายังไม่ได้เลือก
+  const { pathname } = useLocation();
+  const base = `rovlab:matchup:${pathname}`;
+  const [aSlug, setASlug] = usePersistedState<string | null>(`${base}:a`, null);
+  const [bSlug, setBSlug] = usePersistedState<string | null>(`${base}:b`, null);
+  // ช่องที่กำลังเลือกจากกริด (ใช้เมื่อเปิดกริดซ้ำหลังเลือกครบแล้ว ส่วนกรณีอื่นดูจากช่องที่ยังว่าง)
   const [slot, setSlot] = useState<Slot>("a");
   const [editing, setEditing] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  const heroes = heroesQ.status === "success" ? heroesQ.data : [];
+  const a = aSlug ? (heroes.find((h) => h.slug === aSlug) ?? null) : null;
+  const b = bSlug ? (heroes.find((h) => h.slug === bSlug) ?? null) : null;
 
   // ผลอยู่ใต้กริดเลือกฮีโร่: เมื่อเลือกครบทั้งคู่ให้เลื่อนไปหาผล ไม่งั้นบนมือถือต้องเลื่อนลงมาดูเอง (เหมือนหน้า Counter Pick)
   useEffect(() => {
@@ -291,16 +300,17 @@ export function Matchup() {
     () => (a && b ? Promise.all([getHeroBySlug(a.slug), getHeroBySlug(b.slug)]) : Promise.resolve(null)),
     [a?.slug, b?.slug]
   );
-  const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const details = detailsQ.status === "success" ? detailsQ.data : null;
 
   const showGrid = !(a && b) || editing;
+  // ไม่ได้เปิดกริดซ้ำเอง = ชี้ไปช่องที่ยังว่างก่อน (ทำให้หลังรีเฟรชที่เลือกไว้ตัวเดียว กริดจะรอเลือกอีกช่องที่เหลือ)
+  const activeSlot: Slot = editing ? slot : !a ? "a" : !b ? "b" : slot;
 
   const pick = (h: HeroSummary) => {
-    if (slot === "a") setA(h);
-    else setB(h);
-    const otherValue = slot === "a" ? b : a;
-    if (!otherValue) setSlot(slot === "a" ? "b" : "a");
+    if (activeSlot === "a") setASlug(h.slug);
+    else setBSlug(h.slug);
+    const otherValue = activeSlot === "a" ? b : a;
+    if (!otherValue) setSlot(activeSlot === "a" ? "b" : "a");
     else setEditing(false);
   };
   const selectSlot = (s: Slot) => {
@@ -308,13 +318,13 @@ export function Matchup() {
     setEditing(true);
   };
   const clearSlot = (s: Slot) => {
-    if (s === "a") setA(null);
-    else setB(null);
+    if (s === "a") setASlug(null);
+    else setBSlug(null);
     setSlot(s);
   };
   const swap = () => {
-    setA(b);
-    setB(a);
+    setASlug(b?.slug ?? null);
+    setBSlug(a?.slug ?? null);
   };
 
   return (
@@ -329,7 +339,7 @@ export function Matchup() {
       {heroesQ.status === "success" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <HeroSlot label="ฮีโร่ของคุณ" hero={a} active={showGrid && slot === "a"} onSelect={() => selectSlot("a")} onClear={() => clearSlot("a")} />
+            <HeroSlot label="ฮีโร่ของคุณ" hero={a} active={showGrid && activeSlot === "a"} onSelect={() => selectSlot("a")} onClear={() => clearSlot("a")} />
             <button
               type="button"
               onClick={swap}
@@ -339,10 +349,10 @@ export function Matchup() {
             >
               <ArrowLeftRight className="h-4 w-4" />
             </button>
-            <HeroSlot label="ฮีโร่ศัตรู" hero={b} active={showGrid && slot === "b"} onSelect={() => selectSlot("b")} onClear={() => clearSlot("b")} />
+            <HeroSlot label="ฮีโร่ศัตรู" hero={b} active={showGrid && activeSlot === "b"} onSelect={() => selectSlot("b")} onClear={() => clearSlot("b")} />
           </div>
           {showGrid ? (
-            <HeroGrid heroes={heroes} slot={slot} current={slot === "a" ? a : b} exclude={slot === "a" ? b?.slug : a?.slug} onPick={pick} />
+            <HeroGrid heroes={heroes} slot={activeSlot} current={activeSlot === "a" ? a : b} exclude={activeSlot === "a" ? b?.slug : a?.slug} onPick={pick} />
           ) : (
             <button type="button" onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
               เปลี่ยนฮีโร่
