@@ -25,6 +25,7 @@ import {
   describeDraft,
   getDraftMode,
   recommendPicks,
+  SKEW_MIN_HEROES,
   type DraftMode,
   type Recommendation,
 } from "@/features/draft/analyzeTeam";
@@ -190,6 +191,8 @@ export function DraftAssistant() {
   }, [heroes.length, ds.game.mine.picks, ds.game.enemy.picks, bySlug]);
 
   const analysis = useMemo(() => analyzeTeam(myTeam, kits), [myTeam, kits]);
+  // ผลวิเคราะห์ทีมศัตรู ใช้เทียบในมิเตอร์ — แสดงเมื่อศัตรูมีอย่างน้อย SKEW_MIN_HEROES ตัว (น้อยกว่านั้นเทียบแล้วจะให้ภาพผิด)
+  const enemyAnalysis = useMemo(() => analyzeTeam(enemyTeam, kits), [enemyTeam, kits]);
   // จุดที่ทีมยังขาด (แสดงเหนือแถบ meter) — เกณฑ์เดียวกับที่ระบบแนะนำใช้เติมจุดอ่อน
   const gaps = useMemo(() => findTeamGaps(analysis, myTeam, kits), [analysis, myTeam, kits]);
   const mode = getDraftMode(myTeam, enemyTeam);
@@ -270,7 +273,7 @@ export function DraftAssistant() {
   useEffect(() => {
     setCoachText("");
   }, [draftKey]);
-  // คอมโบในทีมเรา + เคานเตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
+  // คอมโบในทีมเรา + เคาน์เตอร์ข้ามทีมพร้อมข้อความกลไก: Coach Ai อ้างอิงเฉพาะข้อมูลที่ส่งไป จึงต้องส่งไปด้วย
   const relationCtx = useMemo(() => describeDraft(myTeam, enemyTeam, relations), [myTeam, enemyTeam, relations]);
 
   // โหมดซีรีส์: บอก Coach Ai ว่าใครถูกแบน และใครถูกใช้ไปแล้วตามกฎ Global BP (โหมดเกมเดียวไม่ส่ง context เปลี่ยนไปจากเดิม)
@@ -639,7 +642,10 @@ export function DraftAssistant() {
             <h2 className="mb-2 font-display text-base font-semibold">ภาพรวมทีมของคุณ</h2>
             <TeamGaps gaps={gaps} filledSlots={analysis.filledSlots} />
             <div data-tour="meters" className="rounded-card border border-border bg-bg-surface p-4">
-              <TeamMeters analysis={analysis} />
+              <TeamMeters
+                analysis={analysis}
+                enemy={enemyAnalysis.filledSlots >= SKEW_MIN_HEROES ? enemyAnalysis : undefined}
+              />
             </div>
 
             {/* คอมโบที่เกิดขึ้นแล้วในทีมเรา: บอกกลไกตรงนี้เลย ไม่ต้องรอถาม AI */}
