@@ -46,14 +46,6 @@
 @keyframes home-sheen { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(320%) skewX(-20deg); } }
 
 @layer utilities {
-  .home-grid {
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-    background-size: 36px 36px;
-    -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 40%, #000 25%, transparent 80%);
-    mask-image: radial-gradient(ellipse 70% 80% at 50% 40%, #000 25%, transparent 80%);
-  }
   .home-gold-text {
     background-image: linear-gradient(90deg, #f6d28b, #e8a33d 40%, #f59e0b 65%, #fde3a7 85%, #f6d28b);
     background-size: 200% auto;
@@ -63,10 +55,10 @@
     color: transparent;
     animation: home-gradient-pan 7s linear infinite;
   }
-  .home-float { animation: home-float 6s ease-in-out infinite; }
+  .home-float { animation: home-float 6s ease-in-out infinite; will-change: transform; }
   .home-fade-up { animation: home-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
   .home-ping { animation: home-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
-  .home-marquee-track { animation: home-marquee 55s linear infinite; width: max-content; }
+  .home-marquee-track { animation: home-marquee 55s linear infinite; width: max-content; will-change: transform; backface-visibility: hidden; transform: translateZ(0); }
   .home-marquee:hover .home-marquee-track { animation-play-state: paused; }
 
   .home-cta {
@@ -91,8 +83,6 @@
     background: linear-gradient(160deg, rgba(28, 31, 38, 0.85), rgba(20, 22, 27, 0.7));
     border: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 20px 40px -24px rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
   }
   .home-glow {
     --glow: 232 163 61;

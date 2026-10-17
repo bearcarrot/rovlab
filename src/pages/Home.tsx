@@ -325,7 +325,6 @@ export function Home() {
         aria-label="เริ่มใช้งาน"
         className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/20 via-bg-surface to-bg-surface p-6 text-center sm:p-10"
       >
-        <div aria-hidden className="home-grid pointer-events-none absolute inset-0 opacity-60" />
         <div
           aria-hidden
           className="pointer-events-none absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/30 blur-3xl"
@@ -347,7 +346,7 @@ export function Home() {
             <Link
               to="/heroes"
               className={cn(
-                "inline-flex min-h-11 items-center rounded-xl border border-border bg-bg/60 px-5 py-2.5 text-sm font-medium text-text backdrop-blur hover:border-accent/50",
+                "inline-flex min-h-11 items-center rounded-xl border border-border bg-bg/60 px-5 py-2.5 text-sm font-medium text-text hover:border-accent/50",
                 FOCUS
               )}
             >
@@ -389,7 +388,6 @@ function Hero({
   return (
     <section className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-bg-raised via-bg-surface to-bg px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14">
       {/* ฉากหลัง: ตาราง + แสงทอง/ฟ้า */}
-      <div aria-hidden className="home-grid pointer-events-none absolute inset-0 -z-10" />
       <div
         aria-hidden
         className="pointer-events-none absolute -right-24 -top-32 -z-10 h-96 w-96 rounded-full bg-accent/25 blur-3xl"
@@ -445,7 +443,7 @@ function Hero({
             <Link
               to="/tier-list"
               className={cn(
-                "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-text backdrop-blur transition-colors hover:border-accent/50 hover:bg-white/10",
+                "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-text transition-colors hover:border-accent/50 hover:bg-white/10",
                 FOCUS
               )}
             >
@@ -504,7 +502,7 @@ function Hero({
 
 function HeroStat({ label, value, text = false }: { label: string; value: number | string | null; text?: boolean }) {
   return (
-    <div className="flex flex-col-reverse rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 backdrop-blur">
+    <div className="flex flex-col-reverse rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
       <dt className="mt-1.5 text-[11px] text-text-faint">{label}</dt>
       <dd className={cn("font-display font-semibold leading-none text-text", text ? "truncate text-sm" : "text-xl")}>
         {value ?? "–"}
@@ -528,7 +526,7 @@ function HeroMarquee({ heroes }: { heroes: HeroSummary[] }) {
             key={`${h.id}-${i}`}
             to={`/heroes/${h.slug}`}
             tabIndex={-1}
-            className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-bg-raised grayscale transition duration-300 hover:scale-110 hover:border-accent/60 hover:grayscale-0 sm:h-16 sm:w-16"
+            className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-bg-raised transition duration-300 hover:scale-110 hover:border-accent/60 sm:h-16 sm:w-16"
           >
             <img
               src={h.icon}
