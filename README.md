@@ -313,40 +313,8 @@ RoV LAB uses the following technologies:
 * Supabase for supported database and backend functionality
 * Supabase Edge Functions for selected server-side workflows
 * Vercel for deployment, serverless functions, analytics, and performance insights
-* `@vercel/og` for generated share images
 
-Selected server-side workflows include AI coaching, avatar handling, hero video support, and match screenshot OCR. Vercel functions in `api/` provide share metadata, share images, and hero metadata.
-
-## Getting Started
-
-Requirements: Node.js and npm.
-
-```bash
-npm install
-npm run dev
-```
-
-Create a local environment file with your own Supabase project values. The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Never commit real keys or secrets.
-
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Start the Vite development server |
-| `npm run build` | Build the app, then run `scripts/prerender-meta.mjs` to prerender metadata and regenerate the sitemap |
-| `npm run preview` | Preview the production build locally |
-| `npm run typecheck` | Run the TypeScript type check |
-| `npm run lint` | Run ESLint |
-
-## Project Structure
-
-| Path | Contents |
-| --- | --- |
-| `src/` | Application code: pages, components, features, hooks, services, data, and types |
-| `api/` | Vercel serverless functions for share metadata and share images |
-| `supabase/` | Database and Edge Function resources |
-| `scripts/` | Build-time scripts, including `prerender-meta.mjs` |
-| `public/` | Static assets |
-| `tests/` | Tests |
-| `docs/` | Additional project documentation |
+Selected server-side workflows include AI coaching, avatar handling, hero video support, and match screenshot OCR.
 
 ## Data Quality Principles
 
