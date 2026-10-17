@@ -10,7 +10,8 @@ const IPV4_LIKE_RE = /^[0-9.]+$/;
 const MAX_URL_LEN = 2048;
 const MAX_LABEL_CODE_POINTS = 40;
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
-const VIMEO_ID_RE = /^[0-9]{1,12}$/;
+const YT_WATCH_PATH_RE = /^\/watch\/?$/;
+const QUERY_V_RE = /(?:^|&)v=([^&]*)/;
 const DIRECT_VIDEO_RE = /\.(mp4|webm|ogv)$/i;
 const OWN_BUCKET_PATH = "/storage/v1/object/public/announcements/";
 const OWN_BUCKET_IMAGE_RE = /\.(jpg|jpeg|png|webp)$/i;
@@ -33,11 +34,17 @@ function httpsUrlOk(u: string): boolean {
   return !IPV4_LIKE_RE.test(m[1]);
 }
 
+// Plain-regex splitting (no URL class, no decoding, no normalisation) so TS and SQL see exactly the same host/path/query.
+// SQL mirror: lower(substring(u from '^https://([^/?#:]+)')), substring(u from '^https://[^/?#]+([^?#]*)'),
+//             substring(u from '^https://[^/?#]+[^?#]*\\?([^#]*)').
+function splitUrl(u: string): { host: string; path: string; query: string | null } {
+  const m = /^https:\/\/([^/?#]+)([^?#]*)(?:\?([^#]*))?/.exec(u);
+  const hostPort = m ? m[1] : "";
+  return { host: hostPort.split(":")[0].toLowerCase(), path: m ? m[2] : "", query: m && m[3] !== undefined ? m[3] : null };
+}
+
 function pathBeforeQuery(u: string): string {
-  const afterScheme = u.slice("https://".length);
-  const slash = afterScheme.search(/[/?#]/);
-  if (slash === -1) return "";
-  return afterScheme.slice(slash).split(/[?#]/)[0];
+  return splitUrl(u).path;
 }
 
 export function isOwnBucketUrl(url: string): boolean {
@@ -48,25 +55,28 @@ export function isOwnBucketUrl(url: string): boolean {
 export function parseVideo(url: string): ParsedVideo | null {
   const u = clean(url);
   if (u === null || !httpsUrlOk(u)) return null;
-  const parsed = new URL(u);
-  const host = parsed.hostname.toLowerCase();
-  const parts = parsed.pathname.split("/").filter((p) => p !== "");
+  const { host, path, query } = splitUrl(u);
   if (YT_HOSTS.has(host)) {
-    if (parts.length === 1 && parts[0] === "watch") {
-      const v = parsed.searchParams.get("v");
-      if (v !== null && YT_ID_RE.test(v)) return { kind: "youtube", id: v };
+    if (YT_WATCH_PATH_RE.test(path) && query !== null) {
+      const v = QUERY_V_RE.exec(query);
+      if (v !== null && YT_ID_RE.test(v[1])) return { kind: "youtube", id: v[1] };
     }
-    if (parts.length === 2 && (parts[0] === "embed" || parts[0] === "shorts") && YT_ID_RE.test(parts[1])) return { kind: "youtube", id: parts[1] };
+    const e = /^\/(?:embed|shorts)\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
+    if (e !== null) return { kind: "youtube", id: e[1] };
   } else if (YT_NOCOOKIE_HOSTS.has(host)) {
-    if (parts.length === 2 && parts[0] === "embed" && YT_ID_RE.test(parts[1])) return { kind: "youtube", id: parts[1] };
+    const e = /^\/embed\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
+    if (e !== null) return { kind: "youtube", id: e[1] };
   } else if (host === "youtu.be") {
-    if (parts.length === 1 && YT_ID_RE.test(parts[0])) return { kind: "youtube", id: parts[0] };
+    const e = /^\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
+    if (e !== null) return { kind: "youtube", id: e[1] };
   } else if (VIMEO_HOSTS.has(host)) {
-    if (parts.length === 1 && VIMEO_ID_RE.test(parts[0])) return { kind: "vimeo", id: parts[0] };
+    const e = /^\/([0-9]{1,12})\/?$/.exec(path);
+    if (e !== null) return { kind: "vimeo", id: e[1] };
   } else if (host === "player.vimeo.com") {
-    if (parts.length === 2 && parts[0] === "video" && VIMEO_ID_RE.test(parts[1])) return { kind: "vimeo", id: parts[1] };
+    const e = /^\/video\/([0-9]{1,12})\/?$/.exec(path);
+    if (e !== null) return { kind: "vimeo", id: e[1] };
   }
-  if (DIRECT_VIDEO_RE.test(pathBeforeQuery(u))) return { kind: "direct", url: u };
+  if (DIRECT_VIDEO_RE.test(path)) return { kind: "direct", url: u };
   return null;
 }
 
