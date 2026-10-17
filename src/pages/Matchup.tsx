@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeftRight, GitCompareArrows, X } from "lucide-react";
+import { ArrowLeftRight, GitCompareArrows, RotateCcw, X } from "lucide-react";
 import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
 import { useAsync } from "@/hooks/useAsync";
@@ -326,6 +326,13 @@ export function Matchup() {
     setASlug(b?.slug ?? null);
     setBSlug(a?.slug ?? null);
   };
+  // ล้างทั้งสองช่องและกลับไปเริ่มเลือกที่ช่องของคุณ (ไม่แตะตัวกรองโรล/เลน)
+  const reset = () => {
+    setASlug(null);
+    setBSlug(null);
+    setSlot("a");
+    setEditing(false);
+  };
 
   return (
     <div className="space-y-5">
@@ -351,12 +358,23 @@ export function Matchup() {
             </button>
             <HeroSlot label="ฮีโร่ศัตรู" hero={b} active={showGrid && activeSlot === "b"} onSelect={() => selectSlot("b")} onClear={() => clearSlot("b")} />
           </div>
-          {showGrid ? (
+          {(a || b) && (
+            <div className="flex items-center justify-between gap-2">
+              {!showGrid ? (
+                <button type="button" onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
+                  เปลี่ยนฮีโร่
+                </button>
+              ) : (
+                <span />
+              )}
+              <button type="button" onClick={reset} className="inline-flex items-center gap-1 text-xs text-text-faint hover:text-text">
+                <RotateCcw className="h-3.5 w-3.5" />
+                รีเซ็ต
+              </button>
+            </div>
+          )}
+          {showGrid && (
             <HeroGrid heroes={heroes} slot={activeSlot} current={activeSlot === "a" ? a : b} exclude={activeSlot === "a" ? b?.slug : a?.slug} onPick={pick} />
-          ) : (
-            <button type="button" onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
-              เปลี่ยนฮีโร่
-            </button>
           )}
         </div>
       )}
