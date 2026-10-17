@@ -36,3 +36,28 @@ test("every inline <script> in index.html is covered by a hash in the CSP", () =
 test("index.html has no inline event handler attributes (blocked by script-src-attr 'none')", () => {
   assert.doesNotMatch(html, /\son(load|click|error|submit|change)=/i);
 });
+
+// ---- Announcements: embeds (YouTube/Vimeo) and direct video need frame-src / media-src ----
+const directive = (name: string): string[] => {
+  const d = csp.split(";").map((x) => x.trim()).find((x) => x === name || x.startsWith(`${name} `));
+  return d ? d.split(/\s+/).slice(1) : [];
+};
+
+test("frame-src allows only Google sign-in plus the two embed hosts, with no wildcard or scheme-wide source", () => {
+  const frame = directive("frame-src");
+  assert.deepEqual([...frame].sort(), ["https://accounts.google.com/gsi/", "https://player.vimeo.com", "https://www.youtube-nocookie.com"]);
+  for (const token of frame) assert.ok(!token.includes("*") && token !== "https:" && token !== "http:" && token !== "data:", token);
+});
+
+test("media-src is exactly 'self' https: (direct video from any https host; no http:, data: or blob:)", () => {
+  assert.deepEqual(directive("media-src"), ["'self'", "https:"]);
+});
+
+test("the announcements change loosens nothing else", () => {
+  assert.deepEqual(directive("default-src"), ["'self'"]);
+  assert.ok(!directive("script-src").includes("https:"), "script-src must not become scheme-wide");
+  assert.ok(directive("script-src").includes("'sha256-5z+1H/JOUpQQ3u+HKs3Qc90MPnLbRLmYkVajlbVlV7s='"));
+  assert.deepEqual(directive("frame-ancestors"), ["'none'"]);
+  assert.deepEqual(directive("object-src"), ["'none'"]);
+  assert.ok(directive("connect-src").includes("https://mttcdaiwuasnkqlxbeqs.supabase.co"));
+});
