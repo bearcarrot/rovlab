@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ClipboardList } from "lucide-react";
+import { ArrowRight, ClipboardList } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { listMyMatches } from "@/services/matches";
@@ -19,7 +19,7 @@ export function MyMatchesCard() {
 
   if (!user || q.status === "error") return null;
   if (q.status === "loading") {
-    return <div aria-busy="true" className="h-28 rounded-card border border-border bg-bg-surface" />;
+    return <div aria-busy="true" className="h-40 rounded-card border border-border bg-bg-surface" />;
   }
 
   const matches = q.data;
@@ -27,11 +27,22 @@ export function MyMatchesCard() {
   const top = buildInsights(matches)[0];
 
   return (
-    <section aria-labelledby="my-matches-heading" className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="my-matches-heading" className="font-display text-base font-semibold">วิเคราะห์เกมของฉัน</h2>
-        <Link to="/matches" className={cn("text-xs text-accent", FOCUS)}>
-          ดูทั้งหมด →
+    <section aria-labelledby="my-matches-heading" className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs font-semibold tracking-widest text-accent">YOU</span>
+            <span aria-hidden className="h-px w-8 bg-gradient-to-r from-accent to-transparent" />
+          </div>
+          <h2 id="my-matches-heading" className="mt-1 font-display text-xl font-semibold leading-tight sm:text-2xl">
+            วิเคราะห์เกมของฉัน
+          </h2>
+        </div>
+        <Link
+          to="/matches"
+          className={cn("inline-flex shrink-0 items-center gap-1 text-sm font-medium text-accent hover:underline", FOCUS)}
+        >
+          ดูทั้งหมด <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
 
@@ -39,35 +50,42 @@ export function MyMatchesCard() {
         <Link
           to="/matches"
           className={cn(
-            "flex min-h-11 items-start gap-3 rounded-lg border border-border bg-bg-surface p-3 hover:border-accent/40",
+            "group flex min-h-11 items-center gap-4 rounded-card border border-dashed border-border bg-bg-surface p-4 transition-colors hover:border-accent/50",
             FOCUS
           )}
         >
-          <ClipboardList className="mt-0.5 h-5 w-5 shrink-0 text-accent" strokeWidth={2} />
-          <div>
-            <p className="font-display text-sm font-medium leading-tight">อัปโหลดสกรีนชอตแมตช์แรกของคุณ</p>
-            <p className="mt-0.5 text-xs text-text-muted">ระบบอ่านตัวเลขจากหน้าสรุปผลให้ แล้วสรุปสถิติและข้อสังเกตจากแมตช์ที่คุณบันทึก</p>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/30">
+            <ClipboardList className="h-5 w-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-sm font-semibold leading-tight">อัปโหลดสกรีนชอตแมตช์แรกของคุณ</p>
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">
+              ระบบอ่านตัวเลขจากหน้าสรุปผลให้ แล้วสรุปสถิติและข้อสังเกตจากแมตช์ที่คุณบันทึก
+            </p>
           </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-text-faint transition-transform group-hover:translate-x-1 group-hover:text-accent" />
         </Link>
       ) : (
-        <div className="space-y-3 rounded-card border border-border bg-bg-surface p-3">
+        <div className="space-y-4 rounded-card border border-border bg-bg-surface p-4">
           <p className="text-xs text-text-muted">จาก {s.games} แมตช์ล่าสุดที่คุณบันทึก</p>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="font-display text-lg font-semibold tabular-nums">{Math.round(s.winRate * 100)}%</p>
-              <p className="text-[11px] text-text-muted">อัตราชนะ</p>
-            </div>
-            <div>
-              <p className="font-display text-lg font-semibold tabular-nums">{s.kda.toFixed(2)}</p>
-              <p className="text-[11px] text-text-muted">KDA</p>
-            </div>
-            <div>
-              <p className="font-display text-lg font-semibold tabular-nums">{s.avgRating.toFixed(1)}</p>
-              <p className="text-[11px] text-text-muted">คะแนนเฉลี่ย</p>
-            </div>
+          <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
+            <StatTile
+              value={`${Math.round(s.winRate * 100)}%`}
+              label="อัตราชนะ"
+              valueClass={s.winRate >= 0.5 ? "text-win" : "text-loss"}
+              bar={Math.round(s.winRate * 100)}
+              barClass={s.winRate >= 0.5 ? "bg-win" : "bg-loss"}
+            />
+            <StatTile value={s.kda.toFixed(2)} label="KDA" />
+            <StatTile value={s.avgRating.toFixed(1)} label="คะแนนเฉลี่ย" />
           </div>
           {top ? (
-            <p className={cn("rounded-lg p-2.5 text-xs leading-relaxed", top.tone === "warn" ? "bg-accent/10 text-text" : "bg-win/10 text-text")}>
+            <p
+              className={cn(
+                "rounded-lg border-l-2 p-3 text-xs leading-relaxed",
+                top.tone === "warn" ? "border-accent bg-accent/10 text-text" : "border-win bg-win/10 text-text"
+              )}
+            >
               <span className={cn("font-medium", top.tone === "warn" ? "text-accent" : "text-win")}>{top.title}</span>
               {" — "}
               {top.detail}
@@ -80,5 +98,32 @@ export function MyMatchesCard() {
         </div>
       )}
     </section>
+  );
+}
+
+function StatTile({
+  value,
+  label,
+  valueClass,
+  bar,
+  barClass,
+}: {
+  value: string;
+  label: string;
+  valueClass?: string;
+  /** 0–100: หลอดสัดส่วนใต้ตัวเลข (ใช้กับอัตราชนะ) */
+  bar?: number;
+  barClass?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-bg-raised px-2 py-3">
+      <p className={cn("font-display text-2xl font-semibold tabular-nums leading-none", valueClass)}>{value}</p>
+      <p className="mt-1.5 text-[11px] text-text-muted">{label}</p>
+      {bar !== undefined && (
+        <div className="mx-auto mt-2 h-1 w-3/4 overflow-hidden rounded-full bg-bg">
+          <div className={cn("h-full rounded-full", barClass)} style={{ width: `${Math.min(100, Math.max(0, bar))}%` }} />
+        </div>
+      )}
+    </div>
   );
 }
