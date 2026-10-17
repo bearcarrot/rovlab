@@ -5,6 +5,7 @@ import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -272,6 +273,7 @@ function MatchupHeroIcon({ hero }: { hero: HeroSummary }) {
 
 export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
+  const toast = useToast();
   // เก็บเฉพาะ slug ของฮีโร่ที่เลือกไว้ใน sessionStorage (ผ่าน usePersistedState เหมือนตัวกรอง) เพื่อให้รอดตอนรีเฟรชและตอนสลับแรงก์ (หน้า remount)
   // แล้วหา HeroSummary จากรายชื่อที่โหลดมา slug ที่ไม่มีในรายชื่อแล้ว (เช่น ฮีโร่ถูกลบ) จะถือว่ายังไม่ได้เลือก
   const { pathname } = useLocation();
@@ -281,7 +283,12 @@ export function Matchup() {
   // ช่องที่กำลังเลือกจากกริด (ใช้เมื่อเปิดกริดซ้ำหลังเลือกครบแล้ว ส่วนกรณีอื่นดูจากช่องที่ยังว่าง)
   const [slot, setSlot] = useState<Slot>("a");
   const [editing, setEditing] = useState(false);
+  // ปุ่มรีเซ็ตแบบกดสองครั้งเหมือน Tier List ของฉัน: กดครั้งแรกเปลี่ยนเป็น "ยืนยันรีเซ็ต?" (4 วินาที) กดซ้ำจึงล้างจริง
+  const [confirmReset, setConfirmReset] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>();
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
 
   const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const a = aSlug ? (heroes.find((h) => h.slug === aSlug) ?? null) : null;
@@ -327,12 +334,20 @@ export function Matchup() {
     setBSlug(a?.slug ?? null);
   };
   // ล้างทั้งสองช่องและกลับไปเริ่มเลือกที่ช่องของคุณ (ไม่แตะตัวกรองโรล/เลน)
-  const reset = () => {
+  function reset() {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      resetTimer.current = setTimeout(() => setConfirmReset(false), 4000);
+      return;
+    }
+    clearTimeout(resetTimer.current);
     setASlug(null);
     setBSlug(null);
     setSlot("a");
     setEditing(false);
-  };
+    setConfirmReset(false);
+    toast.success("รีเซ็ต Matchup แล้ว");
+  }
 
   return (
     <div className="space-y-5">
@@ -367,9 +382,16 @@ export function Matchup() {
               ) : (
                 <span />
               )}
-              <button type="button" onClick={reset} className="inline-flex items-center gap-1 text-xs text-text-faint hover:text-text">
-                <RotateCcw className="h-3.5 w-3.5" />
-                รีเซ็ต
+              <button
+                type="button"
+                onClick={reset}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+                  confirmReset ? "border-red-400 text-red-400" : "border-border text-text-muted hover:text-text"
+                )}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {confirmReset ? "ยืนยันรีเซ็ต?" : "รีเซ็ต"}
               </button>
             </div>
           )}
