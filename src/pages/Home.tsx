@@ -49,27 +49,18 @@ const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
 // สีเรืองแสง "R G B" ตรงกับ tailwind.config.ts (accent / rift / win / loss / tier)
-const GLOW = {
-  gold: "232 163 61",
-  blue: "76 141 255",
-  green: "61 214 140",
-  red: "229 72 77",
-  orange: "249 115 22",
-  sky: "59 130 246",
-  tierSp: "220 38 38",
-  tierS: "249 115 22",
-} as const;
+const GLOW = { gold: "232 163 61" } as const;
 
 const glow = (rgb: string) => ({ "--glow": rgb }) as CSSProperties;
 
 // ลำดับเดียวกับ Sidebar / MobileDrawer (Draft Assistant เป็นการ์ดใหญ่ด้านบนแยกต่างหาก)
-const TOOLS: { to: string; title: string; desc: string; icon: IconType; glow: string }[] = [
-  { to: "/tier-list", title: "Tier List", desc: "ดูว่าฮีโร่ตัวไหนแรงในเมต้านี้ พร้อมเหตุผลต่อฮีโร่", icon: ListOrdered, glow: GLOW.gold },
-  { to: "/counter-pick", title: "Counter Pick", desc: "เลือกฮีโร่ศัตรู แล้วดูว่าใครสวนได้และสวนอย่างไร", icon: Swords, glow: GLOW.red },
-  { to: "/matchup", title: "Matchup", desc: "เทียบฮีโร่สองตัวในเลน ช่วงต้น กลาง ปลายเกม", icon: Scale, glow: GLOW.blue },
-  { to: "/heroes", title: "ฮีโร่ทั้งหมด", desc: "ค้นหาและกรองตาม Role / Lane ดูจุดแข็งจุดอ่อน", icon: HeroHelmetIcon, glow: GLOW.green },
-  { to: "/build", title: "Item Build", desc: "เลือกฮีโร่เพื่อดูบิลด์แนะนำพร้อมเหตุผล", icon: Hammer, glow: GLOW.orange },
-  { to: "/game-data", title: "คลังข้อมูลเกม", desc: "รวมไอเทม รูน และข้อมูลเกมให้ค้นหาได้", icon: Library, glow: GLOW.sky },
+const TOOLS: { to: string; title: string; desc: string; icon: IconType }[] = [
+  { to: "/tier-list", title: "Tier List", desc: "ดูว่าฮีโร่ตัวไหนแรงในเมต้านี้ พร้อมเหตุผลต่อฮีโร่", icon: ListOrdered },
+  { to: "/counter-pick", title: "Counter Pick", desc: "เลือกฮีโร่ศัตรู แล้วดูว่าใครสวนได้และสวนอย่างไร", icon: Swords },
+  { to: "/matchup", title: "Matchup", desc: "เทียบฮีโร่สองตัวในเลน ช่วงต้น กลาง ปลายเกม", icon: Scale },
+  { to: "/heroes", title: "ฮีโร่ทั้งหมด", desc: "ค้นหาและกรองตาม Role / Lane ดูจุดแข็งจุดอ่อน", icon: HeroHelmetIcon },
+  { to: "/build", title: "Item Build", desc: "เลือกฮีโร่เพื่อดูบิลด์แนะนำพร้อมเหตุผล", icon: Hammer },
+  { to: "/game-data", title: "คลังข้อมูลเกม", desc: "รวมไอเทม รูน และข้อมูลเกมให้ค้นหาได้", icon: Library },
 ];
 
 const DRAFT_POINTS = [
@@ -86,7 +77,6 @@ const SNAPSHOT_SIZE = 6;
 // แถว Tier: โชว์ S+ และ S อย่างละสูงสุด 11 ตัว (+ ปุ่ม "+N" ไปหน้า Tier List) ไอคอนเล็กกว่าหน้า Tier List
 const TOP_TIER_MAX = 11;
 const TOP_TIERS: Tier[] = ["S+", "S"];
-const TIER_GLOW: Record<string, string> = { "S+": GLOW.tierSp, S: GLOW.tierS };
 
 // ฮีโร่บนภาพประกอบ (โมเสกใน Hero + แถบเลื่อน) — ตกแต่งอย่างเดียว
 const MOSAIC_SIZE = 9;
@@ -182,18 +172,17 @@ export function Home() {
             <ArrowRight className="relative hidden h-5 w-5 shrink-0 text-accent transition-transform group-hover:translate-x-1 sm:block" />
           </Link>
 
-          {TOOLS.map(({ to, title, desc, icon: Icon, glow: rgb }) => (
+          {TOOLS.map(({ to, title, desc, icon: Icon }) => (
             <Link
               key={to}
               to={to}
-              style={glow(rgb)}
               className={cn(
-                "home-glow group flex min-h-11 flex-col gap-3 rounded-card border border-border bg-bg-surface p-4",
+                "group flex min-h-11 flex-col gap-3 rounded-card border border-border bg-bg-surface p-4 transition-colors hover:border-accent/50",
                 FOCUS
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="home-glow-tile flex h-10 w-10 items-center justify-center rounded-xl">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bg-raised text-text-muted transition-colors group-hover:text-accent">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </span>
                 <ArrowRight className="h-4 w-4 -translate-x-1 text-text-faint opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
@@ -210,7 +199,7 @@ export function Home() {
       {/* 3. What Draft Assistant evaluates. Right column: static preview, swapped for the most-liked community draft once it scrolls near the viewport */}
       <section
         aria-labelledby="draft-heading"
-        className="home-glass relative grid gap-6 overflow-hidden rounded-3xl p-5 sm:p-7 md:grid-cols-2 md:items-center"
+        className="relative grid gap-6 overflow-hidden rounded-3xl border border-border bg-bg-surface p-5 sm:p-7 md:grid-cols-2 md:items-center"
       >
         <div className="relative space-y-4">
           <SectionHeading
@@ -268,7 +257,6 @@ export function Home() {
           <StatSnapshot
             title="Win Rate สูงสุด"
             icon={Trophy}
-            rgb={GLOW.green}
             state={heroes}
             heroes={meta.topWinRate}
             metric="winRate"
@@ -277,7 +265,6 @@ export function Home() {
           <StatSnapshot
             title="Pick Rate สูงสุด"
             icon={Flame}
-            rgb={GLOW.gold}
             state={heroes}
             heroes={meta.topPickRate}
             metric="pickRate"
@@ -285,7 +272,6 @@ export function Home() {
           <StatSnapshot
             title="Ban Rate สูงสุด"
             icon={Ban}
-            rgb={GLOW.red}
             hint="ควรแบน"
             state={heroes}
             heroes={meta.mostBanned}
@@ -304,8 +290,8 @@ export function Home() {
       <section aria-labelledby="more-heading" className="space-y-4">
         <SectionHeading id="more-heading" index="04" title="เรียนรู้และดูสถิติเพิ่ม" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <MoreLink to="/stats" icon={BarChart3} rgb={GLOW.gold} title="สถิติฮีโร่" desc="จัดอันดับ Win / Pick / Ban Rate แยกตาม Lane" />
-          <MoreLink to="/learn" icon={BookOpen} rgb={GLOW.blue} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
+          <MoreLink to="/stats" icon={BarChart3} title="สถิติฮีโร่" desc="จัดอันดับ Win / Pick / Ban Rate แยกตาม Lane" />
+          <MoreLink to="/learn" icon={BookOpen} title="คู่มือ" desc="บทเรียน Macro, การเล่นเลน และการดราฟต์ (กำลังทยอยเพิ่ม)" />
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-faint">
           <Sparkles className="h-3.5 w-3.5 text-accent" /> Coach Ai อยู่ใน Draft Assistant ที่ปุ่ม &ldquo;ถาม Coach Ai&rdquo; บนการ์ดแนะนำ
@@ -378,7 +364,7 @@ function Hero({
       className="relative overflow-hidden rounded-3xl border border-white/10 bg-bg-surface px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14"
       style={{
         backgroundImage:
-          "radial-gradient(60% 70% at 100% 0%, rgba(232,163,61,0.22), transparent 70%), radial-gradient(55% 60% at 0% 100%, rgba(76,141,255,0.14), transparent 70%)",
+          "radial-gradient(60% 70% at 100% 0%, rgba(232,163,61,0.22), transparent 70%), radial-gradient(55% 60% at 0% 100%, rgba(76,141,255,0.08), transparent 70%)",
       }}
     >
       {/* ฉากหลัง: ตาราง + แสงทอง/ฟ้า */}
@@ -576,26 +562,23 @@ function MetaPill({ children }: { children: ReactNode }) {
 function MoreLink({
   to,
   icon: Icon,
-  rgb,
   title,
   desc,
 }: {
   to: string;
   icon: IconType;
-  rgb: string;
   title: string;
   desc: string;
 }) {
   return (
     <Link
       to={to}
-      style={glow(rgb)}
       className={cn(
-        "home-glow group flex min-h-11 items-center gap-3 rounded-card border border-border bg-bg-surface p-4",
+        "group flex min-h-11 items-center gap-3 rounded-card border border-border bg-bg-surface p-4 transition-colors hover:border-accent/50",
         FOCUS
       )}
     >
-      <span className="home-glow-tile flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bg-raised text-text-muted transition-colors group-hover:text-accent">
         <Icon className="h-5 w-5" strokeWidth={2} />
       </span>
       <div className="min-w-0 flex-1">
@@ -648,20 +631,14 @@ function TopTierRows({
         visible.map(({ tier, heroes }) => {
           const shown = heroes.slice(0, TOP_TIER_MAX);
           const extra = heroes.length - shown.length;
-          const rgb = TIER_GLOW[tier] ?? GLOW.gold;
           return (
             <div
               key={tier}
-              style={glow(rgb)}
-              className="relative overflow-hidden rounded-2xl border border-[rgb(var(--glow)/0.3)] bg-bg-surface p-3 sm:p-4"
+              className="relative overflow-hidden rounded-2xl border border-border bg-bg-surface p-3 sm:p-4"
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgb(var(--glow)/0.18),transparent_45%)]"
-              />
               <div className="relative">
                 <div className="mb-3 flex items-center gap-2">
-                  <Badge tier={tier} className="px-3 py-1 text-sm shadow-[0_0_24px_-4px_rgb(var(--glow)/0.9)]">
+                  <Badge tier={tier} className="px-3 py-1 text-sm">
                     {tier}
                   </Badge>
                   <span className="text-xs text-text-muted">{heroes.length} ฮีโร่</span>
@@ -674,7 +651,7 @@ function TopTierRows({
                       aria-label={h.nameTh}
                       title={h.nameTh}
                       className={cn(
-                        "relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint ring-1 ring-white/10 transition duration-200 hover:z-10 hover:scale-110 hover:ring-2 hover:ring-[rgb(var(--glow))]",
+                        "relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint ring-1 ring-white/10 transition duration-200 hover:z-10 hover:scale-110 hover:ring-2 hover:ring-accent/60",
                         FOCUS
                       )}
                     >
@@ -724,7 +701,6 @@ type FetchState = { status: "loading" | "error" | "success"; refetch: () => void
 function StatSnapshot({
   title,
   icon: Icon,
-  rgb,
   hint,
   state,
   heroes,
@@ -733,7 +709,6 @@ function StatSnapshot({
 }: {
   title: string;
   icon: IconType;
-  rgb: string;
   hint?: string;
   state: FetchState;
   heroes: HeroSummary[];
@@ -742,17 +717,11 @@ function StatSnapshot({
 }) {
   return (
     <div
-      style={glow(rgb)}
-      className="home-glass relative overflow-hidden rounded-2xl p-4"
+      className="relative overflow-hidden rounded-2xl border border-border bg-bg-surface p-4"
     >
-      {/* แถบสีบนสุดของการ์ด */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,rgb(var(--glow)),transparent)]"
-      />
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="home-glow-tile flex h-8 w-8 items-center justify-center rounded-lg">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-raised text-text-muted">
             <Icon className="h-4 w-4" strokeWidth={2.2} />
           </span>
           <h3 className="font-display text-sm font-semibold">{title}</h3>
