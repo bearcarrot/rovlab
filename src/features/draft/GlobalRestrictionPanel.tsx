@@ -6,6 +6,7 @@ export type RestrictedByGame = { gameNumber: number; heroes: HeroSummary[] };
 
 // ไอคอนขยายตามความกว้างแถว (grid 5 คอลัมน์, aspect-square) แทนชิป 32px ชิดซ้าย ไม่เหลือที่ว่างขวาบนมือถือ
 // max-w-72 จำกัดไม่ให้ใหญ่เกินไปบนจอกว้าง; เกมที่มีฮีโร่น้อยกว่า 5 ตัวไอคอนยังขนาดเท่าเดิม
+// grayscale = ฮีโร่ที่ใช้ไปแล้วเป็นสีเทา เหมือนไอคอนแบนใน BanRow
 function GameRows({ rows }: { rows: RestrictedByGame[] }) {
   return (
     <div className="space-y-2">
@@ -18,7 +19,7 @@ function GameRows({ rows }: { rows: RestrictedByGame[] }) {
             <div className="grid max-w-72 flex-1 grid-cols-5 gap-1.5">
               {r.heroes.map((h) => (
                 <div key={h.slug} title={h.nameTh}>
-                  <HeroIcon icon={h.icon} name={h.name} className="aspect-square h-auto w-full rounded-md" />
+                  <HeroIcon icon={h.icon} name={h.name} className="aspect-square h-auto w-full rounded-md grayscale" />
                 </div>
               ))}
             </div>
