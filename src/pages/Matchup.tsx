@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { GitCompareArrows } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowLeftRight, GitCompareArrows, RotateCcw, X } from "lucide-react";
 import { getHeroes, getHeroBySlug } from "@/services/heroes";
 import { getMatchup } from "@/services/matchups";
 import { useAsync } from "@/hooks/useAsync";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -18,54 +20,87 @@ import type { HeroDetail, HeroSummary } from "@/types/hero";
 import type { MatchupDetail } from "@/types/matchup";
 import { cn } from "@/lib/utils";
 
-function HeroPicker({ label, scope, heroes, value, onChange, exclude }: { label: string; scope: string; heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void; exclude?: string }) {
-  // ตัวกรองแยกต่อ picker เพื่อให้เลือกเช่น "เมจของเรา vs แอแซสซินศัตรู" ได้ (scope แยกกัน จึงจำค่าแยกกันด้วย)
-  const filters = useHeroFilters(scope);
+type Slot = "a" | "b";
+
+// ช่องแสดงฮีโร่ที่เลือก (ฮีโร่ของคุณ / ฮีโร่ศัตรู) แตะเพื่อเลือกว่าจะใส่ฮีโร่ลงช่องไหนจากกริดด้านล่าง
+function HeroSlot({ label, hero, active, onSelect, onClear }: { label: string; hero: HeroSummary | null; active: boolean; onSelect: () => void; onClear: () => void }) {
+  return (
+    <div className={cn("flex min-w-0 flex-1 items-center gap-1 rounded-lg border p-2", active ? "border-accent bg-accent/10" : "border-border bg-bg-surface")}>
+      <button type="button" onClick={onSelect} aria-pressed={active} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        {hero ? (
+          <HeroIcon
+            icon={hero.icon}
+            name={hero.nameTh}
+            fallback={hero.name.slice(0, 2).toUpperCase()}
+            className="h-10 w-10 shrink-0 rounded-md border border-border"
+          />
+        ) : (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-border font-display text-text-faint">?</div>
+        )}
+        <span className="min-w-0">
+          <span className={cn("block text-[11px]", active ? "text-accent" : "text-text-faint")}>{label}</span>
+          <span className="block truncate text-sm">{hero ? hero.nameTh : "แตะเพื่อเลือก"}</span>
+        </span>
+      </button>
+      {hero && (
+        <button type="button" onClick={onClear} aria-label={`ล้าง${label}`} className="shrink-0 rounded p-1 text-text-faint hover:text-text">
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// กริดฮีโร่อันเดียวใช้ร่วมกันทั้งสองฝั่ง: แตะฮีโร่แล้วใส่ช่องที่ active อยู่ ตัวที่อีกช่องเลือกไว้แล้วจะไม่แสดง (เลือกซ้ำกันไม่ได้เหมือนเดิม)
+function HeroGrid({ heroes, slot, current, exclude, onPick }: { heroes: HeroSummary[]; slot: Slot; current: HeroSummary | null; exclude?: string; onPick: (h: HeroSummary) => void }) {
+  const filters = useHeroFilters("matchup");
   const list = heroes.filter((h) => h.slug !== exclude && filters.match(h));
   return (
     <div className="min-w-0 space-y-2">
       <p className="text-xs font-medium text-text-faint">
-        {label}
-        {value && <span className="ml-2 text-accent">เลือกอยู่: {value.nameTh}</span>}
+        กำลังเลือก: <span className="text-accent">{slot === "a" ? "ฮีโร่ของคุณ" : "ฮีโร่ศัตรู"}</span>
       </p>
       <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
       {list.length === 0 ? (
         <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
       ) : (
-        // lg+ วาง picker สองฝั่งคู่กัน เลยลดจำนวนคอลัมน์ต่อฝั่งลง
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 xl:grid-cols-6">
-          {list.map((h) => (
-            <button
-              key={h.id}
-              onClick={() => onChange(h)}
-              className={cn(
-                "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
-                value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
-              )}
-            >
-              <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
-                {h.icon ? (
-                  <img
-                    src={h.icon}
-                    alt={h.nameTh}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                    }}
-                  />
-                ) : null}
+        // จำกัดความสูงให้เลื่อนในกรอบ เพื่อให้ช่องเลือกและตัวกรองยังอยู่ในสายตา หน้าไม่ยาวตามจำนวนฮีโร่
+        <div className="max-h-[52vh] overflow-y-auto overscroll-contain pr-1">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
+            {list.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => onPick(h)}
+                className={cn(
+                  "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
+                  current?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
+                )}
+              >
+                <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
+                  {h.icon ? (
+                    <img
+                      src={h.icon}
+                      alt={h.nameTh}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
 
-                <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
-                  {h.name.slice(0, 2).toUpperCase()}
-                </span>
-                <HeroBalanceBadge heroId={h.id} size="md" inside />
-              </div>
-              <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
-            </button>
-          ))}
+                  <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
+                    {h.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <HeroBalanceBadge heroId={h.id} size="md" inside />
+                </div>
+                <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -238,11 +273,28 @@ function MatchupHeroIcon({ hero }: { hero: HeroSummary }) {
 
 export function Matchup() {
   const heroesQ = useAsync(() => getHeroes(), []);
-  const [a, setA] = useState<HeroSummary | null>(null);
-  const [b, setB] = useState<HeroSummary | null>(null);
+  const toast = useToast();
+  // เก็บเฉพาะ slug ของฮีโร่ที่เลือกไว้ใน sessionStorage (ผ่าน usePersistedState เหมือนตัวกรอง) เพื่อให้รอดตอนรีเฟรชและตอนสลับแรงก์ (หน้า remount)
+  // แล้วหา HeroSummary จากรายชื่อที่โหลดมา slug ที่ไม่มีในรายชื่อแล้ว (เช่น ฮีโร่ถูกลบ) จะถือว่ายังไม่ได้เลือก
+  const { pathname } = useLocation();
+  const base = `rovlab:matchup:${pathname}`;
+  const [aSlug, setASlug] = usePersistedState<string | null>(`${base}:a`, null);
+  const [bSlug, setBSlug] = usePersistedState<string | null>(`${base}:b`, null);
+  // ช่องที่กำลังเลือกจากกริด (ใช้เมื่อเปิดกริดซ้ำหลังเลือกครบแล้ว ส่วนกรณีอื่นดูจากช่องที่ยังว่าง)
+  const [slot, setSlot] = useState<Slot>("a");
+  const [editing, setEditing] = useState(false);
+  // ปุ่มรีเซ็ตแบบกดสองครั้งเหมือน Tier List ของฉัน: กดครั้งแรกเปลี่ยนเป็น "ยืนยันรีเซ็ต?" (4 วินาที) กดซ้ำจึงล้างจริง
+  const [confirmReset, setConfirmReset] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>();
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // ผลอยู่ใต้ตารางเลือกฮีโร่ทั้งสองฝั่ง: เมื่อเลือกครบทั้งคู่ให้เลื่อนไปหาผล ไม่งั้นบนมือถือต้องเลื่อนลงมาดูเอง (เหมือนหน้า Counter Pick)
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
+
+  const heroes = heroesQ.status === "success" ? heroesQ.data : [];
+  const a = aSlug ? (heroes.find((h) => h.slug === aSlug) ?? null) : null;
+  const b = bSlug ? (heroes.find((h) => h.slug === bSlug) ?? null) : null;
+
+  // ผลอยู่ใต้กริดเลือกฮีโร่: เมื่อเลือกครบทั้งคู่ให้เลื่อนไปหาผล ไม่งั้นบนมือถือต้องเลื่อนลงมาดูเอง (เหมือนหน้า Counter Pick)
   useEffect(() => {
     if (!a || !b) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -255,8 +307,47 @@ export function Matchup() {
     () => (a && b ? Promise.all([getHeroBySlug(a.slug), getHeroBySlug(b.slug)]) : Promise.resolve(null)),
     [a?.slug, b?.slug]
   );
-  const heroes = heroesQ.status === "success" ? heroesQ.data : [];
   const details = detailsQ.status === "success" ? detailsQ.data : null;
+
+  const showGrid = !(a && b) || editing;
+  // ไม่ได้เปิดกริดซ้ำเอง = ชี้ไปช่องที่ยังว่างก่อน (ทำให้หลังรีเฟรชที่เลือกไว้ตัวเดียว กริดจะรอเลือกอีกช่องที่เหลือ)
+  const activeSlot: Slot = editing ? slot : !a ? "a" : !b ? "b" : slot;
+
+  const pick = (h: HeroSummary) => {
+    if (activeSlot === "a") setASlug(h.slug);
+    else setBSlug(h.slug);
+    const otherValue = activeSlot === "a" ? b : a;
+    if (!otherValue) setSlot(activeSlot === "a" ? "b" : "a");
+    else setEditing(false);
+  };
+  const selectSlot = (s: Slot) => {
+    setSlot(s);
+    setEditing(true);
+  };
+  const clearSlot = (s: Slot) => {
+    if (s === "a") setASlug(null);
+    else setBSlug(null);
+    setSlot(s);
+  };
+  const swap = () => {
+    setASlug(b?.slug ?? null);
+    setBSlug(a?.slug ?? null);
+  };
+  // ล้างทั้งสองช่องและกลับไปเริ่มเลือกที่ช่องของคุณ (ไม่แตะตัวกรองโรล/เลน)
+  function reset() {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      resetTimer.current = setTimeout(() => setConfirmReset(false), 4000);
+      return;
+    }
+    clearTimeout(resetTimer.current);
+    setASlug(null);
+    setBSlug(null);
+    setSlot("a");
+    setEditing(false);
+    setConfirmReset(false);
+    toast.success("รีเซ็ต Matchup แล้ว");
+  }
 
   return (
     <div className="space-y-5">
@@ -268,9 +359,45 @@ export function Matchup() {
       {heroesQ.status === "loading" && <Skeleton className="h-48" />}
       {heroesQ.status === "error" && <ErrorState message={heroesQ.message} onRetry={heroesQ.refetch} />}
       {heroesQ.status === "success" && (
-        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-          <HeroPicker label="ฮีโร่ของคุณ" scope="mine" heroes={heroes} value={a} onChange={setA} exclude={b?.slug} />
-          <HeroPicker label="ฮีโร่ศัตรู" scope="enemy" heroes={heroes} value={b} onChange={setB} exclude={a?.slug} />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <HeroSlot label="ฮีโร่ของคุณ" hero={a} active={showGrid && activeSlot === "a"} onSelect={() => selectSlot("a")} onClear={() => clearSlot("a")} />
+            <button
+              type="button"
+              onClick={swap}
+              disabled={!a || !b}
+              aria-label="สลับฮีโร่ของคุณกับฮีโร่ศัตรู"
+              className="shrink-0 rounded-lg border border-border bg-bg-surface p-2 text-text-faint hover:text-text disabled:opacity-40"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+            </button>
+            <HeroSlot label="ฮีโร่ศัตรู" hero={b} active={showGrid && activeSlot === "b"} onSelect={() => selectSlot("b")} onClear={() => clearSlot("b")} />
+          </div>
+          {(a || b) && (
+            <div className="flex items-center justify-between gap-2">
+              {!showGrid ? (
+                <button type="button" onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
+                  เปลี่ยนฮีโร่
+                </button>
+              ) : (
+                <span />
+              )}
+              <button
+                type="button"
+                onClick={reset}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+                  confirmReset ? "border-red-400 text-red-400" : "border-border text-text-muted hover:text-text"
+                )}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {confirmReset ? "ยืนยันรีเซ็ต?" : "รีเซ็ต"}
+              </button>
+            </div>
+          )}
+          {showGrid && (
+            <HeroGrid heroes={heroes} slot={activeSlot} current={activeSlot === "a" ? a : b} exclude={activeSlot === "a" ? b?.slug : a?.slug} onPick={pick} />
+          )}
         </div>
       )}
 
@@ -298,7 +425,7 @@ export function Matchup() {
       )}
 
       {(!a || !b) && heroesQ.status === "success" && (
-        <EmptyState icon={GitCompareArrows} title="เลือกฮีโร่ 2 ตัวเพื่อเทียบ" description="เลือกฮีโร่ของคุณและฮีโร่ศัตรูด้านบน" />
+        <EmptyState icon={GitCompareArrows} title="เลือกฮีโร่ 2 ตัวเพื่อเทียบ" description="เลือกฮีโร่ของคุณและฮีโร่ศัตรูจากกริดด้านบน" />
       )}
     </div>
   );
