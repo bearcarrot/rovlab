@@ -18,9 +18,11 @@ type Props = {
   onDismiss?: (id: string) => void;
   // The popup has its own close button (closes for this visit only); hiding the card's X avoids a second, permanent-dismiss X next to it.
   hideCloseButton?: boolean;
+  // Popup layout: media full width on top, bigger text on large screens. Default (false) is the original compact card.
+  large?: boolean;
 };
 
-export function AnnouncementCard({ announcement: a, mode, onDismiss, hideCloseButton = false }: Props) {
+export function AnnouncementCard({ announcement: a, mode, onDismiss, hideCloseButton = false, large = false }: Props) {
   const live = mode === "live" && onDismiss !== undefined;
   const style = STYLE[a.priority];
   const hasMedia = a.media_type !== "none" && a.media_url !== null;
@@ -30,11 +32,11 @@ export function AnnouncementCard({ announcement: a, mode, onDismiss, hideCloseBu
     <article
       aria-labelledby={titleId}
       role={a.priority === "urgent" ? "alert" : undefined}
-      className={cn("rounded-card border p-4 shadow-card", style.box)}
+      className={cn("rounded-card border p-4 shadow-card", large && "lg:p-5", style.box)}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", style.text)}>
+          <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", large && "lg:text-sm", style.text)}>
             <style.Icon className="h-4 w-4" aria-hidden="true" />
             {style.label}
           </span>
@@ -56,29 +58,34 @@ export function AnnouncementCard({ announcement: a, mode, onDismiss, hideCloseBu
         )}
       </div>
 
-      <div className={cn("grid gap-3", hasMedia && "sm:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]")}>
+      <div className={cn("grid gap-3", hasMedia && !large && "sm:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]")}>
         <div className="min-w-0">
-          <h3 id={titleId} className="font-display text-base font-semibold text-text break-words">
+          <h3 id={titleId} className={cn("font-display text-base font-semibold text-text break-words", large && "text-lg lg:text-xl")}>
             {a.title}
           </h3>
-          {a.content !== "" && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-text-muted">{a.content}</p>}
+          {a.content !== "" && (
+            <p className={cn("mt-1 whitespace-pre-wrap break-words text-sm text-text-muted", large && "lg:mt-2 lg:text-base")}>{a.content}</p>
+          )}
           {a.link_url !== null && (
             <a
               href={a.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className={cn(
+                "mt-3 inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                large && "lg:px-4 lg:py-2 lg:text-base",
+              )}
             >
               {a.link_label ?? "ดูเพิ่มเติม"}
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
             </a>
           )}
         </div>
-        {hasMedia && <MediaView announcement={a} />}
+        {hasMedia && (large ? <div className="order-first"><MediaView announcement={a} /></div> : <MediaView announcement={a} />)}
       </div>
 
       {a.is_dismissible && (
-        <label className={cn("mt-3 inline-flex items-center gap-2 text-xs text-text-muted", live ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+        <label className={cn("mt-3 inline-flex items-center gap-2 text-xs text-text-muted", large && "lg:text-sm", live ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
           <input
             type="checkbox"
             checked={false}
