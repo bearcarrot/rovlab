@@ -15,7 +15,7 @@
 
 | secret | ไว้ทำอะไร |
 | --- | --- |
-| `GAME_SKILLS_URL` (ต้องมีเมื่อดึงสกิล) | URL https ของ API สกิล เท่ากับ `api_url` ใน `config.php` เดิม โฮสต์ต้องลงท้าย `.mobagarena.com` |
+| `GAME_SKILLS_URL` (ไม่บังคับ) | URL https ของ API สกิล ค่าเริ่มต้น `https://kgth-api.mobagarena.com/api/hero/getskilllist` โฮสต์ต้องลงท้าย `.mobagarena.com` |
 | `GAME_API_HEADERS` (ไม่บังคับ) | JSON ของ header เพิ่มเติม เท่ากับ `api_headers` ใน `config.php` เดิม |
 | `GAME_EP_HEADER` (ไม่บังคับ) | ชื่อ header ของ Encodeparam ค่าเริ่มต้น `Encodeparam` |
 | `EP_LIST_URL` (ไม่บังคับ) | URL https ของ `ep.json` ใช้กับโหมด "จาก URL" |
