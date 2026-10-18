@@ -13,8 +13,14 @@ import {
   subscribeDismissals,
 } from "./store";
 
-// Public banner data (spec sections 6, 7, 10): schedule-driven items + effective dismissed set, filtered and capped at 3.
-export function useAnnouncements(): { shown: Announcement[]; more: Announcement[]; dismiss: (id: string) => Promise<void> } {
+// Public announcement data (spec sections 6, 7, 10): schedule-driven items + effective dismissed set, filtered and capped at 3.
+// `ready` = the first fetch has completed, so the popup can decide once whether to open on site load.
+export function useAnnouncements(): {
+  shown: Announcement[];
+  more: Announcement[];
+  ready: boolean;
+  dismiss: (id: string) => Promise<void>;
+} {
   const snap = useSyncExternalStore(announcementStore.subscribe, announcementStore.getSnapshot);
   const dismissed = useSyncExternalStore(subscribeDismissals, getDismissed);
   const { user } = useAuth();
@@ -58,5 +64,5 @@ export function useAnnouncements(): { shown: Announcement[]; more: Announcement[
     [uid, toast],
   );
 
-  return { shown, more, dismiss };
+  return { shown, more, ready: snap.status === "ready", dismiss };
 }

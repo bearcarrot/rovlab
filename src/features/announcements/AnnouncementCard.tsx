@@ -16,9 +16,11 @@ type Props = {
   announcement: Announcement;
   mode: "live" | "preview";
   onDismiss?: (id: string) => void;
+  // The popup has its own close button (closes for this visit only); hiding the card's X avoids a second, permanent-dismiss X next to it.
+  hideCloseButton?: boolean;
 };
 
-export function AnnouncementCard({ announcement: a, mode, onDismiss }: Props) {
+export function AnnouncementCard({ announcement: a, mode, onDismiss, hideCloseButton = false }: Props) {
   const live = mode === "live" && onDismiss !== undefined;
   const style = STYLE[a.priority];
   const hasMedia = a.media_type !== "none" && a.media_url !== null;
@@ -40,7 +42,7 @@ export function AnnouncementCard({ announcement: a, mode, onDismiss }: Props) {
             <span className="rounded-md border border-border bg-bg-raised px-2 py-0.5 text-xs font-semibold text-text-muted">ตัวอย่าง</span>
           )}
         </div>
-        {a.is_dismissible && (
+        {a.is_dismissible && !hideCloseButton && (
           <button
             type="button"
             aria-label="ปิดประกาศ"
