@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { HeroIcon } from "@/components/HeroIcon";
 import type { CounterEntry } from "@/types/hero";
-import { MOCK_HEROES } from "@/data/heroes.mock";
 import { cn } from "@/lib/utils";
 import { MATCHUP_STARS, StarRating } from "./MatchupStars";
 
@@ -36,17 +35,16 @@ export function CounterList({ entries, emptyText, icons, grid = false, stars = f
   return (
     <div className={cn(grid ? "grid gap-2.5 md:grid-cols-2" : "space-y-2.5")}>
       {sorted.map((c) => {
-        const mock = MOCK_HEROES.find((h) => h.slug === c.heroSlug);
-        const nameTh = c.heroNameTh ?? mock?.nameTh;
+        const nameTh = c.heroNameTh;
         if (!nameTh) return null;
-        const icon = c.heroIcon || icons?.[c.heroSlug] || mock?.icon || "";
+        const icon = c.heroIcon || icons?.[c.heroSlug] || "";
         return (
           <div key={c.heroSlug} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
             <Link to={`/heroes/${c.heroSlug}`} className="shrink-0">
               <HeroIcon
                 icon={icon}
                 name={nameTh}
-                fallback={mock?.name.slice(0, 2).toUpperCase()}
+                fallback={c.heroSlug.slice(0, 2).toUpperCase()}
                 className="h-11 w-11 sm:h-12 sm:w-12"
               />
             </Link>

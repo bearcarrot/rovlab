@@ -1,8 +1,9 @@
 import type { HeroBuild, ItemSummary } from "@/types/item";
-import { MOCK_PATCH } from "./heroes.mock";
 
 // Offline fallback only (used when Supabase env vars are missing). The live app
 // reads the `items` table; build slugs below refer to rows in that table.
+export const MOCK_PATCH = "1.51";
+
 export const MOCK_ITEMS: ItemSummary[] = [
   { id: "i1", slug: "sword-of-eternity", name: "Sword of Eternity", nameTh: "ดาบนิรันดร์", cost: 2050, stats: ["+65 พลังโจมตี", "+15% คริติคอล"], passive: "Passive: โจมตีคริติคอลเพิ่มดาเมจตามเลือดที่ขาดของศัตรู", icon: "" },
   { id: "i2", slug: "sages-blade", name: "Sage's Blade", nameTh: "ดาบปราชญ์", cost: 2010, stats: ["+65 พลังโจมตี", "+250 พลังชีวิต"], passive: "Passive: โจมตีพื้นฐานเผาผลาญเลือดศัตรูตามเปอร์เซ็นต์", icon: "" },

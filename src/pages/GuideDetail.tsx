@@ -8,7 +8,6 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { GuideContent } from "@/components/guides/GuideContent";
-import { MOCK_HEROES } from "@/data/heroes.mock";
 
 const DIFFICULTY_LABEL: Record<string, string> = { easy: "ง่าย", medium: "ปานกลาง", hard: "ยาก" };
 
@@ -68,7 +67,7 @@ export function GuideDetail() {
           <p className="mb-2 text-xs font-medium text-text-faint">ฮีโร่ที่เกี่ยวข้อง</p>
           <div className="flex flex-wrap gap-2">
             {g.heroRefs.map((slug) => {
-              const name = g.heroNames?.[slug] ?? MOCK_HEROES.find((h) => h.slug === slug)?.nameTh;
+              const name = g.heroNames?.[slug];
               if (!name) return null;
               return (
                 <Link key={slug} to={`/heroes/${slug}`} className="rounded-full border border-border bg-bg-surface px-3 py-1.5 text-xs hover:border-accent/40">
