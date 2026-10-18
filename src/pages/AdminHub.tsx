@@ -4,14 +4,13 @@ import { AdminCoachFeedback } from "@/pages/AdminCoachFeedback";
 import { AdminContact } from "@/pages/AdminContact";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminGameData } from "@/pages/AdminGameData";
-import { AdminImport } from "@/pages/AdminImport";
-import { AdminImportBalance } from "@/pages/AdminImportBalance";
+import { AdminImportData } from "@/pages/AdminImportData";
 import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "contact" | "game" | "build" | "edit" | "import" | "balance";
+type Mode = "dashboard" | "users" | "coach" | "contact" | "game" | "build" | "edit" | "import";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
@@ -20,18 +19,19 @@ const MODES: [Mode, string][] = [
   ["game", "ฐานข้อมูลเกม"],
   ["build", "บิลด์"],
   ["edit", "แก้ไขข้อมูล"],
-  ["import", "นำเข้าสถิติ"],
-  ["balance", "นำเข้าปรับสมดุล"],
+  ["import", "นำเข้าข้อมูล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "แก้ไขข้อมูล" (แท็บที่เหลือ), "นำเข้าสถิติ" (getranklist.json) และ "นำเข้าปรับสมดุล" (getlatestadjustlist.json)
-// คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "แก้ไขข้อมูล" (แท็บที่เหลือ) และ "นำเข้าข้อมูล" (สถิติแรงก์ / ปรับสมดุล / สกิล — ดึงจากเกมโดยตรงหรือเลือกไฟล์ JSON)
+// คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิจาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
   const { isAdmin } = useIsAdmin();
   const contactNew = useAdminContactCount();
   const [saved, setMode] = usePersistedState<Mode>("admin:mode", "dashboard");
-  const mode = MODES.some(([k]) => k === saved) ? saved : "dashboard";
+  // "balance" เคยเป็นแท็บแยก (รวมเข้า "import" แล้ว) — ค่าที่จำไว้เดิมให้ไปที่แท็บนำเข้า
+  const restored = (saved as string) === "balance" ? "import" : saved;
+  const mode = MODES.some(([k]) => k === restored) ? restored : "dashboard";
   const barRef = useRef<HTMLDivElement>(null);
 
   // บนมือถือแถบแท็บเลื่อนแนวนอนได้ (กันข้อความไทยยาวไม่มีช่องว่างล้น/ถูกตัด) เลื่อนให้แท็บที่เปิดอยู่มาอยู่กลางแถบ
@@ -92,10 +92,8 @@ export function AdminHub() {
         <Admin group="build" />
       ) : mode === "edit" ? (
         <Admin group="rest" />
-      ) : mode === "import" ? (
-        <AdminImport />
       ) : (
-        <AdminImportBalance />
+        <AdminImportData />
       )}
     </div>
   );
