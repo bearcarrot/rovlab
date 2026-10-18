@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Megaphone, Plus, RefreshCw, Upload } from "lucide-react";
 import { useAsync } from "@/hooks/useAsync";
 import { Chip } from "@/features/heroes/HeroFilters";
@@ -172,7 +172,7 @@ function Field({
   label: string;
   hint?: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-1">
@@ -210,9 +210,9 @@ function AnnouncementForm({
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => setV((cur) => ({ ...cur, [key]: value }));
 
-  const usePending = pendingFile !== null && v.mediaType === "image";
-  const result = validateForm(usePending ? { ...v, mediaUrl: PENDING_IMAGE_URL } : v, FORM_DEPS);
-  const errors = result.ok ? {} : result.errors;
+  const hasPendingImage = pendingFile !== null && v.mediaType === "image";
+  const result = validateForm(hasPendingImage ? { ...v, mediaUrl: PENDING_IMAGE_URL } : v, FORM_DEPS);
+  const errors: Partial<Record<keyof FormValues, string>> = result.ok ? {} : result.errors;
   const err = (k: keyof FormValues) => (submitted ? errors[k] : undefined);
 
   // ตัวอย่างใช้ค่าที่ยังไม่บันทึก ผ่านตัวตรวจเดียวกับตอนบันทึก (ถ้ายังไม่ผ่านจะแสดงข้อความแทนการ์ด)
@@ -222,7 +222,7 @@ function AnnouncementForm({
         title: result.input.title,
         content: result.input.content,
         media_type: result.input.mediaType,
-        media_url: usePending ? null : result.input.mediaUrl,
+        media_url: hasPendingImage ? null : result.input.mediaUrl,
         link_url: result.input.linkUrl,
         link_label: result.input.linkLabel,
         status: "draft",
@@ -240,12 +240,18 @@ function AnnouncementForm({
     if (next !== "image") setPendingFile(null);
   }
 
-  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     e.target.value = "";
     if (f === null) return;
     setPendingFile(f);
     set("mediaUrl", "");
+  }
+
+  // เอาไฟล์ที่เลือกออก: คืนลิงก์รูปเดิมของประกาศที่กำลังแก้ (ถ้ามี) ไม่ให้ช่องลิงก์ว่างโดยไม่ตั้งใจ
+  function clearPendingFile() {
+    setPendingFile(null);
+    set("mediaUrl", initial?.media_type === "image" ? (initial.media_url ?? "") : "");
   }
 
   async function save() {
@@ -256,7 +262,7 @@ function AnnouncementForm({
       let input = result.input;
       let uploadedUrl: string | null = null;
       // ลำดับ spec §8: อัปโหลดรูปใหม่ → บันทึก → ลบรูปเก่า (เฉพาะเมื่อไม่มีประกาศอื่นใช้) / ถ้าบันทึกพลาดลบรูปใหม่ทิ้ง
-      if (usePending && pendingFile !== null) {
+      if (hasPendingImage && pendingFile !== null) {
         uploadedUrl = await uploadAnnouncementImage(pendingFile);
         input = { ...input, mediaUrl: uploadedUrl };
       }
@@ -327,7 +333,7 @@ function AnnouncementForm({
               onChange={(e) => set("mediaUrl", e.target.value)}
               inputMode="url"
               placeholder="https://"
-              disabled={usePending}
+              disabled={hasPendingImage}
               className={cn(INPUT, "disabled:opacity-50")}
             />
             {v.mediaType === "image" && (
@@ -345,14 +351,14 @@ function AnnouncementForm({
                 {pendingFile && (
                   <>
                     <span className="min-w-0 break-all text-xs text-text-muted">{pendingFile.name}</span>
-                    <button type="button" className={BTN_SECONDARY} onClick={() => setPendingFile(null)} disabled={saving}>
+                    <button type="button" className={BTN_SECONDARY} onClick={clearPendingFile} disabled={saving}>
                       เอาไฟล์ออก
                     </button>
                   </>
                 )}
               </div>
             )}
-            {usePending && (
+            {hasPendingImage && (
               <p className="text-[11px] text-text-faint">ไฟล์จะอัปโหลดตอนกดบันทึก ตัวอย่างด้านล่างจึงยังไม่แสดงรูป</p>
             )}
           </Field>
@@ -451,7 +457,7 @@ function AnnouncementForm({
         </button>
       </div>
       <p className="text-[11px] text-text-faint">
-        บันทึกแล้วประกาศใหม่จะเป็นฉบับร่าง — ต้องกด "เผยแพร่" จากรายการก่อนผู้เข้าชมจะเห็น
+        บันทึกแล้วประกาศใหม่จะเป็นฉบับร่าง — ต้องกด “เผยแพร่” จากรายการก่อนผู้เข้าชมจะเห็น
       </p>
     </div>
   );
@@ -621,7 +627,7 @@ export function AdminAnnouncements() {
       )}
       {listQ.status === "error" && <ErrorState message={listQ.message} onRetry={listQ.refetch} />}
       {listQ.status === "success" && rows.length === 0 && (
-        <EmptyState icon={Megaphone} title="ไม่มีประกาศ" description="ลองเปลี่ยนตัวกรอง หรือกด \"สร้างประกาศ\"" />
+        <EmptyState icon={Megaphone} title="ไม่มีประกาศ" description={"ลองเปลี่ยนตัวกรอง หรือกด “สร้างประกาศ”"} />
       )}
       {listQ.status === "success" && rows.length > 0 && (
         <ul className="space-y-3">
