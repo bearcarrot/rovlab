@@ -120,7 +120,6 @@ export function AdminImport() {
   const [linkSel, setLinkSel] = useState<Record<number, string>>({});
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
 
   const loadHeroes = useCallback(async () => {
     const { data, error } = await db.from("heroes").select("id,name,name_th,hero_id").order("name");
@@ -141,7 +140,6 @@ export function AdminImport() {
   }, [loadHeroes, toast]);
 
   async function onFile(f: File | undefined) {
-    setResult(null);
     setConfirming(false);
     setParsed(null);
     if (!f) return;
@@ -155,7 +153,6 @@ export function AdminImport() {
 
   // ผลที่ดึงตรงจากเกม (game-fetch) เข้าทางเดียวกับไฟล์: parse ชุดเดิม → พรีวิว → ยืนยันนำเข้า
   function onFetched(text: string, key?: "high" | "all") {
-    setResult(null);
     setConfirming(false);
     setParsed(null);
     setFileName("");
@@ -195,10 +192,22 @@ export function AdminImport() {
     });
     setBusy(false);
     setConfirming(false);
-    if (e) toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
-    else {
-      setResult(data as Result);
-      toast.success("นำเข้าสถิติแล้ว");
+    if (e) {
+      toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
+      return;
+    }
+    // ผลทั้งหมดแจ้งด้วย toast (ไม่มีการ์ดผลลัพธ์ inline ซ้ำ)
+    const r = data as Result;
+    const parts = [`แพตช์ ${patchCode} · แรงก์ ${rank}`];
+    if (r.tierMode === "keep") parts.push("tier เดิมไม่ถูกแตะ");
+    if (r.tierMode === "tid") parts.push(`เปลี่ยน tier ${r.tiers ?? 0} ตัว · Tier List ทางการ ${r.tierList ?? 0} แถว`);
+    if (counters) parts.push(`เคาน์เตอร์ ${r.counters} แถว`);
+    toast.success(`นำเข้าสถิติแล้ว ${r.stats} ฮีโร่ (${parts.join(" · ")})`);
+    if (r.tierMode === undefined && rank === "all") {
+      toast.error("ฐานข้อมูลยังเป็นเวอร์ชันเก่า (ยังไม่รู้จัก tid) เลยไม่ได้อัปเดตเทียร์ — รัน migration 20261007_import_rank_list_tid_tier ก่อน");
+    }
+    if (r.unmatched.length > 0) {
+      toast.error(`ข้าม ${r.unmatched.length} ตัวที่ไม่มีในฐานข้อมูล: ${r.unmatched.map((u) => u.name).join(", ")}`);
     }
   }
 
@@ -385,36 +394,6 @@ export function AdminImport() {
               </div>
             </div>
           )}
-        </section>
-      )}
-
-      {result && (
-        <section className={`${card} border-win/40`}>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-win">
-            <Check className="h-4 w-4" /> นำเข้าเรียบร้อยแล้ว
-          </h2>
-          <ul className="space-y-1 text-sm">
-            <li>
-              อัปเดตสถิติ {result.stats} ฮีโร่ (แพตช์ {patchCode} · แรงก์ {rank})
-              {result.tierMode === "keep" && " · tier เดิมไม่ถูกแตะ"}
-            </li>
-            {result.tierMode === "tid" && (
-              <li>
-                เปลี่ยน tier ตามเกม {result.tiers ?? 0} ตัว · Tier List ทางการ {result.tierList ?? 0} แถว
-              </li>
-            )}
-            {result.tierMode === undefined && rank === "all" && (
-              <li className="text-loss">
-                ฐานข้อมูลยังเป็นเวอร์ชันเก่า (ยังไม่รู้จัก tid) เลยไม่ได้อัปเดตเทียร์ — รัน migration 20261007_import_rank_list_tid_tier ก่อน
-              </li>
-            )}
-            {counters && <li>อัปเดตเคาน์เตอร์จากสถิติ {result.counters} แถว</li>}
-            {result.unmatched.length > 0 && (
-              <li className="text-loss">
-                ข้าม {result.unmatched.length} ตัวที่ไม่มีในฐานข้อมูล: {result.unmatched.map((u) => u.name).join(", ")}
-              </li>
-            )}
-          </ul>
         </section>
       )}
 

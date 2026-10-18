@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
-import { Check, FileUp, Trash2 } from "lucide-react";
+import { FileUp, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { BalanceIcon } from "@/features/balance/BalanceIcon";
@@ -120,7 +120,6 @@ export function AdminImportBalance() {
   const [known, setKnown] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ saved: number; unmatched: { id: number; name: string }[] } | null>(null);
   const [saved, setSaved] = useState<Saved[]>([]);
   const [delId, setDelId] = useState<string | null>(null);
 
@@ -153,7 +152,6 @@ export function AdminImportBalance() {
   }, [loadSaved, toast]);
 
   async function onFile(f: File | undefined) {
-    setResult(null);
     setConfirming(false);
     setRows(null);
     if (!f) return;
@@ -167,7 +165,6 @@ export function AdminImportBalance() {
 
   // ผลที่ดึงตรงจากเกม (game-fetch) เข้าทางเดียวกับไฟล์: parse ชุดเดิม → ตรวจทาน → ยืนยันนำเข้า
   function onFetched(text: string) {
-    setResult(null);
     setConfirming(false);
     setRows(null);
     setFileName("");
@@ -184,12 +181,15 @@ export function AdminImportBalance() {
     const { data, error: e } = await db.rpc("admin_import_balance_changes", { p_patch: patchId || null, p_rows: rows });
     setBusy(false);
     setConfirming(false);
-    if (e) toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
-    else {
-      setResult(data);
-      toast.success("นำเข้ารายการปรับสมดุลแล้ว");
-      void loadSaved();
+    if (e) {
+      toast.error(`นำเข้าไม่สำเร็จ: ${e.message}`);
+      return;
     }
+    // ผลทั้งหมดแจ้งด้วย toast (ไม่มีการ์ดผลลัพธ์ inline ซ้ำ)
+    const r = data as { saved: number; unmatched: { id: number; name: string }[] };
+    toast.success(`นำเข้ารายการปรับสมดุลแล้ว ${r.saved} รายการ`);
+    if (r.unmatched.length > 0) toast.error(`ข้ามที่ไม่มีในฐานข้อมูล: ${r.unmatched.map((u) => u.name).join(", ")}`);
+    void loadSaved();
   }
 
   async function setKind(id: string, kind: BalanceKind) {
@@ -284,18 +284,6 @@ export function AdminImportBalance() {
                 </button>
               </div>
             </div>
-          )}
-        </section>
-      )}
-
-      {result && (
-        <section className={`${card} border-win/40`}>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-win">
-            <Check className="h-4 w-4" /> นำเข้าเรียบร้อยแล้ว
-          </h2>
-          <p className="text-sm">บันทึก {result.saved} รายการ</p>
-          {result.unmatched.length > 0 && (
-            <p className="text-sm text-loss">ข้ามที่ไม่มีในฐานข้อมูล: {result.unmatched.map((u) => u.name).join(", ")}</p>
           )}
         </section>
       )}
