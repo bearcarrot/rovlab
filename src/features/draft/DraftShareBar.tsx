@@ -16,7 +16,7 @@ const MAX = 10; // เพดานแถบเดียวกับ TeamMeters
 
 const METERS: { key: keyof TeamAnalysis; label: string }[] = [
   { key: "frontline", label: "แนวหน้า" },
-  { key: "cc", label: "Crowd Control" },
+  { key: "cc", label: "CC" },
   { key: "mobility", label: "ความคล่องตัว" },
   { key: "sustain", label: "การคงทน" },
   { key: "earlyGame", label: "ช่วงต้นเกม" },

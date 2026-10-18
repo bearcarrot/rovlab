@@ -4,36 +4,36 @@ import { GripVertical } from "lucide-react";
 // แฟลกเดียวใน localStorage (ไม่เก็บ Draft/ข้อมูลผู้ใช้) — เก็บไม่ได้ = ไม่เปิดอัตโนมัติ ผู้ใช้ยังกด "วิธีใช้งาน" เองได้
 const KEY = "rovlab:draft:onboarding:v2";
 
-function hasSeen(): boolean {
+function hasSeen(key: string): boolean {
   try {
-    return localStorage.getItem(KEY) === "1";
+    return localStorage.getItem(key) === "1";
   } catch {
     return true;
   }
 }
 
-function markSeen() {
+function markSeen(key: string) {
   try {
-    localStorage.setItem(KEY, "1");
+    localStorage.setItem(key, "1");
   } catch {
     // เก็บไม่ได้ก็ไม่เป็นไร
   }
 }
 
 /** `ready` = editor พร้อมแล้ว (โหลดฮีโร่เสร็จ) จึงเปิดอัตโนมัติได้โดยไม่ทำให้หน้ากระตุก */
-export function useDraftOnboarding(ready: boolean) {
+export function useDraftOnboarding(ready: boolean, key = KEY) {
   const [open, setOpen] = useState(false);
   const checked = useRef(false);
   useEffect(() => {
     if (!ready || checked.current) return;
     checked.current = true;
-    if (!hasSeen()) setOpen(true);
-  }, [ready]);
+    if (!hasSeen(key)) setOpen(true);
+  }, [ready, key]);
   // ปิดด้วยวิธีไหนก็ตาม (ข้าม/เสร็จสิ้น/Esc) = ไม่เปิดเองอีก
   const close = useCallback(() => {
-    markSeen();
+    markSeen(key);
     setOpen(false);
-  }, []);
+  }, [key]);
   const show = useCallback(() => setOpen(true), []);
   return { open, close, show };
 }
@@ -67,7 +67,7 @@ function SwapDemo() {
   );
 }
 
-interface Step {
+export interface Step {
   /** ค่า data-tour ของ element จริงบนหน้าที่จะไฮไลต์ (ไม่มี = การ์ดกลางจอ) */
   target?: string;
   /** ใช้เมื่อหา target ไม่เจอ (เช่น ยังไม่มีฮีโร่ในช่องจึงยังไม่มีที่จับ) */
@@ -77,7 +77,7 @@ interface Step {
 }
 
 // ทุกขั้นชี้ element จริงของหน้า Draft Assistant (data-tour ใน DraftAssistant / TeamSlots)
-const STEPS: Step[] = [
+const DEFAULT_STEPS: Step[] = [
   {
     title: "Draft Assistant คืออะไร?",
     body: () => (
@@ -144,10 +144,15 @@ const STEPS: Step[] = [
     fallback: "team-mine",
     title: "มิเตอร์ทีมของคุณ",
     body: () => (
-      <p>
-        แถบเหล่านี้ประเมินทีมของคุณคร่าวๆ เช่น แนวหน้า, Crowd Control, ความคล่องตัว ยิ่งแถบเต็มยิ่งทีมมีด้านนั้นมาก
-        เป็นค่าประเมินเบื้องต้น ไม่ใช่สถิติที่วัดจริง ส่วน “จุดที่ทีมขาด” ด้านบนบอกว่าควรเติมอะไร
-      </p>
+      <div className="space-y-2">
+        <p>
+          แถบเหล่านี้ประเมินทีมของคุณคร่าวๆ เช่น แนวหน้า, CC (คุมฝูงชน), ความคล่องตัว ยิ่งแถบเต็มยิ่งทีมมีด้านนั้นมาก
+          เป็นค่าประเมินเบื้องต้น ไม่ใช่สถิติที่วัดจริง ส่วน “จุดที่ทีมขาด” ด้านบนบอกว่าควรเติมอะไร
+        </p>
+        <p className="text-text-muted">
+          เมื่อเลือกทีมศัตรูตั้งแต่ 3 ตัว จะมีแถบสีเทาของทีมศัตรูใต้แต่ละแถบให้เทียบกัน
+        </p>
+      </div>
     ),
   },
   {
@@ -202,7 +207,7 @@ const find = (name?: string) =>
   name ? document.querySelector<HTMLElement>(`[data-tour="${name}"]`) : null;
 
 // ทัวร์ไฮไลต์: วงสว่างรอบ element จริง + การ์ดอธิบายอยู่ฝั่งตรงข้าม (บน/ล่างของจอ) ไม่บังจุดที่ไฮไลต์
-export function DraftOnboarding({ onClose }: { onClose: () => void }) {
+export function DraftOnboarding({ onClose, steps: STEPS = DEFAULT_STEPS }: { onClose: () => void; steps?: Step[] }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [found, setFound] = useState(false);

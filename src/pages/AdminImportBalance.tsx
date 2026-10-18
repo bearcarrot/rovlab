@@ -4,6 +4,7 @@ import { Check, FileUp, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { BalanceIcon } from "@/features/balance/BalanceIcon";
+import { GameFetchCard } from "@/features/admin/GameFetchCard";
 import { BALANCE_LABEL, type BalanceKind } from "@/services/balance";
 
 const db: any = supabase;
@@ -164,6 +165,19 @@ export function AdminImportBalance() {
     }
   }
 
+  // ผลที่ดึงตรงจากเกม (game-fetch) เข้าทางเดียวกับไฟล์: parse ชุดเดิม → ตรวจทาน → ยืนยันนำเข้า
+  function onFetched(text: string) {
+    setResult(null);
+    setConfirming(false);
+    setRows(null);
+    setFileName("");
+    try {
+      setRows(parseAdjustList(text));
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   async function runImport() {
     if (!rows) return;
     setBusy(true);
@@ -202,6 +216,8 @@ export function AdminImportBalance() {
 
   return (
     <div className="space-y-4 pb-24">
+      <GameFetchCard kind="adjust" onFetched={onFetched} />
+
       <section className={card}>
         <h2 className="font-display text-base font-semibold">1. เลือกไฟล์ getlatestadjustlist.json</h2>
         <p className="text-xs text-text-muted">อ่านไฟล์บนเครื่องคุณเท่านั้น ส่งขึ้นฐานข้อมูลเฉพาะรายการปรับสมดุล (หัวไฟล์/header ที่ติดมาจะถูกข้าม)</p>

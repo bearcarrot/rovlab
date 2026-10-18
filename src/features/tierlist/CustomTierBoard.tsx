@@ -142,7 +142,7 @@ export function CustomTierBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="min-w-[10rem] flex-1">
+        <label data-tour="custom-name" className="min-w-[10rem] flex-1">
           <span className="mb-1 block text-xs text-text-faint">ชื่อ Tier List (แสดงบนรูปที่แชร์)</span>
           <input
             value={list.name}
@@ -154,6 +154,7 @@ export function CustomTierBoard({
         </label>
         <button
           type="button"
+          data-tour="custom-edit"
           aria-pressed={editRows}
           onClick={() => setEditRows((e) => !e)}
           className={cn(
@@ -181,7 +182,7 @@ export function CustomTierBoard({
         แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
       </p>
 
-      <div className="space-y-2">
+      <div data-tour="custom-rows" className="space-y-2">
         {list.tiers.map((row, i) => {
           const ids = row.heroes.filter((id) => byId.has(id));
           return (
@@ -289,17 +290,19 @@ export function CustomTierBoard({
         </div>
       )}
 
-      <ShareImageButtons
-        busy={share.busy}
-        pending={share.pending}
-        disabled={totalPlaced === 0}
-        onShare={share.share}
-        onDownload={share.download}
-        extra={shareExtra}
-      />
+      <div data-tour="custom-share">
+        <ShareImageButtons
+          busy={share.busy}
+          pending={share.pending}
+          disabled={totalPlaced === 0}
+          onShare={share.share}
+          onDownload={share.download}
+          extra={shareExtra}
+        />
+      </div>
       {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
 
-      <section className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+      <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
         <h2 className="font-display text-sm font-semibold">ฮีโร่ที่ยังไม่ได้จัด ({pool.length})</h2>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
           <Search className="h-4 w-4 shrink-0 text-text-faint" />

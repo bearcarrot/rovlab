@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Hammer } from "lucide-react";
+import { AlertTriangle, Hammer, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -29,6 +29,16 @@ function HeroCommunityBuilds({ hero }: { hero: BuildHero }) {
   const q = useAsync(() => listCommunityBuilds(hero.id), [hero.id]);
   return (
     <div className="space-y-3">
+      {/* หัวข้อ + ปุ่มสร้างบิลด์ แบบเดียวกับแท็บ Community ในหน้า Item Build */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-base font-semibold">Community Build: {hero.nameTh}</h2>
+        <Link
+          to={`/build/edit/new?hero=${hero.slug}`}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-center text-sm font-medium text-accent-fg hover:brightness-110 sm:w-auto"
+        >
+          <Plus className="h-4 w-4" />สร้างบิลด์ {hero.nameTh}
+        </Link>
+      </div>
       {q.status === "loading" && <Skeleton className="h-32" />}
       {q.status === "error" && <ErrorState message={q.message} onRetry={q.refetch} />}
       {q.status === "success" && q.data.length === 0 && (
@@ -37,10 +47,6 @@ function HeroCommunityBuilds({ hero }: { hero: BuildHero }) {
       {q.status === "success" && q.data.length > 0 && (
         <div className="space-y-3">{q.data.map((b) => <BuildCard key={b.id} b={b} showHero={false} />)}</div>
       )}
-      <p className="flex flex-wrap gap-x-4 gap-y-1">
-        <Link to={`/build?hero=${hero.slug}&tab=community`} className="text-sm text-accent hover:underline">ดูที่หน้า Item Build →</Link>
-        <Link to={`/build/edit/new?hero=${hero.slug}`} className="text-sm text-accent hover:underline">สร้างบิลด์ {hero.nameTh} →</Link>
-      </p>
     </div>
   );
 }

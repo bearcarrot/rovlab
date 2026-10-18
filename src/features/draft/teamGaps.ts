@@ -34,7 +34,7 @@ export function findTeamGaps(analysis: TeamAnalysis, team: (HeroSummary | null)[
     gaps.push({ key: "frontline", label: "แนวหน้า", detail: "ยังไม่มีตัวรับหน้า/เปิดไฟต์พอ" });
   }
   if (analysis.cc < CC_MIN) {
-    gaps.push({ key: "cc", label: "Crowd Control", detail: "คุมฝูงชน (สตั๊น/ลอยขึ้น/ผลัก ฯลฯ) ยังน้อย ล็อกเป้าได้ยาก" });
+    gaps.push({ key: "cc", label: "CC", detail: "คุมฝูงชน (สตั๊น/ลอยขึ้น/ผลัก ฯลฯ) ยังน้อย ล็อกเป้าได้ยาก" });
   }
 
   // ฮีล/โล่ มาจากแท็กสกิลเท่านั้น: รายงานเฉพาะเมื่อทุกตัวในทีมมีข้อมูลแท็ก

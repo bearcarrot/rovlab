@@ -33,3 +33,86 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Home redesign: เอฟเฟกต์ตกแต่งล้วน (CSS อย่างเดียว ไม่มี dependency เพิ่ม)
+   สีเรืองแสงของการ์ดกำหนดผ่านตัวแปร --glow เป็น "R G B" เช่น style={{ "--glow": "232 163 61" }}
+   --------------------------------------------------------------------------- */
+@keyframes home-gradient-pan { to { background-position: 200% center; } }
+@keyframes home-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes home-marquee { to { transform: translateX(-50%); } }
+@keyframes home-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes home-ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes home-sheen { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(320%) skewX(-20deg); } }
+
+@layer utilities {
+  .home-gold-text {
+    background-image: linear-gradient(90deg, #f6d28b, #e8a33d 40%, #f59e0b 65%, #fde3a7 85%, #f6d28b);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .home-float { animation: home-float 6s ease-in-out infinite; will-change: transform; }
+  .home-fade-up { animation: home-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .home-ping { animation: home-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+  .home-marquee-track { animation: home-marquee 55s linear infinite; width: max-content; will-change: transform; backface-visibility: hidden; transform: translateZ(0); }
+  .home-marquee:hover .home-marquee-track { animation-play-state: paused; }
+
+  .home-cta {
+    position: relative;
+    overflow: hidden;
+    background-image: linear-gradient(135deg, #f6c765, #e8a33d 55%, #d98a1c);
+    box-shadow: 0 10px 30px -10px rgba(232, 163, 61, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .home-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 40px -10px rgba(232, 163, 61, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+  .home-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  .home-cta:hover::after { animation: home-sheen 0.9s ease; }
+
+  .home-glow {
+    --glow: 232 163 61;
+    position: relative;
+    isolation: isolate;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .home-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(360px circle at 50% 0%, rgb(var(--glow) / 0.18), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .home-glow:hover,
+  .home-glow:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgb(var(--glow) / 0.55);
+    box-shadow: 0 0 0 1px rgb(var(--glow) / 0.25), 0 18px 44px -16px rgb(var(--glow) / 0.55);
+  }
+  .home-glow:hover::before,
+  .home-glow:focus-visible::before { opacity: 1; }
+  .home-glow-tile {
+    background: rgb(var(--glow) / 0.12);
+    color: rgb(var(--glow));
+    box-shadow: inset 0 0 0 1px rgb(var(--glow) / 0.3), 0 0 24px -6px rgb(var(--glow) / 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-float, .home-ping, .home-marquee-track, .home-cta:hover::after {
+    animation: none !important;
+  }
+  .home-glow, .home-cta { transition: none; }
+  .home-glow:hover, .home-cta:hover { transform: none; }
+}
