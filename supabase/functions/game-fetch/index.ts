@@ -8,7 +8,7 @@ import { epError, parseEpList, type EpItem } from "./eplist.ts";
 //
 // Supabase secrets (ตั้งด้วย `supabase secrets set`):
 //   GAME_API_HEADERS  (ไม่บังคับ) JSON ของ header เพิ่มเติม เช่น {"User-Agent":"..."} เท่ากับ api_headers ใน config.php เดิม
-//   GAME_SKILLS_URL  URL https ของ API สกิล (เท่ากับ api_url ใน config.php เดิม) จำเป็นเมื่อใช้ kind "skills" โฮสต์ต้องลงท้าย .mobagarena.com
+//   GAME_SKILLS_URL  (ไม่บังคับ) URL https ของ API สกิล ค่าเริ่มต้น https://kgth-api.mobagarena.com/api/hero/getskilllist โฮสต์ต้องลงท้าย .mobagarena.com
 //   GAME_EP_HEADER    (ไม่บังคับ) ชื่อ header ของ Encodeparam, ค่าเริ่มต้น "Encodeparam"
 //   EP_LIST_URL       (ไม่บังคับ) URL https ของ ep.json บนโฮสต์ของเรา ใช้กับโหมด "URL"
 //   EP_LIST_KEY       (ไม่บังคับ) ส่งเป็น Authorization: Bearer ไปกับ EP_LIST_URL
@@ -44,10 +44,10 @@ function extraHeaders(): Headers {
   return h;
 }
 
-// URL ของ API สกิลมาจาก secret (ไม่ให้ client ส่งมาเอง) และต้องเป็น https ในโดเมน mobagarena.com เท่านั้น
+// URL ของ API สกิล: ค่าเริ่มต้นอยู่ในโค้ด (host เดียวกับ rank/adjust) override ได้ด้วย secret (ไม่ให้ client ส่งมาเอง)
+// ต้องเป็น https ในโดเมน mobagarena.com เท่านั้น
 function skillsUrl(): { url: string } | { error: string } {
-  const raw = Deno.env.get("GAME_SKILLS_URL");
-  if (!raw) return { error: "ยังไม่ได้ตั้ง GAME_SKILLS_URL ใน Supabase secrets (URL ของ API สกิล = api_url ใน config.php เดิม)" };
+  const raw = Deno.env.get("GAME_SKILLS_URL") || API_BASE + "getskilllist";
   try {
     const u = new URL(raw);
     if (u.protocol !== "https:" || !u.hostname.endsWith(GAME_HOST_SUFFIX)) throw new Error("bad host");
