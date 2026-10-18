@@ -7,6 +7,8 @@
     <meta name="description" content="RoV LAB: วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV ด้วยข้อมูลจริง" />
     <meta name="google-site-verification" content="RGoVibiHdCllXJnqyJkDbrwHYDSxFjgYnFmNkE1vA-E" />
     <link rel="canonical" href="https://rovlab.vercel.app/" />
+    <meta name="sb-url" content="%VITE_SUPABASE_URL%" />
+    <meta name="sb-key" content="%VITE_SUPABASE_ANON_KEY%" />
     <meta name="theme-color" content="#0b1020" />
     <link rel="icon" href="/v1/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="48x48" href="/v1/favicon.png" />
@@ -79,6 +81,47 @@
           boot.innerHTML = '<div style="text-align:center">RoV LAB<br><a href="/" style="font-size:14px;color:inherit">โหลดหน้าใหม่</a></div>';
           boot.removeAttribute("aria-hidden");
         }, 8000);
+      })();
+    </script>
+    <script>
+      // PSI: ยิงคำขอ Supabase ของหน้าแรกตั้งแต่ parse HTML (ขนานกับการโหลด JS) แทนที่จะรอให้ bundle รันก่อน
+      // src/lib/supabase.ts จะหยิบผลที่ prefetch ไว้ไปใช้ครั้งเดียว (URL + Accept ต้องตรงเป๊ะ) ถ้าไม่ตรง/พลาดก็ยิงปกติ
+      (function () {
+        try {
+          if (location.pathname !== "/" || !window.fetch) return;
+          function meta(n) { var e = document.querySelector('meta[name="' + n + '"]'); return e ? e.content : ""; }
+          var base = meta("sb-url"), key = meta("sb-key");
+          if (!base || !key || base.charAt(0) === "%" || key.charAt(0) === "%") return;
+          var rank = "all";
+          try {
+            var q = new URLSearchParams(location.search).get("rank");
+            var s = q || localStorage.getItem("rovlab.rank");
+            if (s === "all" || s === "high" || s === "pro") rank = s;
+          } catch (e) {}
+          var store = (window.__earlyFetch = {});
+          function get(table, params) {
+            var u = base + "/rest/v1/" + table + "?" + new URLSearchParams(params).toString();
+            var p = fetch(u, { headers: { apikey: key, Authorization: "Bearer " + key, Accept: "application/json" } }).then(function (r) {
+              if (!r.ok) throw new Error(String(r.status));
+              return r;
+            });
+            p.catch(function () {});
+            store[u] = { p: p, t: Date.now() };
+            return p;
+          }
+          function json(p) { return p.then(function (r) { return r.clone().json(); }); }
+          get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url,description,strengths,weaknesses"], ["order", "name.asc"]]);
+          get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
+          json(get("patches", [["select", "id,code,released_at"], ["order", "released_at.desc.nullslast"], ["limit", "1"]])).then(function (rows) {
+            var id = rows && rows[0] && rows[0].id;
+            if (!id) return;
+            get("hero_stats", [["select", "hero_id,rank_tier,win_rate,pick_rate,ban_rate,tier,matches"], ["rank_tier", "eq." + rank], ["patch_id", "eq." + id]]);
+            return json(get("tier_lists", [["select", "id,lane"], ["patch_id", "eq." + id], ["rank_tier", "eq." + rank]])).then(function (lists) {
+              if (!lists || !lists.length) return;
+              get("tier_list_entries", [["select", "tier_list_id,hero_id,tier"], ["tier_list_id", "in.(" + lists.map(function (l) { return l.id; }).join(",") + ")"]]);
+            });
+          }).catch(function () {});
+        } catch (e) {}
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
