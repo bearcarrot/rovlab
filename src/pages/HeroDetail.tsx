@@ -22,7 +22,6 @@ import { useHeroNeighbors } from "@/features/heroes/useHeroNeighbors";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { useRank, type RankBucket } from "@/lib/rank";
-import { MOCK_HEROES } from "@/data/heroes.mock";
 import { HeroBuilds } from "@/features/heroes/HeroBuilds";
 import { HeroVideos } from "@/features/heroes/HeroVideos";
 import { useHeroBuilds, type HeroBuildsState } from "@/features/heroes/useHeroBuilds";
@@ -361,14 +360,13 @@ export function HeroDetail() {
           ) : (
             <div className="grid gap-2 md:grid-cols-2">
               {h.synergies.map((s) => {
-                const mock = MOCK_HEROES.find((m) => m.slug === s.heroSlug);
-                const nameTh = s.heroNameTh ?? mock?.nameTh;
+                const nameTh = s.heroNameTh;
                 if (!nameTh) return null;
-                const icon = s.heroIcon || mock?.icon || "";
+                const icon = s.heroIcon || "";
                 return (
                   <div key={s.heroSlug} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
                     <Link to={`/heroes/${s.heroSlug}`} aria-label={nameTh} className="shrink-0">
-                      <HeroIcon icon={icon} name={nameTh} fallback={mock?.name.slice(0, 2).toUpperCase()} className="h-11 w-11" />
+                      <HeroIcon icon={icon} name={nameTh} fallback={s.heroSlug.slice(0, 2).toUpperCase()} className="h-11 w-11" />
                     </Link>
                     <div className="min-w-0 flex-1">
                       <Link to={`/heroes/${s.heroSlug}`} className="font-display text-sm font-medium hover:text-accent">

@@ -1,4 +1,3 @@
-import { MOCK_HERO_DETAILS, MOCK_HEROES } from "@/data/heroes.mock";
 import type { HeroAbility, HeroDetail, HeroLane, HeroRole, HeroSummary, Tier, CounterEntry, SynergyEntry } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
@@ -106,7 +105,7 @@ function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null):
 }
 
 async function loadHeroes(rank: RankBucket): Promise<HeroSummary[]> {
-  if (!isSupabaseConfigured) return MOCK_HEROES;
+  if (!isSupabaseConfigured) return [];
   const [heroesRes, statMap, curated] = await Promise.all([
     supabase.from("heroes").select(HERO_COLS).order("name", { ascending: true }),
     fetchStatsByHeroId(null, rank),
@@ -125,12 +124,7 @@ export type HeroChip = { id: string; slug: string; name: string; icon: string };
 export async function getHeroChipsByIds(ids: string[]): Promise<HeroChip[]> {
   const unique = Array.from(new Set(ids));
   if (unique.length === 0) return [];
-  if (!isSupabaseConfigured) {
-    return unique
-      .map((id) => MOCK_HEROES.find((h) => h.id === id))
-      .filter((h): h is HeroSummary => !!h)
-      .map((h) => ({ id: h.id, slug: h.slug, name: h.name, icon: h.icon }));
-  }
+  if (!isSupabaseConfigured) return [];
   return cached(`heroChips:${[...unique].sort().join(",")}`, CACHE_TTL_MS, async () => {
     const { data, error } = await supabase.from("heroes").select("id, slug, name, icon_url").in("id", unique);
     if (error) throw new Error(error.message);
@@ -165,22 +159,7 @@ function byStrength(a: CounterEntry, b: CounterEntry) {
 }
 
 async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetail | null> {
-  if (!isSupabaseConfigured) {
-    const summary = MOCK_HEROES.find((h) => h.slug === slug);
-    if (!summary) return null;
-    return (
-      MOCK_HERO_DETAILS[slug] ?? {
-        ...summary,
-        description: "",
-        strengths: [],
-        weaknesses: [],
-        abilities: [],
-        counteredBy: [],
-        countersAgainst: [],
-        synergies: [],
-      }
-    );
-  }
+  if (!isSupabaseConfigured) return null;
 
   const { data: row, error } = await supabase
     .from("heroes")
