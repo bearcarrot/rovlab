@@ -727,7 +727,7 @@ function StatSnapshot({
           <h3 className="font-display text-sm font-semibold">{title}</h3>
         </div>
         {hint && (
-          <span className="rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-medium text-loss ring-1 ring-loss/30">
+          <span className="rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-medium text-loss-fg ring-1 ring-loss/30">
             {hint}
           </span>
         )}
