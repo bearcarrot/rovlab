@@ -1,7 +1,8 @@
 -- 20261016c_announcements.sql
 -- Announcements system for RoV LAB. Spec: docs/superpowers/specs/2026-10-16-announcements-design.md (v2).
--- STATUS: NOT APPLIED. Additive only. Review, then apply on a Supabase dev branch first (spec section 11.2);
--- change this line to "ALREADY APPLIED" only after it has really been applied to the target project.
+-- STATUS: APPLIED TO PRODUCTION (Supabase project mttcdaiwuasnkqlxbeqs) on 2026-10-18 09:17 UTC as migration "announcements_20261016c",
+-- applied manually by the repo owner. NOT applied to any dev branch: spec section 11.2 dev-branch verification has NOT been done. Additive only.
+-- Do not edit the SQL below (production already has it); any change must be a new follow-up migration.
 --
 -- Contents: validation helpers -> tables -> RLS / grants -> (RPCs, schedule, dismissals) -> (storage bucket + policies).
 -- TS mirror of the validation rules: src/features/announcements/media.ts (shared vectors: tests/announcements/media-vectors.json).
