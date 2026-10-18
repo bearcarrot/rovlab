@@ -156,7 +156,7 @@ export function Admin({ group = "rest" }: { group?: "build" | "rest" }) {
       {group !== "build" && (
       <nav
         ref={navRef}
-        aria-label={group === "build" ? "Build Management" : "ตาราง"}
+        aria-label="ตาราง"
         className="relative overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex w-max gap-2 md:w-auto md:flex-wrap">
