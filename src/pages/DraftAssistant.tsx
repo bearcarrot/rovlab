@@ -165,10 +165,13 @@ export function DraftAssistant() {
     }
   }, [shareId, sharedUuid, navigate, toast]);
 
-  const heroes = useMemo(() => (heroesQ.status === "success" ? heroesQ.data : []), [heroesQ.status, heroesQ.data]);
+  // useAsync คืน object ใหม่ทุกเรนเดอร์ และ .data มีเฉพาะสถานะ success: ดึงค่าออกมาในที่ที่ narrow แล้ว แล้วใช้ค่านั้นเป็น dependency
+  const heroesData = heroesQ.status === "success" ? heroesQ.data : undefined;
+  const heroes = useMemo(() => heroesData ?? [], [heroesData]);
   const bySlug = useMemo(() => new Map(heroes.map((h) => [h.slug, h])), [heroes]);
   const relations = relQ.status === "success" ? relQ.data : undefined;
-  const skills = useMemo(() => (skillsQ.status === "success" ? skillsQ.data : {}), [skillsQ.status, skillsQ.data]);
+  const skillsData = skillsQ.status === "success" ? skillsQ.data : undefined;
+  const skills = useMemo(() => skillsData ?? {}, [skillsData]);
   // ความสามารถของฮีโร่จากแท็กสกิลในเกม (ยังไม่นำเข้าแท็ก = ว่าง ระบบทำงานเหมือนเดิม)
   const kits = useMemo(() => buildKits(skills), [skills]);
 
