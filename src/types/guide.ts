@@ -19,6 +19,6 @@ export interface GuideSummary {
 export interface GuideDetail extends GuideSummary {
   content: string[]; // paragraphs
   heroRefs: string[]; // hero slugs
-  heroNames?: Record<string, string>; // slug → ชื่อฮีโร่ (ข้อมูลจริงจาก DB; mock ไม่มีจะใช้ MOCK_HEROES แทน)
+  heroNames?: Record<string, string>; // slug → ชื่อฮีโร่ (ข้อมูลจริงจาก DB)
   isMock: boolean;
 }

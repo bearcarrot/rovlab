@@ -44,7 +44,7 @@ export interface HeroAbility {
 
 export interface CounterEntry {
   heroSlug: string;
-  heroNameTh?: string; // resolved directly when sourced from Supabase; falls back to MOCK_HEROES lookup otherwise
+  heroNameTh?: string; // resolved directly when sourced from Supabase
   heroIcon?: string; // icon_url of that hero when sourced from Supabase
   strength: "best" | "good" | "situational";
   reason: string;

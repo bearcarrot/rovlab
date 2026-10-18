@@ -1,6 +1,5 @@
-import { MOCK_BUILDS, MOCK_ITEMS } from "@/data/items.mock";
+import { MOCK_BUILDS, MOCK_ITEMS, MOCK_PATCH } from "@/data/items.mock";
 import type { ArcanaColor, ArcanaSummary, BuildArcanaEntry, BuildEnchantment, BuildSpell, HeroBuild, ItemSummary } from "@/types/item";
-import { MOCK_PATCH } from "@/data/heroes.mock";
 import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";

@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { Suspense, lazy, useMemo, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -23,7 +23,7 @@ import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
-import { MyMatchesCard } from "@/features/matches/MyMatchesCard";
+import { useAuth } from "@/features/auth/AuthContext";
 import { DraftPreviewSlot } from "@/features/draft/DraftPreviewSlot";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -43,7 +43,7 @@ import type { HeroSummary, Tier } from "@/types/hero";
 // colours come from the existing palette; no new dependency.
 // ---------------------------------------------------------------------------
 
-type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
+type IconType = ComponentType<{ className?: string; strokeWidth?: string | number }>;
 
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
@@ -82,7 +82,12 @@ const TOP_TIERS: Tier[] = ["S+", "S"];
 const MOSAIC_SIZE = 9;
 const MARQUEE_SIZE = 20;
 
+// Bundle: การ์ดแมตช์ (features/matches/stats.ts + การ์ด ~22 KB ซอร์ส) แสดงเฉพาะคนล็อกอินและอยู่ล่างสุดของหน้า
+// จึงแยกเป็น chunk โหลดเมื่อมี user เท่านั้น — Guest ไม่ต้องโหลดโค้ดนี้ (PSI: unused JavaScript)
+const MyMatchesCard = lazy(() => import("@/features/matches/MyMatchesCard").then((m) => ({ default: m.MyMatchesCard })));
+
 export function Home() {
+  const { user } = useAuth();
   const heroes = useAsync(() => getHeroes(), []);
   const rank = useRank();
   // Tier ที่ทีมงานจัด (ลิสต์รวมทุกเลน) — ถ้ายังไม่มี/อ่านไม่ได้ ใช้ tier จากสถิติเหมือนหน้า Tier List
@@ -330,8 +335,13 @@ export function Home() {
         </div>
       </section>
 
-      {/* 7. แมตช์ของฉัน (เฉพาะผู้ที่ล็อกอิน; อยู่ล่างสุด) */}
-      <MyMatchesCard />
+      {/* 7. แมตช์ของฉัน (เฉพาะผู้ที่ล็อกอิน; อยู่ล่างสุด)
+          fallback สูงเท่า skeleton ของการ์ดเอง (h-28) กัน layout shift ระหว่างโหลด chunk */}
+      {user && (
+        <Suspense fallback={<div aria-busy="true" className="h-28 rounded-card border border-border bg-bg-surface" />}>
+          <MyMatchesCard />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -727,7 +737,7 @@ function StatSnapshot({
           <h3 className="font-display text-sm font-semibold">{title}</h3>
         </div>
         {hint && (
-          <span className="rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-medium text-loss ring-1 ring-loss/30">
+          <span className="rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-medium text-loss-fg ring-1 ring-loss/30">
             {hint}
           </span>
         )}
