@@ -9,8 +9,15 @@ const sql = readFileSync(new URL("../../supabase/migrations/20261016c_announceme
 const flat = sql.replace(/--.*$/gm, "").replace(/\s+/g, " ");
 const COLUMNS = ["id", "title", "content", "media_type", "media_url", "link_url", "link_label", "status", "priority", "is_dismissible", "starts_at", "ends_at", "created_at", "updated_at"];
 
-test("G1 header states the migration is NOT APPLIED and is additive", () => {
-  assert.match(sql.split("\n").slice(0, 8).join("\n"), /NOT APPLIED/);
+test("G1 header identifies the announcements migration, records it as applied to Production, and states it is additive", () => {
+  // Static text check of the header comment only: it does not prove what the production schema or runtime behaviour actually is.
+  const header = sql.split("\n").slice(0, 8).join("\n");
+  assert.match(header, /20261016c_announcements\.sql/);
+  assert.match(header, /Announcements system/);
+  assert.match(header, /STATUS: APPLIED TO PRODUCTION/);
+  assert.match(header, /announcements_20261016c/);
+  assert.match(header, /Additive only/);
+  assert.doesNotMatch(header, /NOT APPLIED/);
 });
 test("G2 dollar-quoted function bodies are balanced", () => {
   assert.equal((sql.match(/\$fn\$/g) ?? []).length % 2, 0);
