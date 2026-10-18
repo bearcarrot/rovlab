@@ -1,13 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { epError, parseEpList, type EpItem } from "./eplist.ts";
 
-// ดึงสถิติแรงก์ (getranklist) / ประวัติปรับบาลานซ์ (getlatestadjustlist) จากเซิร์ฟเวอร์เกมแทนหน้า index.php เดิม
+// ดึงสถิติแรงก์ (getranklist) / ประวัติปรับบาลานซ์ (getlatestadjustlist) / สกิลของฮีโร่ (skills) จากเซิร์ฟเวอร์เกมแทนหน้า index.php เดิม
 // ไม่เขียน DB เอง — หน้า Admin นำผลไป parse/พรีวิว แล้วเรียก RPC admin_import_* ที่มีอยู่ (เหมือน pro-stats)
 // เฉพาะแอดมิน (is_admin ด้วย JWT ผู้เรียก) · client ส่งได้แค่ kind/rank_key/EP — URL และ body ประกอบฝั่งนี้เอง (กัน SSRF)
 // Encodeparam คือ credential ของเซสชัน: ไม่ log ไม่เก็บ ไม่ใส่ query string และส่งเป็น header เท่านั้น
 //
 // Supabase secrets (ตั้งด้วย `supabase secrets set`):
 //   GAME_API_HEADERS  (ไม่บังคับ) JSON ของ header เพิ่มเติม เช่น {"User-Agent":"..."} เท่ากับ api_headers ใน config.php เดิม
+//   GAME_SKILLS_URL  URL https ของ API สกิล (เท่ากับ api_url ใน config.php เดิม) จำเป็นเมื่อใช้ kind "skills" โฮสต์ต้องลงท้าย .mobagarena.com
 //   GAME_EP_HEADER    (ไม่บังคับ) ชื่อ header ของ Encodeparam, ค่าเริ่มต้น "Encodeparam"
 //   EP_LIST_URL       (ไม่บังคับ) URL https ของ ep.json บนโฮสต์ของเรา ใช้กับโหมด "URL"
 //   EP_LIST_KEY       (ไม่บังคับ) ส่งเป็น Authorization: Bearer ไปกับ EP_LIST_URL
@@ -25,8 +26,8 @@ const REVIEW_SCENE = 513;
 const TIMEOUT_MS = 20_000;
 const MAX_BODY_CHARS = 5_000_000;
 const DROP_HEADERS = ["host", "content-length", "connection", "transfer-encoding"];
+const GAME_HOST_SUFFIX = ".mobagarena.com";
 
-type Kind = "rank" | "adjust";
 type Meta = { via: "direct"; status: number; ms: number };
 
 function extraHeaders(): Headers {
@@ -41,6 +42,19 @@ function extraHeaders(): Headers {
     // GAME_API_HEADERS ไม่ใช่ JSON — ข้าม (ใช้ header พื้นฐานแทน)
   }
   return h;
+}
+
+// URL ของ API สกิลมาจาก secret (ไม่ให้ client ส่งมาเอง) และต้องเป็น https ในโดเมน mobagarena.com เท่านั้น
+function skillsUrl(): { url: string } | { error: string } {
+  const raw = Deno.env.get("GAME_SKILLS_URL");
+  if (!raw) return { error: "ยังไม่ได้ตั้ง GAME_SKILLS_URL ใน Supabase secrets (URL ของ API สกิล = api_url ใน config.php เดิม)" };
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" || !u.hostname.endsWith(GAME_HOST_SUFFIX)) throw new Error("bad host");
+    return { url: u.toString() };
+  } catch {
+    return { error: `GAME_SKILLS_URL ต้องเป็น https ในโดเมน *${GAME_HOST_SUFFIX}` };
+  }
 }
 
 async function loadEpList(): Promise<{ items: EpItem[] } | { error: string; status: number }> {
@@ -95,7 +109,7 @@ Deno.serve(async (req) => {
   }
 
   const kind = body.kind;
-  if (kind !== "rank" && kind !== "adjust") return json({ error: "kind ต้องเป็น rank หรือ adjust" }, 400);
+  if (kind !== "rank" && kind !== "adjust" && kind !== "skills") return json({ error: "kind ต้องเป็น rank, adjust หรือ skills" }, 400);
 
   // เลือก EP: ที่ส่งมาตรง ๆ (วางเอง/ไฟล์) หรือลำดับในรายการจาก URL
   let ep = "";
@@ -113,17 +127,25 @@ Deno.serve(async (req) => {
 
   let url: string;
   let payload: Record<string, unknown>;
-  let listKey: "heroList" | "heroAdjustList";
-  if ((kind as Kind) === "rank") {
+  let listKey: "heroList" | "heroAdjustList" | "skillList";
+  if (kind === "rank") {
     const rk = body.rank_key;
     if (rk !== "all" && rk !== "high") return json({ error: "rank_key ต้องเป็น all หรือ high" }, 400);
     url = API_BASE + "getranklist";
     payload = { gameType: GAME_TYPES[rk], reviewScene: REVIEW_SCENE };
     listKey = "heroList";
-  } else {
+  } else if (kind === "adjust") {
     url = API_BASE + "getlatestadjustlist";
     payload = {};
     listKey = "heroAdjustList";
+  } else {
+    const hid = body.hero_id;
+    if (!Number.isInteger(hid) || (hid as number) <= 0 || (hid as number) > 1_000_000) return json({ error: "hero_id ไม่ถูกต้อง" }, 400);
+    const u = skillsUrl();
+    if ("error" in u) return json({ error: u.error }, 500);
+    url = u.url;
+    payload = { hero_id: hid };
+    listKey = "skillList";
   }
 
   const headers = extraHeaders();
