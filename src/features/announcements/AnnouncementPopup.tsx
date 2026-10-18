@@ -48,22 +48,23 @@ function Popup() {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        {/* Width grows with the screen (36rem -> 42rem -> 48rem) so a large monitor does not get a postage-stamp popup. */}
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-card border border-border bg-bg-surface shadow-card focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0"
+          className="fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-card border border-border bg-bg-surface shadow-card focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 lg:max-w-2xl 2xl:max-w-3xl"
         >
-          <div className="flex items-center justify-between gap-2 border-b border-border py-1 pl-4 pr-1">
-            <Dialog.Title className="font-display text-base font-semibold text-text">ประกาศ</Dialog.Title>
+          <div className="flex items-center justify-between gap-2 border-b border-border py-1 pl-4 pr-1 lg:pl-6 lg:pr-2">
+            <Dialog.Title className="font-display text-base font-semibold text-text lg:text-lg">ประกาศ</Dialog.Title>
             <Dialog.Close
               aria-label="ปิด"
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             >
-              <X className="h-5 w-5" aria-hidden="true" />
+              <X className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden="true" />
             </Dialog.Close>
           </div>
-          <div className="space-y-3 overflow-y-auto p-4">
+          <div className="space-y-3 overflow-y-auto p-4 lg:space-y-4 lg:p-6">
             {cards.map((a) => (
-              <AnnouncementCard key={a.id} announcement={a} mode="live" hideCloseButton onDismiss={(id) => void dismiss(id)} />
+              <AnnouncementCard key={a.id} announcement={a} mode="live" hideCloseButton large onDismiss={(id) => void dismiss(id)} />
             ))}
             {more.length > 0 && (
               <button
