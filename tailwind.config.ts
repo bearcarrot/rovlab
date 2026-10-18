@@ -28,7 +28,8 @@ export default {
           DEFAULT: "#4C8DFF", // cool blue — utility/CC data
         },
         win: "#3DD68C",
-        loss: "#E5484D",
+        // fg = สีตัวอักษรสำหรับวางบนพื้น bg-loss/15 (DEFAULT ให้คอนทราสต์ ~4:1 ไม่ผ่าน AA สำหรับตัวอักษรเล็ก; fg ~6.7:1)
+        loss: { DEFAULT: "#E5484D", fg: "#FF8589" },
         // สีป้าย Tier: S+ แดง (เด่น/อันตรายสุด) → S ส้ม → A เหลือง → B เขียว → C ฟ้า
         tier: {
           sp: "#DC2626",
