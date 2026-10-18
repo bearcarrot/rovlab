@@ -7,6 +7,7 @@ import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AnnouncementBar } from "@/features/announcements/AnnouncementBar";
 import { CoachChatProvider } from "@/features/coach/CoachChatContext";
 import { CoachFabLoader } from "@/features/coach/CoachFabLoader";
 import { useRank } from "@/lib/rank";
@@ -29,6 +30,9 @@ export function AppShell() {
           {/* CLS: min-h = 100dvh − ความสูง Header (h-14 มือถือ / h-16 lg) ให้ Footer เริ่มใต้ขอบจอเสมอ
               ไม่งั้น Footer จะติดก้นจอตอนรอข้อมูล แล้วถูกดันตกจอเมื่อเนื้อหาโหลดเสร็จ (layout shift ก้อนใหญ่บนมือถือ) */}
           <main className="min-h-[calc(100dvh-3.5rem)] flex-1 overflow-x-hidden px-4 pb-8 pt-4 sm:px-5 lg:min-h-[calc(100dvh-4rem)] lg:px-6 lg:pt-6">
+            {/* ประกาศจากแอดมิน: อยู่นอก div ที่มี key={rank} เพื่อไม่ให้ remount (และล้างสถานะ "ดูเพิ่ม") ตอนสลับ all/high
+                ไม่มีประกาศ/กำลังโหลด/โหลดพลาด = ไม่แสดงอะไรเลย และ error ในแบนเนอร์ไม่ล้มทั้งหน้า (มี boundary เงียบในตัว) */}
+            <AnnouncementBar />
             {/* key={rank}: switching the all/high toggle remounts the page so every
                 useAsync refetches stats for the new bucket (page-local UI state resets).
                 max-w-6xl: ไม่ให้เนื้อหายืดเต็มจอในหน้าจอกว้างมาก
