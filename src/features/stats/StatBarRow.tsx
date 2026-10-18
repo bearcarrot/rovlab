@@ -10,7 +10,7 @@ export type StatTone = "default" | "success" | "danger";
 const TONE_STYLES: Record<StatTone, { hover: string; text: string; bar: string }> = {
   default: { hover: "hover:border-accent/40", text: "text-text-muted", bar: "bg-accent" },
   success: { hover: "hover:border-win/50", text: "font-medium text-win", bar: "bg-win" },
-  danger: { hover: "hover:border-loss/50", text: "font-medium text-loss", bar: "bg-loss" },
+  danger: { hover: "hover:border-loss/50", text: "font-medium text-loss-fg", bar: "bg-loss" },
 };
 
 export function StatBarRow({
