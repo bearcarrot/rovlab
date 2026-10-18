@@ -43,7 +43,7 @@ import type { HeroSummary, Tier } from "@/types/hero";
 // colours come from the existing palette; no new dependency.
 // ---------------------------------------------------------------------------
 
-type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
+type IconType = ComponentType<{ className?: string; strokeWidth?: string | number }>;
 
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
