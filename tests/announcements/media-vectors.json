@@ -44,7 +44,7 @@
  {"name": "label 40 chars ok", "mediaType": "none", "mediaUrl": null, "linkUrl": "https://example.com/x", "linkLabel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "expected": null},
  {"name": "label 41 chars", "mediaType": "none", "mediaUrl": null, "linkUrl": "https://example.com/x", "linkLabel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "expected": "LABEL_TOO_LONG"},
  {"name": "label 41 chars and no link (too long wins)", "mediaType": "none", "mediaUrl": null, "linkUrl": null, "linkLabel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "expected": "LABEL_TOO_LONG"},
- {"name": "label 40 emoji code points ok", "mediaType": "none", "mediaUrl": null, "linkUrl": "https://example.com/x", "linkLabel": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀", "expected": null},
+ {"name": "label 40 emoji code points ok", "mediaType": "none", "mediaUrl": null, "linkUrl": "https://example.com/x", "linkLabel": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀", "expected": null},
  {"name": "video youtube percent-encoded id (no decoding)", "mediaType": "video", "mediaUrl": "https://www.youtube.com/watch?v=%64Qw4w9WgXcQ", "linkUrl": null, "linkLabel": null, "expected": "VIDEO_UNSUPPORTED"},
  {"name": "video youtube doubled slashes", "mediaType": "video", "mediaUrl": "https://www.youtube.com//embed//dQw4w9WgXcQ", "linkUrl": null, "linkLabel": null, "expected": "VIDEO_UNSUPPORTED"},
  {"name": "video youtube watch trailing slash", "mediaType": "video", "mediaUrl": "https://www.youtube.com/watch/?v=dQw4w9WgXcQ", "linkUrl": null, "linkLabel": null, "expected": null},
