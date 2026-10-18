@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { AlertCircle, Check, Download } from "lucide-react";
+import { Check, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getLatestPatch } from "@/services/meta";
 import { useToast } from "@/components/ui/toast";
@@ -11,7 +11,7 @@ const db: any = supabase;
 const DEFAULT_URL = "https://liquipedia.net/honorofkings/RoV_Pro_League/2026/Winter/Statistics";
 
 type ProRow = { name: string; picks: number; win_rate: number; pick_rate: number; ban_rate: number; sigma: number; tier: string };
-type Result = { stats: number; unmatched: string[]; patch: string };
+type Result = { stats: number; unmatched: string[] };
 
 const ctl =
   "block h-11 w-full rounded-lg border border-border bg-bg-raised px-3 text-base text-text outline-none transition " +
@@ -35,11 +35,9 @@ export function ProStatsImport() {
   const [url, setUrl] = useState(DEFAULT_URL);
   const [rows, setRows] = useState<ProRow[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
 
   async function fetchRows() {
     setBusy(true);
-    setResult(null);
     setRows(null);
     const { data, error } = await db.functions.invoke("pro-stats", { body: { url: url.trim() } });
     setBusy(false);
@@ -59,11 +57,14 @@ export function ProStatsImport() {
     }
     const { data, error } = await db.rpc("admin_import_pro_stats", { p_patch: patch.id, p_rows: rows });
     setBusy(false);
-    if (error) toast.error(`บันทึกไม่สำเร็จ: ${error.message}`);
-    else {
-      setResult({ ...(data as Omit<Result, "patch">), patch: patch.code });
-      toast.success("บันทึกสถิติ Pro แล้ว");
+    if (error) {
+      toast.error(`บันทึกไม่สำเร็จ: ${error.message}`);
+      return;
     }
+    // ผลทั้งหมดแจ้งด้วย toast (ไม่มีกล่องผลลัพธ์ inline ซ้ำ)
+    const r = data as Result;
+    toast.success(`บันทึกสถิติ Pro แล้ว ${r.stats} ฮีโร่ (แพตช์ ${patch.code} · แรงก์ pro)`);
+    if (r.unmatched.length > 0) toast.error(`ข้าม ${r.unmatched.length} ชื่อที่ไม่ตรงกับฮีโร่ในฐานข้อมูล: ${r.unmatched.join(", ")}`);
   }
 
   return (
@@ -116,20 +117,6 @@ export function ProStatsImport() {
             {busy ? "กำลังบันทึก..." : "บันทึกลงแพตช์ล่าสุด (แรงก์ pro)"}
           </button>
         </>
-      )}
-
-      {result && (
-        <div className="space-y-1 rounded-lg border border-win/40 p-3 text-sm">
-          <p className="flex items-center gap-2 font-medium text-win">
-            <Check className="h-4 w-4" /> บันทึก {result.stats} ฮีโร่ (แพตช์ {result.patch} · แรงก์ pro)
-          </p>
-          {result.unmatched.length > 0 && (
-            <p className="flex items-start gap-1.5 text-loss">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>ข้าม {result.unmatched.length} ชื่อที่ไม่ตรงกับฮีโร่ในฐานข้อมูล: {result.unmatched.join(", ")}</span>
-            </p>
-          )}
-        </div>
       )}
     </section>
   );
