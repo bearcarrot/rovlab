@@ -1,15 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ChevronLeft, ChevronRight, Download, FileUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileUp, Square } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { epAge, epExpired, epTail, parseEpText, type StoredEp } from "@/lib/epList";
+import { functionErrorMessage } from "@/lib/functionError";
 
 // client แบบ untyped เพราะเรียก Edge Function ที่ไม่มี generated types
 const db: any = supabase;
 
 type Mode = "paste" | "file" | "url";
 type Meta = { via: string; status: number; ms: number };
+export type GameHero = { id: number; name: string }; // id = heroes.hero_id
 type UrlEp = { index: number; label: string; at: number | null; tail: string };
 type RankKey = "all" | "high";
 
@@ -49,24 +51,17 @@ function lsJson<T>(key: string, fallback: T): T {
   }
 }
 
-// supabase-js ซ่อนข้อความจริงของ Edge Function ไว้ใน error.context (Response)
-async function fnError(error: any): Promise<{ error: string; meta: Meta | null }> {
-  try {
-    const j = await error.context.json();
-    return { error: j.error ?? error.message, meta: j.meta ?? null };
-  } catch {
-    return { error: error.message, meta: null };
-  }
-}
-
 const hhmm = (t: number) => new Date(t).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
 
 export function GameFetchCard({
   kind,
+  heroes = [],
   onFetched,
 }: {
-  kind: "rank" | "adjust";
-  /** ส่ง JSON ดิบของเกมเป็นข้อความ เข้าตัว parse เดิมของหน้า (key = แรงก์ที่เลือกเมื่อ kind เป็น rank) */
+  kind: "rank" | "adjust" | "skills";
+  /** รายชื่อฮีโร่ที่มี hero_id (ใช้เมื่อ kind เป็น skills) */
+  heroes?: GameHero[];
+  /** ส่ง JSON ดิบของเกมเป็นข้อความ เข้าตัว parse เดิมของหน้า (rank: key = แรงก์ที่เลือก · skills: { "<hero_id>": ผลตอบกลับ }) */
   onFetched: (jsonText: string, key?: RankKey) => void;
 }) {
   const toast = useToast();
@@ -80,8 +75,9 @@ export function GameFetchCard({
   const [urlIdx, setUrlIdx] = useState(0);
   const [used, setUsed] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
-  const [meta, setMeta] = useState<Meta | null>(null);
-  const [err, setErr] = useState("");
+  const [heroSel, setHeroSel] = useState("");
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const stopRef = useRef(false);
 
   useEffect(() => {
     setPaste(lsGet(KEY_PASTE));
@@ -122,13 +118,10 @@ export function GameFetchCard({
 
   async function loadUrlList() {
     setBusy(true);
-    setErr("");
     const { data, error } = await db.functions.invoke("game-fetch", { body: { action: "list_eps" } });
     setBusy(false);
     if (error) {
-      const e = await fnError(error);
-      setErr(e.error);
-      toast.error(`โหลดรายการจาก URL ไม่สำเร็จ: ${e.error}`);
+      toast.error(`โหลดรายการจาก URL ไม่สำเร็จ: ${await functionErrorMessage(error, error.message)}`);
       return;
     }
     setUrlList(data.items as UrlEp[]);
@@ -141,48 +134,80 @@ export function GameFetchCard({
     lsSet(KEY_USED, JSON.stringify(next));
   }
 
-  async function run() {
-    const body: Record<string, unknown> = { kind };
-    if (kind === "rank") body.rank_key = rankKey;
-    let tail = "";
+  // เลือก EP ตามโหมดที่เปิดอยู่ → ส่วนของ body ที่ต้องแนบ (ไม่มี EP = เตือนด้วย toast แล้วคืน null)
+  function epPart(): { part: Record<string, unknown>; tail: string } | null {
     if (mode === "paste") {
       if (!paste.trim()) {
         toast.error("วาง Encodeparam ก่อน");
-        return;
+        return null;
       }
-      body.ep = paste.trim();
-      tail = epTail(paste);
-    } else if (mode === "file") {
+      return { part: { ep: paste.trim() }, tail: epTail(paste) };
+    }
+    if (mode === "file") {
       if (!fileEp) {
         toast.error("ยังไม่ได้โหลดไฟล์ ep.json");
-        return;
+        return null;
       }
-      body.ep = fileEp.value;
-      tail = epTail(fileEp.value);
-    } else {
-      if (!urlEp) {
-        toast.error("โหลดรายการ EP จาก URL ก่อน");
-        return;
-      }
-      body.ep_index = urlEp.index;
-      tail = urlEp.tail;
+      return { part: { ep: fileEp.value }, tail: epTail(fileEp.value) };
     }
+    if (!urlEp) {
+      toast.error("โหลดรายการ EP จาก URL ก่อน");
+      return null;
+    }
+    return { part: { ep_index: urlEp.index }, tail: urlEp.tail };
+  }
+
+  // ผลทุกอย่างแจ้งด้วย toast เท่านั้น (ไม่มีข้อความ inline ซ้ำ)
+  async function run() {
+    const ep = epPart();
+    if (!ep) return;
+    const body: Record<string, unknown> = { kind, ...ep.part };
+    if (kind === "rank") body.rank_key = rankKey;
     setBusy(true);
-    setErr("");
-    setMeta(null);
-    markUsed(tail);
+    markUsed(ep.tail);
     const { data, error } = await db.functions.invoke("game-fetch", { body });
     setBusy(false);
     if (error) {
-      const e = await fnError(error);
-      setErr(e.error);
-      setMeta(e.meta);
-      toast.error(`ดึงไม่สำเร็จ: ${e.error}`);
+      toast.error(`ดึงไม่สำเร็จ: ${await functionErrorMessage(error, error.message)}`);
       return;
     }
-    setMeta(data.meta ?? null);
+    const m = data.meta as Meta | undefined;
     onFetched(JSON.stringify(data.data), kind === "rank" ? rankKey : undefined);
-    toast.success("ดึงจากเกมแล้ว ตรวจพรีวิวด้านล่างก่อนนำเข้า");
+    toast.success(`ดึงจากเกมแล้ว${m ? ` (${m.via} · ${m.ms} ms)` : ""}`);
+  }
+
+  // สกิล: ฮีโร่ที่เลือก หรือทุกตัวทีละตัว (หน่วงเล็กน้อย) — หยุดทันทีที่เกมปฏิเสธ แล้วส่งเท่าที่ได้ให้หน้า
+  async function runSkills(all: boolean) {
+    const ep = epPart();
+    if (!ep) return;
+    const targets = all ? heroes : heroes.filter((h) => String(h.id) === heroSel);
+    if (targets.length === 0) {
+      toast.error("เลือกฮีโร่ก่อน");
+      return;
+    }
+    stopRef.current = false;
+    setBusy(true);
+    markUsed(ep.tail);
+    const got: Record<string, unknown> = {};
+    let failed = "";
+    for (let i = 0; i < targets.length; i++) {
+      if (stopRef.current) break;
+      setProgress({ done: i, total: targets.length });
+      const { data, error } = await db.functions.invoke("game-fetch", { body: { kind, hero_id: targets[i].id, ...ep.part } });
+      if (error) {
+        failed = `${targets[i].name}: ${await functionErrorMessage(error, error.message)}`;
+        break;
+      }
+      got[String(targets[i].id)] = data.data;
+      if (i < targets.length - 1) await new Promise((r) => setTimeout(r, 400));
+    }
+    setBusy(false);
+    setProgress(null);
+    const n = Object.keys(got).length;
+    if (n > 0) onFetched(JSON.stringify(got));
+    if (failed) toast.error(`หยุดที่ ${failed}${n > 0 ? ` (ได้แล้ว ${n} ตัว)` : ""}`);
+    else if (stopRef.current) toast.info(`หยุดแล้ว ได้ ${n} จาก ${targets.length} ตัว`);
+    else toast.success(`ดึงสกิลจากเกมแล้ว ${n} ตัว`);
   }
 
   // ข้อมูลของ EP ที่เลือกอยู่ (โหมดไฟล์/URL) สำหรับแถวตัวสลับ
@@ -301,20 +326,35 @@ export function GameFetchCard({
         </div>
       )}
 
-      <button type="button" disabled={busy} onClick={() => void run()} className={`${btn} w-full bg-accent text-accent-fg hover:brightness-110 sm:w-auto`}>
-        <Download className="h-4 w-4" /> {busy ? "กำลังดึง..." : kind === "rank" ? `ดึงสถิติแรงก์ ${rankKey}` : "ดึงประวัติปรับบาลานซ์"}
-      </button>
-
-      {meta && (
-        <p className="text-xs text-text-muted">
-          ผ่าน {meta.via} · เกมตอบ HTTP {meta.status} · {meta.ms} ms
-        </p>
-      )}
-      {err && (
-        <p className="flex items-start gap-1.5 text-xs text-loss">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span className="break-words">{err}</span>
-        </p>
+      {kind === "skills" ? (
+        <div className="space-y-2">
+          <select className={`${ctl} h-11 py-0 font-sans`} value={heroSel} onChange={(e) => setHeroSel(e.target.value)} aria-label="ฮีโร่" disabled={busy}>
+            <option value="">— เลือกฮีโร่ —</option>
+            {heroes.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name} · {h.id}
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" disabled={busy || !heroSel} onClick={() => void runSkills(false)} className={`${btn} w-full border border-border bg-bg-raised hover:border-text-faint sm:w-auto`}>
+              <Download className="h-4 w-4" /> ดึงฮีโร่ที่เลือก
+            </button>
+            {busy && progress ? (
+              <button type="button" onClick={() => (stopRef.current = true)} className={`${btn} w-full border border-loss/40 bg-loss/10 text-loss sm:w-auto`}>
+                <Square className="h-4 w-4" /> หยุด ({progress.done}/{progress.total})
+              </button>
+            ) : (
+              <button type="button" disabled={busy || heroes.length === 0} onClick={() => void runSkills(true)} className={`${btn} w-full bg-accent text-accent-fg hover:brightness-110 sm:w-auto`}>
+                <Download className="h-4 w-4" /> ดึงทุกตัว ({heroes.length})
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <button type="button" disabled={busy} onClick={() => void run()} className={`${btn} w-full bg-accent text-accent-fg hover:brightness-110 sm:w-auto`}>
+          <Download className="h-4 w-4" /> {busy ? "กำลังดึง..." : kind === "rank" ? `ดึงสถิติแรงก์ ${rankKey}` : "ดึงประวัติปรับบาลานซ์"}
+        </button>
       )}
     </section>
   );
