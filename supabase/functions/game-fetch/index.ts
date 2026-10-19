@@ -152,6 +152,8 @@ Deno.serve(async (req) => {
   headers.set(Deno.env.get("GAME_EP_HEADER") || "Encodeparam", ep);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  // getskilllist ต้องการ hero_id ใน header ด้วย (นอกจาก body)
+  if (kind === "skills") headers.set("hero_id", String(payload.hero_id));
 
   const t0 = Date.now();
   let status: number;
