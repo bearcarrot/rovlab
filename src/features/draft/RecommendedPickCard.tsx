@@ -31,7 +31,7 @@ export function RecommendedPickCard({
   const { combos } = rec.details;
   const { stat } = rec.hero;
   const byName = (name: string) => heroes?.find((h) => h.nameTh === name);
-  // บรรทัด "ชนะทาง X (ระดับ…)" / "คอมโบกับ X" ซ้ำกับแถวไอคอนด้านบน จึงไม่แสดงซ้ำ (reasons เดิมยังอยู่ใน rec สำหรับที่อื่น)
+  // บรรทัด "ชนะทาง X (ระดับ…)" / "คอมโบกับ X" ซ้ำกับแถวไอคอนด้านล่าง จึงไม่แสดงซ้ำ (reasons เดิมยังอยู่ใน rec สำหรับที่อื่น)
   const reasons = rec.reasons.filter(
     (r) => !wins.some((c) => r.startsWith(`ชนะทาง ${c.enemy} (`)) && !combos.some((c) => r === `คอมโบกับ ${c.partner}`)
   );
@@ -48,19 +48,17 @@ export function RecommendedPickCard({
             {stat.hasStats ? <Badge tier={stat.tier}>{stat.tier}</Badge> : <Badge>N/A</Badge>}
           </div>
         </div>
-        {/* 1–5 ดาวคือคะแนนแนะนำภาพรวม: ซ่อนเมื่อการ์ดนี้มีข้อมูลชนะทาง เพื่อไม่ให้ปนกับดาว 3/2/1 */}
-        {wins.length === 0 && (
-          <div
-            role="img"
-            aria-label={`คะแนนแนะนำภาพรวม ${rec.stars} จาก 5`}
-            title="คะแนนแนะนำภาพรวม (ไม่ใช่ระดับการชนะทาง)"
-            className="flex shrink-0"
-          >
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />
-            ))}
-          </div>
-        )}
+        {/* 1–5 ดาวบนขวา = คะแนนแนะนำภาพรวมเสมอ (คนละความหมายกับดาว 3/2/1 ของชนะทางในแถวด้านล่าง) */}
+        <div
+          role="img"
+          aria-label={`คะแนนแนะนำภาพรวม ${rec.stars} จาก 5`}
+          title="คะแนนแนะนำภาพรวม (ไม่ใช่ระดับการชนะทาง)"
+          className="flex shrink-0"
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {rec.tags.length > 0 && (
