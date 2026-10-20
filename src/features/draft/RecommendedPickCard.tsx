@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { HeroIcon } from "@/components/HeroIcon";
+import { MATCHUP_STARS, StarRating } from "@/features/heroes/MatchupStars";
+import type { HeroSummary } from "@/types/hero";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
 const TAG_LABEL: Record<RecommendTag, string> = {
@@ -11,10 +14,27 @@ const TAG_LABEL: Record<RecommendTag, string> = {
 };
 
 // การ์ดฮีโร่ที่ระบบแนะนำ — การถาม Coach Ai ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
-export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPick: () => void }) {
+// heroes: รายการฮีโร่ทั้งหมด ใช้หาไอคอนของศัตรูที่ถูกชนะทาง/คู่คอมโบ (หาไม่เจอ = แสดงเป็นชื่อแทน)
+export function RecommendedPickCard({
+  rec,
+  onPick,
+  heroes,
+}: {
+  rec: Recommendation;
+  onPick: () => void;
+  heroes?: HeroSummary[];
+}) {
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);
   const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
+  const wins = rec.details.counters.filter((c) => c.direction === "wins");
+  const { combos } = rec.details;
+  const { stat } = rec.hero;
+  const byName = (name: string) => heroes?.find((h) => h.nameTh === name);
+  // บรรทัด "ชนะทาง X (ระดับ…)" / "คอมโบกับ X" ซ้ำกับแถวไอคอนด้านล่าง จึงไม่แสดงซ้ำ (reasons เดิมยังอยู่ใน rec สำหรับที่อื่น)
+  const reasons = rec.reasons.filter(
+    (r) => !wins.some((c) => r.startsWith(`ชนะทาง ${c.enemy} (`)) && !combos.some((c) => r === `คอมโบกับ ${c.partner}`)
+  );
 
   return (
     <Card>
@@ -23,9 +43,18 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
           <Link to={`/heroes/${rec.hero.slug}`} aria-label={rec.hero.nameTh} className="shrink-0">
             <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
           </Link>
-          <CardTitle>{rec.hero.nameTh}</CardTitle>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <CardTitle className="max-w-full truncate">{rec.hero.nameTh}</CardTitle>
+            {stat.hasStats ? <Badge tier={stat.tier}>{stat.tier}</Badge> : <Badge>N/A</Badge>}
+          </div>
         </div>
-        <div className="flex shrink-0">
+        {/* 1–5 ดาวบนขวา = คะแนนแนะนำภาพรวมเสมอ (คนละความหมายกับดาว 3/2/1 ของชนะทางในแถวด้านล่าง) */}
+        <div
+          role="img"
+          aria-label={`คะแนนแนะนำภาพรวม ${rec.stars} จาก 5`}
+          title="คะแนนแนะนำภาพรวม (ไม่ใช่ระดับการชนะทาง)"
+          className="flex shrink-0"
+        >
           {Array.from({ length: 5 }).map((_, i) => (
             <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />
           ))}
@@ -44,12 +73,51 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
             ))}
           </div>
         )}
-        <div className="flex gap-3 text-xs text-text-muted">
-          <span>ความเสี่ยง: {rec.risk}</span>
-          {rec.hero.stat.hasStats && <span>Tier {rec.hero.stat.tier}</span>}
-        </div>
+        {wins.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-muted">
+            <span>ชนะทาง</span>
+            {wins.map((c) => {
+              const m = MATCHUP_STARS[c.strength];
+              const e = byName(c.enemy);
+              return (
+                <span key={c.enemy} title={c.enemy} className="inline-flex items-center gap-1.5">
+                  {e ? (
+                    <>
+                      <HeroIcon icon={e.icon} name={e.name} className="h-8 w-8" />
+                      <span className="sr-only">{c.enemy}</span>
+                    </>
+                  ) : (
+                    <span className="text-text">{c.enemy}</span>
+                  )}
+                  <StarRating stars={m.stars} label={m.label} />
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {combos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-muted">
+            <span>คอมโบกับ</span>
+            {combos.map((c) => {
+              const p = byName(c.partner);
+              return (
+                <span key={c.partner} title={c.partner} className="inline-flex items-center">
+                  {p ? (
+                    <>
+                      <HeroIcon icon={p.icon} name={p.name} className="h-8 w-8" />
+                      <span className="sr-only">{c.partner}</span>
+                    </>
+                  ) : (
+                    <span className="text-text">{c.partner}</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-xs text-text-muted">ความเสี่ยง: {rec.risk}</p>
         <ul className="space-y-1 text-sm text-text-muted">
-          {rec.reasons.map((r) => <li key={r}>• {r}</li>)}
+          {reasons.map((r) => <li key={r}>• {r}</li>)}
         </ul>
 
         {/* กลไกคอมโบ/ชนะทาง จากข้อมูลที่แอดมินกรอกไว้ */}

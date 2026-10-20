@@ -92,6 +92,7 @@ export interface ComboDetail {
 export interface CounterDetail {
   enemy: string;
   direction: "wins" | "loses"; // wins = ฮีโร่นี้ชนะทางศัตรูตัวนี้, loses = ศัตรูตัวนี้ชนะทางฮีโร่นี้
+  strength: CounterStrength; // ระดับดาวชนะทาง 3/2/1 (best/good/situational) ใช้ตรงกับ MATCHUP_STARS
   level: string;
   reason: string;
   laneTip: string;
@@ -202,7 +203,7 @@ export function recommendPicks(
         if (!info) continue;
         counterScore += COUNTER_POINTS[info.strength];
         reasons.push(`ชนะทาง ${e.nameTh} (ระดับ${LEVEL_TH[info.strength]})`);
-        counters.push({ enemy: e.nameTh, direction: "wins", level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
+        counters.push({ enemy: e.nameTh, direction: "wins", strength: info.strength, level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
         if (info.reason) explain.push(`${h.nameTh} ชนะทาง ${e.nameTh}: ${info.reason}`);
         if (info.laneTip) explain.push(`ทิปเลนสู้ ${e.nameTh}: ${info.laneTip}`);
       }
@@ -217,7 +218,7 @@ export function recommendPicks(
         if (!info) continue;
         score -= COUNTER_POINTS[info.strength];
         warnings.push(`${e.nameTh} ชนะทางตัวนี้ (ระดับ${LEVEL_TH[info.strength]})${info.reason ? `: ${info.reason}` : ""}`);
-        counters.push({ enemy: e.nameTh, direction: "loses", level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
+        counters.push({ enemy: e.nameTh, direction: "loses", strength: info.strength, level: LEVEL_TH[info.strength], reason: info.reason, laneTip: info.laneTip });
       }
 
       // 3) คอมโบกับเพื่อนร่วมทีม
