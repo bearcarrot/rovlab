@@ -29,6 +29,7 @@ import {
   type DraftMode,
   type Recommendation,
 } from "@/features/draft/analyzeTeam";
+import { splitRecs } from "@/features/draft/splitRecs";
 import { findTeamGaps } from "@/features/draft/teamGaps";
 import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
 import { buildKits } from "@/features/draft/skillTags";
@@ -246,15 +247,14 @@ export function DraftAssistant() {
     () => filterByMissingLanes(rawRecs, (r) => heroLanes(r.hero) as string[], missingLanes),
     [rawRecs, missingLanes]
   );
+  // `recs` (5 อันดับรวม ไม่ตัดซ้ำ) ยังใช้กับรูปแชร์และปุ่ม Coach Ai
   const recs = useMemo(() => allRecs.slice(0, 5), [allRecs]);
-  const synergyRecs = useMemo(
-    () => allRecs.filter((r) => r.tags.includes("synergy")).slice(0, RELATION_LIMIT),
-    [allRecs]
-  );
-  const counterRecs = useMemo(
-    () => allRecs.filter((r) => r.tags.includes("counter")).slice(0, RELATION_LIMIT),
-    [allRecs]
-  );
+  // ที่แสดงบนหน้า: ฮีโร่หนึ่งตัวอยู่หมวดเดียว ชนะทาง > คอมโบ > ภาพรวม
+  const {
+    counter: counterRecs,
+    synergy: synergyRecs,
+    overall: overallRecs,
+  } = useMemo(() => splitRecs(allRecs, RELATION_LIMIT, 5), [allRecs]);
 
   // ข้อมูลสกิล หรือคู่เคาน์เตอร์/คอมโบ ว่างทั้งที่โหลดเสร็จแล้ว (โหลดไม่ได้ หรือยังไม่ได้นำเข้า) → บอกผู้ใช้ว่าคำแนะนำอาจไม่ครบ
   // (service ทั้งสองไม่ throw เมื่อโหลดพลาด จึงตรวจจากข้อมูลที่ว่างแทนสถานะ error)
@@ -705,11 +705,13 @@ export function DraftAssistant() {
             )}
             {teamFull ? (
               <p className="text-sm text-text-faint">ทีมของคุณครบ 5 ฮีโร่แล้ว</p>
-            ) : recs.length === 0 ? (
-              <p className="text-sm text-text-faint">ยังไม่มีฮีโร่ให้แนะนำ</p>
+            ) : overallRecs.length === 0 ? (
+              <p className="text-sm text-text-faint">
+                {recs.length === 0 ? "ยังไม่มีฮีโร่ให้แนะนำ" : "ฮีโร่ที่แนะนำทั้งหมดอยู่ในหมวดด้านบนแล้ว"}
+              </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {recs.map((r) => (
+                {overallRecs.map((r) => (
                   <RecommendedPickCard key={r.hero.id} rec={r} onPick={() => pickForMyTeam(r.hero)} />
                 ))}
               </div>
