@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Bookmark, FilePlus2, HelpCircle, Link2, Search, Swords, Users } from "lucide-react";
+import { Bookmark, FilePlus2, HelpCircle, Link2, PictureInPicture2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getDraftRelations } from "@/services/draft";
 import { getAllAbilities } from "@/services/abilities";
@@ -33,6 +33,8 @@ import { findTeamGaps } from "@/features/draft/teamGaps";
 import { buildDraftContext, buildPickContext } from "@/features/draft/coachContext";
 import { buildKits } from "@/features/draft/skillTags";
 import { useDraftSession } from "@/features/draft/useDraftSession";
+import { useDocumentPip } from "@/features/draft/useDocumentPip";
+import { DraftPip } from "@/features/draft/DraftPip";
 import {
   MAX_BANS,
   getAvailableHeroes,
@@ -133,6 +135,11 @@ export function DraftAssistant() {
   const ds = useDraftSession();
   const { user } = useAuth();
   const toast = useToast();
+  // หน้าต่างลอย (Document PiP): hook ดูแลเฉพาะหน้าต่าง ส่วนสถานะดราฟต์ยังอยู่ที่ ds ตัวเดียวกัน
+  const pip = useDocumentPip();
+  useEffect(() => {
+    if (pip.error) toast.error(pip.error);
+  }, [pip.error, toast]);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   // /draft/<id> = ลิงก์แชร์ของ Community Draft: เปิดแท็บ Community พร้อมหน้าต่างดู Draft นั้นทันที
@@ -544,6 +551,18 @@ export function DraftAssistant() {
               <FilePlus2 className="h-4 w-4" />
               Draft ใหม่
             </button>
+            {pip.showButton && (
+              <button
+                type="button"
+                disabled={!pip.supported}
+                onClick={pip.win ? pip.close : () => void pip.open()}
+                title={pip.supported ? "เปิดหน้าต่างลอยเลือกฮีโร่ไว้ข้างเกม" : "ต้องใช้ Chrome/Edge เวอร์ชัน 116 ขึ้นไปบนคอมพิวเตอร์"}
+                className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text disabled:opacity-50"
+              >
+                <PictureInPicture2 className="h-4 w-4" />
+                {pip.win ? "ปิดหน้าต่างลอย" : "หน้าต่างลอย"}
+              </button>
+            )}
           </div>
 
           <SeriesBar ds={ds} heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
@@ -743,6 +762,20 @@ export function DraftAssistant() {
         </Modal>
       )}
       {onboarding.open && <DraftOnboarding onClose={onboarding.close} />}
+      {pip.win && heroesQ.status === "success" && (
+        <DraftPip
+          win={pip.win}
+          teams={{ mine: myTeam, enemy: enemyTeam }}
+          active={active}
+          pool={activePool}
+          recs={teamFull ? [] : recs}
+          onSelectSlot={(team, index) => setActive({ team, kind: "pick", index })}
+          onClearSlot={clearSlot}
+          onPick={onPickHero}
+          onPickRec={pickForMyTeam}
+          onClose={pip.close}
+        />
+      )}
       <ConfirmHost />
     </div>
   );
