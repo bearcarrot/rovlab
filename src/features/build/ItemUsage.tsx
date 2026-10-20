@@ -1,20 +1,39 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroItemUsage } from "@/services/itemStats";
-import { SMALL_SAMPLE } from "@/features/build/itemUsage";
+import { SMALL_SAMPLE, type HeroItemUsageSet } from "@/features/build/itemUsage";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import type { ItemSummary } from "@/types/item";
 
 const SHOWN = 12;
 
+type Scope = keyof HeroItemUsageSet;
+const SCOPES: { id: Scope; label: string; unit: string; note: string }[] = [
+  {
+    id: "itemLevel",
+    label: "ทุกไอเทมที่ยืนยัน",
+    unit: "แมตช์ที่ยืนยันไอเทมอย่างน้อย 1 ช่อง",
+    note: "% = สัดส่วนแมตช์ที่ยืนยันแล้วว่ามีไอเทมนี้ ช่องที่ว่าง อ่านไม่ได้ หรือยังไม่ยืนยันไม่ถูกนับ จึงเป็นค่าขั้นต่ำ ไม่ใช่ตัวบอกว่าไอเทมทำให้ชนะ",
+  },
+  {
+    id: "complete",
+    label: "เฉพาะชุดครบ 6 ช่อง",
+    unit: "แมตช์ที่ยืนยันไอเทมครบ 6 ช่อง",
+    note: "% = สัดส่วนแมตช์ที่มีไอเทมนี้ จากแมตช์ที่ยืนยันไอเทมครบทั้ง 6 ช่อง ไม่ใช่ตัวบอกว่าไอเทมทำให้ชนะ",
+  },
+];
+
 // Items real players ended their matches with, from users who chose to share. Shown next to (never mixed into) the curated build.
 export function ItemUsage({ hero, items }: { hero: HeroSummary; items: ItemSummary[] }) {
   const { user, loading } = useAuth();
   const q = useAsync(() => (user ? getHeroItemUsage(hero.id) : Promise.resolve(null)), [hero.id, user?.id]);
+  const [scope, setScope] = useState<Scope>("itemLevel");
   const bySlug = new Map(items.map((i) => [i.slug, i]));
 
   const head = (
@@ -39,13 +58,34 @@ export function ItemUsage({ hero, items }: { hero: HeroSummary; items: ItemSumma
   if (q.status === "error") return <ErrorState message={q.message} onRetry={q.refetch} />;
   if (q.status !== "success" || !q.data) return null;
 
-  const u = q.data;
+  const meta = SCOPES.find((s) => s.id === scope)!;
+  const u = q.data[scope];
+  const toggle = (
+    <div role="group" aria-label="ชนิดสถิติ" className="flex flex-wrap gap-1.5">
+      {SCOPES.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          aria-pressed={s.id === scope}
+          onClick={() => setScope(s.id)}
+          className={cn(
+            "min-h-8 rounded-md border px-2.5 py-1 text-xs",
+            s.id === scope ? "border-accent bg-accent/10 text-accent" : "border-border text-text-muted hover:border-accent/40"
+          )}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+
   if (u.suppressed || u.items.length === 0) {
     return (
       <div className={box}>
         {head}
+        {toggle}
         <p className="text-xs text-text-muted">
-          ยังมีข้อมูลไม่พอสำหรับฮีโร่ตัวนี้ (ต้องมีผู้ร่วมแชร์อย่างน้อย 5 คน) คุณช่วยเพิ่มได้โดยติ๊กแชร์ไอเทมตอนบันทึกแมตช์ในหน้าวิเคราะห์เกม
+          ยังมีข้อมูลไม่พอสำหรับฮีโร่ตัวนี้ในมุมมองนี้ (ต้องมีผู้ร่วมแชร์อย่างน้อย 5 คน) คุณช่วยเพิ่มได้โดยติ๊กแชร์ไอเทมตอนบันทึกแมตช์ในหน้าวิเคราะห์เกม
         </p>
       </div>
     );
@@ -54,8 +94,10 @@ export function ItemUsage({ hero, items }: { hero: HeroSummary; items: ItemSumma
   return (
     <div className={box}>
       {head}
+      {toggle}
       <p className="text-xs text-text-muted">
-        จาก {u.eligible} แมตช์ ({u.users} ผู้เล่น){u.eligible < SMALL_SAMPLE && <span className="text-accent"> · ตัวอย่างยังน้อย ใช้ดูแนวโน้มเท่านั้น</span>}
+        จาก {u.eligible} {meta.unit} ({u.users} ผู้เล่น)
+        {u.eligible < SMALL_SAMPLE && <span className="text-accent"> · ตัวอย่างยังน้อย ใช้ดูแนวโน้มเท่านั้น</span>}
       </p>
       <ul className="space-y-1.5">
         {u.items.slice(0, SHOWN).map((row) => {
@@ -83,7 +125,7 @@ export function ItemUsage({ hero, items }: { hero: HeroSummary; items: ItemSumma
         })}
       </ul>
       <p className="text-[11px] leading-snug text-text-faint">
-        % = สัดส่วนแมตช์ที่ผู้เล่นมีไอเทมนี้ครบในช่องสุดท้าย ไม่ใช่ตัวบอกว่าไอเทมทำให้ชนะ ข้อมูลมาจากผู้เล่นที่เลือกแชร์เท่านั้น
+        {meta.note} ข้อมูลมาจากผู้เล่นที่เลือกแชร์เท่านั้น
       </p>
     </div>
   );
