@@ -11,6 +11,7 @@ import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { Chip } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -33,60 +34,88 @@ const TABS: [Tab, string][] = [
 function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value: HeroSummary | null; onChange: (h: HeroSummary) => void }) {
   const filters = useHeroFilters("build");
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(false);
+  // พับกริดเมื่อเลือกแล้ว (เหมือน showGrid ใน Matchup) ฮีโร่ที่เลือกยังอยู่ระหว่างกดเปลี่ยน
+  const showGrid = !value || editing;
   const list = heroes.filter((h) => filters.match(h) && heroMatchesQuery(h, query));
   return (
     <div className="min-w-0 space-y-2">
       <p className="text-xs font-medium text-text-faint">
         เลือกฮีโร่
-        {value && <span className="ml-2 text-accent">เลือกอยู่: {value.nameTh}</span>}
+        {value && showGrid && <span className="ml-2 text-accent">เลือกอยู่: {value.nameTh}</span>}
       </p>
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
-        <Search className="h-4 w-4 shrink-0 text-text-faint" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหาชื่อฮีโร่"
-          aria-label="ค้นหาชื่อฮีโร่"
-          className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
-        />
-      </div>
-      <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
-      {list.length === 0 ? (
-        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับคำค้นหาหรือตัวกรอง</p>
-      ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
-          {list.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              aria-pressed={value?.slug === h.slug}
-              onClick={() => onChange(h)}
-              className={cn(
-                "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
-                value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
-              )}
-            >
-              <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
-                {h.icon ? (
-                  <img
-                    src={h.icon}
-                    alt={h.nameTh}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                    }}
-                  />
-                ) : null}
-                <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>{h.name.slice(0, 2).toUpperCase()}</span>
-                <HeroBalanceBadge heroId={h.id} size="md" inside />
-              </div>
-              <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
-            </button>
-          ))}
+      {value && !showGrid && (
+        <div className="flex items-center gap-2 rounded-lg border border-accent bg-accent/10 p-2 md:max-w-md">
+          <HeroIcon
+            icon={value.icon}
+            name={value.nameTh}
+            fallback={value.name.slice(0, 2).toUpperCase()}
+            className="h-10 w-10 shrink-0 rounded-md border border-border"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm">{value.nameTh}</span>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text"
+          >
+            เปลี่ยนฮีโร่
+          </button>
         </div>
+      )}
+      {showGrid && (
+        <>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
+            <Search className="h-4 w-4 shrink-0 text-text-faint" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหาชื่อฮีโร่"
+              aria-label="ค้นหาชื่อฮีโร่"
+              className="w-full bg-transparent text-base outline-none placeholder:text-text-faint sm:text-sm"
+            />
+          </div>
+          <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+          {list.length === 0 ? (
+            <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับคำค้นหาหรือตัวกรอง</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
+              {list.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  aria-pressed={value?.slug === h.slug}
+                  onClick={() => {
+                    setEditing(false);
+                    onChange(h);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center",
+                    value?.slug === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
+                  )}
+                >
+                  <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
+                    {h.icon ? (
+                      <img
+                        src={h.icon}
+                        alt={h.nameTh}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
+                    <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>{h.name.slice(0, 2).toUpperCase()}</span>
+                    <HeroBalanceBadge heroId={h.id} size="md" inside />
+                  </div>
+                  <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
