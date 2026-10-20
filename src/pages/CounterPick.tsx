@@ -5,6 +5,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
 import { CounterList } from "@/features/heroes/CounterList";
 import { StarLegend } from "@/features/heroes/MatchupStars";
@@ -17,6 +18,7 @@ export function CounterPick() {
   const heroes = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const filters = useHeroFilters();
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +44,8 @@ export function CounterPick() {
   }, [heroes]);
 
   const selectedHero = selected ? heroes.status === "success" ? heroes.data.find((h) => h.slug === selected) : undefined : undefined;
+  // พับกริดเมื่อเลือกแล้ว (เหมือน showGrid ใน Matchup) ฮีโร่ที่เลือกยังอยู่ระหว่างกดเปลี่ยน
+  const showGrid = !selectedHero || editing;
   const counters = detailQ.status === "success" && detailQ.data ? detailQ.data.counteredBy : [];
 
   // FAB Coach Ai: ถามได้เมื่อเลือกศัตรูแล้วและข้อมูลของตัวที่เลือกโหลดครบ (ตรวจ slug กันข้อมูลของตัวก่อนหน้าค้าง)
@@ -72,65 +76,96 @@ export function CounterPick() {
         <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ฝั่งศัตรู ระบบจะบอกว่าใครชนะทางได้ และทำไม</p>
       </div>
 
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
-        <Search className="h-4 w-4 shrink-0 text-text-faint" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหาฮีโร่ศัตรู..."
-          className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
-        />
-      </div>
-
-      <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
-
-      {heroes.status === "loading" && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
-          {Array.from({ length: 16 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
-        </div>
-      )}
-      {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
-
-      {heroes.status === "success" && filtered.length === 0 && (
-        <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
-      )}
-      {heroes.status === "success" && filtered.length > 0 && (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
-          {filtered.map((h) => (
+      {selectedHero && (
+        <div className="flex items-center gap-2 rounded-lg border border-accent bg-accent/10 p-2 md:max-w-md">
+          <HeroIcon
+            icon={selectedHero.icon}
+            name={selectedHero.nameTh}
+            fallback={selectedHero.name.slice(0, 2).toUpperCase()}
+            className="h-10 w-10 shrink-0 rounded-md border border-border"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] text-accent">ฮีโร่ศัตรู</span>
+            <span className="block truncate text-sm">{selectedHero.nameTh}</span>
+          </span>
+          {!showGrid && (
             <button
-              key={h.id}
               type="button"
-              aria-pressed={selected === h.slug}
-              onClick={() => setSelected(h.slug)}
-              className={cn(
-                "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center transition-colors",
-                selected === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
-              )}
+              onClick={() => setEditing(true)}
+              className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm text-text-muted hover:text-text"
             >
-              <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised font-display text-xs text-text-faint">
-                {h.icon ? (
-                  <img
-                    src={h.icon}
-                    alt={h.nameTh}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                    }}
-                  />
-                ) : null}
-
-                <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
-                  {h.name.slice(0, 2).toUpperCase()}
-                </span>
-                <HeroBalanceBadge heroId={h.id} size="md" inside />
-              </div>
-              <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
+              เปลี่ยนฮีโร่
             </button>
-          ))}
+          )}
         </div>
+      )}
+
+      {showGrid && (
+        <>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-3 py-2.5 md:max-w-md">
+            <Search className="h-4 w-4 shrink-0 text-text-faint" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหาฮีโร่ศัตรู..."
+              className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
+            />
+          </div>
+
+          <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+
+          {heroes.status === "loading" && (
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
+              {Array.from({ length: 16 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)}
+            </div>
+          )}
+          {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
+
+          {heroes.status === "success" && filtered.length === 0 && (
+            <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+          )}
+          {heroes.status === "success" && filtered.length > 0 && (
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
+              {filtered.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  aria-pressed={selected === h.slug}
+                  onClick={() => {
+                    setSelected(h.slug);
+                    setEditing(false);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-1 overflow-hidden rounded-lg border p-0 pb-1 text-center transition-colors",
+                    selected === h.slug ? "border-accent bg-accent/10" : "border-border bg-bg-surface hover:border-accent/40"
+                  )}
+                >
+                  <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised font-display text-xs text-text-faint">
+                    {h.icon ? (
+                      <img
+                        src={h.icon}
+                        alt={h.nameTh}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
+
+                    <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
+                      {h.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <HeroBalanceBadge heroId={h.id} size="md" inside />
+                  </div>
+                  <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {selected && selectedHero && (
