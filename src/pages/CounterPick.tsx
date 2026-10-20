@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GitCompareArrows, Search } from "lucide-react";
 import { getHeroBySlug, getHeroes } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -17,7 +18,18 @@ import { cn } from "@/lib/utils";
 export function CounterPick() {
   const heroes = useAsync(() => getHeroes(), []);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  // เก็บฮีโร่ที่เลือกใน URL (?hero=slug) เหมือนหน้า Item Build: รีเฟรชแล้วไม่รีเซ็ต และแชร์ลิงก์ได้
+  const [params, setParams] = useSearchParams();
+  const selected = params.get("hero");
+  const setSelected = (slug: string) =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        n.set("hero", slug);
+        return n;
+      },
+      { replace: true }
+    );
   const [editing, setEditing] = useState(false);
   const filters = useHeroFilters();
   const resultRef = useRef<HTMLDivElement>(null);
