@@ -10,6 +10,7 @@ import { fileToScoreboardBase64 } from "@/lib/image";
 import { checkDraft, draftToRow, fingerprint, scanToDraft, type ScanDraft } from "@/features/matches/scan";
 import { checkDuplicate, type DupCheck } from "@/features/matches/duplicate";
 import { guessBlueRows, type SlotGuess } from "@/features/matches/itemMatch";
+import { itemProvenance } from "@/features/matches/itemProvenance";
 import { MatchAnalytics } from "@/features/matches/MatchAnalytics";
 import { ScanReview } from "@/features/matches/ScanReview";
 import { MyItemsEditor, type ItemSlots } from "@/features/matches/MyItemsEditor";
@@ -29,10 +30,12 @@ const NO_HEROES: HeroSummary[] = [];
 const NO_ITEMS: ItemSummary[] = [];
 const NO_MATCHES: MatchRecord[] = [];
 const NO_SLOTS: ItemSlots = [null, null, null, null, null, null];
+const NO_TOUCHED: boolean[] = [false, false, false, false, false, false];
 const MATCH_LOAD_LIMIT = 100; // how many of the newest matches are loaded; the analytics say so when this is reached
 
 // One analysed screenshot waiting for the user's review (up to MAX_SCAN_IMAGES per upload, reviewed one after another).
-// rows = the icon matcher's guesses for the 5 blue-team rows (null: could not read); edits = what the user changed, by blue row.
+// rows = the icon matcher's guesses for the 5 blue-team rows (null: could not read); edits = what the user changed, by blue row;
+// touched = which slots of that row the user picked in (an explicit choice or confirmation, see itemProvenance).
 // imageUrl = a blob: URL of the user's own file, only so they can compare it with the numbers; it is never uploaded or stored.
 type ReviewItem = {
   draft: ScanDraft;
@@ -40,6 +43,7 @@ type ReviewItem = {
   meSource: MeSource;
   rows: SlotGuess[][] | null;
   edits: Record<number, ItemSlots>;
+  touched: Record<number, boolean[]>;
   imageUrl: string | null;
 };
 
@@ -90,6 +94,9 @@ export function Matches() {
   const meRow = current ? current.draft.players.filter((p) => p.team === "blue").findIndex((p) => p.isMe) : -1;
   const mySlots: ItemSlots | null =
     current && meRow >= 0 ? (current.edits[meRow] ?? current.rows?.[meRow]?.map((g) => g.slug) ?? NO_SLOTS) : null;
+  const myTouched = (current && meRow >= 0 ? current.touched[meRow] : undefined) ?? NO_TOUCHED;
+  // Which slots would count in the community statistics (verified only); the database checks the same rule again.
+  const prov = mySlots ? itemProvenance(mySlots, current?.rows?.[meRow] ?? null, myTouched) : null;
 
   async function onFiles(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -133,7 +140,7 @@ export function Matches() {
           // local preview only (never uploaded): lets the user compare the screenshot with what was read
           const imageUrl = file ? URL.createObjectURL(file) : null;
           if (imageUrl) blobUrls.current.push(imageUrl);
-          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource, rows, edits: {}, imageUrl });
+          items.push({ draft, initial: fingerprint(draft), meSource: r.meSource, rows, edits: {}, touched: {}, imageUrl });
         } else {
           const name = prepared[r.index - 1]?.name ?? `รูปที่ ${r.index}`;
           failed.push(prepared.length > 1 ? `${name}: ${r.error}` : r.error);
@@ -185,12 +192,18 @@ export function Matches() {
         stopWith(check);
         return;
       }
-      // my_items is sent only when there is something to store (needs migration 20261013_match_my_items.sql).
-      // share_items is sent only when the user ticked the box AND all 6 slots are filled (needs 20261016b_match_item_obs.sql);
-      // the database only builds a community observation from a complete, catalogue-valid build.
+      // my_items is sent only when there is something to store (needs migration 20261013_match_my_items.sql). The user's own
+      // history keeps every slot as shown. my_items_src/_margin and share_items need 20261020b_item_level_observations.sql;
+      // share_items is sent only when the user ticked the box AND at least one slot is verified, and the database builds the
+      // community observation from the verified slots only.
       const payload =
         mySlots && mySlots.some(Boolean)
-          ? { ...row, my_items: mySlots, ...(shareItems && mySlots.every(Boolean) ? { share_items: true } : {}) }
+          ? {
+              ...row,
+              my_items: mySlots,
+              ...(prov ? { my_items_src: prov.src, my_items_margin: prov.margin } : {}),
+              ...(shareItems && prov && prov.verified > 0 ? { share_items: true } : {}),
+            }
           : row;
       try {
         await saveMatch(payload);
@@ -292,14 +305,20 @@ export function Matches() {
                     items={itemList}
                     value={mySlots}
                     guesses={current.rows?.[meRow] ?? null}
-                    onChange={(next) =>
+                    touched={myTouched}
+                    onChange={(next, slot) =>
                       setPhase({
                         ...phase,
-                        items: phase.items.map((it, i) => (i === phase.index ? { ...it, edits: { ...it.edits, [meRow]: next } } : it)),
+                        items: phase.items.map((it, i) => {
+                          if (i !== phase.index) return it;
+                          const t = [...(it.touched[meRow] ?? NO_TOUCHED)];
+                          t[slot] = true;
+                          return { ...it, edits: { ...it.edits, [meRow]: next }, touched: { ...it.touched, [meRow]: t } };
+                        }),
                       })
                     }
                   />
-                  {mySlots.every(Boolean) && (
+                  {prov && prov.verified > 0 && (
                     <label className="flex items-start gap-2 text-xs text-text-muted">
                       <input
                         type="checkbox"
@@ -309,7 +328,8 @@ export function Matches() {
                         className="mt-0.5 h-4 w-4 accent-[#E8A33D]"
                       />
                       <span>
-                        แชร์ไอเทม 6 ช่องของแมตช์นี้เข้าสถิติรวมของชุมชน (ไม่ระบุตัวตน ไม่มีชื่อ และเห็นเฉพาะตัวเลขรวมเมื่อมีผู้ร่วมแชร์หลายคน)
+                        แชร์ไอเทมที่ยืนยันแล้วของแมตช์นี้ ({prov.verified} จาก 6 ช่อง) เข้าสถิติรวมของชุมชน ช่องที่ว่างหรือยังไม่ยืนยันจะไม่ถูกแชร์
+                        (ไม่ระบุตัวตน ไม่มีชื่อ และเห็นเฉพาะตัวเลขรวมเมื่อมีผู้ร่วมแชร์หลายคน)
                         เลือกหรือไม่เลือกก็ไม่กระทบการบันทึกแมตช์ ดู{" "}
                         <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>
                       </span>

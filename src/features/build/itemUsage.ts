@@ -1,6 +1,9 @@
-// Pure helpers for the community item usage numbers returned by the `hero_item_stats` RPC (no React, no network).
+// Pure helpers for the community item usage numbers returned by the `hero_item_usage` RPC (no React, no network).
 // pick rate = observations containing the item / eligible observations. It is how OFTEN an item is built, not proof that
-// it causes wins. Observations are opt-in, fully read 6-slot builds (see supabase/migrations/20261016b_match_item_obs.sql).
+// it causes wins. Two scopes with DIFFERENT denominators, never mixed (see supabase/migrations/20261020b_item_level_observations.sql):
+//   itemLevel: eligible = observations with >= 1 verified item. An empty/unverified slot is not evidence of "not bought",
+//              so the rate is a lower bound.
+//   complete:  eligible = observations with all 6 slots verified.
 
 export interface ItemUsageRow {
   itemId: string;
@@ -12,6 +15,7 @@ export interface ItemUsageRow {
   slots: Record<number, number>;
 }
 
+/** One scope's statistics. */
 export interface HeroItemUsage {
   eligible: number;
   users: number;
@@ -20,7 +24,12 @@ export interface HeroItemUsage {
   items: ItemUsageRow[];
 }
 
-/** Below this many eligible builds the list is shown with a "small sample" warning. */
+export interface HeroItemUsageSet {
+  itemLevel: HeroItemUsage;
+  complete: HeroItemUsage;
+}
+
+/** Below this many eligible observations the list is shown with a "small sample" warning. */
 export const SMALL_SAMPLE = 20;
 
 const EMPTY: HeroItemUsage = { eligible: 0, users: 0, suppressed: true, items: [] };
@@ -37,7 +46,7 @@ export function parseHeroItemStats(raw: unknown): HeroItemUsage {
   const items: ItemUsageRow[] = [];
   for (const it of r.items as Record<string, unknown>[]) {
     if (typeof it?.item_id !== "string" || typeof it.slug !== "string" || !isCount(it.matches)) continue;
-    if (it.matches > eligible) continue; // impossible: an item cannot appear in more builds than exist
+    if (it.matches > eligible) continue; // impossible: an item cannot appear in more observations than exist
     const slots: Record<number, number> = {};
     for (const [k, v] of Object.entries((it.slots ?? {}) as Record<string, unknown>)) {
       if (isCount(v) && Number(k) >= 1 && Number(k) <= 6) slots[Number(k)] = v;
@@ -52,4 +61,9 @@ export function parseHeroItemStats(raw: unknown): HeroItemUsage {
   }
   items.sort((a, b) => b.matches - a.matches);
   return { eligible, users: r.users, suppressed: false, items };
+}
+
+export function parseHeroItemUsage(raw: unknown): HeroItemUsageSet {
+  const r = (raw && typeof raw === "object" ? raw : {}) as { item_level?: unknown; complete?: unknown };
+  return { itemLevel: parseHeroItemStats(r.item_level), complete: parseHeroItemStats(r.complete) };
 }
