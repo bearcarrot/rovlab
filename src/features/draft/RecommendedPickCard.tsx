@@ -19,6 +19,8 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
   const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
   const wins = rec.details.counters.filter((c) => c.direction === "wins");
   const { stat } = rec.hero;
+  // บรรทัด "ชนะทาง X (ระดับ…)" ซ้ำกับแถวดาวชนะทางด้านบน จึงไม่แสดงซ้ำ (reasons เดิมยังอยู่ใน rec สำหรับที่อื่น)
+  const reasons = rec.reasons.filter((r) => !wins.some((c) => r.startsWith(`ชนะทาง ${c.enemy} (`)));
 
   return (
     <Card>
@@ -77,7 +79,7 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
         )}
         <p className="text-xs text-text-muted">ความเสี่ยง: {rec.risk}</p>
         <ul className="space-y-1 text-sm text-text-muted">
-          {rec.reasons.map((r) => <li key={r}>• {r}</li>)}
+          {reasons.map((r) => <li key={r}>• {r}</li>)}
         </ul>
 
         {/* กลไกคอมโบ/ชนะทาง จากข้อมูลที่แอดมินกรอกไว้ */}
