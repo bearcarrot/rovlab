@@ -98,12 +98,14 @@ function PickSection({
   title,
   hint,
   recs,
+  enemies,
   onPick,
 }: {
   icon: React.ReactNode;
   title: string;
   hint: string;
   recs: Recommendation[];
+  enemies: HeroSummary[];
   onPick: (hero: HeroSummary) => void;
 }) {
   return (
@@ -115,7 +117,7 @@ function PickSection({
       <p className="mb-2 text-xs text-text-muted">{hint}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {recs.map((r) => (
-          <RecommendedPickCard key={r.hero.id} rec={r} onPick={() => onPick(r.hero)} />
+          <RecommendedPickCard key={r.hero.id} rec={r} enemies={enemies} onPick={() => onPick(r.hero)} />
         ))}
       </div>
     </section>
@@ -674,6 +676,7 @@ export function DraftAssistant() {
               title="ชนะทางศัตรู"
               hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
               recs={counterRecs}
+              enemies={enemyList}
               onPick={pickForMyTeam}
             />
           )}
@@ -683,6 +686,7 @@ export function DraftAssistant() {
               title="คอมโบกับทีมของคุณ"
               hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
               recs={synergyRecs}
+              enemies={enemyList}
               onPick={pickForMyTeam}
             />
           )}
@@ -712,7 +716,7 @@ export function DraftAssistant() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {overallRecs.map((r) => (
-                  <RecommendedPickCard key={r.hero.id} rec={r} onPick={() => pickForMyTeam(r.hero)} />
+                  <RecommendedPickCard key={r.hero.id} rec={r} enemies={enemyList} onPick={() => pickForMyTeam(r.hero)} />
                 ))}
               </div>
             )}
