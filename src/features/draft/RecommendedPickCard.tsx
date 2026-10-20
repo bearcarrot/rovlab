@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HeroIcon } from "@/components/HeroIcon";
 import { MATCHUP_STARS, StarRating } from "@/features/heroes/MatchupStars";
+import type { HeroSummary } from "@/types/hero";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
 const TAG_LABEL: Record<RecommendTag, string> = {
@@ -13,7 +14,16 @@ const TAG_LABEL: Record<RecommendTag, string> = {
 };
 
 // การ์ดฮีโร่ที่ระบบแนะนำ — การถาม Coach Ai ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
-export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPick: () => void }) {
+// enemies: ฮีโร่ทีมศัตรูที่เลือกอยู่ ใช้หาไอคอนของตัวที่ถูกชนะทาง (ไม่มี = แสดงเป็นชื่อแทน)
+export function RecommendedPickCard({
+  rec,
+  onPick,
+  enemies,
+}: {
+  rec: Recommendation;
+  onPick: () => void;
+  enemies?: HeroSummary[];
+}) {
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);
   const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
@@ -62,20 +72,26 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
           </div>
         )}
         {wins.length > 0 && (
-          <ul className="space-y-1 text-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-muted">
+            <span>ชนะทาง</span>
             {wins.map((c) => {
               const m = MATCHUP_STARS[c.strength];
+              const e = enemies?.find((h) => h.nameTh === c.enemy);
               return (
-                <li key={c.enemy} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-text-muted">ชนะทาง {c.enemy}</span>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-text-faint">
-                    <StarRating stars={m.stars} label={m.label} />
-                    {m.label}
-                  </span>
-                </li>
+                <span key={c.enemy} title={c.enemy} className="inline-flex items-center gap-1.5">
+                  {e ? (
+                    <>
+                      <HeroIcon icon={e.icon} name={e.name} className="h-8 w-8" />
+                      <span className="sr-only">{c.enemy}</span>
+                    </>
+                  ) : (
+                    <span className="text-text">{c.enemy}</span>
+                  )}
+                  <StarRating stars={m.stars} label={m.label} />
+                </span>
               );
             })}
-          </ul>
+          </div>
         )}
         <p className="text-xs text-text-muted">ความเสี่ยง: {rec.risk}</p>
         <ul className="space-y-1 text-sm text-text-muted">
