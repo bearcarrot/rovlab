@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { HeroIcon } from "@/components/HeroIcon";
+import { MATCHUP_STARS, StarRating } from "@/features/heroes/MatchupStars";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
 
 const TAG_LABEL: Record<RecommendTag, string> = {
@@ -15,6 +17,8 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);
   const hasMechanism = rec.explain.length > 0 || missingCombos.length > 0;
+  const wins = rec.details.counters.filter((c) => c.direction === "wins");
+  const { stat } = rec.hero;
 
   return (
     <Card>
@@ -23,13 +27,24 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
           <Link to={`/heroes/${rec.hero.slug}`} aria-label={rec.hero.nameTh} className="shrink-0">
             <HeroIcon icon={rec.hero.icon} name={rec.hero.name} className="h-11 w-11" />
           </Link>
-          <CardTitle>{rec.hero.nameTh}</CardTitle>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <CardTitle className="max-w-full truncate">{rec.hero.nameTh}</CardTitle>
+            {stat.hasStats ? <Badge tier={stat.tier}>{stat.tier}</Badge> : <Badge>N/A</Badge>}
+          </div>
         </div>
-        <div className="flex shrink-0">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />
-          ))}
-        </div>
+        {/* 1–5 ดาวคือคะแนนแนะนำภาพรวม: ซ่อนเมื่อการ์ดนี้มีข้อมูลชนะทาง เพื่อไม่ให้ปนกับดาว 3/2/1 */}
+        {wins.length === 0 && (
+          <div
+            role="img"
+            aria-label={`คะแนนแนะนำภาพรวม ${rec.stars} จาก 5`}
+            title="คะแนนแนะนำภาพรวม (ไม่ใช่ระดับการชนะทาง)"
+            className="flex shrink-0"
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star key={i} className={`h-3.5 w-3.5 ${i < rec.stars ? "fill-accent text-accent" : "text-border"}`} />
+            ))}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-2">
         {rec.tags.length > 0 && (
@@ -44,10 +59,23 @@ export function RecommendedPickCard({ rec, onPick }: { rec: Recommendation; onPi
             ))}
           </div>
         )}
-        <div className="flex gap-3 text-xs text-text-muted">
-          <span>ความเสี่ยง: {rec.risk}</span>
-          {rec.hero.stat.hasStats && <span>Tier {rec.hero.stat.tier}</span>}
-        </div>
+        {wins.length > 0 && (
+          <ul className="space-y-1 text-sm">
+            {wins.map((c) => {
+              const m = MATCHUP_STARS[c.strength];
+              return (
+                <li key={c.enemy} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-text-muted">ชนะทาง {c.enemy}</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-text-faint">
+                    <StarRating stars={m.stars} label={m.label} />
+                    {m.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="text-xs text-text-muted">ความเสี่ยง: {rec.risk}</p>
         <ul className="space-y-1 text-sm text-text-muted">
           {rec.reasons.map((r) => <li key={r}>• {r}</li>)}
         </ul>
