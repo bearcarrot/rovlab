@@ -6,6 +6,8 @@ import { HeroIcon } from "@/components/HeroIcon";
 import { MATCHUP_STARS, StarRating } from "@/features/heroes/MatchupStars";
 import type { HeroSummary } from "@/types/hero";
 import type { Recommendation, RecommendTag } from "./analyzeTeam";
+import type { CustomTierMap } from "./customTier";
+import { CustomTierChip } from "./CustomTierChip";
 
 const TAG_LABEL: Record<RecommendTag, string> = {
   firstPick: "First Pick",
@@ -15,14 +17,17 @@ const TAG_LABEL: Record<RecommendTag, string> = {
 
 // การ์ดฮีโร่ที่ระบบแนะนำ — การถาม Coach Ai ย้ายไปอยู่ที่ปุ่มลอย (FAB) ของหน้า Draft แล้ว (ดู DraftAssistant)
 // heroes: รายการฮีโร่ทั้งหมด ใช้หาไอคอนของศัตรูที่ถูกชนะทาง/คู่คอมโบ (หาไม่เจอ = แสดงเป็นชื่อแทน)
+// customTiers: เทียร์จาก "Tier List ของฉัน" ที่ผู้ใช้เลือก (null/ไม่ส่ง = ใช้เทียร์จากสถิติเหมือนเดิม) เปลี่ยนแค่ป้าย ไม่กระทบคะแนนแนะนำ
 export function RecommendedPickCard({
   rec,
   onPick,
   heroes,
+  customTiers,
 }: {
   rec: Recommendation;
   onPick: () => void;
   heroes?: HeroSummary[];
+  customTiers?: CustomTierMap | null;
 }) {
   // คอมโบที่แอดมินยังไม่ได้กรอกคำอธิบาย: บอกตรงๆ แทนการเงียบ
   const missingCombos = rec.details.combos.filter((c) => !c.reason);
@@ -30,6 +35,7 @@ export function RecommendedPickCard({
   const wins = rec.details.counters.filter((c) => c.direction === "wins");
   const { combos } = rec.details;
   const { stat } = rec.hero;
+  const ct = customTiers ? customTiers.get(rec.hero.id) : undefined;
   const byName = (name: string) => heroes?.find((h) => h.nameTh === name);
   // บรรทัด "ชนะทาง X (ระดับ…)" / "คอมโบกับ X" ซ้ำกับแถวไอคอนด้านล่าง จึงไม่แสดงซ้ำ (reasons เดิมยังอยู่ใน rec สำหรับที่อื่น)
   const reasons = rec.reasons.filter(
@@ -45,7 +51,17 @@ export function RecommendedPickCard({
           </Link>
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <CardTitle className="max-w-full truncate">{rec.hero.nameTh}</CardTitle>
-            {stat.hasStats ? <Badge tier={stat.tier}>{stat.tier}</Badge> : <Badge>N/A</Badge>}
+            {customTiers ? (
+              ct ? (
+                <CustomTierChip tier={ct} />
+              ) : (
+                <Badge>—</Badge>
+              )
+            ) : stat.hasStats ? (
+              <Badge tier={stat.tier}>{stat.tier}</Badge>
+            ) : (
+              <Badge>N/A</Badge>
+            )}
           </div>
         </div>
         {/* 1–5 ดาวบนขวา = คะแนนแนะนำภาพรวมเสมอ (คนละความหมายกับดาว 3/2/1 ของชนะทางในแถวด้านล่าง) */}
