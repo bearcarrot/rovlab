@@ -2,10 +2,22 @@ import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
+import type { CustomTierMap } from "./customTier";
+import { CustomTierChip } from "./CustomTierChip";
 
 // ปุ่มฮีโร่ในกล่องเลือกของ Draft Assistant
-// memo ไว้เพื่อให้กริด ~100+ ใบไม่เรนเดอร์ใหม่ทุกครั้งที่ state อื่นในหน้าเปลี่ยน (ต้องส่ง onSelect ที่คงที่ ไม่งั้น memo ไม่ช่วย)
-function HeroPickButtonBase({ hero: h, onSelect }: { hero: HeroSummary; onSelect: (hero: HeroSummary) => void }) {
+// memo ไว้เพื่อให้กริด ~100+ ใบไม่เรนเดอร์ใหม่ทุกครั้งที่ state อื่นในหน้าเปลี่ยน (ต้องส่ง onSelect และ customTiers ที่คงที่ ไม่งั้น memo ไม่ช่วย)
+// customTiers: เทียร์จาก "Tier List ของฉัน" ที่ผู้ใช้เลือก (null/ไม่ส่ง = ใช้เทียร์จากสถิติเหมือนเดิม)
+function HeroPickButtonBase({
+  hero: h,
+  onSelect,
+  customTiers,
+}: {
+  hero: HeroSummary;
+  onSelect: (hero: HeroSummary) => void;
+  customTiers?: CustomTierMap | null;
+}) {
+  const ct = customTiers ? customTiers.get(h.id) : undefined;
   return (
     <button
       type="button"
@@ -31,8 +43,18 @@ function HeroPickButtonBase({ hero: h, onSelect }: { hero: HeroSummary; onSelect
           {h.name.slice(0, 2).toUpperCase()}
         </span>
         {/* Tier มุมซ้ายบน และไอคอน buff/nerf/rework มุมขวาล่างแบบเดียวกับการ์ดในหน้าฮีโร่ทั้งหมด */}
-        <div className="absolute left-1.5 top-1.5">
-          {h.stat.hasStats ? <Badge tier={h.stat.tier}>{h.stat.tier}</Badge> : <Badge>N/A</Badge>}
+        <div className="absolute left-1.5 top-1.5 max-w-[calc(100%-0.75rem)]">
+          {customTiers ? (
+            ct ? (
+              <CustomTierChip tier={ct} />
+            ) : (
+              <Badge>—</Badge>
+            )
+          ) : h.stat.hasStats ? (
+            <Badge tier={h.stat.tier}>{h.stat.tier}</Badge>
+          ) : (
+            <Badge>N/A</Badge>
+          )}
         </div>
         <HeroBalanceBadge heroId={h.id} size="md" inside />
       </div>
