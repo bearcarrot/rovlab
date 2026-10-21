@@ -17,6 +17,8 @@ import { TeamMeters } from "@/features/draft/TeamMeters";
 import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import { HeroPickButton } from "@/features/draft/HeroPickButton";
+import { CustomTierPicker, useDraftTierSource } from "@/features/draft/DraftTierSource";
+import type { CustomTierMap } from "@/features/draft/customTier";
 import { DraftShareBar } from "@/features/draft/DraftShareBar";
 import { DraftLinkShare } from "@/features/draft/DraftLinkShare";
 import { DraftOnboarding, useDraftOnboarding } from "@/features/draft/DraftOnboarding";
@@ -87,7 +89,7 @@ const pickPrompt = (name: string) =>
   `1) ควรใช้สกิลไหนก่อน/หลัง และใช้ตอนไหน (อ้างชื่อสกิลจริงจาก heroes[].skills) ` +
   `2) ถ้ามี combos: อธิบายว่าสกิลของสองตัวเสริมกันยังไง (ใช้ข้อความ reason ถ้ามี และสกิลจริงประกอบ) ` +
   `3) ถ้ามี counters: direction=wins ให้บอกว่าศัตรูมีสกิลไหนที่ต้องหลบหรือตัดจังหวะ และเราใช้สกิลไหนสู้; ` +
-  `direction=loses ให้บอกวิธีลดความเสียเปรียบ ` +
+  `direction=loses ให้บอกวิธีลดความเสียบเปรียบ ` +
   `4) จุดที่ต้องระวัง ` +
   `ใช้เฉพาะข้อมูลที่ให้ ห้ามแต่งสกิลหรือตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลสกิลไม่พอให้บอกตรงๆ`;
 
@@ -99,6 +101,7 @@ function PickSection({
   hint,
   recs,
   heroes,
+  customTiers,
   onPick,
 }: {
   icon: React.ReactNode;
@@ -106,6 +109,7 @@ function PickSection({
   hint: string;
   recs: Recommendation[];
   heroes: HeroSummary[];
+  customTiers: CustomTierMap | null;
   onPick: (hero: HeroSummary) => void;
 }) {
   return (
@@ -117,7 +121,7 @@ function PickSection({
       <p className="mb-2 text-xs text-text-muted">{hint}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {recs.map((r) => (
-          <RecommendedPickCard key={r.hero.id} rec={r} heroes={heroes} onPick={() => onPick(r.hero)} />
+          <RecommendedPickCard key={r.hero.id} rec={r} heroes={heroes} customTiers={customTiers} onPick={() => onPick(r.hero)} />
         ))}
       </div>
     </section>
@@ -135,6 +139,8 @@ export function DraftAssistant() {
   // สถานะดราฟต์ทั้งซีรีส์ (เกม/แบน/พิค) เก็บใน sessionStorage: ไม่หายเมื่อรีเฟรชหรือพาไปล็อกอิน
   const ds = useDraftSession();
   const { user } = useAuth();
+  // เทียร์ที่แสดงในกริดเลือก/การ์ดแนะนำ: สถิติ (ค่าเริ่มต้น) หรือ Tier List ของทีมที่ผู้ใช้เลือก (เปลี่ยนเฉพาะป้าย ไม่กระทบคะแนนแนะนำ)
+  const tierSource = useDraftTierSource();
   const toast = useToast();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -548,6 +554,8 @@ export function DraftAssistant() {
             </button>
           </div>
 
+          <CustomTierPicker source={tierSource} />
+
           <SeriesBar ds={ds} heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
 
           {isGlobalRuleActive(ds.series, ds.gameNumber) && (
@@ -636,7 +644,7 @@ export function DraftAssistant() {
               {filteredPool.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-7 xl:grid-cols-9">
                   {filteredPool.map((h) => (
-                    <HeroPickButton key={h.id} hero={h} onSelect={onPickHero} />
+                    <HeroPickButton key={h.id} hero={h} onSelect={onPickHero} customTiers={tierSource.customTiers} />
                   ))}
                 </div>
               )}
@@ -677,6 +685,7 @@ export function DraftAssistant() {
               hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
               recs={counterRecs}
               heroes={heroes}
+              customTiers={tierSource.customTiers}
               onPick={pickForMyTeam}
             />
           )}
@@ -687,6 +696,7 @@ export function DraftAssistant() {
               hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
               recs={synergyRecs}
               heroes={heroes}
+              customTiers={tierSource.customTiers}
               onPick={pickForMyTeam}
             />
           )}
@@ -716,7 +726,13 @@ export function DraftAssistant() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {overallRecs.map((r) => (
-                  <RecommendedPickCard key={r.hero.id} rec={r} heroes={heroes} onPick={() => pickForMyTeam(r.hero)} />
+                  <RecommendedPickCard
+                    key={r.hero.id}
+                    rec={r}
+                    heroes={heroes}
+                    customTiers={tierSource.customTiers}
+                    onPick={() => pickForMyTeam(r.hero)}
+                  />
                 ))}
               </div>
             )}
