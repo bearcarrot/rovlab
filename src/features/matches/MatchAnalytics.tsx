@@ -215,7 +215,7 @@ export function MatchAnalytics({
                   <span>ล่าสุด</span>
                   <span>เปลี่ยน</span>
                 </div>
-                <CmpRow label="อัตราชนะ" d={cmp.winRate} fmt={pct} scale={100} digits={0} unit=" จุด" better="up" />
+                <CmpRow label="อัตราชนะ" d={cmp.winRate} fmt={pct} scale={100} digits={0} unit="%" better="up" />
                 <CmpRow label="KDA" d={cmp.kda} fmt={(v) => v.toFixed(2)} digits={2} better="up" />
                 <CmpRow label="ตายเฉลี่ย" d={cmp.deaths} fmt={(v) => v.toFixed(1)} digits={1} better="down" />
                 <CmpRow label="ทองเฉลี่ย" d={cmp.gold} fmt={(v) => Math.round(v).toLocaleString()} digits={0} better={null} />
@@ -274,7 +274,7 @@ export function MatchAnalytics({
                         </span>
                       </span>
                       <span className="text-[11px] tabular-nums text-text-faint">
-                        {h.wins}ช/{h.games - h.wins}พ · KDA {h.kda.toFixed(1)}
+                        <span className="text-win">{h.wins}W</span>/<span className="text-loss">{h.games - h.wins}L</span> · KDA {h.kda.toFixed(1)}
                       </span>
                     </button>
                   </li>
