@@ -29,7 +29,7 @@ const ALL_ITEMS: NavItem[] = [
   { to: "/draft", label: "Draft Assistant", icon: NotebookPen },
   { to: "/tier-list", label: "Tier List", icon: ListOrdered },
   { to: "/counter-pick", label: "Counter Pick", icon: Swords },
-  { to: "/synergy", label: "Combo / Synergy", icon: Handshake },
+  { to: "/combo", label: "Combo", icon: Handshake },
   { to: "/matchup", label: "Matchup", icon: Scale },
   { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
   { to: "/build", label: "Item Build", icon: Hammer },

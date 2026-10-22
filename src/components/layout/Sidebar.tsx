@@ -25,7 +25,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ลำดับเมนูใช้ชุดเดียวกับ MobileDrawer และการ์ดทางลัดในหน้า Home:
-// Draft Assistant → Tier List → Counter Pick → Combo / Synergy → Matchup → ฮีโร่ทั้งหมด → Item Build → คลังข้อมูลเกม → สถิติ → วิเคราะห์เกม → คู่มือ → รายการโปรด
+// Draft Assistant → Tier List → Counter Pick → Combo → Matchup → ฮีโร่ทั้งหมด → Item Build → คลังข้อมูลเกม → สถิติ → วิเคราะห์เกม → คู่มือ → รายการโปรด
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "หลัก",
@@ -40,7 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/tier-list", label: "Tier List", icon: ListOrdered },
       { to: "/counter-pick", label: "Counter Pick", icon: Swords },
-      { to: "/synergy", label: "Combo / Synergy", icon: Handshake },
+      { to: "/combo", label: "Combo", icon: Handshake },
       { to: "/matchup", label: "Matchup", icon: Scale },
       { to: "/heroes", label: "ฮีโร่ทั้งหมด", icon: HeroHelmetIcon },
     ],
