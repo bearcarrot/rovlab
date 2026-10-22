@@ -82,6 +82,10 @@ async function list(filter: (q: any) => any): Promise<Combo[]> {
 
 export const listFeaturedCombos = () => list((q) => q.eq("is_featured", true).eq("hidden", false).order("name"));
 
+// Combo แนะนำที่มีฮีโร่ตัวนี้อยู่ด้วย (ใช้ในหน้ารายละเอียดฮีโร่ — index GIN บน hero_ids)
+export const listFeaturedCombosForHero = (heroId: string) =>
+  list((q) => q.eq("is_featured", true).eq("hidden", false).contains("hero_ids", [heroId]).order("name"));
+
 export const listCommunityCombos = () =>
   list((q) => q.eq("is_public", true).eq("hidden", false).eq("is_featured", false).order("published_at", { ascending: false }));
 
