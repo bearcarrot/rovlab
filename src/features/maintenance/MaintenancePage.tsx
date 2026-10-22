@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MaintenanceConfig } from "./schedule";
@@ -108,12 +107,6 @@ export function MaintenancePage({
               </p>
             )}
           </div>
-        )}
-
-        {!preview && (
-          <Link to="/login" className="text-xs text-text-faint underline-offset-2 hover:text-text-muted hover:underline">
-            สำหรับผู้ดูแลระบบ
-          </Link>
         )}
       </main>
     </div>
