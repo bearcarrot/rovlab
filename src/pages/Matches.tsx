@@ -257,10 +257,7 @@ export function Matches() {
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="font-display text-xl font-semibold">วิเคราะห์เกม</h1>
-        <p className="max-w-xl text-sm text-text-muted">
-          อัปโหลดสกรีนชอตหน้า &ldquo;ประวัติการเล่น&rdquo; หลังจบแมตช์ ระบบจะอ่านตัวเลขให้ คุณตรวจแล้วบันทึก
-          เมื่อสะสมหลายแมตช์จะเห็นสถิติและข้อสังเกตของตัวเอง
-        </p>
+        <p className="text-sm text-text-muted">อัปโหลดสกรีนชอตหน้า &ldquo;ประวัติการเล่น&rdquo; ระบบอ่านตัวเลขให้ คุณตรวจแล้วบันทึก</p>
       </header>
 
       {/* Upload / review */}
@@ -399,15 +396,22 @@ export function Matches() {
                   {scanning ? "กำลังวิเคราะห์" : "เลือกรูปสรุปผลการเล่น"}
                   <input type="file" accept="image/*" multiple onChange={onFiles} disabled={scanning} className="sr-only" />
                 </label>
+                {/* Two short lines stay visible (the privacy one must not be hidden); the rest is behind a disclosure. */}
                 <ul className="list-disc space-y-1 pl-5 text-xs text-text-muted">
-                  <li>ใช้สกรีนชอตแนวนอนที่เห็นผู้เล่นครบ 10 คน (ไม่ต้องครอป ระบบตัดแถบ UID ด้านล่างทิ้งให้ก่อนส่ง)</li>
-                  <li>เลือกได้สูงสุด {MAX_SCAN_IMAGES} รูปต่อครั้ง แล้วตรวจทีละแมตช์ โควต้าต่อวันนับตามจำนวนรูป</li>
+                  <li>ใช้สกรีนชอตแนวนอนที่เห็นผู้เล่นครบ 10 คน เลือกได้ครั้งละไม่เกิน {MAX_SCAN_IMAGES} รูป</li>
                   <li>
-                    รูปจะถูกส่งให้ Google Gemini อ่านตัวเลข ระบบไม่เก็บรูปต้นฉบับ และไม่บันทึกชื่อของผู้เล่นคนอื่น
-                    (ดู <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>)
+                    รูปถูกส่งให้ Google Gemini อ่านตัวเลข ไม่เก็บรูปต้นฉบับและชื่อผู้เล่นคนอื่น (ดู{" "}
+                    <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>)
                   </li>
-                  <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
                 </ul>
+                <details className="text-xs text-text-muted">
+                  <summary className="min-h-11 cursor-pointer py-3 text-text-faint">รายละเอียดเพิ่มเติม</summary>
+                  <ul className="list-disc space-y-1 pl-5">
+                    <li>ไม่ต้องครอป ระบบตัดแถบ UID ด้านล่างทิ้งให้ก่อนส่ง</li>
+                    <li>โควต้าต่อวันนับตามจำนวนรูป และตรวจทีละแมตช์</li>
+                    <li>ใส่ &ldquo;ชื่อในเกม&rdquo; ที่หน้าโปรไฟล์ไว้ ระบบจะหาแถวของคุณได้แม่นขึ้น</li>
+                  </ul>
+                </details>
               </div>
               {/* รูปตัวอย่าง: public/example/scoreboard-example.webp (ถ้าไม่มีไฟล์จะซ่อนทั้งกล่อง) */}
               <figure className="space-y-1">
@@ -420,9 +424,7 @@ export function Matches() {
                   className="h-auto w-full rounded-lg border border-border"
                   onError={(e) => e.currentTarget.closest("figure")?.classList.add("hidden")}
                 />
-                <figcaption className="text-[11px] text-text-faint">
-                  ตัวอย่าง: สกรีนชอตหน้า &ldquo;ประวัติการเล่น&rdquo; ที่เห็นผู้เล่นครบ 10 คน
-                </figcaption>
+                <figcaption className="text-[11px] text-text-faint">ตัวอย่างรูปที่ใช้ได้</figcaption>
               </figure>
             </div>
           )}
