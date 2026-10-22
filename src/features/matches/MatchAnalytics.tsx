@@ -41,15 +41,18 @@ const SORTS: { value: HeroSort; label: string }[] = [
   { value: "kda", label: "KDA สูง" },
 ];
 
+const HERO_PREVIEW = 8; // hero cards shown before "ดูทั้งหมด" (2 columns x 4 rows on a phone)
+
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const fmtDate = (s: string) => {
   const d = new Date(s);
   return Number.isFinite(d.getTime()) ? d.toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "—";
 };
 
+// Same size as the chips on the other pages (HeroFilters Chip, Stats metric chips).
 const chip = (active: boolean) =>
   cn(
-    "min-h-11 shrink-0 rounded-full border px-3 py-2 text-xs font-medium",
+    "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
     active ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg-surface text-text-muted hover:text-text"
   );
 
@@ -64,6 +67,7 @@ export function MatchAnalytics({
 }) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [heroSort, setHeroSort] = useState<HeroSort>("games");
+  const [showAllHeroes, setShowAllHeroes] = useState(false);
 
   const options = useMemo(() => heroOptions(matches), [matches]);
   // ตัวเลือกของ dropdown ฮีโร่ (แสดงไอคอน + ชื่อ + จำนวนเกม; ค้นหาได้เมื่อมีฮีโร่มากกว่า 8 ตัว)
@@ -92,6 +96,7 @@ export function MatchAnalytics({
     () => sortHeroes(byHero(applyFilters(matches, { ...activeFilters, heroKey: null })), heroSort),
     [matches, activeFilters, heroSort]
   );
+  const shownHeroes = showAllHeroes ? heroLines : heroLines.slice(0, HERO_PREVIEW);
 
   const isFiltered = activeFilters.range !== "all" || activeFilters.heroKey !== null;
   const reset = () => setFilters(DEFAULT_FILTERS);
@@ -133,8 +138,8 @@ export function MatchAnalytics({
           )}
         </div>
         <p className="text-xs text-text-faint" aria-live="polite">
-          ตรงเงื่อนไข {filtered.length} แมตช์ จาก {matches.length} แมตช์ที่โหลดมา
-          {matches.length >= loadLimit && ` (โหลดเฉพาะ ${loadLimit} แมตช์ล่าสุด อาจมีแมตช์เก่ากว่านี้ที่ไม่ได้นับ)`}
+          {filtered.length} จาก {matches.length} แมตช์
+          {matches.length >= loadLimit && ` · โหลดเฉพาะ ${loadLimit} แมตช์ล่าสุด`}
         </p>
       </section>
 
@@ -204,19 +209,22 @@ export function MatchAnalytics({
               </p>
             ) : (
               <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-                <div className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr] gap-2 text-[11px] text-text-faint">
+                <div className="grid grid-cols-[1.2fr_1fr_1fr_1.1fr] gap-2 text-[11px] text-text-faint">
                   <span />
-                  <span>ก่อนหน้า ({cmp.size} เกม)<br />{fmtDate(cmp.previousRange[0])}–{fmtDate(cmp.previousRange[1])}</span>
-                  <span>ล่าสุด ({cmp.size} เกม)<br />{fmtDate(cmp.recentRange[0])}–{fmtDate(cmp.recentRange[1])}</span>
-                  <span>เปลี่ยนแปลง</span>
+                  <span>ก่อนหน้า</span>
+                  <span>ล่าสุด</span>
+                  <span>เปลี่ยน</span>
                 </div>
-                <CmpRow label="อัตราชนะ" d={cmp.winRate} fmt={pct} change={(d) => `${signed(d.diff * 100, 0)} จุด%`} better="up" />
-                <CmpRow label="KDA" d={cmp.kda} fmt={(v) => v.toFixed(2)} change={(d) => withPct(signed(d.diff, 2), d)} better="up" />
-                <CmpRow label="ตายเฉลี่ย" d={cmp.deaths} fmt={(v) => v.toFixed(1)} change={(d) => withPct(signed(d.diff, 1), d)} better="down" />
-                <CmpRow label="ทองเฉลี่ย" d={cmp.gold} fmt={(v) => Math.round(v).toLocaleString()} change={(d) => withPct(signed(d.diff, 0), d)} better="up" />
-                <CmpRow label="คะแนนเฉลี่ย" d={cmp.rating} fmt={(v) => v.toFixed(1)} change={(d) => withPct(signed(d.diff, 1), d)} better="up" />
+                <CmpRow label="อัตราชนะ" d={cmp.winRate} fmt={pct} scale={100} digits={0} unit=" จุด" better="up" />
+                <CmpRow label="KDA" d={cmp.kda} fmt={(v) => v.toFixed(2)} digits={2} better="up" />
+                <CmpRow label="ตายเฉลี่ย" d={cmp.deaths} fmt={(v) => v.toFixed(1)} digits={1} better="down" />
+                <CmpRow label="ทองเฉลี่ย" d={cmp.gold} fmt={(v) => Math.round(v).toLocaleString()} digits={0} better={null} />
+                <CmpRow label="คะแนนเฉลี่ย" d={cmp.rating} fmt={(v) => v.toFixed(1)} digits={1} better="up" />
                 <p className="pt-1 text-[11px] leading-relaxed text-text-faint">
-                  * เป็นการเทียบตัวเลขเฉยๆ ไม่ได้ยืนยันว่าฝีมือดีขึ้นหรือแย่ลง ผลอาจมาจากฮีโร่ บทบาท ทีม และปัจจัยอื่นที่สกอร์บอร์ดไม่ได้บันทึก
+                  ก่อนหน้า {cmp.size} เกม ({fmtDate(cmp.previousRange[0])}–{fmtDate(cmp.previousRange[1])}) · ล่าสุด {cmp.size} เกม (
+                  {fmtDate(cmp.recentRange[0])}–{fmtDate(cmp.recentRange[1])})
+                  <br />
+                  * เทียบตัวเลขเฉยๆ ไม่ได้ยืนยันว่าฝีมือดีขึ้นหรือแย่ลง ผลอาจมาจากฮีโร่ บทบาท ทีม และปัจจัยอื่นที่สกอร์บอร์ดไม่ได้บันทึก
                 </p>
               </div>
             )}
@@ -234,8 +242,8 @@ export function MatchAnalytics({
                 ))}
               </div>
             </div>
-            <ul className="space-y-1 rounded-card border border-border bg-bg-surface p-2 text-sm">
-              {heroLines.map((h) => {
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {shownHeroes.map((h) => {
                 const icon = h.heroId ? iconById.get(h.heroId) : undefined;
                 const active = activeFilters.heroKey === h.key;
                 const low = h.games < MIN_HERO_GAMES;
@@ -246,26 +254,44 @@ export function MatchAnalytics({
                       aria-pressed={active}
                       onClick={() => setFilters({ ...activeFilters, heroKey: active ? null : h.key })}
                       className={cn(
-                        "flex min-h-11 w-full items-center justify-between gap-2 rounded-lg px-2 text-left hover:bg-bg-raised",
-                        active && "bg-accent/10"
+                        "flex h-full w-full flex-col gap-1.5 rounded-card border bg-bg-surface p-2 text-left hover:bg-bg-raised",
+                        active ? "border-accent bg-accent/10" : "border-border"
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        {icon ? <img src={icon} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-7 w-7 rounded object-cover" /> : <span className="h-7 w-7 rounded bg-bg-raised" />}
-                        <span className="truncate">{h.heroName}</span>
+                        {icon ? (
+                          <img src={icon} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-8 w-8 shrink-0 rounded object-cover" />
+                        ) : (
+                          <span className="h-8 w-8 shrink-0 rounded bg-bg-raised" />
+                        )}
+                        <span className="truncate text-sm font-medium">{h.heroName}</span>
                       </span>
-                      <span className="flex shrink-0 flex-col items-end text-xs tabular-nums text-text-muted sm:flex-row sm:gap-3">
-                        <span>{h.games} เกม ({h.wins}ช/{h.games - h.wins}พ)</span>
-                        <span>ชนะ {pct(h.winRate)}{low ? " *" : ""}</span>
-                        <span>KDA {h.kda.toFixed(1)}</span>
+                      <span className="flex items-baseline justify-between text-xs tabular-nums">
+                        <span className="text-text-muted">{h.games} เกม</span>
+                        <span className="font-medium">
+                          {pct(h.winRate)}
+                          {low ? " *" : ""}
+                        </span>
+                      </span>
+                      <span className="text-[11px] tabular-nums text-text-faint">
+                        {h.wins}ช/{h.games - h.wins}พ · KDA {h.kda.toFixed(1)}
                       </span>
                     </button>
                   </li>
                 );
               })}
             </ul>
+            {heroLines.length > HERO_PREVIEW && (
+              <button
+                type="button"
+                onClick={() => setShowAllHeroes((v) => !v)}
+                className="mx-auto block rounded-full border border-border bg-bg-surface px-3 py-1.5 text-xs font-medium text-text-muted hover:text-text"
+              >
+                {showAllHeroes ? "แสดงน้อยลง" : `ดูทั้งหมด (${heroLines.length})`}
+              </button>
+            )}
             <p className="text-[11px] text-text-faint">
-              * เล่นน้อยกว่า {MIN_HERO_GAMES} เกม อัตราชนะยังไม่น่าเชื่อถือ (เรียงไว้ท้ายตารางเมื่อเรียงตามอัตราชนะ/KDA) แตะแถวเพื่อกรองดูเฉพาะฮีโร่นั้น
+              * เล่นน้อยกว่า {MIN_HERO_GAMES} เกม อัตราชนะยังไม่น่าเชื่อถือ (เรียงไว้ท้ายตารางเมื่อเรียงตามอัตราชนะ/KDA) แตะการ์ดเพื่อกรองดูเฉพาะฮีโร่นั้น
             </p>
           </section>
 
@@ -299,9 +325,6 @@ export function MatchAnalytics({
   );
 }
 
-const signed = (v: number, digits: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
-const withPct = (base: string, d: Delta) => (d.pct === null ? base : `${base} (${signed(d.pct, 0)}%)`);
-
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-card border border-border bg-bg-surface p-3">
@@ -312,14 +335,42 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-function CmpRow({ label, d, fmt, change, better }: { label: string; d: Delta; fmt: (v: number) => string; change: (d: Delta) => string; better: "up" | "down" }) {
-  const good = d.diff === 0 ? null : (d.diff > 0) === (better === "up");
+// The change is judged AFTER rounding to what the user sees: a change that rounds to 0 reads "ไม่เปลี่ยน" and stays neutral
+// (before, it showed "−0" in red/green by the sign of the unrounded value).
+function changeOf(d: Delta, digits: number, scale: number, unit: string) {
+  const v = Number((d.diff * scale).toFixed(digits));
+  if (v === 0) return { text: "ไม่เปลี่ยน", dir: 0 as const };
+  return {
+    text: `${v > 0 ? "▲ +" : "▼ −"}${Math.abs(v).toFixed(digits)}${unit}`,
+    dir: v > 0 ? (1 as const) : (-1 as const),
+  };
+}
+
+function CmpRow({
+  label,
+  d,
+  fmt,
+  digits,
+  scale = 1,
+  unit = "",
+  better,
+}: {
+  label: string;
+  d: Delta;
+  fmt: (v: number) => string;
+  digits: number;
+  scale?: number;
+  unit?: string;
+  better: "up" | "down" | null; // null: no clear good/bad direction (e.g. gold depends on role), shown neutral
+}) {
+  const c = changeOf(d, digits, scale, unit);
+  const good = c.dir === 0 || better === null ? null : (c.dir > 0) === (better === "up");
   return (
-    <div className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr] items-center gap-2 border-t border-border pt-2 text-xs tabular-nums">
+    <div className="grid grid-cols-[1.2fr_1fr_1fr_1.1fr] items-center gap-2 border-t border-border pt-2 text-xs tabular-nums">
       <span className="text-text-muted">{label}</span>
       <span>{fmt(d.previous)}</span>
       <span className="font-medium">{fmt(d.current)}</span>
-      <span className={cn(good === null ? "text-text-faint" : good ? "text-win" : "text-loss")}>{change(d)}</span>
+      <span className={cn("whitespace-nowrap", good === null ? "text-text-faint" : good ? "text-win" : "text-loss")}>{c.text}</span>
     </div>
   );
 }
