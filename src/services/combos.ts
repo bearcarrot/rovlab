@@ -19,6 +19,7 @@ export interface Combo {
   heroIds: string[]; // เรียงตามที่ผู้สร้างเลือก
   isPublic: boolean;
   hidden: boolean;
+  isFeatured: boolean;
   publishedAt: string | null;
   updatedAt: string;
   author: string | null;
@@ -27,7 +28,7 @@ export interface Combo {
   myValue: Reaction;
 }
 
-const COLS = "id, owner_id, name, note, hero_ids, is_public, hidden, published_at, updated_at";
+const COLS = "id, owner_id, name, note, hero_ids, is_public, hidden, is_featured, published_at, updated_at";
 // ตรงกับเพดาน 100 id ต่อครั้งของ RPC get_user_combo_meta
 const LIMIT = 100;
 
@@ -41,6 +42,7 @@ function map(r: any): Combo {
     heroIds: r.hero_ids ?? [],
     isPublic: r.is_public,
     hidden: r.hidden,
+    isFeatured: r.is_featured ?? false,
     publishedAt: r.published_at,
     updatedAt: r.updated_at,
     author: null,
@@ -85,6 +87,14 @@ export const listCommunityCombos = () =>
 
 export const listMyCombos = (userId: string) => list((q) => q.eq("owner_id", userId).order("updated_at", { ascending: false }));
 
+// แอดมิน: ทุก Combo รวมที่ซ่อน/ส่วนตัว (RLS ให้แอดมินอ่านได้หมด; ไม่ดึงสถิติไลก์เพราะ RPC คืนเฉพาะที่ผู้ใช้ทั่วไปเห็น)
+export async function listAllCombos(): Promise<Combo[]> {
+  const { data, error } = await db.from("user_combos").select(COLS).order("updated_at", { ascending: false }).limit(200);
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => map(r));
+}
+
 export interface SaveComboArgs {
   id: string | null;
   ownerId: string;
@@ -92,18 +102,26 @@ export interface SaveComboArgs {
   note: string;
   heroIds: string[];
   isPublic: boolean;
+  /** แอดมินสร้างใหม่เป็น Combo แนะนำ (trigger ใน DB จะล้างค่านี้ถ้าไม่ใช่แอดมิน) */
+  featured?: boolean;
 }
 
 export async function saveCombo(a: SaveComboArgs): Promise<void> {
   const row = { name: a.name, note: a.note.trim() === "" ? null : a.note, hero_ids: a.heroIds, is_public: a.isPublic };
   const { error } = a.id
     ? await db.from("user_combos").update(row).eq("id", a.id)
-    : await db.from("user_combos").insert({ ...row, owner_id: a.ownerId });
+    : await db.from("user_combos").insert({ ...row, owner_id: a.ownerId, ...(a.featured ? { is_featured: true } : {}) });
   if (error) throw error;
 }
 
 export async function setComboPublic(id: string, isPublic: boolean) {
   const { error } = await db.from("user_combos").update({ is_public: isPublic }).eq("id", id);
+  if (error) throw error;
+}
+
+// แอดมินเท่านั้นที่เปลี่ยนได้ (trigger ใน DB บังคับ): แนะนำ / ซ่อน
+export async function setComboFlags(id: string, patch: { is_featured?: boolean; hidden?: boolean }) {
+  const { error } = await db.from("user_combos").update(patch).eq("id", id);
   if (error) throw error;
 }
 

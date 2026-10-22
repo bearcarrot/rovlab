@@ -14,16 +14,19 @@ const FIELD = "w-full rounded-lg border border-border bg-bg-surface px-3 py-2.5 
 
 // สร้าง/แก้ไข Combo: เลือกฮีโร่ 2–5 ตัว (ลำดับที่กดคือลำดับที่แสดง) + ชื่อ + โน้ต + เผยแพร่หรือส่วนตัว
 // เป็น bottom sheet บนมือถือ (Modal กลาง) ปุ่มและช่องกรอกสูงพอแตะได้ และ text-base กัน iOS ซูมตอนโฟกัส
+// admin = ใช้จากแท็บ Combo ในหน้าแอดมิน: ไม่มีสวิตช์เผยแพร่; สร้างใหม่ = Combo แนะนำ (เผยแพร่ทันที); แก้ของคนอื่น = คงสถานะเผยแพร่เดิม
 export function ComboEditor({
   initial,
   heroes,
   userId,
+  admin,
   onClose,
   onSaved,
 }: {
   initial: Combo | null;
   heroes: HeroSummary[];
   userId: string;
+  admin?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -56,7 +59,15 @@ export function ComboEditor({
     setSaving(true);
     setError(null);
     try {
-      await saveCombo({ id: initial?.id ?? null, ownerId: userId, name, note, heroIds: ids, isPublic });
+      await saveCombo({
+        id: initial?.id ?? null,
+        ownerId: userId,
+        name,
+        note,
+        heroIds: ids,
+        isPublic: admin ? (initial?.isPublic ?? true) : isPublic,
+        featured: admin && !initial,
+      });
       toast.success(initial ? "บันทึกแล้ว" : "สร้าง Combo แล้ว");
       onSaved();
     } catch (e) {
@@ -67,7 +78,7 @@ export function ComboEditor({
   }
 
   return (
-    <Modal title={initial ? "แก้ไข Combo" : "สร้าง Combo"} onClose={onClose}>
+    <Modal title={initial ? "แก้ไข Combo" : admin ? "เพิ่ม Combo แนะนำ" : "สร้าง Combo"} onClose={onClose}>
       <div className="space-y-4">
         <div className="space-y-2">
           <p className="text-xs font-medium text-text-faint">
@@ -156,7 +167,7 @@ export function ComboEditor({
           />
         </label>
 
-        <Switch checked={isPublic} onChange={setIsPublic} label={isPublic ? "เผยแพร่ให้ทุกคนเห็นใน Community" : "ส่วนตัว (เห็นเฉพาะฉัน)"} />
+        {!admin && <Switch checked={isPublic} onChange={setIsPublic} label={isPublic ? "เผยแพร่ให้ทุกคนเห็นใน Community" : "ส่วนตัว (เห็นเฉพาะฉัน)"} />}
 
         {error && <p role="alert" className="text-sm text-loss">{error}</p>}
 
