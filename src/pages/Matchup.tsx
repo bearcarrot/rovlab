@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { HeroIcon } from "@/components/HeroIcon";
 import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
+import { matchupPlanAnswer } from "@/features/coach/directAnswers";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { useFilterLabels } from "@/features/heroes/HeroFilters";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -193,6 +194,20 @@ function MatchupResult({ a, b, m, coachReady, detailA, detailB }: { a: HeroSumma
             label: "แผนเล่นคู่นี้",
             prompt: `ผู้เล่นใช้ ${a.nameTh} เจอ ${b.nameTh} สรุปแผนเล่นที่ควรทำ 3-4 ประโยค อ้างอิงจากสกิล สถิติ และข้อมูลชนะทางที่ให้เท่านั้น ถ้าข้อมูลส่วนไหนไม่พอให้บอกตรงๆ`,
             context: { me: heroContext(a, detailA, laneLabel), enemy: heroContext(b, detailB, laneLabel), matchup: matchupContext },
+            // แผนที่ทีมงานเขียนไว้ให้ฝั่งผู้ใช้ → ตอบจากข้อมูลตรงๆ ส่วนแผนฝั่งศัตรู/มีแต่สถิติ → ให้ AI สรุปให้ตามเดิม
+            direct: matchupPlanAnswer({
+              aName: a.nameTh,
+              bName: b.nameTh,
+              lane: noSharedLane ? "" : lane,
+              difficulty: m.difficulty,
+              early: m.early,
+              mid: m.mid,
+              late: m.late,
+              winCondition: m.winCondition,
+              tips: m.tips,
+              source: m.source,
+              reversed: reversedPlan,
+            }),
           },
         ]
       : [],

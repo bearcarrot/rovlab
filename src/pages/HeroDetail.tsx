@@ -14,6 +14,7 @@ import { HeroComments } from "@/features/comments/HeroComments";
 import { HeroBalance } from "@/features/balance/HeroBalance";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { useCoachQuickChats, type QuickChat } from "@/features/coach/CoachChatContext";
+import { buildWhyAnswer, prosConsAnswer, skillsAnswer } from "@/features/coach/directAnswers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CounterList } from "@/features/heroes/CounterList";
 import { StarLegend } from "@/features/heroes/MatchupStars";
@@ -62,12 +63,14 @@ function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string, 
       label: "ใช้สกิลยังไง",
       prompt: `อธิบายการใช้สกิลของ ${h.nameTh} ทีละสกิลว่าควรใช้เมื่อไหร่ ไม่เกิน 5 ข้อ สั้นกระชับ อ้างชื่อสกิลจริงจาก abilities` + GROUNDED,
       context,
+      direct: skillsAnswer(h.nameTh, h.abilities),
     },
     {
       id: "pros-cons",
       label: "จุดแข็ง จุดอ่อน",
       prompt: `สรุปจุดแข็งและจุดอ่อนของ ${h.nameTh} พร้อมวิธีเล่นเพื่อปิดจุดอ่อน ไม่เกิน 4 ประโยค` + GROUNDED,
       context,
+      direct: prosConsAnswer(h.nameTh, h.strengths, h.weaknesses),
     },
     {
       id: "who-fits",
@@ -105,6 +108,7 @@ function buildHeroQuickChats(h: HeroFull, roleLabel: string, laneLabel: string, 
         label: "ทำไมบิลด์นี้เหมาะ",
         prompt: `อธิบายว่าบิลด์ที่ให้ในข้อมูลเหมาะกับ ${h.nameTh} เพราะอะไร ไม่เกิน 4 ข้อ` + SPLIT + GROUNDED,
         context: buildContext,
+        direct: buildWhyAnswer(h.nameTh, builds.selected, builds.data.items, builds.data.latestPatch),
       },
       {
         id: "build-situational",

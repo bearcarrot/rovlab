@@ -12,7 +12,8 @@ import { EllipsisJump } from "@/components/EllipsisJump";
 import { cn } from "@/lib/utils";
 
 // q = Quick Chat ที่ทำให้เกิดคำตอบนี้ (มีเฉพาะคำตอบจริงของ Coach Ai) ใช้ส่งรีวิว Like/Dislike พร้อมคำถามและข้อมูลที่ส่งให้ AI
-type Msg = { id: number; role: "user" | "coach" | "error"; text: string; q?: QuickChat };
+// data = คำตอบที่ดึงจากข้อมูลในระบบตรงๆ (ไม่ผ่าน AI)
+type Msg = { id: number; role: "user" | "coach" | "error"; text: string; q?: QuickChat; data?: boolean };
 
 function Mascot({ className }: { className?: string }) {
   return (
@@ -58,15 +59,21 @@ export function CoachFab() {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, busy, open]);
 
-  function push(role: Msg["role"], text: string, q?: QuickChat) {
+  function push(role: Msg["role"], text: string, q?: QuickChat, data?: boolean) {
     const id = ++msgId.current;
-    setMessages((m) => [...m, { id, role, text, q }]);
+    setMessages((m) => [...m, { id, role, text, q, data }]);
   }
 
   async function ask(q: QuickChat) {
     if (busy) return;
     const id = ++reqId.current;
     push("user", q.label);
+    // ตอบจากข้อมูลในระบบได้เลย: ไม่เรียก AI ไม่เสียโควต้า (คำตอบที่ตอบไม่ได้/ไม่แน่ใจจะไม่มี direct แล้วไปทาง AI ด้านล่าง)
+    if (q.direct) {
+      push("coach", q.direct, q, true);
+      q.onAnswer?.(q.direct);
+      return;
+    }
     setBusy(true);
     try {
       // q.id = action id ให้ server เลือกโมเดล (supabase/functions/ai-coach/router.ts)
@@ -141,6 +148,7 @@ export function CoachFab() {
                     >
                       {m.role === "error" ? m.text : <CoachText text={m.text} className="text-text" />}
                     </div>
+                    {m.data && <p className="mt-0.5 text-[11px] text-text-faint">ตอบจากข้อมูลในระบบ RoV LAB</p>}
                     {/* รีวิวอยู่ใต้กล่องข้อความ (นอกกล่อง) */}
                     {m.q && (
                       <CoachFeedback

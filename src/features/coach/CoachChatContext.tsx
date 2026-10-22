@@ -9,6 +9,11 @@ export type QuickChat = {
   prompt: string;
   /** ข้อมูลของหน้านั้นที่ส่งให้ AI อ้างอิง */
   context?: unknown;
+  /**
+   * คำตอบที่ดึงจากข้อมูลในระบบตรงๆ (ดู directAnswers.ts) ถ้ามี FAB จะแสดงทันทีโดยไม่เรียก AI
+   * ไม่มี (undefined) = ข้อมูลไม่พอ/ต้องวิเคราะห์ → ส่งให้ ai-coach ตามเดิม
+   */
+  direct?: string;
   /** เรียกเมื่อได้คำตอบจาก Coach Ai (เช่น หน้า Draft เอาไปใส่ในรูปแชร์) ไม่นับรวมใน signature จึงไม่ทำให้ลงทะเบียนซ้ำ */
   onAnswer?: (text: string) => void;
 };
