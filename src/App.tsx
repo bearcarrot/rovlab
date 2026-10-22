@@ -21,6 +21,7 @@ const Heroes = lazyNamed(() => import("@/pages/Heroes"), "Heroes");
 const HeroDetail = lazyNamed(() => import("@/pages/HeroDetail"), "HeroDetail");
 const TierList = lazyNamed(() => import("@/pages/TierList"), "TierList");
 const CounterPick = lazyNamed(() => import("@/pages/CounterPick"), "CounterPick");
+const Synergy = lazyNamed(() => import("@/pages/Synergy"), "Synergy");
 const DraftAssistant = lazyNamed(() => import("@/pages/DraftAssistant"), "DraftAssistant");
 const Matchup = lazyNamed(() => import("@/pages/Matchup"), "Matchup");
 const ItemBuild = lazyNamed(() => import("@/pages/ItemBuild"), "ItemBuild");
@@ -88,6 +89,7 @@ export default function App() {
         {/* ลิงก์แชร์ Community Tier List: /tier-list/<id> (หน้าเดียวกัน เปิดหน้าต่างดูรายการนั้นทันที) */}
         <Route path="tier-list/:shareId" element={<TierList />} />
         <Route path="counter-pick" element={<CounterPick />} />
+        <Route path="synergy" element={<Synergy />} />
         <Route path="matchup" element={<Matchup />} />
         {/* ลิงก์แชร์ Community Draft: /draft/<id> */}
         <Route path="draft/:shareId" element={<DraftAssistant />} />
