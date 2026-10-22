@@ -6,6 +6,7 @@ import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
 import { RouteMeta } from "@/components/RouteMeta";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { MaintenanceGate } from "@/features/maintenance/MaintenanceGate";
 // Home เป็นหน้าแรก/LCP จึง import แบบปกติ (ไม่ lazy) เพื่อไม่ให้เกิด request ซ้อนกัน
 import { Home } from "@/pages/Home";
 
@@ -72,6 +73,7 @@ export default function App() {
     <RouteMeta />
     <Analytics />
     <SpeedInsights />
+    <MaintenanceGate>
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Home />} />
@@ -79,7 +81,7 @@ export default function App() {
         <Route
           path="heroes/:slug"
           element={
-            <WithNav crumbs={[HOME, { label: "ฮีโร่ทั้งหมด", to: "/heroes" }, { label: "รายละเอียดฮีโร่" }]} fallback="/heroes">
+            <WithNav crumbs={[HOME, { label: "ฤเรโอทั้งหมด", to: "/heroes" }, { label: "รายละเอียดฤเรโอ" }]} fallback="/heroes">
               <HeroDetail />
             </WithNav>
           }
@@ -181,6 +183,7 @@ export default function App() {
         <Route path="*" element={<WithNav crumbs={[HOME, { label: "ไม่พบหน้า" }]}><NotFound /></WithNav>} />
       </Route>
     </Routes>
+    </MaintenanceGate>
     </>
   );
 }
