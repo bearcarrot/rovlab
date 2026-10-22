@@ -27,9 +27,9 @@ const PAGES: Record<string, PageMeta> = {
     title: "RoV Counter Pick — เลือกฮีโร่ชนะทางคู่ต่อสู้ | RoV LAB",
     description: "เลือกฮีโร่ที่ชนะทางศัตรูใน RoV ดูว่าตัวไหนแพ้ทางใคร พร้อมเหตุผล",
   },
-  "/synergy": {
-    title: "RoV Combo / Synergy — ฮีโร่ที่เล่นคู่กันแล้วแรง | RoV LAB",
-    description: "รวมคอมโบและซินเนอร์จี้ระหว่างฮีโร่ RoV ดูว่าตัวไหนเล่นคู่กันแล้วเสริมกัน พร้อมเหตุผล",
+  "/combo": {
+    title: "RoV Combo — ฮีโร่ที่เล่นคู่กันแล้วแรง | RoV LAB",
+    description: "รวม Combo ฮีโร่ RoV 2–5 ตัวที่เล่นด้วยกันแล้วเสริมกัน พร้อมวิธีต่อสกิล สร้าง Combo ของตัวเองและแบ่งปันให้ Community",
   },
   "/matchup": {
     title: "RoV Matchup — เปรียบเทียบฮีโร่ทีละคู่ | RoV LAB",
