@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Users, MessageCircle } from "lucide-react";
 import { getHeroBySlug } from "@/services/heroes";
 import { useAsync } from "@/hooks/useAsync";
@@ -7,7 +7,6 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { HeroIcon } from "@/components/HeroIcon";
 import { EffectTagList } from "@/components/EffectTagList";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
@@ -24,6 +23,7 @@ import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { useRank, type RankBucket } from "@/lib/rank";
 import { HeroBuilds } from "@/features/heroes/HeroBuilds";
 import { HeroVideos } from "@/features/heroes/HeroVideos";
+import { HeroCombos } from "@/features/combo/HeroCombos";
 import { useHeroBuilds, type HeroBuildsState } from "@/features/heroes/useHeroBuilds";
 import { buildForCoach, noBuildForCoach } from "@/features/heroes/buildCoachContext";
 
@@ -352,35 +352,7 @@ export function HeroDetail() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>ฮีโร่ที่คอมโบกับ {h.nameTh} ได้ดี</CardTitle></CardHeader>
-        <CardContent>
-          {h.synergies.length === 0 ? (
-            <p className="text-sm text-text-faint">ยังไม่มีข้อมูล</p>
-          ) : (
-            <div className="grid gap-2 md:grid-cols-2">
-              {h.synergies.map((s) => {
-                const nameTh = s.heroNameTh;
-                if (!nameTh) return null;
-                const icon = s.heroIcon || "";
-                return (
-                  <div key={s.heroSlug} className="flex gap-3 rounded-lg border border-border bg-bg-raised p-3">
-                    <Link to={`/heroes/${s.heroSlug}`} aria-label={nameTh} className="shrink-0">
-                      <HeroIcon icon={icon} name={nameTh} fallback={s.heroSlug.slice(0, 2).toUpperCase()} className="h-11 w-11" />
-                    </Link>
-                    <div className="min-w-0 flex-1">
-                      <Link to={`/heroes/${s.heroSlug}`} className="font-display text-sm font-medium hover:text-accent">
-                        {nameTh}
-                      </Link>
-                      <p className="mt-1 text-sm text-text-muted">{s.reason}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <HeroCombos heroId={h.id} heroName={h.nameTh} />
 
       <Card>
         <CardHeader>
