@@ -62,7 +62,7 @@ function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]
     roles: row.roles && row.roles.length > 0 ? row.roles : [row.role],
     lanes: row.lanes && row.lanes.length > 0 ? row.lanes : [row.lane],
     difficulty: row.difficulty,
-    icon: row.icon_url ?? "",
+    icon: imgUrl(row.icon_url ?? ""),
     stat: statByHeroId.get(row.id) ?? EMPTY_STAT,
   };
 }
@@ -134,7 +134,7 @@ export async function getHeroChipsByIds(ids: string[]): Promise<HeroChip[]> {
     return unique
       .map((id) => byId.get(id))
       .filter((r): r is any => !!r)
-      .map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, icon: (r.icon_url as string | null) ?? "" }));
+      .map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, icon: imgUrl((r.icon_url as string | null) ?? "") }));
   });
 }
 
@@ -202,7 +202,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     .map((c: any) => ({
       heroSlug: c.counter_hero?.slug ?? "",
       heroNameTh: c.counter_hero?.name,
-      heroIcon: c.counter_hero?.icon_url ?? undefined,
+      heroIcon: imgUrl(c.counter_hero?.icon_url ?? undefined),
       strength: c.strength,
       reason: c.reason,
       laneTip: c.lane_tip ?? "",
@@ -214,7 +214,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     .map((c: any) => ({
       heroSlug: c.hero?.slug ?? "",
       heroNameTh: c.hero?.name,
-      heroIcon: c.hero?.icon_url ?? undefined,
+      heroIcon: imgUrl(c.hero?.icon_url ?? undefined),
       strength: c.strength,
       reason: c.reason,
       laneTip: c.lane_tip ?? "",
@@ -225,7 +225,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
   const synergies: SynergyEntry[] = (synergiesRes.data ?? []).map((s: any) => ({
     heroSlug: s.partner?.slug ?? "",
     heroNameTh: s.partner?.name,
-    heroIcon: s.partner?.icon_url ?? undefined,
+    heroIcon: imgUrl(s.partner?.icon_url ?? undefined),
     reason: s.reason,
   })).filter((s) => s.heroSlug);
 
