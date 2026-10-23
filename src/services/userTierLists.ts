@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
-import { parseTierData, serializeTierData, tierHeroCount, type TierData } from "@/features/tierlist/tierData";
+import { lanesHeroCount, parseLanes, serializeLanes, type TierData, type TierLanes } from "@/features/tierlist/tierData";
 import type { Visibility } from "@/services/draftSeries";
 import { trackActivity } from "@/services/activity";
 
@@ -23,6 +23,9 @@ export interface MyTierListSummary {
   updatedAt: string;
 }
 export interface MyTierList extends MyTierListSummary {
+  /** Every lane of the list (a pre-lanes list opens as one lane "all"). Use this for anything that saves or copies. */
+  lanes: TierLanes;
+  /** Rows of the FIRST lane only, for read-only previews. Never write this back: it would drop the other lanes. */
   data: TierData;
 }
 
@@ -37,7 +40,7 @@ export interface CommunityTierListSummary {
   patch: string;
   version: number;
   heroCount: number;
-  preview: string[]; // first hero ids in tier order, for card thumbnails
+  preview: string[]; // first hero ids in tier order (first lane), for card thumbnails
   likes: number;
   dislikes: number;
   myValue: Reaction;
@@ -54,16 +57,17 @@ const COLS = "id, name, description, patch, visibility, updated_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toMine = (r: any): MyTierList => {
-  const data = parseTierData(r.data);
+  const lanes = parseLanes(r.data);
   return {
     id: r.id,
     name: r.name ?? "",
     description: r.description ?? "",
     patch: r.patch ?? "",
     visibility: r.visibility === "public" ? "public" : "private",
-    heroCount: tierHeroCount(data),
+    heroCount: lanesHeroCount(lanes),
     updatedAt: r.updated_at,
-    data,
+    lanes,
+    data: lanes[0].rows,
   };
 };
 
@@ -86,7 +90,7 @@ export interface SaveTierListInput {
   description: string;
   patch: string;
   visibility: Visibility;
-  data: TierData;
+  lanes: TierLanes;
 }
 
 /** Making a list public creates the community snapshot (DB trigger); editing an already public list does not. */
@@ -96,7 +100,7 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
     description: input.description.trim() || null,
     patch: input.patch.trim().slice(0, TIER_PATCH_MAX),
     visibility: input.visibility,
-    data: serializeTierData(input.data),
+    data: serializeLanes(input.lanes), // v2 for a single "all" lane (as before), v3 for multi-lane
   };
   if (input.id) {
     const { data, error } = await supabase.from("user_tier_lists").update(row).eq("id", input.id).select("id").single();
@@ -110,10 +114,10 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
   return newId;
 }
 
-/** New private list owned by the user (Duplicate and Load Preset). Original is never touched. */
+/** New private list owned by the user (Duplicate and Load Preset). Original is never touched. Copies every lane. */
 export async function createTierListCopy(
   userId: string,
-  src: { name: string; description: string; patch: string; data: TierData }
+  src: { name: string; description: string; patch: string; lanes: TierLanes }
 ): Promise<string> {
   return saveTierList({
     userId,
@@ -121,7 +125,7 @@ export async function createTierListCopy(
     description: src.description,
     patch: src.patch,
     visibility: "private",
-    data: src.data,
+    lanes: src.lanes,
   });
 }
 
@@ -177,12 +181,13 @@ export async function listCommunityTierLists(args: {
   return (data ?? []).map(toCommunity);
 }
 
-export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { data: TierData }> {
+export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { lanes: TierLanes; data: TierData }> {
   const { data, error } = await supabase.rpc("list_community_tier_lists", { p_only_id: id, p_limit: 1 });
   check(error);
   const row = data?.[0];
   if (!row) throw new Error("ไม่พบ Tier List นี้ (อาจถูกเอาออกจาก Community แล้ว)");
-  return { ...toCommunity(row), data: parseTierData(row.data) };
+  const lanes = parseLanes(row.data);
+  return { ...toCommunity(row), lanes, data: lanes[0].rows };
 }
 
 /** value 0 removes the reaction. One row per (list, user): switching like <-> dislike is an upsert. */
