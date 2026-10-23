@@ -16,13 +16,34 @@ import {
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
-import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, saveCustom, type CustomTierList } from "./customTierList";
-import { MAX_ROWS, addRow, deleteRow, findTier, moveHero, moveRow, shiftHero, updateRow } from "./tierData";
+import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, type CustomTierList } from "./customTierList";
+import {
+  MAX_ROWS,
+  addLane,
+  addRow,
+  deleteRow,
+  emptyTierData,
+  findLane,
+  findTier,
+  moveHero,
+  moveRow,
+  removeLane,
+  rowsCustomized,
+  shiftHero,
+  tierHeroCount,
+  updateLaneRows,
+  updateRow,
+  type LaneId,
+  type TierData,
+} from "./tierData";
+import { LaneTabs, useLaneName } from "./LaneTabs";
 import { TierLabel } from "./TierRows";
 import { TierRowEditor } from "./TierRowEditor";
 
 const DRAG_TYPE = "text/rovlab-hero";
 
+// หนึ่ง Tier List มีหลายเลน (list.lanes) แต่ละเลนมีกระดานของตัวเอง — ตัวจัดอันดับแสดง/แก้ "เลนที่เลือก" ครั้งละเลน
+// การสลับเลนเปลี่ยนแค่ activeId (ไม่แตะข้อมูล จึงไม่ทำให้เกิด unsaved changes); ทุกการแก้ไขผ่าน editTiers → updateLaneRows
 export function CustomTierBoard({
   heroes,
   patch,
@@ -35,15 +56,17 @@ export function CustomTierBoard({
   patch: string;
   /** เริ่มจาก Tier List นี้แทนค่าที่ค้างในเครื่อง (ใช้ตอนโหลดจาก "รายการของฉัน" / Community) */
   initial?: CustomTierList | null;
-  /** แจ้ง Tier List ปัจจุบันทุกครั้งที่แก้ (ให้ปุ่ม "บันทึก" ด้านบนเอาไปเก็บบนบัญชี) */
+  /** แจ้ง Tier List ปัจจุบัน (ทุกเลน) ทุกครั้งที่แก้ (ให้ปุ่ม "บันทึก" ด้านบนเอาไปเก็บบนบัญชี) */
   onChange?: (list: CustomTierList) => void;
-  /** ผู้ใช้กดรีเซ็ต: ตัวห่อจะเลิกผูกกับรายการที่บันทึกไว้ เพื่อไม่ให้บันทึกทับด้วยลิสต์ว่าง */
+  /** ผู้ใช้กดรีเซ็ตทั้งชุด: ตัวห่อจะเลิกผูกกับรายการที่บันทึกไว้ เพื่อไม่ให้บันทึกทับด้วยลิสต์ว่าง */
   onReset?: () => void;
   /** ปุ่มเสริมในแถวเดียวกับปุ่มแชร์รูป (เช่น ปุ่มแชร์ลิงก์ ซึ่งต้องรู้สถานะบัญชีที่ตัวห่อถืออยู่) */
   shareExtra?: ReactNode;
 }) {
   const toast = useToast();
+  const laneName = useLaneName();
   const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
+  const [activeId, setActiveId] = useState<LaneId>(() => list.lanes[0].id);
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -54,7 +77,13 @@ export function CustomTierBoard({
 
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
 
-  // เก็บร่างลง localStorage ทุกครั้งที่แก้ (การเก็บบนบัญชีทำเมื่อกด "บันทึก" เท่านั้น)
+  // เลนที่เปิดอยู่ (ถ้า activeId ไม่มีแล้ว เช่นเลนถูกลบ → เลนแรก) และกระดานของเลนนั้น
+  const active = findLane(list.lanes, activeId) ?? list.lanes[0];
+  const laneId = active.id;
+  const tiers: TierData = active.rows;
+  const multi = list.lanes.length > 1;
+
+  // เก็บร่างลง localStorage ทุกครั้งที่แก้ (การเก็บบนบัญชีทำเมื่อกด "บันทึก" เท่านั้น) — เก็บทุกเลน
   useEffect(() => {
     saveCustom(list);
     onChange?.(list);
@@ -65,7 +94,8 @@ export function CustomTierBoard({
   // Patch ที่แสดงบนรูป: ค่าล่าสุดจากข้อมูลเสมอ (ไม่ใช้ค่าที่ค้างใน storage)
   const patchLabel = patch || list.patch || "—";
 
-  const placed = useMemo(() => new Set(list.tiers.flatMap((r) => r.heroes)), [list.tiers]);
+  // ฮีโร่ที่ "ยังไม่ได้จัด" นับต่อเลน: ฮีโร่ตัวเดียวกันอยู่ได้หลายเลน แต่ไม่ซ้ำในกระดานเดียว
+  const placed = useMemo(() => new Set(tiers.flatMap((r) => r.heroes)), [tiers]);
   const match = filters.match;
   const pool = useMemo(
     () => heroes.filter((h) => !placed.has(h.id) && match(h) && heroMatchesQuery(h, query)),
@@ -73,14 +103,19 @@ export function CustomTierBoard({
   );
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
+  /** ทุกการแก้กระดาน (ย้ายฮีโร่ เพิ่ม/ลบ/เรียง/ตั้งชื่อ/สีแถว) กระทบเฉพาะเลนที่เลือก */
+  const editTiers = useCallback(
+    (fn: (rows: TierData) => TierData) => setList((l) => ({ ...l, lanes: updateLaneRows(l.lanes, laneId, fn) })),
+    [laneId]
+  );
 
   function place(id: string, rowId: string | null, index?: number) {
-    update((l) => ({ ...l, tiers: moveHero(l.tiers, id, rowId, index) }));
+    editTiers((rows) => moveHero(rows, id, rowId, index));
     if (rowId === null) setSelected(null);
   }
 
   async function removeRow(rowId: string) {
-    const row = list.tiers.find((r) => r.id === rowId);
+    const row = tiers.find((r) => r.id === rowId);
     if (!row) return;
     if (row.heroes.length > 0) {
       const ok = await confirmDialog({
@@ -91,9 +126,41 @@ export function CustomTierBoard({
       });
       if (!ok) return;
     }
-    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId) }));
+    editTiers((rows) => deleteRow(rows, rowId));
   }
 
+  function selectLane(id: LaneId) {
+    setActiveId(id);
+    setSelected(null);
+    setQuery("");
+    setConfirmReset(false);
+  }
+
+  function onAddLane(id: LaneId) {
+    update((l) => ({ ...l, lanes: addLane(l.lanes, id) }));
+    selectLane(id);
+  }
+
+  async function onRemoveLane(id: LaneId) {
+    const lane = findLane(list.lanes, id);
+    if (!lane || list.lanes.length <= 1) return;
+    if (tierHeroCount(lane.rows) > 0 || rowsCustomized(lane.rows)) {
+      const ok = await confirmDialog({
+        title: `ลบเลน ${laneName(id)}?`,
+        message: `กระดานของเลนนี้ (ฮีโร่ ${tierHeroCount(lane.rows)} ตัว) จะถูกลบ เลนอื่นไม่เปลี่ยนแปลง และกู้คืนไม่ได้`,
+        confirmLabel: "ลบเลน",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    const idx = list.lanes.findIndex((l) => l.id === id);
+    const rest = list.lanes.filter((l) => l.id !== id);
+    update((l) => ({ ...l, lanes: removeLane(l.lanes, id) }));
+    selectLane(rest[Math.max(0, idx - 1)].id);
+  }
+
+  // หลายเลน: รีเซ็ตเฉพาะเลนที่เปิดอยู่ (ไม่ลบเลนอื่น และไม่เลิกผูกกับรายการที่บันทึกไว้ — เป็นการแก้ไขหนึ่งครั้ง)
+  // เลนเดียว: รีเซ็ตทั้งชุดเหมือนเดิม
   function reset() {
     if (!confirmReset) {
       setConfirmReset(true);
@@ -101,21 +168,26 @@ export function CustomTierBoard({
       return;
     }
     clearTimeout(resetTimer.current);
-    clearCustom();
-    setList(createDefault(patch));
     setSelected(null);
     setConfirmReset(false);
+    if (multi) {
+      editTiers(() => emptyTierData());
+      toast.success(`รีเซ็ตเลน ${laneName(laneId)} แล้ว`);
+      return;
+    }
+    clearCustom();
+    setList(createDefault(patch));
     onReset?.();
     toast.success("รีเซ็ต Tier List ของฉันแล้ว");
   }
 
-  // รูปที่ใช้แชร์: ข้ามฮีโร่ที่ไม่มีในข้อมูลแล้ว (เช่นถูกลบออกจากระบบ)
+  // รูปที่ใช้แชร์: เฉพาะเลนที่เปิดอยู่ และระบุชื่อเลนบนรูป · ข้ามฮีโร่ที่ไม่มีในข้อมูลแล้ว (เช่นถูกลบออกจากระบบ)
   const buildShare = useCallback(() => {
     const data: TierListImageData = {
       title: list.name.trim() || DEFAULT_CUSTOM_NAME,
       patch: patchLabel,
-      filterLabel: "จัดเอง",
-      tiers: list.tiers.map((r) => ({
+      filterLabel: laneId === "all" ? "จัดเอง" : `จัดเอง · ${laneName(laneId)}`,
+      tiers: tiers.map((r) => ({
         tier: r.label,
         color: r.color,
         heroes: r.heroes.flatMap((id) => {
@@ -126,17 +198,18 @@ export function CustomTierBoard({
       generatedDate: formatGeneratedDate(),
     };
     return { data, filename: makeFilename("rovlab-my-tier-list"), title: data.title };
-  }, [list, patchLabel, byId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.name, tiers, laneId, patchLabel, byId]);
   const share = useShareImage(tierListTemplate, buildShare);
 
-  const totalPlaced = list.tiers.reduce((n, r) => n + r.heroes.filter((id) => byId.has(id)).length, 0);
+  const totalPlaced = tiers.reduce((n, r) => n + r.heroes.filter((id) => byId.has(id)).length, 0);
 
   // โหลดไอคอนที่จัดแล้วล่วงหน้า ให้การกดแชร์ครั้งแรกเร็ว
   useEffect(() => {
-    preloadImages(list.tiers.flatMap((r) => r.heroes.map((id) => byId.get(id)?.icon ?? "")));
-  }, [list.tiers, byId]);
+    preloadImages(tiers.flatMap((r) => r.heroes.map((id) => byId.get(id)?.icon ?? "")));
+  }, [tiers, byId]);
 
-  const selectedRowId = selected ? findTier(list.tiers, selected) : null;
+  const selectedRowId = selected ? findTier(tiers, selected) : null;
   const selectedHero = selected ? byId.get(selected) : undefined;
 
   return (
@@ -174,16 +247,19 @@ export function CustomTierBoard({
           )}
         >
           <RotateCcw className="h-4 w-4" />
-          {confirmReset ? "ยืนยันรีเซ็ต?" : "รีเซ็ต"}
+          {confirmReset ? "ยืนยันรีเซ็ต?" : multi ? "รีเซ็ตเลนนี้" : "รีเซ็ต"}
         </button>
       </div>
 
+      <LaneTabs lanes={list.lanes.map((l) => l.id)} active={laneId} onSelect={selectLane} onAdd={onAddLane} onRemove={(id) => void onRemoveLane(id)} />
+
       <p className="text-xs text-text-faint">
+        {multi ? `กำลังจัดเลน ${laneName(laneId)} · ` : ""}
         แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
       </p>
 
       <div data-tour="custom-rows" className="space-y-2">
-        {list.tiers.map((row, i) => {
+        {tiers.map((row, i) => {
           const ids = row.heroes.filter((id) => byId.has(id));
           return (
             <div key={row.id} className="space-y-1.5">
@@ -225,10 +301,10 @@ export function CustomTierBoard({
                 <TierRowEditor
                   row={row}
                   index={i}
-                  count={list.tiers.length}
-                  onLabel={(label) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { label }) }))}
-                  onColor={(color) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { color }) }))}
-                  onMove={(dir) => update((l) => ({ ...l, tiers: moveRow(l.tiers, row.id, dir) }))}
+                  count={tiers.length}
+                  onLabel={(label) => editTiers((rows) => updateRow(rows, row.id, { label }))}
+                  onColor={(color) => editTiers((rows) => updateRow(rows, row.id, { color }))}
+                  onMove={(dir) => editTiers((rows) => moveRow(rows, row.id, dir))}
                   onDelete={() => void removeRow(row.id)}
                 />
               )}
@@ -238,12 +314,12 @@ export function CustomTierBoard({
         {editRows && (
           <button
             type="button"
-            disabled={list.tiers.length >= MAX_ROWS}
-            onClick={() => update((l) => ({ ...l, tiers: addRow(l.tiers) }))}
+            disabled={tiers.length >= MAX_ROWS}
+            onClick={() => editTiers((rows) => addRow(rows))}
             className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border px-3 py-2 text-sm text-text-muted hover:text-text disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
-            {list.tiers.length >= MAX_ROWS ? `ครบ ${MAX_ROWS} แถวแล้ว` : "เพิ่มแถว"}
+            {tiers.length >= MAX_ROWS ? `ครบ ${MAX_ROWS} แถวแล้ว` : "เพิ่มแถว"}
           </button>
         )}
       </div>
@@ -257,7 +333,7 @@ export function CustomTierBoard({
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {list.tiers.map((row, i) => (
+            {tiers.map((row, i) => (
               <button
                 key={row.id}
                 type="button"
@@ -275,10 +351,10 @@ export function CustomTierBoard({
             ))}
             {selectedRowId && (
               <>
-                <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => editTiers((rows) => shiftHero(rows, selectedHero.id, -1))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
                   <ArrowLeft className="h-4 w-4" />
                 </button>
-                <button type="button" aria-label="เลื่อนไปขวา" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, 1) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                <button type="button" aria-label="เลื่อนไปขวา" onClick={() => editTiers((rows) => shiftHero(rows, selectedHero.id, 1))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <button type="button" onClick={() => place(selectedHero.id, null)} className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-bg-raised">
@@ -300,7 +376,12 @@ export function CustomTierBoard({
           extra={shareExtra}
         />
       </div>
-      {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
+      {totalPlaced === 0 && (
+        <p className="-mt-2 text-xs text-text-faint">
+          {multi ? `เลือกฮีโร่เข้า Tier ในเลน ${laneName(laneId)} อย่างน้อย 1 ตัวก่อนแชร์รูป` : "เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์"}
+        </p>
+      )}
+      {multi && totalPlaced > 0 && <p className="-mt-2 text-xs text-text-faint">รูปที่แชร์เป็นของเลน {laneName(laneId)} เท่านั้น · ลิงก์แชร์รวมทุกเลน</p>}
 
       <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
         <h2 className="font-display text-sm font-semibold">ฮีโร่ที่ยังไม่ได้จัด ({pool.length})</h2>
