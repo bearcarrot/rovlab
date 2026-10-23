@@ -24,7 +24,7 @@ import {
 import { MyTierLists } from "./MyTierLists";
 import { SaveTierListDialog, type SaveTierListValues } from "./SaveTierListDialog";
 import { TierLinkShare } from "./TierLinkShare";
-import { tierHeroCount } from "./tierData";
+import { lanesHeroCount } from "./tierData";
 import type { PresetLoad } from "./CommunityTierLists";
 
 export interface IncomingPreset extends PresetLoad {
@@ -33,6 +33,7 @@ export interface IncomingPreset extends PresetLoad {
 
 // Wraps the existing editor (CustomTierBoard, unchanged UX) with Save / My Tier Lists.
 // The editor still autosaves locally; "บันทึก" stores it on the account, and it remembers which saved list it came from.
+// One Tier List = several lanes; `current` always holds EVERY lane, so save / copy / publish / dirty-state see all of them.
 export function MyTierListWorkspace({
   heroes,
   patch,
@@ -60,7 +61,7 @@ export function MyTierListWorkspace({
     setCloudState(c);
   }, []);
 
-  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers);
+  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.lanes);
   const name = current.name.trim() || DEFAULT_CUSTOM_NAME;
 
   function replaceBoard(list: CustomTierList, nextCloud: CloudState) {
@@ -74,7 +75,7 @@ export function MyTierListWorkspace({
   useEffect(() => {
     if (!incoming || lastNonce.current === incoming.nonce) return;
     lastNonce.current = incoming.nonce;
-    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data });
+    const list = toCustom({ name: incoming.name, patch: incoming.patch, lanes: incoming.lanes });
     replaceBoard(
       list,
       incoming.cloudId
@@ -127,7 +128,7 @@ export function MyTierListWorkspace({
         description: v.description,
         patch: v.patch,
         visibility: v.visibility,
-        data: current.tiers,
+        lanes: current.lanes,
       });
       setCloud({ id, description: v.description.trim(), patch: v.patch.trim(), visibility: v.visibility, savedSig: sigOf(current) });
       setRefreshKey((k) => k + 1);
@@ -200,7 +201,7 @@ export function MyTierListWorkspace({
             name={name}
             patch={patch}
             dirty={dirty}
-            empty={tierHeroCount(current.tiers) === 0}
+            empty={lanesHeroCount(current.lanes) === 0}
             onPublished={(c) => {
               setCloud(c);
               setRefreshKey((k) => k + 1);
