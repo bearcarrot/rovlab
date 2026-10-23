@@ -113,7 +113,7 @@
             return p;
           }
           function json(p) { return p.then(function (r) { return r.clone().json(); }); }
-          get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url,description,strengths,weaknesses"], ["order", "name.asc"]]);
+          get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url"], ["order", "name.asc"]]);
           get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
           json(get("patches", [["select", "id,code,released_at"], ["order", "released_at.desc.nullslast"], ["limit", "1"]])).then(function (rows) {
             var id = rows && rows[0] && rows[0].id;
