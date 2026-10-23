@@ -3,13 +3,17 @@
 //
 // Rows are ordered and user-defined: { id, label, color, heroes[] }. Hero ids only; icons/names are resolved
 // from the hero database when rendering.
-// Stored in the DB (jsonb) as { "v": 2, "rows": [...] }. The legacy shape { "S+": [...], S, A, B, C } is still
-// read everywhere (old saved lists and Community snapshots are never rewritten) and maps to five default rows.
+// Stored in the DB (jsonb) as { "v": 2, "rows": [...] } (one board) or, for multi-lane lists,
+// { "v": 3, "lanes": [ { "id": "jungle", "rows": [...] }, ... ] } (see "lanes" below).
+// The legacy shape { "S+": [...], S, A, B, C } is still read everywhere (old saved lists and Community snapshots
+// are never rewritten) and maps to five default rows.
+
+import type { HeroLane } from "@/types/hero";
 
 export const NAME_MAX = 40;
 export const TIER_LABEL_MAX = 12;
 export const MAX_ROWS = 20;
-export const MAX_HEROES = 200; // across the whole board (same cap as before)
+export const MAX_HEROES = 200; // across one board (same cap as before; with lanes it applies per lane)
 const HERO_ID_MAX = 64;
 const ROW_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
@@ -149,6 +153,96 @@ export function moveRow(d: TierData, rowId: string, dir: -1 | 1): TierData {
 /** Heroes of a deleted row go back to the unranked pool (they are simply no longer placed). Keeps at least one row. */
 export const deleteRow = (d: TierData, rowId: string): TierData => (d.length <= 1 ? d : d.filter((r) => r.id !== rowId));
 
+// ---- lanes (one tier list = several independent boards) ----
+// A lane id is a hero lane code (same codes as hero_lanes / HeroLane) or "all" (the single general board every
+// pre-multi-lane list opens as). Ids are unique within a list, so there are no duplicate lane names to guard against.
+// Display names come from the DB labels (useFilterLabels) in the UI; LANE_ALL_LABEL is the only name defined here.
+
+export const LANE_IDS = ["all", "slayer", "jungle", "mid", "abyssal", "roaming"] as const satisfies readonly (HeroLane | "all")[];
+export type LaneId = (typeof LANE_IDS)[number];
+export const LANE_ALL: LaneId = "all";
+export const LANE_ALL_LABEL = "ทั่วไป";
+export const MAX_LANES = LANE_IDS.length;
+
+export const isLaneId = (v: unknown): v is LaneId => typeof v === "string" && (LANE_IDS as readonly string[]).includes(v);
+
+export interface TierLane {
+  id: LaneId;
+  rows: TierData;
+}
+export type TierLanes = TierLane[];
+
+export const emptyLanes = (): TierLanes => [{ id: LANE_ALL, rows: emptyTierData() }];
+
+/**
+ * Reads any stored shape: v3 lanes, v2 rows, a bare rows array or the legacy fixed tiers. Everything that is not v3
+ * becomes ONE lane "all" (nothing is lost, nothing is rewritten until the user saves). Never throws.
+ */
+export function parseLanes(raw: unknown): TierLanes {
+  const o = raw as { v?: unknown; lanes?: unknown } | null;
+  if (o && typeof o === "object" && !Array.isArray(o) && o.v === 3 && Array.isArray(o.lanes)) {
+    const used = new Set<string>();
+    const out: TierLanes = [];
+    for (const item of o.lanes) {
+      if (out.length >= MAX_LANES) break;
+      if (!item || typeof item !== "object") continue;
+      const l = item as { id?: unknown; rows?: unknown };
+      if (!isLaneId(l.id) || used.has(l.id)) continue;
+      used.add(l.id);
+      out.push({ id: l.id, rows: parseTierData(l.rows) });
+    }
+    return out.length > 0 ? out : emptyLanes();
+  }
+  return [{ id: LANE_ALL, rows: parseTierData(raw) }];
+}
+
+/**
+ * The jsonb written to the DB. A single "all" lane is written as v2, byte-for-byte what the app wrote before lanes
+ * (older clients and a database without the v3 migration keep working); anything else is v3.
+ */
+export function serializeLanes(lanes: TierLanes) {
+  const norm = parseLanes({ v: 3, lanes });
+  if (norm.length === 1 && norm[0].id === LANE_ALL) return serializeTierData(norm[0].rows);
+  return { v: 3 as const, lanes: norm.map((l) => ({ id: l.id, rows: l.rows })) };
+}
+
+/** Distinct heroes placed anywhere in the list (a hero on two lanes counts once; matches tier_hero_count in the DB). */
+export const lanesHeroCount = (ls: TierLanes): number => new Set(ls.flatMap((l) => l.rows.flatMap((r) => r.heroes))).size;
+
+/** Unsaved-change signature over EVERY lane. Which lane is open in the editor is not part of it. */
+export const lanesSig = (ls: TierLanes): string => JSON.stringify(ls.map((l) => [l.id, tierSig(l.rows)]));
+
+/** Never-saved work worth warning about: extra lanes, a non-default board, or any renamed/recolored/added row. */
+export const lanesCustomized = (ls: TierLanes): boolean =>
+  ls.length !== 1 || ls[0].id !== LANE_ALL || ls.some((l) => rowsCustomized(l.rows));
+
+export const findLane = (ls: TierLanes, id: string | null | undefined): TierLane | undefined => ls.find((l) => l.id === id);
+
+/** New empty board for `id`. No-op when the lane exists, is unknown, or the list is full. Other lanes are untouched. */
+export function addLane(ls: TierLanes, id: LaneId): TierLanes {
+  if (!isLaneId(id) || ls.length >= MAX_LANES || ls.some((l) => l.id === id)) return ls;
+  return [...ls, { id, rows: emptyTierData() }];
+}
+
+/** Drops one lane and its board only. Keeps at least one lane. */
+export function removeLane(ls: TierLanes, id: string): TierLanes {
+  if (ls.length <= 1 || !ls.some((l) => l.id === id)) return ls;
+  return ls.filter((l) => l.id !== id);
+}
+
+/** Applies a board edit (any of the pure helpers above) to ONE lane. Other lanes keep their identity. */
+export function updateLaneRows(ls: TierLanes, id: string, fn: (rows: TierData) => TierData): TierLanes {
+  let changed = false;
+  const next = ls.map((l) => {
+    if (l.id !== id) return l;
+    const rows = fn(l.rows);
+    if (rows === l.rows) return l;
+    changed = true;
+    return { ...l, rows };
+  });
+  return changed ? next : ls;
+}
+
 // ---- local draft (localStorage) ----
 
 export interface Draft {
@@ -163,4 +257,22 @@ export function parseDraft(raw: unknown): Draft | null {
   const v = raw as { version?: unknown; name?: unknown; patch?: unknown; tiers?: unknown };
   if ((v.version !== 1 && v.version !== 2) || typeof v.name !== "string" || !v.tiers || typeof v.tiers !== "object") return null;
   return { name: v.name.slice(0, NAME_MAX), patch: typeof v.patch === "string" ? v.patch : "", tiers: parseTierData(v.tiers) };
+}
+
+export interface LaneDraft {
+  name: string;
+  patch: string;
+  lanes: TierLanes;
+}
+
+/** Reads a stored draft of any version: 1 and 2 open as one lane "all"; 3 = { version: 3, name, patch, lanes }. */
+export function parseLaneDraft(raw: unknown): LaneDraft | null {
+  if (!raw || typeof raw !== "object") return null;
+  const v = raw as { version?: unknown; name?: unknown; patch?: unknown; lanes?: unknown };
+  if (v.version === 3) {
+    if (typeof v.name !== "string" || !Array.isArray(v.lanes)) return null;
+    return { name: v.name.slice(0, NAME_MAX), patch: typeof v.patch === "string" ? v.patch : "", lanes: parseLanes({ v: 3, lanes: v.lanes }) };
+  }
+  const d = parseDraft(raw);
+  return d && { name: d.name, patch: d.patch, lanes: [{ id: LANE_ALL, rows: d.tiers }] };
 }
