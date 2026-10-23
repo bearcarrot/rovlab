@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { imgUrl } from "@/lib/imgUrl";
 
 type Props = {
   icon?: string | null;
@@ -8,10 +9,6 @@ type Props = {
   fallback?: string;
   className?: string;
 };
-
-// รูปใน bucket hero-icons ถูกโหลดผ่าน /img/* (rewrite ใน vercel.json) เพื่อไม่ให้ทุก request ไปติด API Gateway log ของ Supabase
-const STORAGE_PREFIX = "https://mttcdaiwuasnkqlxbeqs.supabase.co/storage/v1/object/public/hero-icons/";
-const viaVercel = (url: string) => (url.startsWith(STORAGE_PREFIX) ? `/img/${url.slice(STORAGE_PREFIX.length)}` : url);
 
 export function HeroIcon({ icon, name, fallback, className }: Props) {
   const [failed, setFailed] = useState(false);
@@ -23,7 +20,7 @@ export function HeroIcon({ icon, name, fallback, className }: Props) {
   }, [icon]);
 
   const initials = fallback ?? Array.from(name).slice(0, 2).join("").toUpperCase();
-  const src = icon && proxy ? viaVercel(icon) : icon;
+  const src = icon && proxy ? imgUrl(icon) : icon;
 
   return (
     <div
