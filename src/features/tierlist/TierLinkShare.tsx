@@ -9,8 +9,8 @@ import { communityTierListIdFor, publishTierListForLink } from "@/services/share
 import type { CustomTierList } from "./customTierList";
 import { sigOf, type CloudState } from "./cloudTierList";
 
-// "แชร์ลิงก์" ของ Tier List ของฉัน: ลิงก์ = /tier-list/<id ของ Community Tier List> ต้องเข้าสู่ระบบ
-// ยังไม่ได้บันทึก/ไม่ได้เผยแพร่/แก้ไขหลังเผยแพร่ → ถามยืนยันแล้วบันทึก + เผยแพร่ (หรืออัปเดตเวอร์ชัน) ก่อน
+// "แชร์ลิงก์" ของ Tier List ของฉัน: ลิงก์ = /tier-list/<id ของ Community Tier List> ต้องเข้าสู่ระบบ (ลิงก์เดียวต่อทั้งชุด ผู้รับสลับดูแต่ละเลนได้)
+// ยังไม่ได้บันทึก/ไม่ได้เผยแพร่/แก้ไขหลังเผยแพร่ (ในเลนใดก็ได้) → ถามยืนยันแล้วบันทึก + เผยแพร่ (หรืออัปเดตเวอร์ชัน) ก่อน
 export function TierLinkShare({
   cloud,
   list,
@@ -72,7 +72,7 @@ export function TierLinkShare({
         description: cloud.description,
         patch: listPatch,
         visibility: isPublic ? "public" : "private",
-        data: list.tiers,
+        lanes: list.lanes,
       });
       const communityId = await publishTierListForLink(savedId);
       onPublished({ id: savedId, description: cloud.description, patch: listPatch, visibility: "public", savedSig: sigOf(list) });
