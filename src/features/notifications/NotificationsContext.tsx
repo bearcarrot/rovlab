@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
-import { supabase } from "@/lib/supabase";
 import { countUnread, markAllNotificationsRead } from "@/services/community";
 
 interface NotificationsValue {
@@ -15,7 +14,12 @@ const NotificationsContext = createContext<NotificationsValue>({
   markAllRead: async () => {},
 });
 
-// One unread counter for the whole app (bell badge). Live-updates via Supabase Realtime.
+// Re-count while the tab is visible. Replaces a Supabase Realtime subscription, whose
+// always-on replication poller was consuming the project's Disk IO budget.
+const POLL_MS = 60_000;
+
+// One unread counter for the whole app (bell badge). Refreshes on mount, every POLL_MS while the
+// tab is visible, and when the tab becomes visible again.
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, isConfigured } = useAuth();
   const userId = user?.id;
@@ -39,18 +43,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!userId || !isConfigured) return;
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => {
-          void refresh();
-        }
-      )
-      .subscribe();
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const stop = () => {
+      if (timer !== undefined) clearInterval(timer);
+      timer = undefined;
+    };
+    const start = () => {
+      stop();
+      timer = setInterval(() => void refresh(), POLL_MS);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+        start();
+      } else {
+        stop();
+      }
+    };
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      void supabase.removeChannel(channel);
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [userId, isConfigured, refresh]);
 
