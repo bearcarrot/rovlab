@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { imgUrl } from "@/lib/imgUrl";
 
 // Display data for the role / lane filter chips, kept in the `hero_roles` / `hero_lanes` tables (editable in /admin
 // and the Supabase dashboard): label (shown name), sort_order (chip order) and icon_url.
@@ -25,7 +26,7 @@ function toMeta(rows: MetaRow[] | null) {
   const labels: Record<string, string> = {};
   const sorted = [...(rows ?? [])].sort((a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER));
   for (const r of sorted) {
-    if (r.icon_url) icons[r.code] = r.icon_url;
+    if (r.icon_url) icons[r.code] = imgUrl(r.icon_url);
     if (r.label) labels[r.code] = r.label;
   }
   return { icons, labels, order: sorted.map((r) => r.code) };
