@@ -16,7 +16,7 @@ import {
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
-import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, type CustomTierList } from "./customTierList";
+import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, saveCustom, type CustomTierList } from "./customTierList";
 import {
   MAX_ROWS,
   addLane,
@@ -80,6 +80,7 @@ export function CustomTierBoard({
   // เลนที่เปิดอยู่ (ถ้า activeId ไม่มีแล้ว เช่นเลนถูกลบ → เลนแรก) และกระดานของเลนนั้น
   const active = findLane(list.lanes, activeId) ?? list.lanes[0];
   const laneId = active.id;
+  const laneText = laneName(laneId);
   const tiers: TierData = active.rows;
   const multi = list.lanes.length > 1;
 
@@ -172,7 +173,7 @@ export function CustomTierBoard({
     setConfirmReset(false);
     if (multi) {
       editTiers(() => emptyTierData());
-      toast.success(`รีเซ็ตเลน ${laneName(laneId)} แล้ว`);
+      toast.success(`รีเซ็ตเลน ${laneText} แล้ว`);
       return;
     }
     clearCustom();
@@ -186,7 +187,7 @@ export function CustomTierBoard({
     const data: TierListImageData = {
       title: list.name.trim() || DEFAULT_CUSTOM_NAME,
       patch: patchLabel,
-      filterLabel: laneId === "all" ? "จัดเอง" : `จัดเอง · ${laneName(laneId)}`,
+      filterLabel: laneId === "all" ? "จัดเอง" : `จัดเอง · ${laneText}`,
       tiers: tiers.map((r) => ({
         tier: r.label,
         color: r.color,
@@ -198,8 +199,7 @@ export function CustomTierBoard({
       generatedDate: formatGeneratedDate(),
     };
     return { data, filename: makeFilename("rovlab-my-tier-list"), title: data.title };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list.name, tiers, laneId, patchLabel, byId]);
+  }, [list.name, tiers, laneId, laneText, patchLabel, byId]);
   const share = useShareImage(tierListTemplate, buildShare);
 
   const totalPlaced = tiers.reduce((n, r) => n + r.heroes.filter((id) => byId.has(id)).length, 0);
@@ -254,7 +254,7 @@ export function CustomTierBoard({
       <LaneTabs lanes={list.lanes.map((l) => l.id)} active={laneId} onSelect={selectLane} onAdd={onAddLane} onRemove={(id) => void onRemoveLane(id)} />
 
       <p className="text-xs text-text-faint">
-        {multi ? `กำลังจัดเลน ${laneName(laneId)} · ` : ""}
+        {multi ? `กำลังจัดเลน ${laneText} · ` : ""}
         แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
       </p>
 
@@ -378,10 +378,10 @@ export function CustomTierBoard({
       </div>
       {totalPlaced === 0 && (
         <p className="-mt-2 text-xs text-text-faint">
-          {multi ? `เลือกฮีโร่เข้า Tier ในเลน ${laneName(laneId)} อย่างน้อย 1 ตัวก่อนแชร์รูป` : "เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์"}
+          {multi ? `เลือกฮีโร่เข้า Tier ในเลน ${laneText} อย่างน้อย 1 ตัวก่อนแชร์รูป` : "เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์"}
         </p>
       )}
-      {multi && totalPlaced > 0 && <p className="-mt-2 text-xs text-text-faint">รูปที่แชร์เป็นของเลน {laneName(laneId)} เท่านั้น · ลิงก์แชร์รวมทุกเลน</p>}
+      {multi && totalPlaced > 0 && <p className="-mt-2 text-xs text-text-faint">รูปที่แชร์เป็นของเลน {laneText} เท่านั้น · ลิงก์แชร์รวมทุกเลน</p>}
 
       <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
         <h2 className="font-display text-sm font-semibold">ฮีโร่ที่ยังไม่ได้จัด ({pool.length})</h2>
