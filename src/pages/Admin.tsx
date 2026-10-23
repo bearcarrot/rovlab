@@ -18,7 +18,9 @@ const CUSTOM_TABS: Record<string, { label: string; after: string; render: () => 
 // กลุ่มแท็บ: "build" = หน้า Build Management (บิลด์ + 4 ตัวแก้ไขในบิลด์) / "rest" = แท็บที่เหลือในโหมด "แก้ไขข้อมูล"
 const BUILD_TAB_KEYS = ["builds", "buildItems", "buildRune", "buildSpell", "buildEnchant"];
 // ไอเทม/รูน แก้ได้ที่โหมด "ฐานข้อมูลเกม" แล้ว จึงไม่แสดงเป็นชิปในโหมด "แก้ไขข้อมูล" (ยังใช้ CFG ตัวเดิมเป็นข้อมูลอ้างอิงให้หน้าบิลด์)
-const HIDDEN_TAB_KEYS = ["items", "rune"];
+// synergies (ซินเนอร์จี้ 2 ตัว) ได้ถูกแทนที่ด้วยโหมด "Combo" (user_combos รองรับ 2–5 ตัว) และหน้าฮีโร่อ่านจาก Combo แล้ว — ซ่อนไว้กันแก้ผิดที่
+// (ตาราง hero_synergies ยังเก็บไว้เป็นข้อมูลสำรอง)
+const HIDDEN_TAB_KEYS = ["items", "rune", "synergies"];
 const isCustomTab = (k: string) => Object.prototype.hasOwnProperty.call(CUSTOM_TABS, k);
 // ลำดับแท็บทั้งหมด: ตาราง CFG ตามเดิม โดยแท็บ custom แทรกต่อจากแท็บที่ระบุใน `after`
 const TAB_KEYS: string[] = (() => {
