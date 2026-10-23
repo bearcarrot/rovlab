@@ -7,18 +7,20 @@ import { AdminContact } from "@/pages/AdminContact";
 import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminGameData } from "@/pages/AdminGameData";
 import { AdminImportData } from "@/pages/AdminImportData";
+import { AdminMaintenance } from "@/pages/AdminMaintenance";
 import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "contact" | "announce" | "game" | "build" | "combo" | "edit" | "import";
+type Mode = "dashboard" | "users" | "coach" | "contact" | "announce" | "maintenance" | "game" | "build" | "combo" | "edit" | "import";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
   ["coach", "รีวิว Coach Ai"],
   ["contact", "ข้อความติดต่อ"],
   ["announce", "ประกาศ"],
+  ["maintenance", "บำรุงรักษา"],
   ["game", "ฐานข้อมูลเกม"],
   ["build", "บิลด์"],
   ["combo", "Combo"],
@@ -26,14 +28,14 @@ const MODES: [Mode, string][] = [
   ["import", "นำเข้าข้อมูล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ประกาศ" (สร้าง/กำหนดเวลา/เผยแพร่ประกาศที่แสดงบนหน้าเว็บ), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "Combo" (เพิ่ม Combo แนะนำ / ตั้ง Combo ของ Community เป็นแนะนำ / ซ่อน / แก้ / ลบ), "แก้ไขข้อมูล" (แท็บที่เหลือ) และ "นำเข้าข้อมูล" (สถิติแรงก์ / ปรับสมดุล / สกิล — ดึงจากเกมโดยตรงหรือเลือกไฟล์ JSON)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ประกาศ" (สร้าง/กำหนดเวลา/เผยแพร่ประกาศที่แสดงบนหน้าเว็บ), "บำรุงรักษา" (ตั้งเวลาปิดเว็บทั้งหมดแบบช่วงเวลา พร้อมดูตัวอย่างหน้าปรับปรุง), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "Combo" (เพิ่ม Combo แนะนำ / ตั้ง Combo ของ Community เป็นแนะนำ / ซ่อน / แก้ / ลบ), "แก้ไขข้อมูล" (แท็บที่เหลือ) และ "นำเข้าข้อมูล" (สถิติแรงก์ / ปรับสมดุล / สกิล — ดึงจากเกมโดยตรงหรือเลือกไฟล์ JSON)
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
 export function AdminHub() {
   const { isAdmin } = useIsAdmin();
   const contactNew = useAdminContactCount();
   const [saved, setMode] = usePersistedState<Mode>("admin:mode", "dashboard");
-  // "balance" เคยเป็นแท็บแยก (รวมเข้า "import" แล้ว) — ค่าที่จำไว้เดิมให้ไปที่แท็บนำเข้า
+  // "balance" เคยเป็นแท็บแยก (รวมเข้ากับ "import" แล้ว) — ค่าที่จำไว้เดิมให้ไปที่แท็บนำเข้า
   const restored = (saved as string) === "balance" ? "import" : saved;
   const mode = MODES.some(([k]) => k === restored) ? restored : "dashboard";
   const barRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,8 @@ export function AdminHub() {
         <AdminContact />
       ) : mode === "announce" ? (
         <AdminAnnouncements />
+      ) : mode === "maintenance" ? (
+        <AdminMaintenance />
       ) : mode === "game" ? (
         <AdminGameData />
       ) : mode === "build" ? (
