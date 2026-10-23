@@ -1,3 +1,4 @@
+import { rmSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -25,8 +26,25 @@ function inlineEntryCss(): Plugin {
   };
 }
 
+// public/fonts/ เก็บฟอนต์ .ttf (Kanit, IBM Plex Sans Thai) สำหรับทำคลิปโปรโมตเท่านั้น — แอปโหลดฟอนต์จาก Google Fonts ไม่ได้อ้างไฟล์เหล่านี้
+// Vite คัดลอก public/ ลง dist ทั้งหมด ทำให้ทุก deployment แบกฟอนต์ไปด้วย (~570 KB/ครั้ง) กิน Deployment Storage ของ Vercel โดยไม่จำเป็น
+// จึงลบ dist/fonts หลัง build (ไฟล์ต้นฉบับยังอยู่ใน repo ให้ pipeline คลิปใช้ตามเดิม) ถ้าวันหนึ่งแอปต้องใช้ /fonts/ ให้เอาปลั๊กอินนี้ออก
+function excludePromoFonts(): Plugin {
+  let outDir = "dist";
+  return {
+    name: "exclude-promo-fonts",
+    apply: "build",
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      rmSync(path.join(outDir, "fonts"), { recursive: true, force: true });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), inlineEntryCss()],
+  plugins: [react(), inlineEntryCss(), excludePromoFonts()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
