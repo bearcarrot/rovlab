@@ -7,7 +7,8 @@
     { "source": "/draft/:shareId", "destination": "/api/share-meta?kind=draft&id=:shareId" },
     { "source": "/tier-list/:shareId", "destination": "/api/share-meta?kind=tier-list&id=:shareId" },
     { "source": "/heroes/:slug", "destination": "/api/hero-meta?slug=:slug" },
-    { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
+    { "source": "/img/:path*", "destination": "https://mttcdaiwuasnkqlxbeqs.supabase.co/storage/v1/object/public/hero-icons/:path*" },
+    { "source": "/((?!assets/|api/|img/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -34,6 +35,12 @@
       "source": "/((?!assets/|api/).*\\.(?:png|webp|svg|ico|jpg|jpeg|gif))",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/img/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800" }
       ]
     }
   ]
