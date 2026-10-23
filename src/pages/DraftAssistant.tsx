@@ -18,6 +18,8 @@ import { TeamGaps } from "@/features/draft/TeamGaps";
 import { RecommendedPickCard } from "@/features/draft/RecommendedPickCard";
 import { HeroPickButton } from "@/features/draft/HeroPickButton";
 import { CustomTierPicker, useDraftTierSource } from "@/features/draft/DraftTierSource";
+import { DraftDataSourcePicker, MineNotice, useDraftDataSources } from "@/features/draft/DraftDataSource";
+import { hasComboForTeam, hasCounterForEnemies, resolveRelations } from "@/features/draft/draftSources";
 import type { CustomTierMap } from "@/features/draft/customTier";
 import { DraftShareBar } from "@/features/draft/DraftShareBar";
 import { DraftLinkShare } from "@/features/draft/DraftLinkShare";
@@ -141,6 +143,8 @@ export function DraftAssistant() {
   const { user } = useAuth();
   // เทียร์ที่แสดงในกริดเลือก/การ์ดแนะนำ: สถิติ (ค่าเริ่มต้น) หรือ Tier List ของทีมที่ผู้ใช้เลือก (เปลี่ยนเฉพาะป้าย ไม่กระทบคะแนนแนะนำ)
   const tierSource = useDraftTierSource();
+  // ข้อมูล Counter / Combo: แนะนำ (ของระบบ) หรือ ของฉัน (ของบัญชีนี้เท่านั้น) — เลือกแยกกัน ไม่แตะดราฟต์หรือ Tier List
+  const sources = useDraftDataSources();
   const toast = useToast();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -178,7 +182,19 @@ export function DraftAssistant() {
   const heroesData = heroesQ.status === "success" ? heroesQ.data : undefined;
   const heroes = useMemo(() => heroesData ?? [], [heroesData]);
   const bySlug = useMemo(() => new Map(heroes.map((h) => [h.slug, h])), [heroes]);
-  const relations = relQ.status === "success" ? relQ.data : undefined;
+  const officialRelations = relQ.status === "success" ? relQ.data : undefined;
+  // ครึ่ง counter / ครึ่ง synergy เลือกแหล่งแยกกัน; ของฉันที่ว่างก็ใช้ว่างตามนั้น ไม่ย้อนไปใช้ข้อมูลระบบ
+  const relations = useMemo(
+    () =>
+      resolveRelations({
+        official: officialRelations,
+        counterSource: sources.counterSource,
+        comboSource: sources.comboSource,
+        myCounters: sources.counters.data,
+        myCombos: sources.combos.data,
+      }),
+    [officialRelations, sources.counterSource, sources.comboSource, sources.counters.data, sources.combos.data]
+  );
   const skillsData = skillsQ.status === "success" ? skillsQ.data : undefined;
   const skills = useMemo(() => skillsData ?? {}, [skillsData]);
   // ความสามารถของฮีโร่จากแท็กสกิลในเกม (ยังไม่นำเข้าแท็ก = ว่าง ระบบทำงานเหมือนเดิม)
@@ -266,11 +282,13 @@ export function DraftAssistant() {
 
   // ข้อมูลสกิล หรือคู่เคาน์เตอร์/คอมโบ ว่างทั้งที่โหลดเสร็จแล้ว (โหลดไม่ได้ หรือยังไม่ได้นำเข้า) → บอกผู้ใช้ว่าคำแนะนำอาจไม่ครบ
   // (service ทั้งสองไม่ throw เมื่อโหลดพลาด จึงตรวจจากข้อมูลที่ว่างแทนสถานะ error)
+  // เช็คความว่างของข้อมูลระบบเฉพาะเมื่อใช้ข้อมูลระบบทั้งสองครึ่ง (ครึ่งที่เป็นของฉันมีข้อความแจ้งของตัวเองในส่วนนั้น)
+  const bothOfficial = sources.counterSource === "recommended" && sources.comboSource === "recommended";
   const dataThin =
     skillsQ.status === "success" &&
     relQ.status === "success" &&
     (Object.keys(skills).length === 0 ||
-      (relations !== undefined && relations.counters.length === 0 && relations.synergies.length === 0));
+      (bothOfficial && officialRelations !== undefined && officialRelations.counters.length === 0 && officialRelations.synergies.length === 0));
 
   const draftCtx = useMemo(
     () => ({
@@ -555,6 +573,7 @@ export function DraftAssistant() {
           </div>
 
           <CustomTierPicker source={tierSource} />
+          <DraftDataSourcePicker src={sources} />
 
           <SeriesBar ds={ds} heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
 
@@ -682,22 +701,58 @@ export function DraftAssistant() {
             <PickSection
               icon={<Swords className="h-4 w-4 text-accent" />}
               title="ชนะทางศัตรู"
-              hint="ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
+              hint={
+                sources.counterSource === "mine"
+                  ? "ฮีโร่ที่ Counter ของคุณบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
+                  : "ฮีโร่ที่ข้อมูลในระบบบอกว่าเคาน์เตอร์ตัวที่ศัตรูเลือกไปแล้ว"
+              }
               recs={counterRecs}
               heroes={heroes}
               customTiers={tierSource.customTiers}
               onPick={pickForMyTeam}
             />
           )}
+          {!teamFull && sources.counterSource === "mine" && counterRecs.length === 0 && (
+            <MineNotice
+              mine={sources.counters}
+              empty={
+                sources.counters.data.length === 0
+                  ? "คุณยังไม่มีข้อมูล Counter ของตัวเอง"
+                  : enemyList.length > 0 && !hasCounterForEnemies(sources.counters.data, enemyList.map((h) => h.id))
+                    ? "ยังไม่มี Counter ของคุณที่ตรงกับฮีโร่ศัตรูที่เลือก"
+                    : null
+              }
+              manageTo="/counter-pick?tab=mine"
+              manageLabel="เพิ่ม Counter"
+            />
+          )}
           {!teamFull && synergyRecs.length > 0 && (
             <PickSection
               icon={<Link2 className="h-4 w-4 text-accent" />}
               title="คอมโบกับทีมของคุณ"
-              hint="ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
+              hint={
+                sources.comboSource === "mine"
+                  ? "ฮีโร่ที่อยู่ใน Combo ที่คุณบันทึกไว้ร่วมกับตัวที่คุณเลือกไปแล้ว"
+                  : "ฮีโร่ที่เข้ากันกับตัวที่คุณเลือกไปแล้ว ตามข้อมูลซินเนอร์จี้ในระบบ"
+              }
               recs={synergyRecs}
               heroes={heroes}
               customTiers={tierSource.customTiers}
               onPick={pickForMyTeam}
+            />
+          )}
+          {!teamFull && sources.comboSource === "mine" && synergyRecs.length === 0 && (
+            <MineNotice
+              mine={sources.combos}
+              empty={
+                sources.combos.data.length === 0
+                  ? "คุณยังไม่มี Combo ที่บันทึกไว้"
+                  : mineList.length > 0 && !hasComboForTeam(sources.combos.data, mineList.map((h) => h.id))
+                    ? "ยังไม่มี Combo ของคุณที่เกี่ยวกับฮีโร่ในทีมตอนนี้"
+                    : null
+              }
+              manageTo="/combo?tab=mine"
+              manageLabel="สร้าง Combo"
             />
           )}
 

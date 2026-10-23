@@ -12,6 +12,8 @@ import { CounterList } from "@/features/heroes/CounterList";
 import { StarLegend } from "@/features/heroes/MatchupStars";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { Chip } from "@/features/heroes/HeroFilters";
+import { MyCounterPicks } from "@/features/counter/MyCounterPicks";
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,18 @@ export function CounterPick() {
   // เก็บฮีโร่ที่เลือกใน URL (?hero=slug) เหมือนหน้า Item Build: รีเฟรชแล้วไม่รีเซ็ต และแชร์ลิงก์ได้
   const [params, setParams] = useSearchParams();
   const selected = params.get("hero");
+  // ?tab=mine = Counter ของฉัน (ข้อมูลส่วนตัว); ไม่ระบุ = Counter แนะนำ ทำงานเหมือนเดิมทุกอย่าง
+  const tab: "recommended" | "mine" = params.get("tab") === "mine" ? "mine" : "recommended";
+  const setTab = (t: "recommended" | "mine") =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        if (t === "mine") n.set("tab", "mine");
+        else n.delete("tab");
+        return n;
+      },
+      { replace: true }
+    );
   const setSelected = (slug: string) =>
     setParams(
       (p) => {
@@ -81,12 +95,31 @@ export function CounterPick() {
     selected ?? "",
   );
 
-  return (
-    <div className="space-y-4">
+  const header = (
+    <>
       <div>
         <h1 className="font-display text-xl font-semibold">Counter Pick</h1>
         <p className="mt-1 text-sm text-text-muted">เลือกฮีโร่ฝั่งศัตรู ระบบจะบอกว่าใครชนะทางได้ และทำไม</p>
       </div>
+      <div className="flex gap-2" role="tablist" aria-label="หมวด Counter">
+        <Chip active={tab === "recommended"} onClick={() => setTab("recommended")} label="Counter แนะนำ" />
+        <Chip active={tab === "mine"} onClick={() => setTab("mine")} label="Counter ของฉัน" />
+      </div>
+    </>
+  );
+
+  if (tab === "mine") {
+    return (
+      <div className="space-y-4">
+        {header}
+        <MyCounterPicks />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {header}
 
       {selectedHero && (
         <div className="flex items-center gap-2 rounded-lg border border-accent bg-accent/10 p-2 md:max-w-md">
