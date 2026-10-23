@@ -4,6 +4,7 @@ import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
+import { imgUrl } from "@/lib/imgUrl";
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -30,7 +31,7 @@ function toItem(row: DbItemRow): ItemSummary {
     cost: row.cost,
     stats: row.stats ?? [],
     passive: row.passive ?? "",
-    icon: row.icon_url ?? "",
+    icon: imgUrl(row.icon_url ?? ""),
   };
 }
 
@@ -62,7 +63,7 @@ type DbRuneRow = { id: string; name: string; description: string | null; icon_ur
 async function fetchArcana(): Promise<ArcanaSummary[]> {
   const { data, error } = await supabase.from("rune").select("id, name, description, icon_url").order("name", { ascending: true });
   if (error || !data) throw new Error(error?.message ?? "โหลดรายการรูนไม่สำเร็จ");
-  return (data as DbRuneRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
+  return (data as DbRuneRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: imgUrl(r.icon_url ?? "") }));
 }
 
 let arcanaPromise: Promise<ArcanaSummary[]> | null = null;
@@ -162,12 +163,12 @@ function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null
     .map((a) => ({
       name: a.rune.name as string,
       reason: (a.reason ?? a.rune.description ?? "") as string,
-      icon: a.rune.icon_url ?? undefined,
+      icon: imgUrl(a.rune.icon_url ?? undefined),
       color: (a.rune.color ?? undefined) as ArcanaColor | undefined,
       quantity: a.quantity as number,
     }));
   const legacy: BuildArcanaEntry[] = r.rune
-    ? [{ name: r.rune.name, reason: r.rune.description ?? "", icon: r.rune.icon_url ?? undefined, color: r.rune.color ?? undefined }]
+    ? [{ name: r.rune.name, reason: r.rune.description ?? "", icon: imgUrl(r.rune.icon_url ?? undefined), color: r.rune.color ?? undefined }]
     : [];
 
   const sp = r.challenger_spells;
@@ -179,7 +180,7 @@ function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null
         description: sp.description ?? "",
         cooldownSeconds: sp.cooldown_seconds ?? null,
         status: sp.status,
-        icon: sp.icon_url ?? undefined,
+        icon: imgUrl(sp.icon_url ?? undefined),
       }
     : null;
 
@@ -198,7 +199,7 @@ function parseDbBuild(hero: Pick<HeroSummary, "slug">, r: any): HeroBuild | null
       tier: e.enchantments.tier_level ?? null,
       category: e.enchantments.category,
       status: e.enchantments.status,
-      icon: e.enchantments.icon_url ?? undefined,
+      icon: imgUrl(e.enchantments.icon_url ?? undefined),
       type: e.selection_type as "primary" | "secondary",
     }));
 
