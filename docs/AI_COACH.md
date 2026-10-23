@@ -129,6 +129,26 @@ always use the same build.
   (retry once, then error), same idea as the hero-name check. Item names shorter than 6 Thai / 5 Latin characters are
   skipped (too ambiguous). This check does nothing for requests without a build, so other pages are unaffected.
 
+## DB-first answers (no Gemini)
+
+Some Quick Chats are answered straight from RoV LAB data, without calling `ai-coach`, so they cost no Gemini quota.
+`src/features/coach/directAnswers.ts` builds the text; a page attaches it as `QuickChat.direct`. When `direct` is set,
+`CoachFab` shows it immediately (labelled "ตอบจากข้อมูลในระบบ RoV LAB"); when it is `undefined` the question goes to `ai-coach` as before.
+
+| Quick Chat (id) | Answered from the DB when | Otherwise |
+| --- | --- | --- |
+| `skills` | every ability has a description | Gemini |
+| `pros-cons` | the hero has both strengths and weaknesses | Gemini |
+| `how-to-face` | at least one counter has a reason or lane tip | Gemini |
+| `matchup-plan` | curated plan written for the user's side (not reversed, not stats-only) | Gemini |
+| `build-why` | curated build with at least one written reason | Gemini |
+
+Always Gemini: `how-to-play`, `who-fits`, `game-phase`, `build-situational`, `draft-eval`, `pick-*` (they need analysis).
+
+Rules for `directAnswers.ts`: every line comes from a DB field (no analysis, nothing invented); "not sure / data incomplete"
+returns `undefined` so Gemini answers; scoreboard image reading (`scoreboard-ocr`) is a separate function and is not affected.
+Like/Dislike still works on these answers.
+
 ## Updating Coach Ai
 
 When changing Coach Ai:

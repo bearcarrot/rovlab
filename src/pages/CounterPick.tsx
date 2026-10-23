@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { HeroIcon } from "@/components/HeroIcon";
 import { useCoachQuickChats } from "@/features/coach/CoachChatContext";
+import { howToFaceAnswer } from "@/features/coach/directAnswers";
 import { CounterList } from "@/features/heroes/CounterList";
 import { StarLegend } from "@/features/heroes/MatchupStars";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
@@ -75,6 +76,7 @@ export function CounterPick() {
             label: `เจอ ${selectedHero.nameTh} ต้องเล่นยังไง`,
             prompt: `ผู้เล่นต้องเจอ ${selectedHero.nameTh} ฝั่งศัตรู แนะนำวิธีเล่นให้ชนะทางและจังหวะที่ต้องระวัง ไม่เกิน 4 ประโยค`,
             context: { enemy: selectedHero.nameTh, counteredBy: counters },
+            direct: howToFaceAnswer(selectedHero.nameTh, counters),
           },
         ]
       : [],
