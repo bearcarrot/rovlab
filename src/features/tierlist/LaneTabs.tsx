@@ -34,7 +34,7 @@ export function LaneTabs({
 
   return (
     <div data-tour="custom-lanes" className="space-y-2">
-      <div role="tablist" aria-label="เลน" className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+      <div role="group" aria-label="เลน" className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {lanes.map((id) => (
           <Chip key={id} active={id === active} onClick={() => onSelect(id)} label={name(id)} icon={iconOf(id)} showLabel />
         ))}
