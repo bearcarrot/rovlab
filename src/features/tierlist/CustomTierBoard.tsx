@@ -4,6 +4,7 @@ import { HeroIcon } from "@/components/HeroIcon";
 import { useToast } from "@/components/ui/toast";
 import { HeroFilterBar, useHeroFilters } from "@/features/heroes/HeroFilterBar";
 import { confirmDialog } from "@/features/community/confirm";
+import { Switch } from "@/features/community/Switch";
 import { ShareImageButtons } from "@/features/share/ShareImageButtons";
 import { useShareImage } from "@/features/share/useShareImage";
 import {
@@ -17,11 +18,32 @@ import { heroMatchesQuery } from "@/lib/heroSearch";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import { DEFAULT_CUSTOM_NAME, NAME_MAX, clearCustom, createDefault, loadCustom, saveCustom, type CustomTierList } from "./customTierList";
-import { MAX_ROWS, addRow, deleteRow, findTier, moveHero, moveRow, shiftHero, updateRow } from "./tierData";
+import {
+  MAX_ROWS,
+  addRow,
+  collapseDuplicates,
+  deleteRow,
+  duplicatePlacementCount,
+  findTier,
+  findTiers,
+  moveHero,
+  moveRow,
+  placeHero,
+  poolHeroes,
+  removeFromRow,
+  shiftHero,
+  updateRow,
+} from "./tierData";
 import { TierLabel } from "./TierRows";
 import { TierRowEditor } from "./TierRowEditor";
 
 const DRAG_TYPE = "text/rovlab-hero";
+
+// การเลือก: ฮีโร่ + แถวที่แตะมา (null = แตะจากตารางฮีโร่ด้านล่าง) — จำเป็นเมื่อฮีโร่อยู่ได้หลายแถว เพื่อให้เลื่อน/เอาออกถูกแถว
+interface Selection {
+  id: string;
+  rowId: string | null;
+}
 
 export function CustomTierBoard({
   heroes,
@@ -44,7 +66,7 @@ export function CustomTierBoard({
 }) {
   const toast = useToast();
   const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
   const [query, setQuery] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -53,8 +75,9 @@ export function CustomTierBoard({
   const resetTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
+  const allow = list.allowDuplicates;
 
-  // เก็บร่างลง localStorage ทุกครั้งที่แก้ (การเก็บบนบัญชีทำเมื่อกด "บันทึก" เท่านั้น)
+  // เก็บร่างลง localStorage ทุกครั้งที่แก้ (การเก็บบนบัญชีทำเมื่อกด "บันทึก" เท่านั้น) — รวมค่า "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier"
   useEffect(() => {
     saveCustom(list);
     onChange?.(list);
@@ -65,18 +88,25 @@ export function CustomTierBoard({
   // Patch ที่แสดงบนรูป: ค่าล่าสุดจากข้อมูลเสมอ (ไม่ใช้ค่าที่ค้างใน storage)
   const patchLabel = patch || list.patch || "—";
 
-  const placed = useMemo(() => new Set(list.tiers.flatMap((r) => r.heroes)), [list.tiers]);
+  // OFF: ซ่อนฮีโร่ที่จัดแล้ว (เหมือนเดิม) · ON: ทุกตัวยังเลือกได้
+  const available = useMemo(() => poolHeroes(heroes, list.tiers, allow), [heroes, list.tiers, allow]);
   const match = filters.match;
-  const pool = useMemo(
-    () => heroes.filter((h) => !placed.has(h.id) && match(h) && heroMatchesQuery(h, query)),
-    [heroes, placed, match, query]
-  );
+  const pool = useMemo(() => available.filter((h) => match(h) && heroMatchesQuery(h, query)), [available, match, query]);
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
 
-  function place(id: string, rowId: string | null, index?: number) {
-    update((l) => ({ ...l, tiers: moveHero(l.tiers, id, rowId, index) }));
-    if (rowId === null) setSelected(null);
+  // ใส่ฮีโร่เข้าแถว: OFF = ย้าย (ออกจากแถวเดิม) · ON = เพิ่มจุดวางใหม่ แถวเดิมยังอยู่
+  function place(id: string, rowId: string) {
+    update((l) => ({ ...l, tiers: placeHero(l.tiers, id, rowId, undefined, l.allowDuplicates) }));
+  }
+
+  // เอาออก: OFF = กลับไปอยู่ในตารางด้านล่าง · ON = เอาออกจากแถวนั้นแถวเดียว
+  function removePlacement(id: string, rowId: string | null) {
+    update((l) => ({
+      ...l,
+      tiers: l.allowDuplicates && rowId ? removeFromRow(l.tiers, id, rowId) : moveHero(l.tiers, id, null),
+    }));
+    setSelected(null);
   }
 
   async function removeRow(rowId: string) {
@@ -85,13 +115,36 @@ export function CustomTierBoard({
     if (row.heroes.length > 0) {
       const ok = await confirmDialog({
         title: `ลบแถว “${row.label}”?`,
-        message: `ฮีโร่ ${row.heroes.length} ตัวในแถวนี้จะกลับไปอยู่ในฮีโร่ที่ยังไม่ได้จัด`,
+        message: allow
+          ? `ตำแหน่งของฮีโร่ ${row.heroes.length} ตัวในแถวนี้จะถูกเอาออก (แถวอื่นไม่เปลี่ยนแปลง)`
+          : `ฮีโร่ ${row.heroes.length} ตัวในแถวนี้จะกลับไปอยู่ในฮีโร่ที่ยังไม่ได้จัด`,
         confirmLabel: "ลบแถว",
         danger: true,
       });
       if (!ok) return;
     }
+    setSelected((s) => (s?.rowId === rowId ? null : s));
     update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId) }));
+  }
+
+  // สลับการอนุญาตให้ฮีโร่อยู่ได้หลาย Tier ปิด = กลับมากฎ 1 ฮีโร่ ต่อ 1 Tier: ถามก่อนถ้าจะต้องตัดตำแหน่งซ้ำ
+  async function toggleDuplicates(next: boolean) {
+    if (next) {
+      update((l) => ({ ...l, allowDuplicates: true }));
+      return;
+    }
+    const extra = duplicatePlacementCount(list.tiers);
+    if (extra > 0) {
+      const ok = await confirmDialog({
+        title: "ปิดการอนุญาตให้ฮีโร่อยู่หลาย Tier?",
+        message: `มีตำแหน่งซ้ำ ${extra} จุด ฮีโร่แต่ละตัวจะเหลือในแถวบนสุดที่อยู่เท่านั้น และกู้คืนไม่ได้`,
+        confirmLabel: "ปิดและเอาตำแหน่งซ้ำออก",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setSelected(null);
+    update((l) => ({ ...l, allowDuplicates: false, tiers: collapseDuplicates(l.tiers) }));
   }
 
   function reset() {
@@ -109,7 +162,7 @@ export function CustomTierBoard({
     toast.success("รีเซ็ต Tier List ของฉันแล้ว");
   }
 
-  // รูปที่ใช้แชร์: ข้ามฮีโร่ที่ไม่มีในข้อมูลแล้ว (เช่นถูกลบออกจากระบบ)
+  // รูปที่ใช้แชร์: ข้ามฮีโร่ที่ไม่มีในข้อมูลแล้ว (เช่นถูกลบออกจากระบบ) · ฮีโร่ที่อยู่หลายแถววาดทุกแถว (ไม่ dedupe)
   const buildShare = useCallback(() => {
     const data: TierListImageData = {
       title: list.name.trim() || DEFAULT_CUSTOM_NAME,
@@ -136,8 +189,17 @@ export function CustomTierBoard({
     preloadImages(list.tiers.flatMap((r) => r.heroes.map((id) => byId.get(id)?.icon ?? "")));
   }, [list.tiers, byId]);
 
-  const selectedRowId = selected ? findTier(list.tiers, selected) : null;
-  const selectedHero = selected ? byId.get(selected) : undefined;
+  const selId = selected?.id ?? null;
+  const selectedHero = selId ? byId.get(selId) : undefined;
+  const placedRows = selId ? findTiers(list.tiers, selId) : [];
+  // แถวที่ใช้กับปุ่มเลื่อน/เอาออก: OFF = แถวที่ฮีโร่อยู่ · ON = แถวที่ผู้ใช้แตะเลือก (ถ้ายังอยู่ในแถวนั้น)
+  const activeRowId = allow
+    ? selected?.rowId && placedRows.includes(selected.rowId)
+      ? selected.rowId
+      : null
+    : selId
+      ? findTier(list.tiers, selId)
+      : null;
 
   return (
     <div className="space-y-4">
@@ -178,8 +240,16 @@ export function CustomTierBoard({
         </button>
       </div>
 
+      <div data-tour="custom-dup" className="space-y-1 rounded-card border border-border bg-bg-surface px-3 py-2">
+        <Switch checked={allow} onChange={(next) => void toggleDuplicates(next)} label="อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" />
+        <p className="text-xs text-text-faint">
+          เปิดแล้วฮีโร่ตัวเดียวกันอยู่ได้หลายแถว Tier พร้อมกัน (เช่น S และ A) · ในแถวเดียวกันใส่ซ้ำไม่ได้ · ปิด = 1 ฮีโร่ต่อ 1 Tier เหมือนเดิม
+        </p>
+      </div>
+
       <p className="text-xs text-text-faint">
         แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
+        {allow ? " · โหมดหลาย Tier: ลากวาง = เพิ่มใหม่ (ไม่ย้ายจากแถวเดิม) แตะชื่อ Tier ซ้ำเพื่อเอาออกจากแถวนั้น" : ""}
       </p>
 
       <div data-tour="custom-rows" className="space-y-2">
@@ -191,6 +261,7 @@ export function CustomTierBoard({
                 onDragOver={(e) => {
                   if (e.dataTransfer.types.includes(DRAG_TYPE)) {
                     e.preventDefault();
+                    e.dataTransfer.dropEffect = allow ? "copy" : "move";
                     setDragOver(row.id);
                   }
                 }}
@@ -210,15 +281,18 @@ export function CustomTierBoard({
                   {ids.length === 0 && <span className="self-center text-xs text-text-faint">ยังไม่มีฮีโร่</span>}
                   {ids.map((id) => {
                     const h = byId.get(id)!;
+                    const isSel = selected?.id === id && (!allow || selected.rowId === row.id);
                     return (
                       <HeroTile
                         key={id}
                         hero={h}
-                        active={selected === id}
-                        onSelect={() => setSelected(selected === id ? null : id)}
+                        active={isSel}
+                        allowCopy={allow}
+                        onSelect={() => setSelected(isSel ? null : { id, rowId: row.id })}
                       />
                     );
                   })}
+                  {allow && dragOver === row.id && <span aria-hidden className="self-center text-xs font-medium text-accent">+ เพิ่มที่นี่</span>}
                 </div>
               </div>
               {editRows && (
@@ -257,32 +331,38 @@ export function CustomTierBoard({
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {list.tiers.map((row, i) => (
-              <button
-                key={row.id}
-                type="button"
-                aria-pressed={selectedRowId === row.id}
-                aria-label={`ย้ายไปแถว ${row.label} (แถวที่ ${i + 1})`}
-                onClick={() => place(selectedHero.id, row.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold",
-                  selectedRowId === row.id ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
-                )}
-              >
-                <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
-                <span className="max-w-[6rem] truncate">{row.label}</span>
-              </button>
-            ))}
-            {selectedRowId && (
+            {list.tiers.map((row, i) => {
+              const isIn = placedRows.includes(row.id);
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  aria-pressed={isIn}
+                  aria-label={allow ? `${isIn ? "เอาออกจาก" : "เพิ่มใน"}แถว ${row.label} (แถวที่ ${i + 1})` : `ย้ายไปแถว ${row.label} (แถวที่ ${i + 1})`}
+                  onClick={() => {
+                    if (allow && isIn) update((l) => ({ ...l, tiers: removeFromRow(l.tiers, selectedHero.id, row.id) }));
+                    else place(selectedHero.id, row.id);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold",
+                    isIn ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
+                  )}
+                >
+                  <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                  <span className="max-w-[6rem] truncate">{row.label}</span>
+                </button>
+              );
+            })}
+            {activeRowId && (
               <>
-                <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
                   <ArrowLeft className="h-4 w-4" />
                 </button>
-                <button type="button" aria-label="เลื่อนไปขวา" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, 1) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                <button type="button" aria-label="เลื่อนไปขวา" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, 1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
                   <ArrowRight className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => place(selectedHero.id, null)} className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-bg-raised">
-                  เอาออก
+                <button type="button" onClick={() => removePlacement(selectedHero.id, activeRowId)} className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-bg-raised">
+                  {allow ? "เอาออกจากแถวนี้" : "เอาออก"}
                 </button>
               </>
             )}
@@ -303,7 +383,7 @@ export function CustomTierBoard({
       {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
 
       <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-        <h2 className="font-display text-sm font-semibold">ฮีโร่ที่ยังไม่ได้จัด ({pool.length})</h2>
+        <h2 className="font-display text-sm font-semibold">{allow ? `ฮีโร่ทั้งหมด (ใส่ได้หลาย Tier) (${pool.length})` : `ฮีโร่ที่ยังไม่ได้จัด (${pool.length})`}</h2>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
           <Search className="h-4 w-4 shrink-0 text-text-faint" />
           <input
@@ -318,9 +398,19 @@ export function CustomTierBoard({
           <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
         ) : (
           <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 lg:grid-cols-10">
-            {pool.map((h) => (
-              <HeroTile key={h.id} hero={h} active={selected === h.id} onSelect={() => setSelected(selected === h.id ? null : h.id)} block />
-            ))}
+            {pool.map((h) => {
+              const isSel = selected?.id === h.id && (!allow || selected.rowId === null);
+              return (
+                <HeroTile
+                  key={h.id}
+                  hero={h}
+                  active={isSel}
+                  allowCopy={allow}
+                  onSelect={() => setSelected(isSel ? null : { id: h.id, rowId: null })}
+                  block
+                />
+              );
+            })}
           </div>
         )}
       </section>
@@ -328,14 +418,27 @@ export function CustomTierBoard({
   );
 }
 
-function HeroTile({ hero, active, onSelect, block }: { hero: HeroSummary; active: boolean; onSelect: () => void; block?: boolean }) {
+function HeroTile({
+  hero,
+  active,
+  onSelect,
+  block,
+  allowCopy,
+}: {
+  hero: HeroSummary;
+  active: boolean;
+  onSelect: () => void;
+  block?: boolean;
+  /** โหมดหลาย Tier: การลากคือ "คัดลอกไปเพิ่ม" (เคอร์เซอร์ copy) ไม่ใช่ย้าย */
+  allowCopy?: boolean;
+}) {
   return (
     <button
       type="button"
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG_TYPE, hero.id);
-        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.effectAllowed = allowCopy ? "copy" : "move";
       }}
       onClick={onSelect}
       aria-pressed={active}

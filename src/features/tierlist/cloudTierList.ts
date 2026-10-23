@@ -1,7 +1,7 @@
 import type { Visibility } from "@/services/draftSeries";
 import type { MyTierList } from "@/services/userTierLists";
 import { NAME_MAX, createDefault, loadCustom, type CustomTierList } from "./customTierList";
-import { parseTierData, rowsCustomized, tierHeroCount, tierSig, type TierData } from "./tierData";
+import { listSig, parseTierData, rowsCustomized, tierHeroCount, type TierData } from "./tierData";
 
 // Glue between the local editor ("Tier List ของฉัน", localStorage) and the cloud lists (My / Community).
 // The editor keeps autosaving locally; "บันทึก" copies it to the account. This record remembers which cloud
@@ -18,7 +18,8 @@ export interface CloudState {
 export const EMPTY_CLOUD: CloudState = { id: null, description: "", patch: "", visibility: "private", savedSig: "" };
 export const CLOUD_KEY = "rovlab:tier:cloud";
 
-export const sigOf = (l: { name: string; tiers: TierData }): string => JSON.stringify([l.name.trim(), tierSig(l.tiers)]);
+// Includes the duplicates setting, so toggling it counts as an unsaved change. OFF keeps the pre-setting signature.
+export const sigOf = (l: { name: string; tiers: TierData; allowDuplicates?: boolean }): string => listSig(l.name, l.tiers, l.allowDuplicates === true);
 
 /** Never-saved editor content worth warning about: heroes placed, or rows changed from the default five. */
 export const hasLocalWork = (tiers: TierData): boolean => tierHeroCount(tiers) > 0 || rowsCustomized(tiers);
@@ -55,15 +56,19 @@ export function editorHasUnsavedWork(): boolean {
   return cloud.id ? sigOf(l) !== cloud.savedSig : hasLocalWork(l.tiers);
 }
 
-export const toCustom = (src: { name: string; patch: string; data: TierData }): CustomTierList => ({
-  ...createDefault(src.patch),
-  name: src.name.slice(0, NAME_MAX),
-  patch: src.patch,
-  tiers: parseTierData(src.data),
-});
+export const toCustom = (src: { name: string; patch: string; data: TierData; allowDuplicates?: boolean }): CustomTierList => {
+  const allowDuplicates = src.allowDuplicates === true;
+  return {
+    ...createDefault(src.patch),
+    name: src.name.slice(0, NAME_MAX),
+    patch: src.patch,
+    tiers: parseTierData(src.data, allowDuplicates),
+    allowDuplicates,
+  };
+};
 
 export const fromMyList = (l: MyTierList): { list: CustomTierList; cloud: CloudState } => {
-  const list = toCustom({ name: l.name, patch: l.patch, data: l.data });
+  const list = toCustom({ name: l.name, patch: l.patch, data: l.data, allowDuplicates: l.allowDuplicates });
   return {
     list,
     cloud: { id: l.id, description: l.description, patch: l.patch, visibility: l.visibility, savedSig: sigOf(list) },

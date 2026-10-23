@@ -6,7 +6,7 @@
 
 import { ImageResponse } from "@vercel/og";
 import { shortIdToUuid } from "../../src/features/share/shareId";
-import { parseTierData, tierHeroCount, type TierRow } from "../../src/features/tierlist/tierData";
+import { distinctHeroCount, parseTierData, type TierRow } from "../../src/features/tierlist/tierData";
 import { readableTextColor } from "../../src/lib/readableText";
 import { OG_HEIGHT, OG_WIDTH } from "./html";
 import {
@@ -72,8 +72,9 @@ export async function renderTierListImage(rawId: string): Promise<Response | nul
   const row = rows[0];
   if (!row) return null;
 
+  // parseTierData reads the list's own "dup" flag, so a hero placed in several rows is drawn in every row
   const data = parseTierData(row.data);
-  const total = tierHeroCount(data);
+  const total = distinctHeroCount(data); // different heroes (a hero in two rows counts once), same as tier_hero_count in the DB
   const crowded = data.length > ROWS_SHOWN;
   const visible = crowded ? data.filter((r) => r.heroes.length > 0).slice(0, ROWS_SHOWN) : data;
   const hiddenRows = data.length - visible.length;

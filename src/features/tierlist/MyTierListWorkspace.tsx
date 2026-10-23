@@ -74,7 +74,7 @@ export function MyTierListWorkspace({
   useEffect(() => {
     if (!incoming || lastNonce.current === incoming.nonce) return;
     lastNonce.current = incoming.nonce;
-    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data });
+    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data, allowDuplicates: incoming.allowDuplicates });
     replaceBoard(
       list,
       incoming.cloudId
@@ -128,6 +128,7 @@ export function MyTierListWorkspace({
         patch: v.patch,
         visibility: v.visibility,
         data: current.tiers,
+        allowDuplicates: current.allowDuplicates,
       });
       setCloud({ id, description: v.description.trim(), patch: v.patch.trim(), visibility: v.visibility, savedSig: sigOf(current) });
       setRefreshKey((k) => k + 1);

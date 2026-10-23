@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
-import { parseTierData, serializeTierData, tierHeroCount, type TierData } from "@/features/tierlist/tierData";
+import { distinctHeroCount, parseTierData, readAllowDuplicates, serializeTierData, type TierData } from "@/features/tierlist/tierData";
 import type { Visibility } from "@/services/draftSeries";
 import { trackActivity } from "@/services/activity";
 
@@ -24,6 +24,8 @@ export interface MyTierListSummary {
 }
 export interface MyTierList extends MyTierListSummary {
   data: TierData;
+  /** "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier": stored with the list (jsonb dup:true). Missing = false. */
+  allowDuplicates: boolean;
 }
 
 export interface CommunityTierListSummary {
@@ -37,7 +39,7 @@ export interface CommunityTierListSummary {
   patch: string;
   version: number;
   heroCount: number;
-  preview: string[]; // first hero ids in tier order, for card thumbnails
+  preview: string[]; // first distinct hero ids in tier order, for card thumbnails
   likes: number;
   dislikes: number;
   myValue: Reaction;
@@ -54,16 +56,18 @@ const COLS = "id, name, description, patch, visibility, updated_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toMine = (r: any): MyTierList => {
-  const data = parseTierData(r.data);
+  const allowDuplicates = readAllowDuplicates(r.data);
+  const data = parseTierData(r.data, allowDuplicates);
   return {
     id: r.id,
     name: r.name ?? "",
     description: r.description ?? "",
     patch: r.patch ?? "",
     visibility: r.visibility === "public" ? "public" : "private",
-    heroCount: tierHeroCount(data),
+    heroCount: distinctHeroCount(data),
     updatedAt: r.updated_at,
     data,
+    allowDuplicates,
   };
 };
 
@@ -87,6 +91,7 @@ export interface SaveTierListInput {
   patch: string;
   visibility: Visibility;
   data: TierData;
+  allowDuplicates?: boolean; // default false (= the stored shape is unchanged from before the setting existed)
 }
 
 /** Making a list public creates the community snapshot (DB trigger); editing an already public list does not. */
@@ -96,7 +101,7 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
     description: input.description.trim() || null,
     patch: input.patch.trim().slice(0, TIER_PATCH_MAX),
     visibility: input.visibility,
-    data: serializeTierData(input.data),
+    data: serializeTierData(input.data, input.allowDuplicates === true),
   };
   if (input.id) {
     const { data, error } = await supabase.from("user_tier_lists").update(row).eq("id", input.id).select("id").single();
@@ -110,10 +115,10 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
   return newId;
 }
 
-/** New private list owned by the user (Duplicate and Load Preset). Original is never touched. */
+/** New private list owned by the user (Duplicate and Load Preset). Original is never touched. Keeps the duplicates setting. */
 export async function createTierListCopy(
   userId: string,
-  src: { name: string; description: string; patch: string; data: TierData }
+  src: { name: string; description: string; patch: string; data: TierData; allowDuplicates?: boolean }
 ): Promise<string> {
   return saveTierList({
     userId,
@@ -122,6 +127,7 @@ export async function createTierListCopy(
     patch: src.patch,
     visibility: "private",
     data: src.data,
+    allowDuplicates: src.allowDuplicates,
   });
 }
 
@@ -154,7 +160,8 @@ const toCommunity = (r: any): CommunityTierListSummary => ({
   patch: r.patch ?? "",
   version: r.version ?? 1,
   heroCount: r.hero_count ?? 0,
-  preview: Array.isArray(r.preview) ? r.preview.filter((x: unknown): x is string => typeof x === "string") : [],
+  // a hero in several rows would repeat in the thumbnails (and duplicate React keys): show each hero once
+  preview: Array.isArray(r.preview) ? [...new Set<string>(r.preview.filter((x: unknown): x is string => typeof x === "string"))] : [],
   likes: r.like_count ?? 0,
   dislikes: r.dislike_count ?? 0,
   myValue: toReaction(r.my_value),
@@ -177,12 +184,13 @@ export async function listCommunityTierLists(args: {
   return (data ?? []).map(toCommunity);
 }
 
-export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { data: TierData }> {
+export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { data: TierData; allowDuplicates: boolean }> {
   const { data, error } = await supabase.rpc("list_community_tier_lists", { p_only_id: id, p_limit: 1 });
   check(error);
   const row = data?.[0];
   if (!row) throw new Error("ไม่พบ Tier List นี้ (อาจถูกเอาออกจาก Community แล้ว)");
-  return { ...toCommunity(row), data: parseTierData(row.data) };
+  const allowDuplicates = readAllowDuplicates(row.data);
+  return { ...toCommunity(row), data: parseTierData(row.data, allowDuplicates), allowDuplicates };
 }
 
 /** value 0 removes the reaction. One row per (list, user): switching like <-> dislike is an upsert. */

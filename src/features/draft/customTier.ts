@@ -24,7 +24,11 @@ export function textColorFor(hex: string): "#000000" | "#FFFFFF" {
   return lum > 0.179 ? "#000000" : "#FFFFFF";
 }
 
-/** hero id → ป้ายของแถวที่ฮีโร่อยู่ (ฮีโร่ที่ไม่อยู่ในลิสต์จะไม่มีในแผนที่) */
+/**
+ * hero id → ป้ายของแถวที่ฮีโร่อยู่ (ฮีโร่ที่ไม่อยู่ในลิสต์จะไม่มีในแผนที่)
+ * กฎคงที่: ถ้าฮีโร่อยู่หลายแถว (เฉพาะลิสต์ที่เปิด "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier") ใช้ "แถวบนสุด" ที่ฮีโร่อยู่
+ * (ลำดับแถวตามที่ผู้ใช้จัด) — กำหนดแน่นอน ไม่สุ่ม และลิสต์ปกติ (1 ฮีโร่ 1 แถว) ได้ผลเดิมทุกประการ
+ */
 export function buildCustomTierMap(rows: TierData): CustomTierMap {
   const out = new Map<string, CustomTier>();
   for (const r of rows) {

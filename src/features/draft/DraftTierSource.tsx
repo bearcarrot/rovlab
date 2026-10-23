@@ -20,6 +20,8 @@ export interface DraftTierSource {
   selected: TierSourceOption | null;
   /** null = ใช้เทียร์จากสถิติเหมือนเดิม */
   customTiers: CustomTierMap | null;
+  /** ลิสต์ที่เลือกเปิด "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" — ฮีโร่ที่อยู่หลายแถวใช้แถวบนสุด (ดู buildCustomTierMap) */
+  multiTier: boolean;
   select: (id: string | null) => void;
 }
 
@@ -52,7 +54,11 @@ export function useDraftTierSource(): DraftTierSource {
     const rows: TierData | undefined = selected.id === LOCAL_ID ? local?.tiers : lists.find((l) => l.id === selected.id)?.data;
     return rows ? buildCustomTierMap(rows) : null;
   }, [selected, local, lists]);
-  return { options, selected, customTiers, select };
+  const multiTier = useMemo(() => {
+    if (!selected) return false;
+    return selected.id === LOCAL_ID ? local?.allowDuplicates === true : lists.find((l) => l.id === selected.id)?.allowDuplicates === true;
+  }, [selected, local, lists]);
+  return { options, selected, customTiers, multiTier, select };
 }
 
 export function CustomTierPicker({ source }: { source: DraftTierSource }) {
@@ -77,6 +83,7 @@ export function CustomTierPicker({ source }: { source: DraftTierSource }) {
       {source.selected && (
         <span className="text-xs text-text-faint">
           แสดงเทียร์จากลิสต์ของทีม “{source.selected.name}” · ฮีโร่ที่ไม่อยู่ในลิสต์แสดงเป็น —
+          {source.multiTier ? " · ฮีโร่ที่อยู่หลาย Tier ใช้แถวบนสุดที่ฮีโร่อยู่" : ""}
         </span>
       )}
     </div>

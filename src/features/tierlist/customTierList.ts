@@ -8,11 +8,13 @@ export { NAME_MAX };
 export type CustomTiers = TierData; // แถวเรียงตามที่ผู้ใช้จัด แต่ละแถวมี hero id เรียงตามลำดับ
 
 // version 1 = ร่างเก่าแบบ 5 Tier ตายตัว (อ่านได้ ย้ายเป็น 2 ตอนเปิด) · version 2 = แถวที่ผู้ใช้กำหนดเอง
+// allowDuplicates = ตั้งค่าต่อลิสต์ "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" (ไม่มีในร่างเก่า = ปิด)
 export interface CustomTierList {
   version: 2;
   name: string;
   patch: string;
   tiers: CustomTiers;
+  allowDuplicates: boolean;
 }
 
 export const createDefault = (patch = ""): CustomTierList => ({
@@ -20,6 +22,7 @@ export const createDefault = (patch = ""): CustomTierList => ({
   name: DEFAULT_CUSTOM_NAME,
   patch,
   tiers: emptyTierData(),
+  allowDuplicates: false,
 });
 
 // อ่านค่าจาก localStorage แบบป้องกันค่าเสีย/schema เก่า/ผู้ใช้ปิด storage

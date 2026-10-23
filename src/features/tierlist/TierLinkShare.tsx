@@ -73,6 +73,7 @@ export function TierLinkShare({
         patch: listPatch,
         visibility: isPublic ? "public" : "private",
         data: list.tiers,
+        allowDuplicates: list.allowDuplicates, // the shared board must keep the same duplicate behavior
       });
       const communityId = await publishTierListForLink(savedId);
       onPublished({ id: savedId, description: cloud.description, patch: listPatch, visibility: "public", savedSig: sigOf(list) });

@@ -38,6 +38,7 @@ export interface PresetLoad {
   description: string;
   patch: string;
   data: TierData;
+  allowDuplicates?: boolean; // "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" of the published list (missing = false)
   cloudId: string | null; // id of the new copy in My Tier Lists (null when not signed in)
 }
 
@@ -107,12 +108,18 @@ export function CommunityTierLists({
       const full = await getCommunityTierList(id);
       if (!user) {
         // Not signed in: open an unsaved copy in the editor (saving it later asks to sign in).
-        onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, cloudId: null });
+        onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, cloudId: null });
         toast.info("โหลดเป็นสำเนาในตัวจัดอันดับแล้ว เข้าสู่ระบบเพื่อบันทึกไว้ใน Tier List ของฉัน");
         return;
       }
-      const cloudId = await createTierListCopy(user.id, { name: full.title, description: full.description, patch: full.patch, data: full.data });
-      onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, cloudId });
+      const cloudId = await createTierListCopy(user.id, {
+        name: full.title,
+        description: full.description,
+        patch: full.patch,
+        data: full.data,
+        allowDuplicates: full.allowDuplicates,
+      });
+      onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, cloudId });
       toast.success("เพิ่มสำเนาไว้ใน Tier List ของฉันแล้ว");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "โหลด Tier List ไม่สำเร็จ");
