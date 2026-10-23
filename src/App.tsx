@@ -1,7 +1,5 @@
 import { lazy, type ComponentType, type ReactNode } from "react";
 import { Routes, Route } from "react-router-dom";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AppShell } from "@/layouts/AppShell";
 import { PageNav, type Crumb } from "@/components/layout/PageNav";
 import { RouteMeta } from "@/components/RouteMeta";
@@ -72,8 +70,6 @@ export default function App() {
   return (
     <>
     <RouteMeta />
-    <Analytics />
-    <SpeedInsights />
     <MaintenanceGate>
     <Routes>
       <Route element={<AppShell />}>
