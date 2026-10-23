@@ -1,4 +1,4 @@
-import type { TierData } from "../tierlist/tierData";
+import type { TierData, TierLanes } from "../tierlist/tierData";
 
 // เทียร์ที่ผู้ใช้จัดเองใน "Tier List ของฉัน" แปลงเป็นป้ายสำหรับหน้า Draft (ชื่อแถว + สี + สีตัวอักษรที่อ่านออก)
 // ไม่พึ่ง dependency อื่น เพื่อเทสต์ด้วย node:test ได้
@@ -24,7 +24,7 @@ export function textColorFor(hex: string): "#000000" | "#FFFFFF" {
   return lum > 0.179 ? "#000000" : "#FFFFFF";
 }
 
-/** hero id → ป้ายของแถวที่ฮีโร่อยู่ (ฮีโร่ที่ไม่อยู่ในลิสต์จะไม่มีในแผนที่) */
+/** hero id → ป้ายของแถวที่ฮีโร่อยู่ (ฮีโร่ที่ไม่อยู่ในลิสต์จะไม่มีในแผนที่) — รับกระดานเดียว (rows ของเลนเดียว) */
 export function buildCustomTierMap(rows: TierData): CustomTierMap {
   const out = new Map<string, CustomTier>();
   for (const r of rows) {
@@ -32,4 +32,17 @@ export function buildCustomTierMap(rows: TierData): CustomTierMap {
     for (const id of r.heroes) if (!out.has(id)) out.set(id, tier);
   }
   return out;
+}
+
+/**
+ * แผนที่ hero → เทียร์ของ "เลนที่เลือก" เท่านั้น (ไม่รวมหลายเลน ไม่ตกไปใช้เลนแรกเงียบๆ)
+ * - มีเลนเดียว (รวม Tier List เก่าที่เปิดเป็นเลน "all"): ใช้เลนนั้นเลย ไม่ต้องเลือก
+ * - หลายเลน: ต้องรู้ว่าเลือกเลนไหน; ถ้ายังไม่เลือก/เลนที่เลือกไม่มีแล้ว → map = null และ needsLane = true (หน้า Draft ใช้เทียร์จากสถิติและขอให้เลือกเลน)
+ * ฮีโร่ที่ไม่อยู่ในกระดานของเลนนั้นจะไม่มีในแผนที่ (แสดงเป็น — ตาม fallback เดิม) ไม่ยืมอันดับจากเลนอื่น
+ */
+export function resolveCustomTiers(lanes: TierLanes, laneId: string | null): { map: CustomTierMap | null; needsLane: boolean } {
+  if (lanes.length === 0) return { map: null, needsLane: false };
+  if (lanes.length === 1) return { map: buildCustomTierMap(lanes[0].rows), needsLane: false };
+  const lane = lanes.find((l) => l.id === laneId);
+  return lane ? { map: buildCustomTierMap(lane.rows), needsLane: false } : { map: null, needsLane: true };
 }
