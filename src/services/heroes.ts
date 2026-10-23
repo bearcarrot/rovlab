@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
 import { parseEffectTags } from "@/lib/effectTags";
 import { cached } from "@/lib/ttlCache";
+import { imgUrl } from "@/lib/imgUrl";
 import { getLatestPatch } from "@/services/meta";
 import { ALL_LANES, getCuratedTierLists, type CuratedTierLists } from "@/services/tierlist";
 
@@ -193,7 +194,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
     slot: a.slot,
     name: a.name,
     description: a.description,
-    icon: a.icon_url ?? undefined,
+    icon: imgUrl(a.icon_url ?? undefined),
     effectTags: parseEffectTags(a.effect_tags),
   }));
 
