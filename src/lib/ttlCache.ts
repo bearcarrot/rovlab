@@ -12,8 +12,20 @@ let bypass = false;
 
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 
-// Only plain-JSON public values: a Map/Set/Date would come back from JSON.parse as a different type (so "tiers:" is NOT listed).
-const PERSISTED_PREFIXES = ["heroes:", "hero:", "draft-relations", "builds:", "patch:latest", "videos:"];
+// Only plain-JSON public values: a Map/Set/Date would come back from JSON.parse as a different type, so those services
+// cache plain rows/entries and rebuild the Map on read (see tierlist.ts, balance.ts).
+const PERSISTED_PREFIXES = [
+  "heroes:",
+  "hero:",
+  "draft-relations",
+  "builds:",
+  "patch:latest",
+  "videos:",
+  "tiers:",
+  "balance:recent",
+  "items:all",
+  "runes:all",
+];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored
 // v2: "patch:latest" went from a code string to a { id, code, releasedAt } object
