@@ -58,16 +58,15 @@ export async function getRecentBalance(): Promise<Map<string, BalanceKind>> {
   return new Map(entries ?? []);
 }
 
-// การปรับของฮีโร่ตัวเดียว ใหม่สุดก่อน (สูงสุด 3 รายการ)
-export async function getHeroBalance(heroId: string): Promise<BalanceChange[]> {
-  if (!isSupabaseConfigured) return [];
+// null = อ่านไม่ได้ (ไม่ cache); [] = อ่านได้แต่ฮีโร่ตัวนี้ไม่มีการปรับ (cache ได้ — ฮีโร่ส่วนใหญ่เป็นแบบนี้ จึงไม่ต้องยิงซ้ำทุกครั้งที่เปิดหน้า)
+async function loadHeroBalance(heroId: string): Promise<BalanceChange[] | null> {
   const { data, error } = await supabase
     .from("hero_balance_changes")
     .select("id, kind, tag, reason, skill_changes, changed_at, patches(code)")
     .eq("hero_id", heroId)
     .order("changed_at", { ascending: false })
     .limit(3);
-  if (error || !data) return [];
+  if (error || !data) return null;
   return (data as any[]).map((r) => ({
     id: r.id,
     kind: r.kind as BalanceKind,
@@ -77,4 +76,11 @@ export async function getHeroBalance(heroId: string): Promise<BalanceChange[]> {
     changedAt: r.changed_at,
     patch: r.patches?.code ?? null,
   }));
+}
+
+// การปรับของฮีโร่ตัวเดียว ใหม่สุดก่อน (สูงสุด 3 รายการ) — key "balance:hero:<id>" ขึ้นต้น "balance:" เหมือน balance:recent
+export async function getHeroBalance(heroId: string): Promise<BalanceChange[]> {
+  if (!isSupabaseConfigured) return [];
+  const rows = await cached(`balance:hero:${heroId}`, CACHE_TTL_MS, () => loadHeroBalance(heroId), (v) => v !== null);
+  return rows ? rows.map((b) => ({ ...b })) : [];
 }
