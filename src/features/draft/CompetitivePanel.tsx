@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch } from "@/features/community/Switch";
 import { cn } from "@/lib/utils";
 import { makeDeadline, secondsLeft, type CurrentTurn, type TurnKind } from "./competitive";
@@ -14,17 +14,27 @@ const PHASE_LABEL: Record<1 | 2 | 3 | 4, string> = {
 /**
  * Countdown for the active turn. Remaining time comes from a wall-clock deadline (not a decrementing counter),
  * so it stays correct after the tab was in the background. One countdown covers a whole turn: a 2-pick turn
- * does NOT reset between its picks. It only reports time; it never selects, bans or advances anything.
+ * does NOT reset between its picks. It only reports time and calls `onExpire` once when a turn runs out.
  */
-export function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKind | null) {
+export function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKind | null, onExpire?: () => void) {
   const [left, setLeft] = useState<number | null>(null);
+  const expireRef = useRef(onExpire);
+  expireRef.current = onExpire;
   useEffect(() => {
     if (!enabled || turnKey === null || kind === null) {
       setLeft(null);
       return;
     }
     const deadline = makeDeadline(kind, Date.now());
-    const tick = () => setLeft(secondsLeft(deadline, Date.now()));
+    let fired = false;
+    const tick = () => {
+      const s = secondsLeft(deadline, Date.now());
+      setLeft(s);
+      if (s === 0 && !fired) {
+        fired = true; // once per turn
+        expireRef.current?.();
+      }
+    };
     tick();
     const id = window.setInterval(tick, 250);
     document.addEventListener("visibilitychange", tick);

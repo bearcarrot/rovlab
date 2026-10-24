@@ -356,7 +356,10 @@ export function DraftAssistant() {
   }, [active, heroes, takenNow, ds.series, ds.gameNumber]);
   const filteredPool = activePool.filter((h) => filters.match(h) && heroMatchesQuery(h, deferredQuery));
 
-  const turn = useMemo(() => getCurrentTurn(ds.game, comp.first), [ds.game, comp.first]);
+  // สิทธิ์แบนที่เสียไปเพราะหมดเวลา แยกตามเกม (ล้างเมื่อเริ่ม/โหลด Draft ใหม่ หรือรีเซ็ตเกม/ซีรีส์)
+  const [skips, setSkips] = usePersistedState<Record<number, { mine: number; enemy: number }>>("rovlab:draft:ban-skips", {});
+  const forfeited = skips[ds.gameNumber];
+  const turn = useMemo(() => getCurrentTurn(ds.game, comp.first, forfeited), [ds.game, comp.first, forfeited]);
   // โหมดแข่งขัน: ให้ช่องที่กำลังเลือก/แบนตามตาปัจจุบันเสมอ (ไม่เลือก/แบนแทนผู้ใช้ — แค่ชี้ให้ถูกทีม)
   useEffect(() => {
     if (!comp.on) return;
@@ -364,7 +367,13 @@ export function DraftAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comp.on, turn?.index, turn?.team, ds.gameNumber, ds.game]);
   // นับถอยหลังของตาปัจจุบัน (เฉพาะแสดงผล) — วางไว้กลางระหว่างสองทีม; scope เปลี่ยนเมื่อเปิดเกม/Draft ใหม่เพื่อเริ่มนับใหม่
-  const left = useTurnCountdown(comp.on, turn ? `${ds.gameNumber}.${epoch}:${turn.index}:${turn.team}` : null, turn?.kind ?? null);
+  // ตาแบนหมดเวลา = ทีมนั้นเสียสิทธิ์แบนครั้งนั้น แล้วข้ามไปอีกฝั่งอัตโนมัติ (ตาเลือกฮีโร่ไม่ทำอะไรเอง)
+  const left = useTurnCountdown(comp.on, turn ? `${ds.gameNumber}.${epoch}:${turn.index}:${turn.team}` : null, turn?.kind ?? null, () => {
+    if (!turn || turn.kind !== "ban") return;
+    const cur = skips[ds.gameNumber] ?? { mine: 0, enemy: 0 };
+    setSkips({ ...skips, [ds.gameNumber]: { ...cur, [turn.team]: cur[turn.team] + 1 } });
+    toast.error(`หมดเวลา: ${TEAM_LABEL[turn.team]} เสียสิทธิ์แบนครั้งนี้`);
+  });
   const outOfTurn = (team: TeamKey, kind: "ban" | "pick") => {
     if (!comp.on || isTurnAllowed(turn, team, kind)) return false;
     toast.error(turn ? "ยังไม่ถึงตาของทีมนี้" : "ดราฟต์เสร็จสมบูรณ์แล้ว");
@@ -476,6 +485,7 @@ export function DraftAssistant() {
     if (!(await canReplace())) return;
     ds.startNew();
     setEpoch((e) => e + 1);
+    setSkips({});
     setActive(firstPick());
     setCoachText("");
   }
@@ -484,6 +494,7 @@ export function DraftAssistant() {
     if (!(await canReplace())) return;
     ds.load({ series: d.series, draftId: d.id, title: d.name, description: d.description, visibility: d.visibility });
     setEpoch((e) => e + 1);
+    setSkips({});
     setActive(firstPick());
     setCoachText("");
     setTab("editor");
@@ -493,6 +504,7 @@ export function DraftAssistant() {
   function openCopy(c: { series: MyDraft["series"]; name: string; description: string; draftId: string | null }) {
     ds.load({ series: c.series, draftId: c.draftId, title: c.name, description: c.description, visibility: "private" });
     setEpoch((e) => e + 1);
+    setSkips({});
     setActive(firstPick());
     setCoachText("");
     setTab("editor");
@@ -600,7 +612,19 @@ export function DraftAssistant() {
           <CustomTierPicker source={tierSource} />
           <DraftDataSourcePicker src={sources} />
 
-          <SeriesBar ds={ds} heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
+          <SeriesBar
+            ds={{
+              ...ds,
+              resetGame: () => {
+                ds.resetGame();
+                setSkips({ ...skips, [ds.gameNumber]: { mine: 0, enemy: 0 } });
+              },
+              resetSeries: () => {
+                ds.resetSeries();
+                setSkips({});
+              },
+            }}
+            heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
 
           <CompetitivePanel
             on={comp.on}

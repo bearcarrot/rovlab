@@ -142,3 +142,15 @@ test("T12 Global Ban Pick pool rules are untouched (same-team restriction only)"
   assert.ok(!pool("mine").includes("h0"));
   assert.ok(pool("enemy").includes("h0"));
 });
+
+test("T13 a ban lost to the clock is used up: the other team acts next, and the draft still completes", () => {
+  const empty = getGame(createSeries("single"), 1) as DraftGame;
+  assert.equal((getCurrentTurn(empty, "mine") as CurrentTurn).team, "mine");
+  const afterSkip = getCurrentTurn(empty, "mine", { mine: 1, enemy: 0 }) as CurrentTurn;
+  assert.deepEqual([afterSkip.index, afterSkip.team, afterSkip.kind], [1, "enemy", "ban"]);
+  // both teams time out on every ban: no hero is banned, yet the draft reaches the pick phase
+  const allBansLost = getCurrentTurn(empty, "mine", { mine: 4, enemy: 4 }) as CurrentTurn;
+  assert.deepEqual([allBansLost.phase, allBansLost.kind, allBansLost.team], [2, "pick", "mine"]);
+  // no forfeits recorded = unchanged behaviour
+  assert.deepEqual(getCurrentTurn(empty, "mine", { mine: 0, enemy: 0 }), getCurrentTurn(empty, "mine"));
+});

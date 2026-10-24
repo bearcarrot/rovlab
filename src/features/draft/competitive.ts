@@ -42,13 +42,18 @@ export type CurrentTurn = Turn & {
 const other = (t: TeamKey): TeamKey => (t === "mine" ? "enemy" : "mine");
 export const teamOf = (side: Side, firstPick: TeamKey): TeamKey => (side === "first" ? firstPick : other(firstPick));
 
+/** Bans each team lost by running out of time (not stored in the draft itself). */
+export type Forfeited = { mine: number; enemy: number };
+const NO_FORFEIT: Forfeited = { mine: 0, enemy: 0 };
+
 /**
  * The turn a team must act in now, or null when the draft is complete.
  * Walks TURNS handing out each team's existing bans/picks in order; the first turn not fully covered is current.
  */
-export function getCurrentTurn(game: DraftGame, firstPick: TeamKey): CurrentTurn | null {
+export function getCurrentTurn(game: DraftGame, firstPick: TeamKey, forfeited: Forfeited = NO_FORFEIT): CurrentTurn | null {
   const left = {
-    ban: { mine: game.mine.bans.length, enemy: game.enemy.bans.length },
+    // a ban the team lost to the clock still counts as used up, so the draft moves on
+    ban: { mine: game.mine.bans.length + forfeited.mine, enemy: game.enemy.bans.length + forfeited.enemy },
     pick: {
       mine: game.mine.picks.filter(Boolean).length,
       enemy: game.enemy.picks.filter(Boolean).length,
