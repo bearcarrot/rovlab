@@ -31,7 +31,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, banRate: 0, tier: "C" as Tier, matches: 0, hasStats: false };
 
-const HERO_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url, description, strengths, weaknesses";
+// รายการฮีโร่ (HeroSummary) ไม่ใช้ description/strengths/weaknesses (~43 KB ต่อการโหลดหน้า) จึงไม่ดึงมา
+// ต้องคงให้ตรงกับ select ของ get("heroes", …) ใน index.html ทุกตัวอักษร ไม่งั้นผล prefetch ถูกทิ้งและยิงซ้ำ
+const HERO_LIST_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url";
+// หน้ารายละเอียดฮีโร่ (1 แถว) ต้องใช้ข้อความเต็ม
+const HERO_COLS = `${HERO_LIST_COLS}, description, strengths, weaknesses`;
 
 type DbHeroRow = {
   id: string;
@@ -49,7 +53,9 @@ type DbHeroRow = {
   weaknesses: string[] | null;
 };
 
-function toSummary(row: DbHeroRow, statByHeroId: Map<string, HeroSummary["stat"]>): HeroSummary {
+type DbHeroListRow = Omit<DbHeroRow, "description" | "strengths" | "weaknesses">;
+
+function toSummary(row: DbHeroListRow, statByHeroId: Map<string, HeroSummary["stat"]>): HeroSummary {
   return {
     id: row.id,
     slug: row.slug,
@@ -107,13 +113,13 @@ function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null):
 async function loadHeroes(rank: RankBucket): Promise<HeroSummary[]> {
   if (!isSupabaseConfigured) return [];
   const [heroesRes, statMap, curated] = await Promise.all([
-    supabase.from("heroes").select(HERO_COLS).order("name", { ascending: true }),
+    supabase.from("heroes").select(HERO_LIST_COLS).order("name", { ascending: true }),
     fetchStatsByHeroId(null, rank),
     getCuratedTierLists(rank),
   ]);
   const { data, error } = heroesRes;
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
-  const rows = data as unknown as DbHeroRow[];
+  const rows = data as unknown as DbHeroListRow[];
   return applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
 }
 
