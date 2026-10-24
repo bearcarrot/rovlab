@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+import { Switch } from "@/features/community/Switch";
+import { cn } from "@/lib/utils";
+import { makeDeadline, secondsLeft, type CurrentTurn, type TurnKind } from "./competitive";
+import type { TeamKey } from "./series";
+
+const PHASE_LABEL: Record<1 | 2 | 3 | 4, string> = {
+  1: "แบนรอบที่ 1",
+  2: "เลือกฮีโร่รอบที่ 1",
+  3: "แบนรอบที่ 2",
+  4: "เลือกฮีโร่รอบที่ 2",
+};
+
+/**
+ * Countdown for the active turn. Remaining time comes from a wall-clock deadline (not a decrementing counter),
+ * so it stays correct after the tab was in the background. One countdown covers a whole turn: a 2-pick turn
+ * does NOT reset between its picks. It only reports time; it never selects, bans or advances anything.
+ */
+function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKind | null) {
+  const [left, setLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled || turnKey === null || kind === null) {
+      setLeft(null);
+      return;
+    }
+    const deadline = makeDeadline(kind, Date.now());
+    const tick = () => setLeft(secondsLeft(deadline, Date.now()));
+    tick();
+    const id = window.setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [enabled, turnKey, kind]);
+  return left;
+}
+
+export function CompetitivePanel({
+  on,
+  onToggle,
+  firstPick,
+  onFirstPick,
+  turn,
+  scope,
+  teamLabel,
+  onNew,
+}: {
+  on: boolean;
+  onToggle: (on: boolean) => void;
+  firstPick: TeamKey;
+  onFirstPick: (team: TeamKey) => void;
+  turn: CurrentTurn | null;
+  /** Changes when the open game or draft changes, so the countdown restarts. */
+  scope: string;
+  teamLabel: Record<TeamKey, string>;
+  onNew: () => void;
+}) {
+  const left = useTurnCountdown(on, turn ? `${scope}:${turn.index}:${turn.team}` : null, turn?.kind ?? null);
+  const expired = left === 0;
+
+  return (
+    <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Switch checked={on} onChange={onToggle} label="จับเวลาการแข่งขัน" />
+        {on && (
+          <div className="flex items-center gap-1.5 text-xs text-text-faint" role="group" aria-label="First Pick">
+            <span>First Pick:</span>
+            {(["mine", "enemy"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={firstPick === t}
+                onClick={() => onFirstPick(t)}
+                className={cn(
+                  "rounded-md border px-2 py-1",
+                  firstPick === t ? "border-accent bg-accent/10 text-text" : "border-border text-text-muted hover:text-text"
+                )}
+              >
+                {teamLabel[t]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {on && !turn && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <p className="font-medium text-accent">ดราฟต์เสร็จสมบูรณ์</p>
+          <button
+            type="button"
+            onClick={onNew}
+            className="rounded-lg border border-border px-3 py-1.5 text-text-muted hover:text-text"
+          >
+            เริ่มดราฟต์ใหม่
+          </button>
+        </div>
+      )}
+
+      {on && turn && (
+        <div className="flex flex-wrap items-center justify-between gap-2" aria-live="polite">
+          <div className="text-sm">
+            <p className="text-xs text-text-faint">{PHASE_LABEL[turn.phase]}</p>
+            <p className="font-medium">
+              {teamLabel[turn.team]} ({turn.side === "first" ? "First Pick" : "Second Pick"}){" "}
+              {turn.kind === "ban" ? "กำลังแบนฮีโร่" : "กำลังเลือกฮีโร่"}
+              <span className="text-text-muted"> · เหลืออีก {turn.left} ตัว</span>
+            </p>
+          </div>
+          {left !== null && (
+            <p
+              role={expired ? "alert" : undefined}
+              className={cn("font-display text-xl font-semibold tabular-nums", expired ? "text-loss" : left <= 5 ? "text-amber-400" : "text-text")}
+            >
+              {expired ? "หมดเวลา" : `${left} วิ`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

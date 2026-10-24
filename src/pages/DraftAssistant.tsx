@@ -50,6 +50,9 @@ import { collectLanes, filterByMissingLanes, getMissingLanes } from "@/features/
 import { SeriesBar } from "@/features/draft/SeriesBar";
 import { GlobalRestrictionPanel, type RestrictedByGame } from "@/features/draft/GlobalRestrictionPanel";
 import { BanRow } from "@/features/draft/BanRow";
+import { CompetitivePanel } from "@/features/draft/CompetitivePanel";
+import { getCurrentTurn, isTurnAllowed, turnTarget } from "@/features/draft/competitive";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
 import { MyDrafts } from "@/features/draft/MyDrafts";
 import { CommunityDrafts } from "@/features/draft/CommunityDrafts";
@@ -157,6 +160,9 @@ export function DraftAssistant() {
   const setTab = (t: Tab) => navigate(t === "editor" ? "/draft" : `/draft?tab=${t}`);
 
   const [active, setActive] = useState<Active | null>({ team: "mine", kind: "pick", index: 0 });
+  // โหมดจับเวลาการแข่งขัน (ลำดับ Ban/Pick + นับถอยหลัง): เปิด/ปิดได้ ปิด = ใช้งานแบบอิสระเหมือนเดิม; ตาปัจจุบันคำนวณจากแบน/พิคที่มีอยู่ ไม่เก็บซ้ำ
+  const [comp, setComp] = usePersistedState<{ on: boolean; first: TeamKey }>("rovlab:draft:competitive", { on: false, first: "mine" });
+  const [epoch, setEpoch] = useState(0); // เพิ่มเมื่อเริ่ม/โหลด Draft ใหม่ เพื่อรีเซ็ตนับถอยหลัง
   const [query, setQuery] = useState("");
   // ให้ช่องค้นหาตอบสนองทันที ส่วนกริดฮีโร่ (~100+ ใบ) กรองตามค่าที่ตามหลังเล็กน้อย
   const deferredQuery = useDeferredValue(query);
@@ -350,10 +356,24 @@ export function DraftAssistant() {
   }, [active, heroes, takenNow, ds.series, ds.gameNumber]);
   const filteredPool = activePool.filter((h) => filters.match(h) && heroMatchesQuery(h, deferredQuery));
 
+  const turn = useMemo(() => getCurrentTurn(ds.game, comp.first), [ds.game, comp.first]);
+  // โหมดแข่งขัน: ให้ช่องที่กำลังเลือก/แบนตามตาปัจจุบันเสมอ (ไม่เลือก/แบนแทนผู้ใช้ — แค่ชี้ให้ถูกทีม)
+  useEffect(() => {
+    if (!comp.on) return;
+    setActive(turn ? turnTarget(ds.game, turn) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comp.on, turn?.index, turn?.team, ds.gameNumber, ds.game]);
+  const outOfTurn = (team: TeamKey, kind: "ban" | "pick") => {
+    if (!comp.on || isTurnAllowed(turn, team, kind)) return false;
+    toast.error(turn ? "ยังไม่ถึงตาของทีมนี้" : "ดราฟต์เสร็จสมบูรณ์แล้ว");
+    return true;
+  };
+
   const firstPick = (): Active => ({ team: "mine", kind: "pick", index: 0 });
 
   function assign(hero: HeroSummary) {
     if (!active) return;
+    if (outOfTurn(active.team, active.kind)) return;
     if (active.kind === "ban") {
       ds.addBan(active.team, hero.slug);
       if (ds.game[active.team].bans.length + 1 >= MAX_BANS) setActive(null);
@@ -400,7 +420,7 @@ export function DraftAssistant() {
   // กด "เลือกฮีโร่นี้" ในการ์ดแนะนำ → ใส่ช่องว่างช่องแรกของทีมเรา
   function pickForMyTeam(hero: HeroSummary) {
     const idx = myTeam.findIndex((h) => h === null);
-    if (idx < 0) return;
+    if (idx < 0 || outOfTurn("mine", "pick")) return;
     ds.setPick("mine", idx, hero.slug);
     // ถ้าช่องที่กำลังเลือกอยู่คือช่องที่เพิ่งถูกเติม ให้เลื่อนไปช่องว่างถัดไปเหมือนตอนเลือกจากกล่องตัวเลือก
     // (ไม่งั้นการกดฮีโร่ถัดไปจะไปทับตัวที่เพิ่งเลือก) — ถ้ากำลังเลือกช่องอื่น/โหมดแบน/ปิดกล่องอยู่ ไม่แตะต้อง
@@ -453,6 +473,7 @@ export function DraftAssistant() {
   async function onNew() {
     if (!(await canReplace())) return;
     ds.startNew();
+    setEpoch((e) => e + 1);
     setActive(firstPick());
     setCoachText("");
   }
@@ -460,6 +481,7 @@ export function DraftAssistant() {
   async function openMyDraft(d: MyDraft) {
     if (!(await canReplace())) return;
     ds.load({ series: d.series, draftId: d.id, title: d.name, description: d.description, visibility: d.visibility });
+    setEpoch((e) => e + 1);
     setActive(firstPick());
     setCoachText("");
     setTab("editor");
@@ -468,6 +490,7 @@ export function DraftAssistant() {
 
   function openCopy(c: { series: MyDraft["series"]; name: string; description: string; draftId: string | null }) {
     ds.load({ series: c.series, draftId: c.draftId, title: c.name, description: c.description, visibility: "private" });
+    setEpoch((e) => e + 1);
     setActive(firstPick());
     setCoachText("");
     setTab("editor");
@@ -577,6 +600,17 @@ export function DraftAssistant() {
 
           <SeriesBar ds={ds} heroName={(slug) => bySlug.get(slug)?.nameTh ?? slug} />
 
+          <CompetitivePanel
+            on={comp.on}
+            onToggle={(on) => setComp({ ...comp, on })}
+            firstPick={comp.first}
+            onFirstPick={(first) => setComp({ ...comp, first })}
+            turn={turn}
+            scope={`${ds.gameNumber}.${epoch}`}
+            teamLabel={TEAM_LABEL}
+            onNew={() => void onNew()}
+          />
+
           {isGlobalRuleActive(ds.series, ds.gameNumber) && (
             <GlobalRestrictionPanel mine={restricted.mine} enemy={restricted.enemy} />
           )}
@@ -616,7 +650,7 @@ export function DraftAssistant() {
                   onClearSlot={(i) => clearSlot(team, i)}
                   onMove={(from, to) => moveSlot(team, from, to)}
                 />
-                {seriesMode && (
+                {(seriesMode || comp.on) && (
                   <BanRow
                     label="แบน"
                     bans={ds.game[team].bans.map((slug) => ({ slug, hero: bySlug.get(slug) }))}
