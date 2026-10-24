@@ -72,6 +72,8 @@ export function Matches() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false); // a ref, so two clicks in the same tick cannot both start a save
+  // A match was saved during this review session: the history is refetched ONCE when the session ends (see advance), not after every save.
+  const historyStale = useRef(false);
   const [dup, setDup] = useState<DupCheck | null>(null);
   const [showExisting, setShowExisting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MatchRecord | null>(null);
@@ -169,6 +171,13 @@ export function Matches() {
       URL.revokeObjectURL(current.imageUrl); // done with this picture
       blobUrls.current = blobUrls.current.filter((u) => u !== current.imageUrl);
     }
+    // Leaving the review (last screenshot saved or skipped, or cancelled): refresh the history once for the whole batch.
+    if (phase.kind !== "review" || phase.index + 1 >= phase.items.length) {
+      if (historyStale.current) {
+        historyStale.current = false;
+        matchesQ.refetch();
+      }
+    }
     setPhase((p) => (p.kind === "review" && p.index + 1 < p.items.length ? { ...p, index: p.index + 1 } : { kind: "idle" }));
   }
 
@@ -220,7 +229,7 @@ export function Matches() {
       // logged only here, after the insert has succeeded
       void trackActivity("match_saved", { edited });
       toast.success("บันทึกแมตช์แล้ว");
-      matchesQ.refetch();
+      historyStale.current = true; // refetched once in advance() when the batch ends
       advance();
     } catch (err) {
       toast.error(messageOf(err, "บันทึกแมตช์ไม่สำเร็จ"));

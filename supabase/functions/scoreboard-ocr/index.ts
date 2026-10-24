@@ -11,6 +11,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Secrets: GEMINI_API_KEY, GEMINI_OCR_MODEL (default gemini-3.1-flash-lite), optional GEMINI_OCR_FALLBACK_MODEL,
 // OCR_USER_DAILY_LIMIT (5 images), OCR_GLOBAL_DAILY_LIMIT (400 requests), OCR_COOLDOWN_SECONDS (8).
 // Every Gemini call logs token usage (see Edge Functions -> scoreboard-ocr -> Logs, line "scoreboard-ocr usage").
+// Logs never contain model output, upstream response bodies or image data (player names): only status codes, enum-like
+// codes and sizes. tests/security/ocr-logs.test.ts enforces this.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -127,7 +129,10 @@ async function callGemini(images: Img[], key: string, models: string[]): Promise
       );
       if (res.ok) return { status: 200, data: await res.json(), model: m, ms: Date.now() - started };
       last = res.status;
-      console.error("scoreboard-ocr gemini", m, res.status, (await res.text()).slice(0, 300));
+      // Only Google's error enum (e.g. INVALID_ARGUMENT), never the message: it can quote the request.
+      const code = await res.json().then((j) => j?.error?.status, () => undefined);
+      const geminiStatus = typeof code === "string" ? code.slice(0, 40) : "";
+      console.error("scoreboard-ocr gemini", m, res.status, geminiStatus);
       if (RETRYABLE.has(res.status) && attempt === 0) {
         await sleep(800);
         continue;
@@ -347,7 +352,12 @@ Deno.serve(async (req) => {
   try {
     raw = JSON.parse(text);
   } catch {
-    console.error("scoreboard-ocr: unparsable output", text.slice(0, 200));
+    // The text holds player names: log only its length and Gemini's finishReason (MAX_TOKENS = cut off), never the text.
+    const chars = text.length;
+    console.error(
+      "scoreboard-ocr: unparsable output",
+      JSON.stringify({ model: out.model, finishReason: String(cand.finishReason ?? "").slice(0, 30), chars }),
+    );
     return json({ error: "อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง", code: "unparsable" }, 502);
   }
 

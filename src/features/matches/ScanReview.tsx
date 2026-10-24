@@ -111,7 +111,11 @@ function TeamTable({
                         match.kind === "ambiguous" && "border-accent/60"
                       )}
                     />
-                    {unknown && <p className="mt-0.5 text-[10px] text-loss">ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)</p>}
+                    {unknown && (
+                      <p className="mt-0.5 text-[10px] text-loss">
+                        {p.isMe ? "ไม่พบฮีโร่ของคุณในระบบ กดช่องแล้วเลือกจากรายการก่อนบันทึก" : "ไม่พบฮีโร่นี้ในระบบ (ยังบันทึกได้)"}
+                      </p>
+                    )}
                     {match.kind === "ambiguous" && (
                       <p className="mt-0.5 text-[10px] text-accent">มีหลายฮีโร่ชื่อนี้ กดช่องแล้วเลือกจากรายการ ({match.heroes.map((h) => h.name).join(" / ")})</p>
                     )}
