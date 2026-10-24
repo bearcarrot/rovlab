@@ -5,7 +5,7 @@
 // - Keys listed in PERSISTED_PREFIXES are also kept in localStorage, so a page reload or a new tab does not
 //   refetch the same public hero data (each fetch is a Supabase API Gateway log line). Public data only: never add
 //   per-user keys here, or the next person on a shared device would see them.
-type Entry = { at: number; value: Promise<unknown> };
+type Entry = { at: number; value: Promise<unknown>; settled?: { v: unknown } };
 
 const store = new Map<string, Entry>();
 let bypass = false;
@@ -95,7 +95,7 @@ export function cached<T>(
     const saved = readPersisted<T>(key);
     if (saved) {
       const value = Promise.resolve(saved.v);
-      store.set(key, { at: saved.at, value });
+      store.set(key, { at: saved.at, value, settled: { v: saved.v } });
       return value;
     }
   }
@@ -106,8 +106,9 @@ export function cached<T>(
     (v) => {
       if (!keep(v)) {
         if (store.get(key) === entry) store.delete(key);
-      } else if (persist) {
-        writePersisted(key, v);
+      } else {
+        entry.settled = { v };
+        if (persist) writePersisted(key, v);
       }
     },
     () => {
@@ -115,4 +116,17 @@ export function cached<T>(
     },
   );
   return value;
+}
+
+// Already-loaded value (memory or localStorage), or undefined. Never starts a load and never waits on one in flight,
+// so a caller can reuse another page's data when it is there and fall back to its own query when it is not.
+export function peek<T>(key: string, ttlMs: number): T | undefined {
+  if (bypass) return undefined;
+  const hit = store.get(key);
+  if (hit) return hit.settled && Date.now() - hit.at < ttlMs ? (hit.settled.v as T) : undefined;
+  if (!isPersisted(key)) return undefined;
+  const saved = readPersisted<T>(key);
+  if (!saved || Date.now() - saved.at >= ttlMs) return undefined;
+  store.set(key, { at: saved.at, value: Promise.resolve(saved.v), settled: { v: saved.v } });
+  return saved.v;
 }

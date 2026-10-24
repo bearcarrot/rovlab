@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
+import { cached, peek, CACHE_TTL_MS } from "@/lib/ttlCache";
 
 // ความสัมพันธ์ระหว่างฮีโร่ที่ Draft Assistant ใช้คำนวณ (ดึงทั้งตารางครั้งเดียว: top-3 ต่อฮีโร่ จึงมีไม่กี่ร้อยแถว)
 //  - hero_counters: hero_id = ฮีโร่ที่ "โดนเคาน์เตอร์", counter_hero_id = ฮีโร่ที่ชนะทาง
@@ -55,6 +55,12 @@ async function loadDraftRelations(): Promise<Loaded> {
       })),
     },
   };
+}
+
+// Relations only if already cached (no request): lets Hero Detail skip its per-hero counter/synergy queries
+export function peekDraftRelations(): DraftRelations | undefined {
+  const hit = peek<Loaded>("draft-relations", CACHE_TTL_MS);
+  return hit?.ok ? { counters: hit.rel.counters.slice(), synergies: hit.rel.synergies.slice() } : undefined;
 }
 
 export async function getDraftRelations(): Promise<DraftRelations> {
