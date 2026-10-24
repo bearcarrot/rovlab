@@ -16,6 +16,8 @@ export interface ScanDraft {
 export type IssueCode =
   | "player_count"
   | "me"
+  | "heroes_unavailable"
+  | "hero_unmatched"
   | "hero_empty"
   | "hero_ambiguous"
   | "result"
@@ -155,7 +157,10 @@ export function checkDraft(d: ScanDraft, heroes: HeroSummary[] = []): Issue[] {
   const mine = d.players.filter((p) => p.isMe);
   if (mine.length !== 1) {
     issues.push({ code: "me", message: "เลือกแถวของคุณ (วงกลมหน้าชื่อฮีโร่)", blocking: true });
-  } else if (heroes.length > 0) {
+  } else if (heroes.length === 0) {
+    // An empty catalogue means it failed to load (a real one is never empty): without it my_hero_id would be saved as null.
+    issues.push({ code: "heroes_unavailable", message: "โหลดรายชื่อฮีโร่ไม่สำเร็จ รีเฟรชหน้าแล้วลองใหม่ ยังบันทึกไม่ได้", blocking: true });
+  } else {
     // Only the user's own hero must be exact: it drives the hero stats. Other rows may stay as typed.
     const m = matchHeroInTeam(d.players.indexOf(mine[0]), d.players, heroes);
     if (m.kind === "ambiguous") {
@@ -164,6 +169,9 @@ export function checkDraft(d: ScanDraft, heroes: HeroSummary[] = []): Issue[] {
         message: `ฮีโร่ของคุณมีหลายตำแหน่ง กรุณาเลือกให้ตรงกับที่ใช้ (${m.heroes.map((h) => h.name).join(" / ")})`,
         blocking: true,
       });
+    } else if (m.kind === "none" && mine[0].hero.trim()) {
+      // an empty name is reported by hero_empty below
+      issues.push({ code: "hero_unmatched", message: "ไม่พบฮีโร่ของคุณในระบบ กรุณาเลือกฮีโร่จากรายการ", blocking: true });
     }
   }
   if (d.players.some((p) => !p.hero.trim())) {
