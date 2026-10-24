@@ -14,22 +14,29 @@ export const ALL_LANES = "all";
 /** lane (หรือ "all") → (hero_id → tier) */
 export type CuratedTierLists = Map<string, Map<string, Tier>>;
 
+// แถวดิบเป็น JSON ล้วน (ไม่มี Map) เพื่อให้ ttlCache เก็บลง localStorage ข้ามการรีโหลดได้ แล้วค่อยประกอบเป็น Map ตอนอ่าน
 // ok = false เมื่ออ่านไม่ได้/พลาด (ไม่เก็บใน cache) ต่างจาก "อ่านได้แต่ยังไม่มีลิสต์" ซึ่ง cache ได้
-type Loaded = { lists: CuratedTierLists | null; ok: boolean };
+type Raw = {
+  ok: boolean;
+  lists: { id: string; lane: string | null }[];
+  entries: { tier_list_id: string; hero_id: string; tier: Tier }[];
+};
 
-async function loadCuratedTierLists(rank: RankBucket): Promise<Loaded> {
-  if (!isSupabaseConfigured) return { lists: null, ok: true };
+const none = (ok: boolean): Raw => ({ ok, lists: [], entries: [] });
+
+async function loadRaw(rank: RankBucket): Promise<Raw> {
+  if (!isSupabaseConfigured) return none(true);
   try {
     const patch = await getLatestPatch();
-    if (!patch) return { lists: null, ok: false };
+    if (!patch) return none(false);
 
     const { data: lists, error: listErr } = await db
       .from("tier_lists")
       .select("id, lane")
       .eq("patch_id", patch.id)
       .eq("rank_tier", rank);
-    if (listErr) return { lists: null, ok: false };
-    if (!lists || lists.length === 0) return { lists: null, ok: true };
+    if (listErr) return none(false);
+    if (!lists || lists.length === 0) return none(true);
 
     const { data: entries, error } = await db
       .from("tier_list_entries")
@@ -38,35 +45,38 @@ async function loadCuratedTierLists(rank: RankBucket): Promise<Loaded> {
         "tier_list_id",
         lists.map((l: any) => l.id)
       );
-    if (error) return { lists: null, ok: false };
-    if (!entries || entries.length === 0) return { lists: null, ok: true };
-
-    const laneOfList = new Map<string, string>(lists.map((l: any) => [l.id as string, (l.lane as string | null) ?? ALL_LANES]));
-    const out: CuratedTierLists = new Map();
-    for (const e of entries as any[]) {
-      const lane = laneOfList.get(e.tier_list_id);
-      if (!lane) continue;
-      let m = out.get(lane);
-      if (!m) {
-        m = new Map();
-        out.set(lane, m);
-      }
-      m.set(e.hero_id as string, e.tier as Tier);
-    }
-    return { lists: out.size > 0 ? out : null, ok: true };
+    if (error) return none(false);
+    return { ok: true, lists: lists as Raw["lists"], entries: (entries ?? []) as Raw["entries"] };
   } catch {
-    return { lists: null, ok: false };
+    return none(false);
   }
+}
+
+function build(raw: Raw): CuratedTierLists | null {
+  const laneOfList = new Map<string, string>(raw.lists.map((l) => [l.id, l.lane ?? ALL_LANES]));
+  const out: CuratedTierLists = new Map();
+  for (const e of raw.entries) {
+    const lane = laneOfList.get(e.tier_list_id);
+    if (!lane) continue;
+    let m = out.get(lane);
+    if (!m) {
+      m = new Map();
+      out.set(lane, m);
+    }
+    m.set(e.hero_id, e.tier);
+  }
+  return out.size > 0 ? out : null;
 }
 
 /**
  * Tier ที่แอดมินจัดเองในแท็บ "Tier List" ของหน้า Admin ของแพตช์ล่าสุด + แรงก์ที่เลือก ครบทุกเลนในครั้งเดียว
  * คืน null เมื่อยังไม่มีลิสต์เลย (หรืออ่านไม่ได้) เพื่อให้ฝั่งเว็บ fallback ไปใช้ hero_stats.tier
- * ผลลัพธ์ cache ไว้ในหน่วยความจำ (แอดมินข้าม cache) อย่าแก้ Map ที่ได้คืนไป
+ * แคช (หน่วยความจำ + localStorage, แอดมินข้าม cache) เก็บแถวดิบ; Map ที่คืนไปสร้างใหม่ทุกครั้ง
+ * key ต้องขึ้นต้นด้วย "tiers:" เพราะโค้ดฝั่งแอดมินล้างแคชด้วย prefix นี้
  */
 export async function getCuratedTierLists(rank: RankBucket): Promise<CuratedTierLists | null> {
-  const res = await cached(`tiers:${rank}`, CACHE_TTL_MS, () => loadCuratedTierLists(rank), (v) => v.ok);
-  return res.lists;
+  const raw = await cached(`tiers:${rank}`, CACHE_TTL_MS, () => loadRaw(rank), (v) => v.ok);
+  return build(raw);
 }
 
 /** ลิสต์ของเลนเดียว (lane = null → ลิสต์รวม) ใช้ในหน้า Tier List */

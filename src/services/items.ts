@@ -44,18 +44,11 @@ async function fetchItems(): Promise<ItemSummary[]> {
   return (data as DbItemRow[]).map(toItem);
 }
 
-// Items are the same for every build row on the page, so fetch once and share.
-let itemsPromise: Promise<ItemSummary[]> | null = null;
-
+// Items are the same for every build row on the page, so fetch once and share (ttlCache: shared in-flight, kept across reloads, admins bypass).
+// A failed load rejects and is not cached, so the next call retries; an empty list is not cached either.
 export function getItems(): Promise<ItemSummary[]> {
   if (!isSupabaseConfigured) return delay(MOCK_ITEMS);
-  if (!itemsPromise) {
-    itemsPromise = fetchItems().catch((e) => {
-      itemsPromise = null; // allow retry after a failure
-      throw e;
-    });
-  }
-  return itemsPromise;
+  return cached("items:all", CACHE_TTL_MS, fetchItems, (v) => v.length > 0);
 }
 
 type DbRuneRow = { id: string; name: string; description: string | null; icon_url: string | null };
@@ -66,18 +59,10 @@ async function fetchArcana(): Promise<ArcanaSummary[]> {
   return (data as DbRuneRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
 }
 
-let arcanaPromise: Promise<ArcanaSummary[]> | null = null;
-
 // All runes (30 rows, with icons). Offline/mock mode has none — the UI falls back to initials.
 export function getArcana(): Promise<ArcanaSummary[]> {
   if (!isSupabaseConfigured) return Promise.resolve([]);
-  if (!arcanaPromise) {
-    arcanaPromise = fetchArcana().catch((e) => {
-      arcanaPromise = null; // allow retry after a failure
-      throw e;
-    });
-  }
-  return arcanaPromise;
+  return cached("runes:all", CACHE_TTL_MS, fetchArcana, (v) => v.length > 0);
 }
 
 // Build entries are written like "Sage x10" (set name + count); match on the set name only.
