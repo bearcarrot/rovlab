@@ -8,6 +8,8 @@ import { pickVideos, type HeroVideo, type YtSearchItem } from "./filter.ts";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // ให้เบราว์เซอร์จำผล preflight (ไม่ใส่ = 5 วินาที ทำให้ทุกการเรียกกลายเป็น OPTIONS + POST สองครั้งของฟังก์ชัน); Chrome จำกัดที่ 2 ชม., Firefox 24 ชม.
+  "Access-Control-Max-Age": "86400",
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
