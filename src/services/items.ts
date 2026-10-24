@@ -5,6 +5,8 @@ import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
 import { getLatestPatch } from "@/services/meta";
+import { getCatalogItemRows, getCatalogRuneRows } from "@/services/gameCatalog";
+import { byCostDesc } from "@/lib/catalogRows";
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -35,34 +37,17 @@ function toItem(row: DbItemRow): ItemSummary {
   };
 }
 
-async function fetchItems(): Promise<ItemSummary[]> {
-  const { data, error } = await supabase
-    .from("items")
-    .select("id, slug, name, name_th, cost, stats, passive, icon_url")
-    .order("cost", { ascending: false });
-  if (error || !data) throw new Error(error?.message ?? "โหลดรายการไอเทมไม่สำเร็จ");
-  return (data as DbItemRow[]).map(toItem);
-}
-
-// Items are the same for every build row on the page, so fetch once and share (ttlCache: shared in-flight, kept across reloads, admins bypass).
-// A failed load rejects and is not cached, so the next call retries; an empty list is not cached either.
-export function getItems(): Promise<ItemSummary[]> {
+// Items are the same for every build row on the page. Rows come from the shared catalog cache (catalog:items: one request,
+// kept across reloads, admins bypass). Unlike the public Game Data pages, builds see every row (verified or not), as before.
+export async function getItems(): Promise<ItemSummary[]> {
   if (!isSupabaseConfigured) return delay(MOCK_ITEMS);
-  return cached("items:all", CACHE_TTL_MS, fetchItems, (v) => v.length > 0);
+  return byCostDesc((await getCatalogItemRows()).map((r) => toItem(r as DbItemRow)));
 }
 
-type DbRuneRow = { id: string; name: string; description: string | null; icon_url: string | null };
-
-async function fetchArcana(): Promise<ArcanaSummary[]> {
-  const { data, error } = await supabase.from("rune").select("id, name, description, icon_url").order("name", { ascending: true });
-  if (error || !data) throw new Error(error?.message ?? "โหลดรายการรูนไม่สำเร็จ");
-  return (data as DbRuneRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
-}
-
-// All runes (30 rows, with icons). Offline/mock mode has none — the UI falls back to initials.
-export function getArcana(): Promise<ArcanaSummary[]> {
-  if (!isSupabaseConfigured) return Promise.resolve([]);
-  return cached("runes:all", CACHE_TTL_MS, fetchArcana, (v) => v.length > 0);
+// All runes (30 rows, with icons), same shared cache as the Game Data runes. Offline/mock mode has none — the UI falls back to initials.
+export async function getArcana(): Promise<ArcanaSummary[]> {
+  if (!isSupabaseConfigured) return [];
+  return (await getCatalogRuneRows()).map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", icon: r.icon_url ?? "" }));
 }
 
 // Build entries are written like "Sage x10" (set name + count); match on the set name only.
