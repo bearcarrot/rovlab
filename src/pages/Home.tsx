@@ -75,9 +75,9 @@ const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
 
 // สแนปช็อตหน้าสถิติ: โชว์แค่ 6 อันดับแรกของแต่ละตัวชี้วัด
 const SNAPSHOT_SIZE = 6;
-// แถว Tier: โชว์ S+ และ S อย่างละสูงสุด 11 ตัว (+ ปุ่ม "+N" ไปหน้า Tier List) ไอคอนเล็กกว่าหน้า Tier List
-const TOP_TIER_MAX = 11;
-const TOP_TIERS: Tier[] = ["S+", "S"];
+// แถว Tier: โชว์เฉพาะ S+ สูงสุด 9 ตัว + ปุ่ม "+N" ไปหน้า Tier List รวมเป็น 10 ช่อง (มือถือ 5 คอลัมน์ = 2 แถว, แท็บเล็ต/PC 10 คอลัมน์ = 1 แถว)
+const TOP_TIER_MAX = 9;
+const TOP_TIERS: Tier[] = ["S+"];
 
 // Bundle: การ์ดแมตช์ (features/matches/stats.ts + การ์ด ~22 KB ซอร์ส) แสดงเฉพาะคนล็อกอินและอยู่ล่างสุดของหน้า
 // จึงแยกเป็น chunk โหลดเมื่อมี user เท่านั้น — Guest ไม่ต้องโหลดโค้ดนี้ (PSI: unused JavaScript)
@@ -109,7 +109,7 @@ export function Home() {
     };
   }, [data]);
 
-  // ฮีโร่ Tier S+ / S เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
+  // ฮีโร่ Tier S+ เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
   const topTiers = useMemo(() => {
     if (!data || curatedLoading) return null;
     return TOP_TIERS.map((tier) => ({
@@ -226,7 +226,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Current meta: snapshot of Tier List (S+ / S) and the Stats page (top 6 each) */}
+      {/* 4. Current meta: snapshot of Tier List (S+) and the Stats page (top 6 each) */}
       <section aria-labelledby="meta-heading" className="space-y-6">
         <SectionHeading
           id="meta-heading"
@@ -422,7 +422,7 @@ function Hero({
           aria-label={metaLabel || "ภาพรวมข้อมูล"}
         >
           <HeroStat label="ฮีโร่ในระบบ" value={heroCount} />
-          <HeroStat label="Tier S+ / S" value={topTierCount} />
+          <HeroStat label="Tier S+" value={topTierCount} />
           <HeroStat label={patch ? "Patch" : "ระดับแรงค์"} value={patch ?? rankLabel} text />
         </dl>
       </div>
@@ -514,8 +514,9 @@ function MoreLink({
   );
 }
 
-// แถว Tier S+ และ S : ไอคอนฮีโร่ฟอร์มเดียวกับหน้า Tier List แต่ย่อส่วน (เรียง A–Z ไม่ใช่อันดับความแรง)
-const TOP_TIER_GRID = "grid grid-cols-6 gap-2 sm:grid-cols-12";
+// แถว Tier S+ : ไอคอนฮีโร่ฟอร์มเดียวกับหน้า Tier List แต่ย่อส่วน (เรียง A–Z ไม่ใช่อันดับความแรง)
+// มือถือ 5 คอลัมน์, แท็บเล็ต/PC 10 คอลัมน์
+const TOP_TIER_GRID = "grid grid-cols-5 gap-2 md:grid-cols-10";
 
 function TopTierRows({
   loading,
@@ -545,7 +546,7 @@ function TopTierRows({
         <div className="space-y-3">
           {TOP_TIERS.map((t) => (
             <div key={t} className={cn(TOP_TIER_GRID, "rounded-2xl border border-border bg-bg-surface p-3")}>
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: TOP_TIER_MAX + 1 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-square" />
               ))}
             </div>
