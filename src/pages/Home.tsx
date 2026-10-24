@@ -362,62 +362,65 @@ function Hero({
     >
       {/* ฉากหลัง: ตาราง + แสงทอง/ฟ้า */}
 
-      <div className="space-y-5">
-        <p className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-accent">
-          <span className="relative flex h-2 w-2">
-            <span className="home-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-70" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-          </span>
-          {SITE.taglineEn}
-        </p>
+      {/* จอกว้าง: ข้อความซ้าย สถิติซ้อนเป็นคอลัมน์ขวา (แทนที่ว่างเดิมของโมเสก) / มือถือ: เรียงต่อกัน */}
+      <div className="grid items-center gap-8 md:grid-cols-[1.4fr_0.6fr] md:gap-10">
+        <div className="space-y-5">
+          <p className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-accent">
+            <span className="relative flex h-2 w-2">
+              <span className="home-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+            </span>
+            {SITE.taglineEn}
+          </p>
 
-        <h1
-          className="font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl"
-          style={{ animationDelay: "80ms" }}
-        >
-          {first}
-          {restText && (
-            <>
-              <br />
-              <span className="home-gold-text">{restText}</span>
-            </>
-          )}
-        </h1>
-
-        <p
-          className="max-w-xl text-base leading-relaxed text-text-muted"
-          style={{ animationDelay: "160ms" }}
-        >
-          วิเคราะห์องค์ประกอบทีม หาเคาน์เตอร์ และเลือกฮีโร่ให้เข้ากับแผนการเล่น
-        </p>
-
-        <div
-          className="flex flex-col gap-3 sm:flex-row"
-          style={{ animationDelay: "240ms" }}
-        >
-          <Link
-            to="/draft"
-            className={cn(
-              "home-cta inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-accent-fg",
-              FOCUS
-            )}
+          <h1
+            className="font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl"
+            style={{ animationDelay: "80ms" }}
           >
-            เริ่มวิเคราะห์ Draft <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            to="/tier-list"
-            className={cn(
-              "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-text transition-colors hover:border-accent/50 hover:bg-white/10",
-              FOCUS
+            {first}
+            {restText && (
+              <>
+                <br />
+                <span className="home-gold-text">{restText}</span>
+              </>
             )}
+          </h1>
+
+          <p
+            className="max-w-xl text-base leading-relaxed text-text-muted"
+            style={{ animationDelay: "160ms" }}
           >
-            ดู Tier List
-          </Link>
+            วิเคราะห์องค์ประกอบทีม หาเคาน์เตอร์ และเลือกฮีโร่ให้เข้ากับแผนการเล่น
+          </p>
+
+          <div
+            className="flex flex-col gap-3 sm:flex-row"
+            style={{ animationDelay: "240ms" }}
+          >
+            <Link
+              to="/draft"
+              className={cn(
+                "home-cta inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-accent-fg",
+                FOCUS
+              )}
+            >
+              เริ่มวิเคราะห์ Draft <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/tier-list"
+              className={cn(
+                "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-text transition-colors hover:border-accent/50 hover:bg-white/10",
+                FOCUS
+              )}
+            >
+              ดู Tier List
+            </Link>
+          </div>
         </div>
 
         {/* สถิติสั้นๆ ของระบบ */}
         <dl
-          className="grid max-w-md grid-cols-3 gap-2 pt-2"
+          className="grid max-w-md grid-cols-3 gap-2 md:max-w-none md:grid-cols-1 md:gap-3"
           style={{ animationDelay: "320ms" }}
           aria-label={metaLabel || "ภาพรวมข้อมูล"}
         >
