@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BarChart3, HelpCircle } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
-import { getCuratedTiers } from "@/services/tierlist";
+import { getCuratedTiersStrict } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useToast } from "@/components/ui/toast";
@@ -63,8 +63,9 @@ export function TierList() {
   const { roleLabel, laneLabel } = useFilterLabels();
   // กันค่าเก่า/ค่าเสียใน sessionStorage ที่ไม่ตรงกับ Tier ปัจจุบัน → ถือเป็น "ทุก Tier"
   const tier = storedTier !== null && TIER_ORDER.includes(storedTier) ? storedTier : null;
-  // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน)
-  const curated = useAsync(() => getCuratedTiers(rank, lane), [rank, lane]);
+  // Tier ที่แอดมินจัดเองตามแพตช์/แรงก์/เลนที่เลือก (null = ยังไม่มีลิสต์ → ใช้ tier จาก hero_stats แทน; อ่านไม่ได้ = error + ลองใหม่)
+  // โหลดเฉพาะโหมดทางการ (โหมดอื่นไม่ใช้) — ข้อมูลอยู่ใน cache ระดับแรงก์ จึงสลับโหมด/เลนกลับมาไม่ยิงซ้ำ
+  const curated = useAsync(async () => (mode === "official" ? getCuratedTiersStrict(rank, lane) : null), [rank, lane, mode]);
 
   // ลิงก์ /tier-list/<id>: id เสีย = กลับหน้าปกติ; id ถูก = จำไว้ว่าอยู่แท็บ Community (ปิดหน้าต่างแล้วไม่เด้งไปแท็บอื่น)
   useEffect(() => {
@@ -96,8 +97,9 @@ export function TierList() {
   }, [searchParams, setSearchParams, setRole, setLane, setTier, setMode]);
 
   const grouped = useMemo(() => {
-    if (heroes.status !== "success" || curated.status === "loading") return null;
-    const tiers = curated.status === "success" ? curated.data : null;
+    // error ต้องไม่ตกไปใช้ hero_stats.tier (จะดูเหมือนเป็นลิสต์ทีมงาน) → ไม่มีข้อมูลให้จัดกลุ่ม แล้วหน้าแสดง ErrorState แทน
+    if (heroes.status !== "success" || curated.status !== "success") return null;
+    const tiers = curated.data;
     const filtered = heroes.data.filter((h) => {
       if (role !== null && !heroRoles(h).includes(role)) return false;
       // มีลิสต์ที่แอดมินจัด: แสดงเฉพาะฮีโร่ในลิสต์นั้น (ลิสต์รายเลนคือเลนนั้นอยู่แล้ว)
@@ -251,7 +253,11 @@ export function TierList() {
             </div>
           )}
           {heroes.status === "error" && <ErrorState message={heroes.message} onRetry={heroes.refetch} />}
-          {!loading && heroes.status === "success" && totalShown === 0 && (
+          {/* ข้อความคงที่ ไม่แสดงข้อความ error จาก DB; ผลที่พลาดไม่ถูก cache กดลองใหม่จึงยิงคำขอใหม่จริง */}
+          {curated.status === "error" && heroes.status !== "error" && (
+            <ErrorState message="ไม่สามารถโหลด Tier List ทางการได้" onRetry={curated.refetch} />
+          )}
+          {!loading && heroes.status === "success" && curated.status === "success" && totalShown === 0 && (
             <EmptyState
               icon={BarChart3}
               title={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ไม่พบฮีโร่ในหมวดนี้" : "ยังไม่มีข้อมูลสถิติฮีโร่"}
