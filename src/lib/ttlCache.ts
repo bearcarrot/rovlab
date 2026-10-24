@@ -23,6 +23,7 @@ const PERSISTED_PREFIXES = [
   "videos:",
   "tiers:",
   "balance:recent",
+  "balance:hero:",
   "items:all",
   "runes:all",
 ];
