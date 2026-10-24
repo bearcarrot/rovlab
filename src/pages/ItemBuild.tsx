@@ -94,20 +94,7 @@ function HeroPicker({ heroes, value, onChange }: { heroes: HeroSummary[]; value:
                   )}
                 >
                   <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
-                    {h.icon ? (
-                      <img
-                        src={h.icon}
-                        alt={h.nameTh}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                        }}
-                      />
-                    ) : null}
-                    <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>{h.name.slice(0, 2).toUpperCase()}</span>
+                    <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-none text-sm sm:text-base" />
                     <HeroBalanceBadge heroId={h.id} size="md" inside />
                   </div>
                   <span className="w-full truncate px-1 text-[11px] leading-tight sm:text-xs">{h.nameTh}</span>

@@ -14,9 +14,10 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { Switch } from "@/features/community/Switch";
 import { ItemSlots, RuneSlots, type ItemOpt, type RowMove } from "@/features/admin/BuildSlots";
-import { Thumb, type ImgOpt } from "@/features/admin/ImageSelect";
+import type { ImgOpt } from "@/features/admin/ImageSelect";
 import { ITEM_TYPE_CHOICES, PHASES, RUNE_COLOR_VIEW } from "@/features/build/buildView";
 import { EnchantmentBoard, type BoardRow, type EnchTree } from "@/features/build/EnchantmentBoard";
 import { SpellPicker, type SpellOpt } from "@/features/build/SpellPicker";
@@ -243,7 +244,7 @@ export function BuildEditor() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 pb-24">
       <div className="flex items-center gap-3">
-        <Thumb src={hero.icon || undefined} label={hero.nameTh} className="h-12 w-12" />
+        <HeroIcon icon={hero.icon} name={hero.nameTh} decorative className="h-12 w-12" />
         <div>
           <h1 className="font-display text-xl font-semibold">{isNew ? "สร้างบิลด์" : "แก้ไขบิลด์"}: {hero.nameTh}</h1>
           <p className="text-xs text-text-faint">เลือกได้เฉพาะรายการที่ยืนยันกับเกมแล้วเท่านั้น</p>
