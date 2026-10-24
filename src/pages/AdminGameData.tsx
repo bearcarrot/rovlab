@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { uploadCatalogImage } from "@/lib/r2Upload";
 import { useToast } from "@/components/ui/toast";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import {
@@ -14,7 +15,6 @@ import {
 const db: any = supabase;
 type Row = Record<string, any>;
 const PAGE = 20;
-const BUCKET = "hero-icons";
 
 const KINDS: [CatalogKind, string][] = [
   ["items", "ไอเทม"],
@@ -106,13 +106,6 @@ function VerifyBadge({ row }: { row: Row }) {
 
 // ตัด/ลบอักขระที่ใช้เป็นไวยากรณ์ของ PostgREST .or() ออกจากคำค้น
 const cleanQ = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
-
-async function uploadImage(file: File, folder: string): Promise<string> {
-  const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
-  if (error) throw new Error(error.message);
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-}
 
 // จำนวนที่ถูกบิลด์อ้างอิง (ใช้ตัดสินใจว่าลบได้หรือไม่)
 async function usageCount(kind: CatalogKind, id: string): Promise<number> {
@@ -320,11 +313,11 @@ function EditorModal({ kind, row, trees, onClose, onSaved }: { kind: CatalogKind
               </div>
               <label className={`${btnSecondary} w-full cursor-pointer sm:w-auto`}>
                 อัปโหลดรูป
-                <input type="file" accept="image/*" hidden onChange={async (e) => {
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={async (e) => {
                   const input = e.target;
                   const file = input.files?.[0];
                   if (!file) return;
-                  try { set("icon_url", await uploadImage(file, table)); } catch (er) { toast.error(`อัปโหลดไม่สำเร็จ: ${(er as Error).message}`); }
+                  try { set("icon_url", await uploadCatalogImage(file, table)); } catch (er) { toast.error(`อัปโหลดไม่สำเร็จ: ${(er as Error).message}`); }
                   input.value = "";
                 }} />
               </label>
