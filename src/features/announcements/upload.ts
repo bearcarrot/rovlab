@@ -1,10 +1,10 @@
 // Client-side image checks and naming for announcement uploads (spec section 8). Pure: no runtime imports.
-// Server enforcement is the bucket config + storage policies in the migration; these checks give fast, friendly feedback.
+// Server enforcement lives in api/_upload/core.ts (R2); these checks give fast, friendly feedback.
 export const MAX_IMAGE_BYTES = 2_097_152;
 export type ImageMime = "image/jpeg" | "image/png" | "image/webp";
 
 const EXT: Record<ImageMime, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const OWN_URL_RE = /^https:\/\/[^/?#]+\/storage\/v1\/object\/public\/announcements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp))(?:[?#].*)?$/;
+const OWN_URL_RE = /^https:\/\/assets\.rovlab\.app\/announcements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp))(?:[?#].*)?$/;
 
 const startsWith = (b: Uint8Array, sig: number[], at = 0): boolean => b.length >= at + sig.length && sig.every((v, i) => b[at + i] === v);
 
@@ -29,7 +29,7 @@ export function objectName(mime: ImageMime, uuid: string): string {
   return `${uuid}.${EXT[mime]}`;
 }
 
-// only objects that follow our own naming scheme in our own bucket may ever be deleted
+// only objects that follow our own naming scheme on our own R2 domain may ever be deleted (the server re-checks this)
 export function objectNameFromUrl(url: string): string | null {
   const m = OWN_URL_RE.exec(url.trim());
   return m ? m[1] : null;

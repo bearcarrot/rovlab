@@ -9,7 +9,7 @@ const JPEG = bytes(0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1
 const PNG = bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d);
 const WEBP = bytes(...ascii("RIFF"), 0x24, 0, 0, 0, ...ascii("WEBP"));
 const UUID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
-const BASE = "https://abc.supabase.co/storage/v1/object/public/announcements/";
+const BASE = "https://assets.rovlab.app/announcements/";
 
 test("U1 sniffImageType recognises JPEG, PNG and WebP by their first bytes", () => {
   assert.equal(sniffImageType(JPEG), "image/jpeg");
@@ -47,14 +47,15 @@ test("U5 objectName builds <uuid>.<ext> from the validated MIME type only", () =
   assert.equal(objectName("image/png", UUID), `${UUID}.png`);
   assert.equal(objectName("image/webp", UUID), `${UUID}.webp`);
 });
-test("U6 objectNameFromUrl returns the object name only for our own bucket and our own naming scheme", () => {
+test("U6 objectNameFromUrl returns the object name only for our own R2 domain and our own naming scheme", () => {
   assert.equal(objectNameFromUrl(`${BASE}${UUID}.webp`), `${UUID}.webp`);
   assert.equal(objectNameFromUrl(`${BASE}${UUID}.png?v=2`), `${UUID}.png`);
   assert.equal(objectNameFromUrl(`${BASE}${UUID}.gif`), null);
   assert.equal(objectNameFromUrl(`${BASE}not-a-uuid.png`), null);
   assert.equal(objectNameFromUrl(`${BASE}../avatars/${UUID}.png`), null);
   assert.equal(objectNameFromUrl(`${BASE}sub/${UUID}.png`), null);
-  assert.equal(objectNameFromUrl(`https://abc.supabase.co/storage/v1/object/public/avatars/${UUID}.png`), null);
-  assert.equal(objectNameFromUrl(`https://example.com/${UUID}.png`), null);
-  assert.equal(objectNameFromUrl(`http://abc.supabase.co/storage/v1/object/public/announcements/${UUID}.png`), null);
+  assert.equal(objectNameFromUrl(`https://assets.rovlab.app/avatars/${UUID}.png`), null);
+  assert.equal(objectNameFromUrl(`https://example.com/announcements/${UUID}.png`), null);
+  assert.equal(objectNameFromUrl(`http://assets.rovlab.app/announcements/${UUID}.png`), null);
+  assert.equal(objectNameFromUrl(`https://abc.supabase.co/storage/v1/object/public/announcements/${UUID}.png`), null, "legacy Supabase URLs are never deleted");
 });
