@@ -62,6 +62,29 @@ export function TurnCountdown({ left }: { left: number }) {
   );
 }
 
+/**
+ * Progress bar above a team's slots: full for the team whose turn it is, empty for the other team.
+ * It drains from the OUTER edge toward the centre timer (left team: anchored right on md+, right team: anchored left).
+ * On mobile the teams are stacked, so both bars are anchored left. Display only (decorative, hidden from screen readers).
+ */
+export function TeamTurnBar({ active, left, total, side }: { active: boolean; left: number; total: number; side: "left" | "right" }) {
+  const pct = active && total > 0 ? Math.min(100, (left / total) * 100) : 0;
+  return (
+    <div
+      aria-hidden
+      className={cn("mb-1.5 flex h-1.5 overflow-hidden rounded-full bg-border/40", side === "left" && "md:justify-end")}
+    >
+      <div
+        className={cn(
+          "h-full rounded-full transition-[width] duration-1000 ease-linear",
+          left === 0 ? "bg-loss" : left <= 10 ? "bg-amber-400" : "bg-accent"
+        )}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
 export function CompetitivePanel({
   on,
   onToggle,

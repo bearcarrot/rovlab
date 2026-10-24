@@ -50,8 +50,8 @@ import { collectLanes, filterByMissingLanes, getMissingLanes } from "@/features/
 import { SeriesBar } from "@/features/draft/SeriesBar";
 import { GlobalRestrictionPanel, type RestrictedByGame } from "@/features/draft/GlobalRestrictionPanel";
 import { BanRow } from "@/features/draft/BanRow";
-import { CompetitivePanel, TurnCountdown, useTurnCountdown } from "@/features/draft/CompetitivePanel";
-import { getCurrentTurn, isTurnAllowed, turnTarget } from "@/features/draft/competitive";
+import { CompetitivePanel, TeamTurnBar, TurnCountdown, useTurnCountdown } from "@/features/draft/CompetitivePanel";
+import { getCurrentTurn, isTurnAllowed, turnSeconds, turnTarget } from "@/features/draft/competitive";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
 import { MyDrafts } from "@/features/draft/MyDrafts";
@@ -672,6 +672,14 @@ export function DraftAssistant() {
                   </div>
                 )}
               <div>
+                {left !== null && turn && (
+                  <TeamTurnBar
+                    active={turn.team === team}
+                    left={left}
+                    total={turnSeconds(turn.kind)}
+                    side={team === "mine" ? "left" : "right"}
+                  />
+                )}
                 <TeamSlots
                   label={TEAM_LABEL[team]}
                   teamId={team}
