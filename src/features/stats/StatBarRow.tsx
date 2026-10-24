@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
-import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { BalanceBadge, HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { HeroIcon } from "@/components/HeroIcon";
 import { cn } from "@/lib/utils";
+import type { BalanceKind } from "@/services/balance";
 import type { HeroSummary } from "@/types/hero";
 
 // หลอดแสดงสัดส่วนจาก 100% (เช่น WR 54.8% = หลอด 54.8% ไม่ใช่เทียบกับอันดับ 1)
@@ -18,12 +20,15 @@ export function StatBarRow({
   metric,
   tone = "default",
   rank,
+  balanceKind,
 }: {
   hero: HeroSummary;
   metric: number;
   tone?: StatTone;
   /** อันดับ (1 = แรก) แสดงเป็นเลขนำหน้าแถว; ไม่ส่ง = ไม่แสดง (หน้าอื่นใช้เหมือนเดิม) */
   rank?: number;
+  /** หน้าที่โหลด recent balance ไว้แล้วส่ง kind (หรือ null = ไม่มี) มาให้ แถวจะไม่สร้าง hook ของตัวเอง; ไม่ส่ง (undefined) = แถวโหลดเอง */
+  balanceKind?: BalanceKind | null;
 }) {
   const pct = Math.min(100, Math.max(0, metric));
   const styles = TONE_STYLES[tone];
@@ -42,27 +47,16 @@ export function StatBarRow({
           {rank}
         </span>
       )}
-      {/* ไม่ใส่ overflow-hidden ที่กรอบ เพราะ HeroBalanceBadge ต้องโผล่ขอบขวาล่าง → ตัดมุมที่ตัวรูปแทน */}
-      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-raised font-display text-xs text-text-faint">
-        {hero.icon ? (
-          <img
-            src={hero.icon}
-            alt={hero.nameTh}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            className="h-full w-full rounded-md object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextElementSibling?.classList.remove("hidden");
-            }}
-          />
-        ) : null}
-
-        <span className={`text-2xl font-display text-text-faint ${hero.icon ? "hidden" : ""}`}>
-          {hero.name.slice(0, 2).toUpperCase()}
-        </span>
+      {/* ไม่ใส่ overflow-hidden ที่กรอบนี้ เพราะ badge ต้องโผล่ขอบขวาล่าง → HeroIcon ตัดมุมที่ตัวรูปเอง */}
+      <div className="relative h-9 w-9 shrink-0">
+        <HeroIcon
+          icon={hero.icon}
+          name={hero.nameTh}
+          fallback={hero.name.slice(0, 2).toUpperCase()}
+          className="h-9 w-9 text-2xl"
+        />
         {/* ไอคอนปรับสมดุล ขวาล่างของรูปฮีโร่ เหมือนทุกหน้า */}
-        <HeroBalanceBadge heroId={hero.id} />
+        {balanceKind !== undefined ? <BalanceBadge kind={balanceKind} /> : <HeroBalanceBadge heroId={hero.id} />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between gap-2">
