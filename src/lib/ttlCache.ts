@@ -23,8 +23,7 @@ const PERSISTED_PREFIXES = [
   "videos:",
   "tiers:",
   "balance:recent",
-  "items:all",
-  "runes:all",
+  "catalog:", // items / runes / spells / enchantments (public game data; see services/gameCatalog.ts)
 ];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored

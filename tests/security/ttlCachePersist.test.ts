@@ -33,7 +33,7 @@ async function loadsAfterReload(key: string): Promise<number> {
 }
 
 test("P1 public reference keys are served from storage after a reload (1 load)", async () => {
-  const keys = ["draft-relations", "videos:airi", "builds:abc", "patch:latest", "tiers:all", "balance:recent", "items:all", "runes:all"];
+  const keys = ["draft-relations", "videos:airi", "builds:abc", "patch:latest", "tiers:all", "balance:recent", "catalog:items", "catalog:runes", "catalog:spells", "catalog:enchantments"];
   for (const key of keys) {
     assert.equal(await loadsAfterReload(key), 1, key);
   }
