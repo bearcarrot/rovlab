@@ -4,6 +4,7 @@ import { ROLE_TAGS } from "@/features/draft/heroTags";
 import type { HeroSummary } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { cached, CACHE_TTL_MS } from "@/lib/ttlCache";
+import { getLatestPatch } from "@/services/meta";
 
 const SIMULATED_LATENCY = 250;
 function delay<T>(v: T): Promise<T> {
@@ -223,22 +224,9 @@ export async function getBuildsForHero(hero: Pick<HeroSummary, "id" | "slug">): 
 }
 
 // รหัสแพตช์ล่าสุดจากตาราง patches (ไว้เทียบว่าบิลด์เก่ากว่าแพตช์ปัจจุบันไหม); null = ไม่ทราบ
-export function getLatestPatchCode(): Promise<string | null> {
-  if (!isSupabaseConfigured) return Promise.resolve(null);
-  return cached(
-    "patch:latest",
-    CACHE_TTL_MS,
-    async () => {
-      const { data, error } = await supabase
-        .from("patches")
-        .select("code")
-        .order("released_at", { ascending: false, nullsFirst: false })
-        .limit(1);
-      if (error || !data?.length) return null;
-      return (data[0] as { code: string }).code;
-    },
-    (v) => v !== null
-  );
+// ใช้ผลเดียวกับ getLatestPatch (ไม่ยิง patches ซ้ำอีกชุด)
+export async function getLatestPatchCode(): Promise<string | null> {
+  return (await getLatestPatch())?.code ?? null;
 }
 
 export async function getBuildForHero(hero: HeroSummary): Promise<HeroBuild> {
