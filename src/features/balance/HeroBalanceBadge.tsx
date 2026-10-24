@@ -1,24 +1,15 @@
 import { BalanceIcon } from "./BalanceIcon";
 import { useRecentBalance } from "./useRecentBalance";
+import type { BalanceKind } from "@/services/balance";
 import type { HeroSummary } from "@/types/hero";
 
-/**
- * ไอคอน buff / nerf / adjust / rework มุมขวาล่างของรูปฮีโร่ — ใช้ตำแหน่งเดียวกันทุกหน้า
- * วางไว้ใน element ที่เป็น `relative` (กรอบรูปฮีโร่) — ไม่แสดงอะไรถ้าฮีโร่ไม่ได้ถูกปรับในแพตช์ล่าสุด
- * - size: sm (ไอคอนเล็กในรายการ) / md (การ์ดและหน้ารายละเอียด)
- * - inside: วางชิดในกรอบ ใช้กับกรอบที่ overflow-hidden (เช่นการ์ดฮีโร่) ไม่งั้นคร่อมขอบเล็กน้อย
- */
-export function HeroBalanceBadge({
-  heroId,
-  size = "sm",
-  inside = false,
-}: {
-  heroId: HeroSummary["id"];
+type BadgeLook = {
   size?: "sm" | "md";
   inside?: boolean;
-}) {
-  const recent = useRecentBalance();
-  const kind = recent?.get(heroId);
+};
+
+/** ส่วนวาดล้วน (ไม่มี hook) — หน้าที่โหลด recent balance ไว้ครั้งเดียวแล้วส่ง kind ลงมาเอง (เช่น Stats) ใช้ตัวนี้ */
+export function BalanceBadge({ kind, size = "sm", inside = false }: BadgeLook & { kind: BalanceKind | null | undefined }) {
   if (!kind) return null;
   const box = size === "md" ? "h-6 w-6" : "h-4 w-4";
   const icon = size === "md" ? "h-3.5 w-3.5" : "h-2.5 w-2.5";
@@ -30,4 +21,15 @@ export function HeroBalanceBadge({
       <BalanceIcon kind={kind} className={icon} />
     </span>
   );
+}
+
+/**
+ * ไอคอน buff / nerf / adjust / rework มุมขวาล่างของรูปฮีโร่ — ใช้ตำแหน่งเดียวกันทุกหน้า
+ * วางไว้ใน element ที่เป็น `relative` (กรอบรูปฮีโร่) — ไม่แสดงอะไรถ้าฮีโร่ไม่ได้ถูกปรับในแพตช์ล่าสุด
+ * - size: sm (ไอคอนเล็กในรายการ) / md (การ์ดและหน้ารายละเอียด)
+ * - inside: วางชิดในกรอบ ใช้กับกรอบที่ overflow-hidden (เช่นการ์ดฮีโร่) ไม่งั้นคร่อมขอบเล็กน้อย
+ */
+export function HeroBalanceBadge({ heroId, size, inside }: BadgeLook & { heroId: HeroSummary["id"] }) {
+  const recent = useRecentBalance();
+  return <BalanceBadge kind={recent?.get(heroId)} size={size} inside={inside} />;
 }
