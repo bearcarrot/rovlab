@@ -2,16 +2,16 @@
 import { useState } from "react";
 import { Loader2, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { uploadCatalogImage } from "@/lib/r2Upload";
 import { useToast } from "@/components/ui/toast";
 import { explainDbError } from "@/lib/catalogAdmin";
 import { Thumb } from "./ImageSelect";
 
 const db: any = supabase;
-const BUCKET = "hero-icons";
 
 export type TreeIcon = { id: string; name: string; name_th: string; icon_url: string | null };
 
-// อัปโหลดไอคอนของสายพลังแฝง (แทนเพชรสำรอง) เก็บใน bucket hero-icons โฟลเดอร์ enchantment_trees แล้วบันทึกลง enchantment_trees.icon_url
+// อัปโหลดไอคอนของสายพลังแฝง (แทนเพชรสำรอง) เก็บใน Cloudflare R2 ที่ hero-icons/enchantment_trees/ ผ่าน /api/upload แล้วบันทึกลง enchantment_trees.icon_url
 export function TreeIconEditor({ trees, onSaved }: { trees: TreeIcon[]; onSaved: (id: string, url: string | null) => void }) {
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
@@ -25,10 +25,7 @@ export function TreeIconEditor({ trees, onSaved }: { trees: TreeIcon[]; onSaved:
   const upload = async (t: TreeIcon, file: File) => {
     setBusy(t.id);
     try {
-      const path = `enchantment_trees/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-      const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
-      if (up.error) throw up.error;
-      await save(t, supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+      await save(t, await uploadCatalogImage(file, "enchantment_trees"));
       toast.success(`บันทึกไอคอน ${t.name_th || t.name} แล้ว`);
     } catch (e) {
       toast.error(`บันทึกไอคอนไม่สำเร็จ: ${explainDbError(e as any)}`);

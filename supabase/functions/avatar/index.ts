@@ -1,9 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { r2Fetch, type R2Config } from "../_shared/r2.ts";
+import { avatarKey, avatarPublicUrl, ownAvatarKey } from "../_shared/avatarKey.ts";
 
 // Avatar upload with moderation.
-// Clients cannot write to the `avatars` bucket or to profiles.avatar_url directly (no storage
-// policies + column-level UPDATE revoked), so every avatar goes through this function:
-//   validate (size + magic bytes) -> Gemini vision moderation (fail closed) -> store -> update profile.
+// Clients cannot write avatars or profiles.avatar_url directly (no storage access +
+// column-level UPDATE revoked), so every avatar goes through this function:
+//   validate (size + magic bytes) -> Gemini vision moderation (fail closed) -> store in Cloudflare R2 -> update profile.
+// R2 credentials are Supabase function secrets (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME,
+// R2_PUBLIC_BASE_URL); see docs/r2-uploads.md.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,8 +19,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
-const BUCKET = "avatars";
-const MAX_BYTES = 500_000; // decoded size; the bucket limit is 512000
+const MAX_BYTES = 500_000; // decoded size
 const COOLDOWN_MS = 20_000;
 const RETRYABLE = new Set([500, 503, 504]);
 const BLOCKED_FINISH = new Set(["SAFETY", "IMAGE_SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII"]);
@@ -123,7 +126,25 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(url, service, { auth: { persistSession: false } });
-  const publicPrefix = `${url}/storage/v1/object/public/${BUCKET}/`;
+
+  // Cloudflare R2 (server-side secrets only). Missing config => uploads fail fast, removals just skip the object delete.
+  const env = (k: string) => Deno.env.get(k)?.trim() ?? "";
+  const r2: R2Config = {
+    accountId: env("R2_ACCOUNT_ID"),
+    accessKeyId: env("R2_ACCESS_KEY_ID"),
+    secretAccessKey: env("R2_SECRET_ACCESS_KEY"),
+    bucket: env("R2_BUCKET_NAME"),
+  };
+  const publicBase = env("R2_PUBLIC_BASE_URL");
+  const r2Ready = !!(r2.accountId && r2.accessKeyId && r2.secretAccessKey && r2.bucket && publicBase);
+  const r2Delete = async (key: string) => {
+    try {
+      const res = await r2Fetch(r2, "DELETE", key);
+      if (!res.ok) console.error("avatar r2 delete failed", res.status);
+    } catch (e) {
+      console.error("avatar r2 delete error", e instanceof Error ? e.message : "unknown");
+    }
+  };
 
   const { data: prof } = await admin
     .from("profiles")
@@ -132,11 +153,11 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!prof) return json({ error: "ไม่พบโปรไฟล์" }, 404);
 
+  // Deletes only the caller's OWN current R2 avatar. Google photos, legacy Supabase Storage URLs and anything
+  // under another user's folder give null here and are never deleted.
   async function removeOld() {
-    const old = prof?.avatar_url as string | null | undefined;
-    if (old && old.startsWith(publicPrefix)) {
-      await admin.storage.from(BUCKET).remove([old.slice(publicPrefix.length)]);
-    }
+    const key = r2Ready ? ownAvatarKey(prof?.avatar_url as string | null | undefined, user!.id, publicBase) : null;
+    if (key) await r2Delete(key);
   }
 
   if (body.action === "remove") {
@@ -150,6 +171,12 @@ Deno.serve(async (req) => {
   }
 
   if (body.action !== "upload" || typeof body.image !== "string") return json({ error: "bad request" }, 400);
+
+  // Fail before spending moderation quota or the cooldown when storage is not configured.
+  if (!r2Ready) {
+    console.error("avatar: missing R2_* secrets");
+    return json({ error: "ระบบอัปโหลดรูปยังไม่พร้อมใช้งาน" }, 500);
+  }
 
   // Cooldown counts every attempt (not only successes) so rejected uploads can't be used to burn AI quota.
   if (prof.avatar_updated_at && Date.now() - new Date(prof.avatar_updated_at as string).getTime() < COOLDOWN_MS) {
@@ -185,18 +212,31 @@ Deno.serve(async (req) => {
   }
 
   const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
-  const path = `${user.id}/${Date.now()}.${ext}`;
-  const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: mime, upsert: false });
-  if (upErr) {
-    console.error("avatar upload failed", upErr.message);
+  const path = avatarKey(user.id, Date.now(), ext); // always avatars/<caller's id>/<ts>.<ext>
+  let put: Response;
+  try {
+    put = await r2Fetch(r2, "PUT", path, {
+      body: bytes,
+      headers: {
+        "content-type": mime,
+        "cache-control": "public, max-age=31536000, immutable",
+        "if-none-match": "*", // never overwrite an existing object
+      },
+    });
+  } catch (e) {
+    console.error("avatar upload error", e instanceof Error ? e.message : "unknown");
+    return json({ error: "อัปโหลดรูปไม่สำเร็จ" }, 500);
+  }
+  if (!put.ok) {
+    console.error("avatar upload failed", put.status);
     return json({ error: "อัปโหลดรูปไม่สำเร็จ" }, 500);
   }
 
-  const avatarUrl = `${publicPrefix}${path}`;
+  const avatarUrl = avatarPublicUrl(publicBase, path);
   const { error: dbErr } = await admin.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
   if (dbErr) {
     console.error("avatar profile update failed", dbErr.message);
-    await admin.storage.from(BUCKET).remove([path]);
+    await r2Delete(path); // the new object is unreferenced; the previous avatar is untouched
     return json({ error: "บันทึกรูปไม่สำเร็จ" }, 500);
   }
 
