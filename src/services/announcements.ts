@@ -1,13 +1,12 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { Announcement, Status } from "@/features/announcements/types";
 import { ERROR_TH, type SaveInput } from "@/features/announcements/form";
-import { checkImageFile, objectName, objectNameFromUrl, type ImageMime } from "@/features/announcements/upload";
+import { checkImageFile, objectNameFromUrl } from "@/features/announcements/upload";
+import { removeAnnouncementFile, uploadAnnouncementFile } from "@/lib/r2Upload";
 
 // Announcements (spec: docs/superpowers/specs/2026-10-16-announcements-design.md).
 // READS go through the table API with an explicit column list (created_by has no client grant, so select("*") would fail).
 // WRITES (admin) go through SECURITY DEFINER RPCs that check is_admin() on the server. Dismissals are written by an RPC only.
-
-const BUCKET = "announcements";
 
 export const ANNOUNCEMENT_COLUMNS =
   "id,title,content,media_type,media_url,link_url,link_label,status,priority,is_dismissible,starts_at,ends_at,created_at,updated_at";
@@ -116,28 +115,28 @@ export async function deleteAnnouncement(id: string): Promise<string | null> {
   return (data ?? null) as unknown as string | null;
 }
 
-// ---------------- admin: image storage ----------------
+// ---------------- admin: image storage (Cloudflare R2 via /api/upload, see docs/r2-uploads.md) ----------------
 
-// Validates on the client (type, 2 MB, magic bytes), uploads to <uuid>.<ext> with upsert:false (no overwrite) and returns the public URL.
-// The server enforces the same limits through the bucket config and storage policies.
+// Validates on the client (type, 2 MB, magic bytes) for fast feedback; the server re-validates, authorises (is_admin),
+// builds the key announcements/<uuid>.<ext> and returns the public https://assets.rovlab.app/... URL.
 export async function uploadAnnouncementImage(file: File): Promise<string> {
   ensureConfigured();
   const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const problem = checkImageFile({ type: file.type, size: file.size }, head);
   if (problem !== null) throw new AnnouncementError("UPLOAD_INVALID", problem);
-  const name = objectName(file.type as ImageMime, crypto.randomUUID());
-  const { error } = await supabase.storage.from(BUCKET).upload(name, file, { upsert: false, contentType: file.type, cacheControl: "31536000" });
-  if (error) throw new AnnouncementError("UPLOAD_FAILED", "อัปโหลดรูปไม่สำเร็จ");
-  return supabase.storage.from(BUCKET).getPublicUrl(name).data.publicUrl;
+  try {
+    return await uploadAnnouncementFile(file);
+  } catch {
+    throw new AnnouncementError("UPLOAD_FAILED", "อัปโหลดรูปไม่สำเร็จ");
+  }
 }
 
-// Only objects that follow our own naming scheme in our own bucket are ever removed. true = an object was removed.
+// Only objects that follow our own naming scheme on our own R2 domain are ever removed (the server re-checks). true = an object was removed.
+// Legacy Supabase Storage URLs never match, so they are left untouched.
 export async function removeAnnouncementImage(url: string): Promise<boolean> {
   ensureConfigured();
-  const name = objectNameFromUrl(url);
-  if (name === null) return false;
-  const { data, error } = await supabase.storage.from(BUCKET).remove([name]);
-  return !error && Array.isArray(data) && data.length > 0;
+  if (objectNameFromUrl(url) === null) return false;
+  return removeAnnouncementFile(url).catch(() => false);
 }
 
 // How many other announcements still use this image (admin RLS sees every row).
