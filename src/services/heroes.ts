@@ -75,10 +75,13 @@ function toSummary(row: DbHeroListRow, statByHeroId: Map<string, HeroSummary["st
 }
 
 // heroIds = null → every hero's stat row for the latest patch + rank (used by the hero list)
-async function fetchStatsByHeroId(heroIds: string[] | null, rank: RankBucket): Promise<Map<string, HeroSummary["stat"]>> {
+// strict = true (หน้ารายละเอียดฮีโร่) → ถ้าหาแพตช์ล่าสุดไม่ได้หรือ query พลาด ให้ throw แทนการคืน N/A:
+// ไม่งั้นผลที่ไม่จริงถูกแคช (5 นาทีในหน่วยความจำ / 15 นาทีใน localStorage) และถ้าไม่มีแพตช์ query จะไม่กรอง patch_id แล้วได้สถิติปนหลายแพตช์
+async function fetchStatsByHeroId(heroIds: string[] | null, rank: RankBucket, strict = false): Promise<Map<string, HeroSummary["stat"]>> {
   const map = new Map<string, HeroSummary["stat"]>();
   if (heroIds && heroIds.length === 0) return map;
   const patch = await getLatestPatch();
+  if (strict && !patch) throw new Error("โหลดสถิติฮีโร่ไม่สำเร็จ");
   let query = supabase
     .from("hero_stats")
     .select("hero_id, rank_tier, win_rate, pick_rate, ban_rate, tier, matches")
@@ -86,6 +89,7 @@ async function fetchStatsByHeroId(heroIds: string[] | null, rank: RankBucket): P
   if (heroIds) query = query.in("hero_id", heroIds);
   if (patch) query = query.eq("patch_id", patch.id);
   const { data, error } = await query;
+  if (strict && error) throw new Error(error.message);
   if (error || !data) return map; // not readable/empty — every hero falls back to EMPTY_STAT
   for (const row of data) {
     map.set(row.hero_id, {
@@ -197,7 +201,7 @@ async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetai
 
   // everything below only needs the hero id, so run it all at once
   const [statMap, curated, abilitiesRes, remote] = await Promise.all([
-    listed ? null : fetchStatsByHeroId([heroRow.id], rank),
+    listed ? null : fetchStatsByHeroId([heroRow.id], rank, true),
     listed ? null : getCuratedTierLists(rank),
     supabase.from("hero_abilities").select("slot, name, description, icon_url, effect_tags").eq("hero_id", heroRow.id).order("sort_order", { ascending: true }),
     local
