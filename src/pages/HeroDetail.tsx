@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { HeroIcon } from "@/components/HeroIcon";
 import { EffectTagList } from "@/components/EffectTagList";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { HeroComments } from "@/features/comments/HeroComments";
@@ -212,24 +213,14 @@ export function HeroDetail() {
       {pager}
       <div className="flex items-start gap-4 rounded-card border border-border bg-bg-surface p-4 sm:items-center sm:gap-5 sm:p-5">
         <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-bg-raised font-display text-xl text-text-faint sm:h-20 sm:w-20 lg:h-24 lg:w-24">
-          {h.icon ? (
-            <img
-              src={h.icon}
-              alt={h.nameTh}
-              loading="eager"
-              decoding="async"
-              referrerPolicy="no-referrer"
-              className="h-full w-full rounded-lg object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-          ) : null}
-
-          <span className={`text-2xl font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-            {h.name.slice(0, 2).toUpperCase()}
-          </span>
+          {/* รูปหลักของหน้า (ให้ตัวอักษรย่อแทนเมื่อไม่มีรูป/โหลดไม่ได้): eager เหมือนเดิม เพราะเป็นรูปแรกของหน้า */}
+          <HeroIcon
+            icon={h.icon}
+            name={h.nameTh}
+            fallback={h.name.slice(0, 2).toUpperCase()}
+            eager
+            className="h-full w-full rounded-lg text-2xl"
+          />
           {/* ขวาล่างของรูปฮีโร่ เหมือนทุกหน้า */}
           <HeroBalanceBadge heroId={h.id} size="md" />
         </div>
