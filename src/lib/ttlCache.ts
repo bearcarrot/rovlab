@@ -12,7 +12,8 @@ let bypass = false;
 
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 
-const PERSISTED_PREFIXES = ["heroes:", "hero:"];
+// Only plain-JSON public values: a Map/Set/Date would come back from JSON.parse as a different type (so "tiers:" is NOT listed).
+const PERSISTED_PREFIXES = ["heroes:", "hero:", "draft-relations", "builds:", "patch:latest", "videos:"];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored
 const PERSIST_KEY = "rovlab:cache:v1:";
