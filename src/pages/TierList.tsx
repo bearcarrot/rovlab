@@ -6,6 +6,7 @@ import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useToast } from "@/components/ui/toast";
+import { HeroIcon } from "@/components/HeroIcon";
 import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, ROLE_OPTIONS, LANE_OPTIONS, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { getLatestPatch } from "@/services/meta";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
@@ -274,23 +275,12 @@ export function TierList() {
                         title={h.nameTh}
                         className="relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40"
                       >
-                        {h.icon ? (
-                          <img
-                            src={h.icon}
-                            alt={h.nameTh}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            className="h-full w-full rounded-lg object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                            }}
-                          />
-                        ) : null}
-
-                        <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-                          {h.name.slice(0, 2).toUpperCase()}
-                        </span>
+                        <HeroIcon
+                          icon={h.icon}
+                          name={h.nameTh}
+                          fallback={h.name.slice(0, 2).toUpperCase()}
+                          className="h-full w-full rounded-lg text-base"
+                        />
                         <HeroBalanceBadge heroId={h.id} size="md" inside />
                       </Link>
                     ))}
