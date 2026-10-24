@@ -103,10 +103,10 @@ test("T8 expired timer is only a number: turn and draft are unchanged", () => {
 test("T9 countdown uses the clock: a background tab resumes with the right time", () => {
   const deadline = makeDeadline("pick", 0);
   assert.equal(secondsLeft(deadline, 0), PICK_SECONDS);
-  assert.equal(secondsLeft(deadline, 20_000), 5); // tab hidden for 20s, one tick on resume
-  assert.equal(secondsLeft(deadline, 20_001), 5);
-  assert.equal(secondsLeft(deadline, 60_000), 0);
-  assert.ok(BAN_SECONDS === 30 && PICK_SECONDS === 25);
+  assert.equal(secondsLeft(deadline, 20_000), 40); // tab hidden for 20s, one tick on resume
+  assert.equal(secondsLeft(deadline, 20_001), 40);
+  assert.equal(secondsLeft(deadline, 70_000), 0);
+  assert.ok(BAN_SECONDS === 40 && PICK_SECONDS === 60);
 });
 
 test("T10 the current turn depends only on the draft (toggle off/on, undo, game switch are safe)", () => {

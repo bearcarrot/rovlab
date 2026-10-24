@@ -27,8 +27,8 @@ export const TURNS: readonly Turn[] = [
   { phase: 4, kind: "pick", side: "second", count: 1 },
 ];
 
-export const BAN_SECONDS = 30;
-export const PICK_SECONDS = 25;
+export const BAN_SECONDS = 40;
+export const PICK_SECONDS = 60;
 export const turnSeconds = (kind: TurnKind) => (kind === "ban" ? BAN_SECONDS : PICK_SECONDS);
 
 export type CurrentTurn = Turn & {

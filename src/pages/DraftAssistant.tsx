@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Bookmark, FilePlus2, HelpCircle, Link2, Search, Swords, Users } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
@@ -50,7 +50,7 @@ import { collectLanes, filterByMissingLanes, getMissingLanes } from "@/features/
 import { SeriesBar } from "@/features/draft/SeriesBar";
 import { GlobalRestrictionPanel, type RestrictedByGame } from "@/features/draft/GlobalRestrictionPanel";
 import { BanRow } from "@/features/draft/BanRow";
-import { CompetitivePanel } from "@/features/draft/CompetitivePanel";
+import { CompetitivePanel, TurnCountdown, useTurnCountdown } from "@/features/draft/CompetitivePanel";
 import { getCurrentTurn, isTurnAllowed, turnTarget } from "@/features/draft/competitive";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { SaveDraftDialog, type SaveDraftValues } from "@/features/draft/SaveDraftDialog";
@@ -363,6 +363,8 @@ export function DraftAssistant() {
     setActive(turn ? turnTarget(ds.game, turn) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comp.on, turn?.index, turn?.team, ds.gameNumber, ds.game]);
+  // นับถอยหลังของตาปัจจุบัน (เฉพาะแสดงผล) — วางไว้กลางระหว่างสองทีม; scope เปลี่ยนเมื่อเปิดเกม/Draft ใหม่เพื่อเริ่มนับใหม่
+  const left = useTurnCountdown(comp.on, turn ? `${ds.gameNumber}.${epoch}:${turn.index}:${turn.team}` : null, turn?.kind ?? null);
   const outOfTurn = (team: TeamKey, kind: "ban" | "pick") => {
     if (!comp.on || isTurnAllowed(turn, team, kind)) return false;
     toast.error(turn ? "ยังไม่ถึงตาของทีมนี้" : "ดราฟต์เสร็จสมบูรณ์แล้ว");
@@ -606,7 +608,6 @@ export function DraftAssistant() {
             firstPick={comp.first}
             onFirstPick={(first) => setComp({ ...comp, first })}
             turn={turn}
-            scope={`${ds.gameNumber}.${epoch}`}
             teamLabel={TEAM_LABEL}
             onNew={() => void onNew()}
           />
@@ -638,9 +639,15 @@ export function DraftAssistant() {
           )}
 
           {/* md+ วางทีมเรา/ทีมศัตรูคู่กัน บนมือถือยังเรียงลงมาเหมือนเดิม */}
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className={`grid gap-5 ${left !== null ? "md:grid-cols-[1fr_auto_1fr]" : "md:grid-cols-2"}`}>
             {(["mine", "enemy"] as const).map((team) => (
-              <div key={team}>
+              <Fragment key={team}>
+                {team === "enemy" && left !== null && (
+                  <div className="flex items-center justify-center md:self-center">
+                    <TurnCountdown left={left} />
+                  </div>
+                )}
+              <div>
                 <TeamSlots
                   label={TEAM_LABEL[team]}
                   teamId={team}
@@ -661,6 +668,7 @@ export function DraftAssistant() {
                   />
                 )}
               </div>
+              </Fragment>
             ))}
           </div>
 

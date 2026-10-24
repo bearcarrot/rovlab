@@ -16,7 +16,7 @@ const PHASE_LABEL: Record<1 | 2 | 3 | 4, string> = {
  * so it stays correct after the tab was in the background. One countdown covers a whole turn: a 2-pick turn
  * does NOT reset between its picks. It only reports time; it never selects, bans or advances anything.
  */
-function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKind | null) {
+export function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKind | null) {
   const [left, setLeft] = useState<number | null>(null);
   useEffect(() => {
     if (!enabled || turnKey === null || kind === null) {
@@ -36,13 +36,28 @@ function useTurnCountdown(enabled: boolean, turnKey: string | null, kind: TurnKi
   return left;
 }
 
+/** Big countdown shown between the two teams. Display only. */
+export function TurnCountdown({ left }: { left: number }) {
+  const expired = left === 0;
+  return (
+    <p
+      role={expired ? "alert" : undefined}
+      className={cn(
+        "rounded-card border border-border bg-bg-surface px-4 py-2 text-center font-display text-3xl font-bold tabular-nums",
+        expired ? "text-loss" : left <= 10 ? "text-amber-400" : "text-text"
+      )}
+    >
+      {expired ? "หมดเวลา" : left}
+    </p>
+  );
+}
+
 export function CompetitivePanel({
   on,
   onToggle,
   firstPick,
   onFirstPick,
   turn,
-  scope,
   teamLabel,
   onNew,
 }: {
@@ -51,14 +66,9 @@ export function CompetitivePanel({
   firstPick: TeamKey;
   onFirstPick: (team: TeamKey) => void;
   turn: CurrentTurn | null;
-  /** Changes when the open game or draft changes, so the countdown restarts. */
-  scope: string;
   teamLabel: Record<TeamKey, string>;
   onNew: () => void;
 }) {
-  const left = useTurnCountdown(on, turn ? `${scope}:${turn.index}:${turn.team}` : null, turn?.kind ?? null);
-  const expired = left === 0;
-
   return (
     <div className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -107,14 +117,6 @@ export function CompetitivePanel({
               <span className="text-text-muted"> · เหลืออีก {turn.left} ตัว</span>
             </p>
           </div>
-          {left !== null && (
-            <p
-              role={expired ? "alert" : undefined}
-              className={cn("font-display text-xl font-semibold tabular-nums", expired ? "text-loss" : left <= 5 ? "text-amber-400" : "text-text")}
-            >
-              {expired ? "หมดเวลา" : `${left} วิ`}
-            </p>
-          )}
         </div>
       )}
     </div>
