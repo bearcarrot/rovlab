@@ -112,12 +112,13 @@ function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null):
   });
 }
 
-async function loadHeroes(rank: RankBucket): Promise<HeroSummary[]> {
+// withCurated = false → ไม่ query tier_lists / tier_list_entries; stat.tier เป็นค่าดิบจาก hero_stats (ใช้เฉพาะ getHeroesForStats)
+async function loadHeroes(rank: RankBucket, withCurated = true): Promise<HeroSummary[]> {
   if (!isSupabaseConfigured) return [];
   const [heroesRes, statMap, curated] = await Promise.all([
     supabase.from("heroes").select(HERO_LIST_COLS).order("name", { ascending: true }),
     fetchStatsByHeroId(null, rank),
-    getCuratedTierLists(rank),
+    withCurated ? getCuratedTierLists(rank) : null,
   ]);
   const { data, error } = heroesRes;
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
@@ -148,6 +149,14 @@ export async function getHeroChipsByIds(ids: string[]): Promise<HeroChip[]> {
 export function getHeroes(rank: RankBucket = getRank()): Promise<HeroSummary[]> {
   // slice(): callers may sort the array in place; never hand out the cached instance itself
   return cached(`heroes:${rank}`, CACHE_TTL_MS, () => loadHeroes(rank)).then((list) => list.slice());
+}
+
+// หน้า Stats ไม่แสดง stat.tier จึงไม่ดึง tier_lists: ใช้ list เต็มที่อุ่นอยู่แล้วก่อน ไม่มีค่อยโหลดแบบไม่มี curated
+// key "heroes-stats:" ต้องแยกจาก "heroes:<rank>" (ไม่ persist) ไม่งั้น loadHeroBySlug จะ peek เจอ list ที่ tier ไม่ถูกทับ
+export function getHeroesForStats(rank: RankBucket = getRank()): Promise<HeroSummary[]> {
+  const full = peek<HeroSummary[]>(`heroes:${rank}`, CACHE_TTL_MS);
+  if (full) return Promise.resolve(full.slice());
+  return cached(`heroes-stats:${rank}`, CACHE_TTL_MS, () => loadHeroes(rank, false)).then((list) => list.slice());
 }
 
 function fallbackDetail(summary: HeroSummary, description: string | null, strengths: string[] | null, weaknesses: string[] | null): Omit<HeroDetail, "abilities" | "counteredBy" | "countersAgainst" | "synergies"> {
