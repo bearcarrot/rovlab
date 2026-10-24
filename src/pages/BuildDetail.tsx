@@ -10,8 +10,8 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { HeroIcon } from "@/components/HeroIcon";
 import { Switch } from "@/features/community/Switch";
-import { Thumb } from "@/features/admin/ImageSelect";
 import { ReadOnlyBuild } from "@/features/build/buildView";
 import { BuildReactions } from "@/features/build/BuildReactions";
 
@@ -59,7 +59,7 @@ export function BuildDetail() {
   return (
     <div className="space-y-5 pb-24">
       <div className="flex items-start gap-3">
-        <Thumb src={b.hero.icon} label={b.hero.nameTh} className="h-12 w-12" />
+        <HeroIcon icon={b.hero.icon} name={b.hero.nameTh} decorative className="h-12 w-12" />
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl font-semibold leading-snug">{b.name}</h1>
           <p className="text-sm text-text-muted">
