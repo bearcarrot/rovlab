@@ -2,6 +2,7 @@ import { ContactAppIcon } from "@/features/profile/ContactAppIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { LazySection } from "@/components/LazySection";
 import { useAsync } from "@/hooks/useAsync";
 import { getHeroVideos } from "@/services/heroVideos";
 import { timeAgo } from "@/lib/timeAgo";
@@ -9,7 +10,8 @@ import { timeAgo } from "@/lib/timeAgo";
 const dateTh = (iso: string) => new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
 
 // วิดีโอแนะนำล่าสุดของฮีโร่จาก YouTube (ลิงก์ออกไปดูที่ YouTube ไม่ฝัง player)
-export function HeroVideos({ slug, name }: { slug: string; name: string }) {
+// เรียก Edge Function hero-videos เมื่อเลื่อนมาใกล้การ์ดเท่านั้น (LazySection) ไม่ใช่ทุกครั้งที่เปิดหน้า
+function HeroVideosCard({ slug, name }: { slug: string; name: string }) {
   const q = useAsync(() => getHeroVideos(slug), [slug]);
   const d = q.status === "success" ? q.data : null;
 
@@ -71,5 +73,13 @@ export function HeroVideos({ slug, name }: { slug: string; name: string }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function HeroVideos({ slug, name }: { slug: string; name: string }) {
+  return (
+    <LazySection minHeight={200}>
+      <HeroVideosCard slug={slug} name={name} />
+    </LazySection>
   );
 }
