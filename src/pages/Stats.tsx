@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Search } from "lucide-react";
-import { getHeroes } from "@/services/heroes";
+import { getHeroesForStats } from "@/services/heroes";
 import { trackActivity } from "@/services/activity";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { RoleFilterRow, LaneFilterRow } from "@/features/heroes/HeroFilters";
+import { useRecentBalance } from "@/features/balance/useRecentBalance";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
 import { heroMatchesQuery } from "@/lib/heroSearch";
 import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
@@ -31,7 +32,10 @@ const METRIC_TONE: Record<Metric, StatTone> = {
 };
 
 export function Stats() {
-  const heroesQ = useAsync(() => getHeroes(), []);
+  // Stats ไม่แสดง tier จึงใช้ชุดโหลดที่ไม่ดึง tier_lists
+  const heroesQ = useAsync(() => getHeroesForStats(), []);
+  // โหลด recent balance ครั้งเดียวที่นี่ แล้วส่งให้ทุกแถว (แทน hook ต่อแถว)
+  const recentBalance = useRecentBalance();
   // แรงก์เลือกจากปุ่มบน Header (store กลาง lib/rank.ts) — หน้านี้อ่านค่าอย่างเดียว ไม่มีชิปเลือกแรงก์แยก
   const rank = useRank();
   const [query, setQuery] = useState("");
@@ -117,7 +121,13 @@ export function Stats() {
       {heroesQ.status === "success" && sorted.length > 0 && (
         <div className="grid gap-2 md:grid-cols-2">
           {sorted.map((h) => (
-            <StatBarRow key={h.id} hero={h} metric={h.stat[metric]} tone={METRIC_TONE[metric]} />
+            <StatBarRow
+              key={h.id}
+              hero={h}
+              metric={h.stat[metric]}
+              tone={METRIC_TONE[metric]}
+              balanceKind={recentBalance?.get(h.id) ?? null}
+            />
           ))}
         </div>
       )}
