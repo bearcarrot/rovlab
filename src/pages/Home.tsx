@@ -20,6 +20,7 @@ import { getHeroes } from "@/services/heroes";
 import { getCuratedTiers } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
+import { HeroIcon } from "@/components/HeroIcon";
 import { RANK_LABEL, useRank } from "@/lib/rank";
 import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
@@ -74,13 +75,9 @@ const PLACEHOLDER_PATCHES = new Set(["", "current", "N/A"]);
 
 // สแนปช็อตหน้าสถิติ: โชว์แค่ 6 อันดับแรกของแต่ละตัวชี้วัด
 const SNAPSHOT_SIZE = 6;
-// แถว Tier: โชว์ S+ และ S อย่างละสูงสุด 11 ตัว (+ ปุ่ม "+N" ไปหน้า Tier List) ไอคอนเล็กกว่าหน้า Tier List
-const TOP_TIER_MAX = 11;
-const TOP_TIERS: Tier[] = ["S+", "S"];
-
-// ฮีโร่บนภาพประกอบ (โมเสกใน Hero + แถบเลื่อน) — ตกแต่งอย่างเดียว
-const MOSAIC_SIZE = 9;
-const MARQUEE_SIZE = 20;
+// แถว Tier: โชว์เฉพาะ S+ สูงสุด 9 ตัว + ปุ่ม "+N" ไปหน้า Tier List รวมเป็น 10 ช่อง (มือถือ 5 คอลัมน์ = 2 แถว, แท็บเล็ต/PC 10 คอลัมน์ = 1 แถว)
+const TOP_TIER_MAX = 9;
+const TOP_TIERS: Tier[] = ["S+"];
 
 // Bundle: การ์ดแมตช์ (features/matches/stats.ts + การ์ด ~22 KB ซอร์ส) แสดงเฉพาะคนล็อกอินและอยู่ล่างสุดของหน้า
 // จึงแยกเป็น chunk โหลดเมื่อมี user เท่านั้น — Guest ไม่ต้องโหลดโค้ดนี้ (PSI: unused JavaScript)
@@ -112,7 +109,7 @@ export function Home() {
     };
   }, [data]);
 
-  // ฮีโร่ Tier S+ / S เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
+  // ฮีโร่ Tier S+ เรียง A–Z (ไม่เรียงตามความแรง เหมือนหน้า Tier List)
   const topTiers = useMemo(() => {
     if (!data || curatedLoading) return null;
     return TOP_TIERS.map((tier) => ({
@@ -122,15 +119,6 @@ export function Home() {
         .sort((a, b) => a.name.localeCompare(b.name, "en")),
     }));
   }, [data, curatedTiers, curatedLoading]);
-
-  // ฮีโร่ที่มีรูป เรียงตาม Pick Rate เอาไว้ทำภาพประกอบ (ไม่ใช่ข้อมูลวิเคราะห์)
-  const showcase = useMemo(() => {
-    if (!data) return [];
-    return data
-      .filter((h) => h.icon)
-      .sort((a, b) => (b.stat.hasStats ? b.stat.pickRate : 0) - (a.stat.hasStats ? a.stat.pickRate : 0))
-      .slice(0, MARQUEE_SIZE);
-  }, [data]);
 
   const topTierCount = topTiers ? topTiers.reduce((n, g) => n + g.heroes.length, 0) : null;
   const metaLabel = [meta.patch ? `Patch ${meta.patch}` : null, RANK_LABEL[rank]].filter(Boolean).join(" · ");
@@ -143,10 +131,7 @@ export function Home() {
         topTierCount={topTierCount}
         patch={meta.patch}
         rankLabel={RANK_LABEL[rank]}
-        mosaic={showcase.slice(0, MOSAIC_SIZE)}
       />
-
-      <HeroMarquee heroes={showcase} />
 
       {/* 2. Tools: Draft Assistant leads, the rest follow in the same order as the Sidebar */}
       <section aria-labelledby="tools-heading" className="space-y-4">
@@ -241,7 +226,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Current meta: snapshot of Tier List (S+ / S) and the Stats page (top 6 each) */}
+      {/* 4. Current meta: snapshot of Tier List (S+) and the Stats page (top 6 each) */}
       <section aria-labelledby="meta-heading" className="space-y-6">
         <SectionHeading
           id="meta-heading"
@@ -356,14 +341,12 @@ function Hero({
   topTierCount,
   patch,
   rankLabel,
-  mosaic,
 }: {
   metaLabel: string;
   heroCount: number | null;
   topTierCount: number | null;
   patch: string | null;
   rankLabel: string;
-  mosaic: HeroSummary[];
 }) {
   // แยกวรรคแรกของสโลแกนเป็นสีขาว ที่เหลือเป็นไล่สีทอง
   const [first, ...rest] = SITE.taglineTh.split(" ");
@@ -379,7 +362,8 @@ function Hero({
     >
       {/* ฉากหลัง: ตาราง + แสงทอง/ฟ้า */}
 
-      <div className="grid items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
+      {/* จอกว้าง: ข้อความซ้าย สถิติซ้อนเป็นคอลัมน์ขวา (แทนที่ว่างเดิมของโมเสก) / มือถือ: เรียงต่อกัน */}
+      <div className="grid items-center gap-8 md:grid-cols-[1.4fr_0.6fr] md:gap-10">
         <div className="space-y-5">
           <p className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-accent">
             <span className="relative flex h-2 w-2">
@@ -432,50 +416,18 @@ function Hero({
               ดู Tier List
             </Link>
           </div>
-
-          {/* สถิติสั้นๆ ของระบบ */}
-          <dl
-            className="grid max-w-md grid-cols-3 gap-2 pt-2"
-            style={{ animationDelay: "320ms" }}
-            aria-label={metaLabel || "ภาพรวมข้อมูล"}
-          >
-            <HeroStat label="ฮีโร่ในระบบ" value={heroCount} />
-            <HeroStat label="Tier S+ / S" value={topTierCount} />
-            <HeroStat label={patch ? "Patch" : "ระดับแรงค์"} value={patch ?? rankLabel} text />
-          </dl>
         </div>
 
-        {/* โมเสกฮีโร่ลอยได้ (เฉพาะจอกว้าง) */}
-        <div aria-hidden className="relative hidden md:block">
-          <div className="relative grid grid-cols-3 gap-3 [transform:rotate(-6deg)]">
-            {mosaic.length === 0
-              ? Array.from({ length: MOSAIC_SIZE }).map((_, i) => (
-                  <Skeleton key={i} className="aspect-square rounded-2xl" />
-                ))
-              : mosaic.map((h, i) => (
-                  <div
-                    key={h.id}
-                    className={cn(
-                      "home-float aspect-square overflow-hidden rounded-2xl border border-white/10 bg-bg-raised shadow-card ring-1 ring-accent/20",
-                      i % 3 === 1 && "translate-y-5",
-                      i % 3 === 2 && "-translate-y-2"
-                    )}
-                    style={{ animationDelay: `${i * 380}ms` }}
-                  >
-                    <img
-                      src={h.icon}
-                      alt=""
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  </div>
-                ))}
-          </div>
-        </div>
+        {/* สถิติสั้นๆ ของระบบ */}
+        <dl
+          className="grid max-w-md grid-cols-3 gap-2 md:max-w-none md:grid-cols-1 md:gap-3"
+          style={{ animationDelay: "320ms" }}
+          aria-label={metaLabel || "ภาพรวมข้อมูล"}
+        >
+          <HeroStat label="ฮีโร่ในระบบ" value={heroCount} />
+          <HeroStat label="Tier S+" value={topTierCount} />
+          <HeroStat label={patch ? "Patch" : "ระดับแรงค์"} value={patch ?? rankLabel} text />
+        </dl>
       </div>
     </section>
   );
@@ -488,41 +440,6 @@ function HeroStat({ label, value, text = false }: { label: string; value: number
       <dd className={cn("font-display font-semibold leading-none text-text", text ? "truncate text-sm" : "text-xl")}>
         {value ?? "–"}
       </dd>
-    </div>
-  );
-}
-
-// แถบไอคอนฮีโร่เลื่อนวนไม่หยุด (ชี้เมาส์เพื่อหยุด) — ตกแต่ง ซ่อนจาก screen reader; ลิงก์ซ้ำไม่รับโฟกัสคีย์บอร์ด
-function HeroMarquee({ heroes }: { heroes: HeroSummary[] }) {
-  if (heroes.length < 6) return null;
-  const loop = [...heroes, ...heroes];
-  return (
-    <div
-      aria-hidden
-      className="home-marquee relative -mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_12%,#000_88%,transparent)]"
-    >
-      <div className="home-marquee-track flex gap-3 py-1">
-        {loop.map((h, i) => (
-          <Link
-            key={`${h.id}-${i}`}
-            to={`/heroes/${h.slug}`}
-            tabIndex={-1}
-            className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-bg-raised transition duration-300 hover:scale-110 hover:border-accent/60 sm:h-16 sm:w-16"
-          >
-            <img
-              src={h.icon}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              referrerPolicy="no-referrer"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }
@@ -600,8 +517,9 @@ function MoreLink({
   );
 }
 
-// แถว Tier S+ และ S : ไอคอนฮีโร่ฟอร์มเดียวกับหน้า Tier List แต่ย่อส่วน (เรียง A–Z ไม่ใช่อันดับความแรง)
-const TOP_TIER_GRID = "grid grid-cols-6 gap-2 sm:grid-cols-12";
+// แถว Tier S+ : ไอคอนฮีโร่ฟอร์มเดียวกับหน้า Tier List แต่ย่อส่วน (เรียง A–Z ไม่ใช่อันดับความแรง)
+// มือถือ 5 คอลัมน์, แท็บเล็ต/PC 10 คอลัมน์
+const TOP_TIER_GRID = "grid grid-cols-5 gap-2 md:grid-cols-10";
 
 function TopTierRows({
   loading,
@@ -631,7 +549,7 @@ function TopTierRows({
         <div className="space-y-3">
           {TOP_TIERS.map((t) => (
             <div key={t} className={cn(TOP_TIER_GRID, "rounded-2xl border border-border bg-bg-surface p-3")}>
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: TOP_TIER_MAX + 1 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-square" />
               ))}
             </div>
@@ -665,23 +583,14 @@ function TopTierRows({
                         FOCUS
                       )}
                     >
-                      {h.icon ? (
-                        <img
-                          src={h.icon}
-                          alt={h.nameTh}
-                          loading="lazy"
-                          decoding="async"
-                          referrerPolicy="no-referrer"
-                          className="h-full w-full rounded-lg object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                          }}
-                        />
-                      ) : null}
-                      <span className={`text-base font-display text-text-faint ${h.icon ? "hidden" : ""}`}>
-                        {h.name.slice(0, 2).toUpperCase()}
-                      </span>
+                      {/* ลิงก์มี aria-label อยู่แล้ว จึงให้รูปเป็น decorative */}
+                      <HeroIcon
+                        icon={h.icon}
+                        name={h.nameTh}
+                        fallback={h.name.slice(0, 2).toUpperCase()}
+                        decorative
+                        className="h-full w-full rounded-lg text-base"
+                      />
                       <HeroBalanceBadge heroId={h.id} size="md" inside />
                     </Link>
                   ))}

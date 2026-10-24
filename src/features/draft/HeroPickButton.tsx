@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { HeroIcon } from "@/components/HeroIcon";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import type { HeroSummary } from "@/types/hero";
 import type { CustomTierMap } from "./customTier";
@@ -25,23 +26,7 @@ function HeroPickButtonBase({
       className="flex flex-col items-center gap-1 overflow-hidden rounded-lg border border-border bg-bg p-0 pb-1 text-center hover:border-accent/40"
     >
       <div className="relative flex aspect-square w-full items-center justify-center bg-bg-raised text-xs font-display text-text-faint">
-        {h.icon ? (
-          <img
-            src={h.icon}
-            alt={h.nameTh}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextElementSibling?.classList.remove("hidden");
-            }}
-          />
-        ) : null}
-
-        <span className={`text-sm font-display text-text-faint sm:text-base ${h.icon ? "hidden" : ""}`}>
-          {h.name.slice(0, 2).toUpperCase()}
-        </span>
+        <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-none text-sm sm:text-base" />
         {/* Tier มุมซ้ายบน และไอคอน buff/nerf/rework มุมขวาล่างแบบเดียวกับการ์ดในหน้าฮีโร่ทั้งหมด */}
         <div className="absolute left-1.5 top-1.5 max-w-[calc(100%-0.75rem)]">
           {customTiers ? (
