@@ -33,7 +33,17 @@ async function loadsAfterReload(key: string): Promise<number> {
 }
 
 test("P1 public reference keys are served from storage after a reload (1 load)", async () => {
-  const keys = ["draft-relations", "videos:airi", "builds:abc", "patch:latest", "tiers:all", "balance:recent", "items:all", "runes:all"];
+  const keys = [
+    "draft-relations",
+    "videos:airi",
+    "builds:abc",
+    "patch:latest",
+    "tiers:all",
+    "balance:recent",
+    "balance:hero:abc",
+    "items:all",
+    "runes:all",
+  ];
   for (const key of keys) {
     assert.equal(await loadsAfterReload(key), 1, key);
   }
@@ -50,4 +60,16 @@ test("P3 clearCache('tiers:') also drops the persisted copy (admin edits show up
   assert.ok(Array.from(mem.keys()).some((k) => k.endsWith("tiers:all")));
   clearCache("tiers:");
   assert.ok(!Array.from(mem.keys()).some((k) => k.endsWith("tiers:all")));
+});
+
+test("P4 an empty list is persisted (hero with no balance changes is not refetched), null is not", async () => {
+  let calls = 0;
+  const load = async () => {
+    calls++;
+    return [] as unknown[];
+  };
+  await cached("balance:hero:none", 60_000, load, (v) => v !== null);
+  clearCache("");
+  await cached("balance:hero:none", 60_000, load, (v) => v !== null);
+  assert.equal(calls, 1);
 });
