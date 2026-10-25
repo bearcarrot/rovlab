@@ -23,6 +23,7 @@ import {
   writeCloud,
   type CloudState,
 } from "./cloudTierList";
+import { laneHeroIds } from "./tierData";
 import { MyLaneView } from "./MyLaneView";
 import { MyTierLists } from "./MyTierLists";
 import { SaveTierListDialog, type SaveTierListValues } from "./SaveTierListDialog";
@@ -66,7 +67,7 @@ export function MyTierListWorkspace({
     setCloudState(c);
   }, []);
 
-  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers);
+  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers, current.lanes);
   const name = current.name.trim() || DEFAULT_CUSTOM_NAME;
 
   function replaceBoard(list: CustomTierList, nextCloud: CloudState) {
@@ -80,7 +81,7 @@ export function MyTierListWorkspace({
   useEffect(() => {
     if (!incoming || lastNonce.current === incoming.nonce) return;
     lastNonce.current = incoming.nonce;
-    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data, allowDuplicates: incoming.allowDuplicates });
+    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data, allowDuplicates: incoming.allowDuplicates, lanes: incoming.lanes });
     replaceBoard(
       list,
       incoming.cloudId
@@ -135,6 +136,7 @@ export function MyTierListWorkspace({
         visibility: v.visibility,
         data: current.tiers,
         allowDuplicates: current.allowDuplicates,
+        lanes: current.lanes,
       });
       setCloud({ id, description: v.description.trim(), patch: v.patch.trim(), visibility: v.visibility, savedSig: sigOf(current) });
       setRefreshKey((k) => k + 1);
@@ -211,14 +213,13 @@ export function MyTierListWorkspace({
         </section>
       )}
 
-      {showLanes && <MyLaneView list={current} heroes={heroes} name={name} patch={patch} />}
-
       <CustomTierBoard
         key={boardKey}
         heroes={heroes}
         patch={patch}
         initial={initial}
         onChange={setCurrent}
+        laneView={({ list, setLanes }) => (showLanes ? <MyLaneView list={list} setLanes={setLanes} heroes={heroes} name={name} patch={patch} /> : null)}
         onReset={() => setCloud({ ...EMPTY_CLOUD })}
         shareExtra={
           <TierLinkShare
@@ -227,7 +228,7 @@ export function MyTierListWorkspace({
             name={name}
             patch={patch}
             dirty={dirty}
-            empty={tierHeroCount(current.tiers) === 0}
+            empty={tierHeroCount(current.tiers) === 0 && laneHeroIds(current.lanes).length === 0}
             onPublished={(c) => {
               setCloud(c);
               setRefreshKey((k) => k + 1);

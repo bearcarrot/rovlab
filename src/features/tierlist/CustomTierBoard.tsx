@@ -34,6 +34,7 @@ import {
   shiftHero,
   updateRow,
 } from "./tierData";
+import { dropRowFromLanes, type LaneAssign } from "./tierData";
 import { TierLabel } from "./TierRows";
 import { TierRowEditor } from "./TierRowEditor";
 
@@ -52,6 +53,7 @@ export function CustomTierBoard({
   onChange,
   onReset,
   shareExtra,
+  laneView,
 }: {
   heroes: HeroSummary[];
   patch: string;
@@ -63,6 +65,8 @@ export function CustomTierBoard({
   onReset?: () => void;
   /** ปุ่มเสริมในแถวเดียวกับปุ่มแชร์รูป (เช่น ปุ่มแชร์ลิงก์ ซึ่งต้องรู้สถานะบัญชีที่ตัวห่อถืออยู่) */
   shareExtra?: ReactNode;
+  /** มุมมอง/ตัวแก้รายเลนที่แสดงเหนือบอร์ด: แก้ list.lanes ผ่าน setLanes เท่านั้น (ไม่แตะ tiers) */
+  laneView?: (api: { list: CustomTierList; setLanes: (fn: (cur: LaneAssign | null) => LaneAssign | null) => void }) => ReactNode;
 }) {
   const toast = useToast();
   const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
@@ -94,6 +98,7 @@ export function CustomTierBoard({
   const pool = useMemo(() => available.filter((h) => match(h) && heroMatchesQuery(h, query)), [available, match, query]);
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
+  const setLanes = useCallback((fn: (cur: LaneAssign | null) => LaneAssign | null) => setList((l) => ({ ...l, lanes: fn(l.lanes) })), []);
 
   // ใส่ฮีโร่เข้าแถว: OFF = ย้าย (ออกจากแถวเดิม) · ON = เพิ่มจุดวางใหม่ แถวเดิมยังอยู่
   function place(id: string, rowId: string) {
@@ -124,7 +129,7 @@ export function CustomTierBoard({
       if (!ok) return;
     }
     setSelected((s) => (s?.rowId === rowId ? null : s));
-    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId) }));
+    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId), lanes: dropRowFromLanes(l.lanes, rowId) }));
   }
 
   // สลับการอนุญาตให้ฮีโร่อยู่ได้หลาย Tier ปิด = กลับมากฎ 1 ฮีโร่ ต่อ 1 Tier: ถามก่อนถ้าจะต้องตัดตำแหน่งซ้ำ
@@ -203,6 +208,7 @@ export function CustomTierBoard({
 
   return (
     <div className="space-y-4">
+      {laneView?.({ list, setLanes })}
       <div className="flex flex-wrap items-end gap-2">
         <label data-tour="custom-name" className="min-w-[10rem] flex-1">
           <span className="mb-1 block text-xs text-text-faint">ชื่อ Tier List (แสดงบนรูปที่แชร์)</span>

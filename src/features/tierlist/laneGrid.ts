@@ -6,6 +6,8 @@
 // A hero listed in several rows (allowDuplicates) shows in each of them; a hero is never repeated inside one row x lane cell.
 // A hero none of whose lanes is a visible column is kept in `unassigned` (shown as an extra column) instead of being dropped.
 
+import type { LaneAssign } from "./tierData";
+
 export const DEFAULT_LANES = ["slayer", "jungle", "mid", "abyssal", "roaming"] as const;
 export const OTHER_LANE = "other";
 
@@ -68,6 +70,34 @@ export function buildLaneGrid<H extends { id: string }>(
     return { id: r.id, label: r.label, color: r.color, cells, unassigned };
   });
   return { lanes, rows: out, hasUnassigned };
+}
+
+/** Lane codes to show as columns: the standard ones (in `base` order) plus any other lane the user placed heroes in. */
+export function laneCodesWith(base: readonly string[], lanes: LaneAssign | null | undefined): string[] {
+  return [...base, ...Object.keys(lanes ?? {}).filter((l) => !base.includes(l)).sort()];
+}
+
+/**
+ * Grid of a custom list / Community snapshot that has stored per-lane placements: the stored `lanes` are the only source
+ * (no role/lane metadata is used). Rows keep order, label and color; empty rows are kept; unknown hero ids are skipped.
+ */
+export function buildAssignedLaneGrid<H extends { id: string }>(
+  rows: readonly { id: string; label: string; color?: string }[],
+  lanes: LaneAssign,
+  byId: ReadonlyMap<string, H>,
+  codes: readonly string[]
+): LaneGrid<H> {
+  return {
+    lanes: [...codes],
+    hasUnassigned: false,
+    rows: rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      color: r.color,
+      cells: Object.fromEntries(codes.map((l) => [l, (lanes[l]?.[r.id] ?? []).flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []))])),
+      unassigned: [],
+    })),
+  };
 }
 
 /**

@@ -1,3 +1,4 @@
+import type { LaneAssign } from "./tierData";
 import { NAME_MAX, emptyTierData, parseDraft, type TierData } from "./tierData";
 
 // Tier List ของฉัน: ร่างเก็บฝั่ง Browser (React state + localStorage) ส่วนการเก็บบนบัญชีทำที่ cloudTierList / services/userTierLists
@@ -15,6 +16,8 @@ export interface CustomTierList {
   patch: string;
   tiers: CustomTiers;
   allowDuplicates: boolean;
+  /** แต่ละเลนมี Tier ของตัวเอง (อิสระจาก tiers) — null = ยังไม่เคยแก้รายเลน ดู laneAssign.ts */
+  lanes: LaneAssign | null;
 }
 
 export const createDefault = (patch = ""): CustomTierList => ({
@@ -23,6 +26,7 @@ export const createDefault = (patch = ""): CustomTierList => ({
   patch,
   tiers: emptyTierData(),
   allowDuplicates: false,
+  lanes: null,
 });
 
 // อ่านค่าจาก localStorage แบบป้องกันค่าเสีย/schema เก่า/ผู้ใช้ปิด storage

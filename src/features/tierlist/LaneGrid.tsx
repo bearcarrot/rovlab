@@ -7,7 +7,8 @@ import { LANE_OPTIONS, useFilterIcons } from "@/features/heroes/HeroFilters";
 import { heroLanes } from "@/lib/heroPositions";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
-import { OTHER_LANE, buildLaneGrid, orderLanes, type GridRowIn, type LaneGrid as LaneGridData } from "./laneGrid";
+import type { LaneAssign } from "./tierData";
+import { OTHER_LANE, buildAssignedLaneGrid, buildLaneGrid, laneCodesWith, orderLanes, type GridRowIn, type LaneGrid as LaneGridData } from "./laneGrid";
 import { emptyTierData, type TierData } from "./tierData";
 import { TierLabel } from "./TierRows";
 
@@ -22,30 +23,20 @@ export interface LaneColumn {
 }
 
 /** Lane columns in hero_lanes order with DB labels/icons (fallback labels/order until they load). Uses the cached getFilterIcons(): no new request. */
-export function useLaneColumns(only?: string | null): LaneColumn[] {
+export function useLaneColumns(only?: string | null, extra?: LaneAssign | null): LaneColumn[] {
   const icons = useFilterIcons();
   return useMemo(() => {
-    const codes = only ? [only] : orderLanes(icons.laneOrder);
+    const codes = only ? [only] : laneCodesWith(orderLanes(icons.laneOrder), extra);
     return codes.map((code) => ({
       code,
       label: icons.laneLabels[code] ?? LANE_OPTIONS.find((o) => o.value === code)?.label ?? code,
       icon: icons.lanes[code],
     }));
-  }, [icons, only]);
-}
-
-/** `rows` must be memoized by the caller. `forceLane` = active lane filter (single column). */
-export function useLaneGrid(rows: GridRowIn<HeroSummary>[], forceLane: string | null = null) {
-  const columns = useLaneColumns(forceLane);
-  const grid = useMemo(
-    () => buildLaneGrid(rows, { lanes: columns.map((c) => c.code), laneOf: heroLanes, forceLane }),
-    [rows, columns, forceLane]
-  );
-  return { grid, columns };
+  }, [icons, only, extra]);
 }
 
 /** Rows of a custom tier list / Community snapshot. Unknown hero ids are skipped (as in TierRows); empty rows are kept. */
-export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>) {
+export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>, assigned: LaneAssign | null = null) {
   const rows = useMemo<GridRowIn<HeroSummary>[]>(
     () =>
       data.map((r) => ({
@@ -59,8 +50,18 @@ export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>) 
       })),
     [data, byId]
   );
-  const { grid, columns } = useLaneGrid(rows);
-  const placed = rows.reduce((n, r) => n + r.heroes.length, 0);
+  const columns = useLaneColumns(null, assigned);
+  // stored per-lane placements are the source of truth; a list without them (legacy / never edited per lane) keeps the old projection
+  const grid = useMemo(
+    () =>
+      assigned
+        ? buildAssignedLaneGrid(rows, assigned, byId, columns.map((c) => c.code))
+        : buildLaneGrid(rows, { lanes: columns.map((c) => c.code), laneOf: heroLanes }),
+    [rows, assigned, byId, columns]
+  );
+  const placed = assigned
+    ? grid.rows.reduce((n, r) => n + Object.values(r.cells).reduce((m, c) => m + c.length, 0), 0)
+    : rows.reduce((n, r) => n + r.heroes.length, 0);
   return { grid, columns, placed };
 }
 
@@ -151,8 +152,8 @@ export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGr
 }
 
 /** Community snapshot / any saved list: the lane grid, or the same empty message TierRows used. */
-export function TierLaneView({ data, byId }: { data: TierData; byId: Map<string, HeroSummary> }) {
-  const { grid, columns, placed } = useTierLaneGrid(data, byId);
+export function TierLaneView({ data, byId, lanes = null }: { data: TierData; byId: Map<string, HeroSummary>; lanes?: LaneAssign | null }) {
+  const { grid, columns, placed } = useTierLaneGrid(data, byId, lanes);
   if (placed === 0) return <p className="text-xs text-text-faint">ยังไม่มีฮีโร่ใน Tier List นี้</p>;
   return <LaneGrid grid={grid} columns={columns} />;
 }

@@ -74,6 +74,7 @@ export function TierLinkShare({
         visibility: isPublic ? "public" : "private",
         data: list.tiers,
         allowDuplicates: list.allowDuplicates, // the shared board must keep the same duplicate behavior
+        lanes: list.lanes, // and its independent lane placements
       });
       const communityId = await publishTierListForLink(savedId);
       onPublished({ id: savedId, description: cloud.description, patch: listPatch, visibility: "public", savedSig: sigOf(list) });
