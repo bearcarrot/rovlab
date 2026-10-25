@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HeroIcon } from "@/components/HeroIcon";
@@ -126,6 +126,9 @@ export function MatchCard({
   // รายชื่อผู้เล่นทั้ง 10 คน (พร้อมรูป) ถูก render เมื่อกางเท่านั้น: <details> ที่ปิดอยู่ยังคง mount ลูกไว้ใน DOM
   // ทำให้เบราว์เซอร์บางตัวโหลดรูป 10 รูปต่อแมตช์ทั้งที่ผู้ใช้ไม่เคยเปิดดู
   const [open, setOpen] = useState(defaultOpen);
+  // Matches passes defaultOpen={idx === 0}, which changes when the list reorders (new match saved, first one deleted);
+  // the old `open={defaultOpen}` followed it, so keep following it.
+  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   return (
     <li className="rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center gap-3">
