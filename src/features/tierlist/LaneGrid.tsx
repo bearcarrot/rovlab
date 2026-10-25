@@ -1,10 +1,11 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { HeroIcon } from "@/components/HeroIcon";
 import { LaneIcon } from "@/components/LaneIcon";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { LANE_OPTIONS, useFilterIcons } from "@/features/heroes/HeroFilters";
 import { heroLanes } from "@/lib/heroPositions";
+import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import { OTHER_LANE, buildLaneGrid, orderLanes, type GridRowIn, type LaneGrid as LaneGridData } from "./laneGrid";
 import { emptyTierData, type TierData } from "./tierData";
@@ -63,55 +64,87 @@ export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>) 
   return { grid, columns, placed };
 }
 
-/** Read-only Tier rows x lane columns. Scrolls sideways on phones; the Tier label column stays visible. */
+/**
+ * Read-only Tier rows x lane columns. Scrolls sideways on phones; the Tier label column stays visible.
+ * On phones, lane chips narrow the same grid to one lane (a view filter only: this component never edits placements,
+ * and there is a single grid, so no extra hero images are rendered).
+ */
 export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGridData<HeroSummary>; columns: LaneColumn[]; balanceBadge?: boolean }) {
+  const [picked, setPicked] = useState<string | null>(null);
   const meta = new Map(columns.map((c) => [c.code, c]));
-  const cols: LaneColumn[] = grid.lanes.map((code) => meta.get(code) ?? { code, label: code });
-  if (grid.hasUnassigned) cols.push({ code: OTHER_LANE, label: "อื่นๆ" });
+  const all: LaneColumn[] = grid.lanes.map((code) => meta.get(code) ?? { code, label: code });
+  if (grid.hasUnassigned) all.push({ code: OTHER_LANE, label: "อื่นๆ" });
+  // a stale pick (that lane is no longer a column) falls back to all lanes
+  const cols = picked ? all.filter((c) => c.code === picked) : all;
+  const shown = cols.length > 0 ? cols : all;
   const style = {
-    gridTemplateColumns: `3.5rem repeat(${cols.length}, minmax(7.5rem, 1fr))`,
-    minWidth: `${3.5 + cols.length * 7.875}rem`,
+    gridTemplateColumns: `3.5rem repeat(${shown.length}, minmax(7.5rem, 1fr))`,
+    minWidth: `${3.5 + shown.length * 7.875}rem`,
   };
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="grid gap-1.5" style={style}>
-        <div className="sticky left-0 z-10 bg-bg" />
-        {cols.map((c) => (
-          <div key={c.code} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2 py-1.5 text-xs font-medium">
-            {c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
-            <span className="truncate">{c.label}</span>
-          </div>
-        ))}
-        {grid.rows.map((r) => (
-          <Fragment key={r.id}>
-            {/* the grid cell is as tall as the row; the flex child stretches to it (no fixed height, so wrapped rows never clip) */}
-            <div className="sticky left-0 z-10 flex bg-bg">
-              <TierLabel
-                row={{ label: r.label, color: r.color ?? OFFICIAL_TIER_COLOR.get(r.label) ?? NEUTRAL_TIER_COLOR }}
-                className="min-h-[2.5rem] w-full"
-              />
+    <div className="space-y-2">
+      {all.length > 1 && (
+        <div role="group" aria-label="เลือกเลนที่จะดู (ดูอย่างเดียว)" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 md:hidden">
+          {[{ code: null as string | null, label: "ทุกเลน", icon: undefined as string | undefined }, ...all].map((c) => {
+            const active = (c.code ?? null) === (shown === all ? null : picked);
+            return (
+              <button
+                key={c.code ?? "all"}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPicked(c.code)}
+                className={cn(
+                  "flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  active ? "border-accent bg-accent/10 text-accent" : "border-border text-text-muted hover:text-text"
+                )}
+              >
+                {c.code !== null && c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="overflow-x-auto pb-1">
+        <div className="grid gap-1.5" style={style}>
+          <div className="sticky left-0 z-10 bg-bg" />
+          {shown.map((c) => (
+            <div key={c.code} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2 py-1.5 text-xs font-medium">
+              {c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
+              <span className="truncate">{c.label}</span>
             </div>
-            {cols.map((c) => {
-              const heroes = c.code === OTHER_LANE ? r.unassigned : (r.cells[c.code] ?? []);
-              return (
-                <div key={c.code} className="flex min-h-[3.5rem] flex-wrap content-start gap-1 rounded-lg bg-bg-surface p-1.5">
-                  {heroes.map((h) => (
-                    <Link
-                      key={h.id}
-                      to={`/heroes/${h.slug}`}
-                      aria-label={h.nameTh}
-                      title={h.nameTh}
-                      className="relative h-10 w-10 shrink-0 rounded-lg bg-bg-raised hover:ring-2 hover:ring-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-lg text-base" />
-                      {balanceBadge && <HeroBalanceBadge heroId={h.id} size="md" inside />}
-                    </Link>
-                  ))}
-                </div>
-              );
-            })}
-          </Fragment>
-        ))}
+          ))}
+          {grid.rows.map((r) => (
+            <Fragment key={r.id}>
+              {/* the grid cell is as tall as the row; the flex child stretches to it (no fixed height, so wrapped rows never clip) */}
+              <div className="sticky left-0 z-10 flex bg-bg">
+                <TierLabel
+                  row={{ label: r.label, color: r.color ?? OFFICIAL_TIER_COLOR.get(r.label) ?? NEUTRAL_TIER_COLOR }}
+                  className="min-h-[2.5rem] w-full"
+                />
+              </div>
+              {shown.map((c) => {
+                const heroes = c.code === OTHER_LANE ? r.unassigned : (r.cells[c.code] ?? []);
+                return (
+                  <div key={c.code} className="flex min-h-[3.5rem] flex-wrap content-start gap-1 rounded-lg bg-bg-surface p-1.5">
+                    {heroes.map((h) => (
+                      <Link
+                        key={h.id}
+                        to={`/heroes/${h.slug}`}
+                        aria-label={h.nameTh}
+                        title={h.nameTh}
+                        className="relative h-10 w-10 shrink-0 rounded-lg bg-bg-raised hover:ring-2 hover:ring-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-lg text-base" />
+                        {balanceBadge && <HeroBalanceBadge heroId={h.id} size="md" inside />}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );
