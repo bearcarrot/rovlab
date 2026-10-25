@@ -1,5 +1,4 @@
 import type { ImageSource, ImageStore } from "./types";
-import { viaVercel } from "../imageUrl";
 
 // โหลดรูปให้ "วาดลง Canvas แล้ว export ได้" — รูปที่โหลดสำเร็จแต่ไม่ผ่าน CORS จะทำให้ canvas ถูก taint
 // และ toBlob() พัง ดังนั้นโหลดด้วย crossOrigin="anonymous" เท่านั้น ถ้าไม่ผ่านให้เป็น null (วาด placeholder)
@@ -70,13 +69,7 @@ export async function loadImage(url: string, timeoutMs = DEFAULT_TIMEOUT): Promi
   const job = (async () => {
     const guard = timeoutAfter(timeoutMs * 2, null);
     try {
-      // Supabase hero icons: draw the same same-origin /img/* URL the page already displays (HeroIcon) so the browser/CDN cache is reused
-      // instead of downloading every icon a second time from Supabase (and same-origin means no CORS taint). Fall back to the original URL.
-      const proxied = viaVercel(url);
-      const img =
-        (proxied !== url ? ((await viaImgElement(proxied, timeoutMs)) ?? null) : null) ??
-        (await viaImgElement(url, timeoutMs)) ??
-        (await viaFetch(url, timeoutMs));
+      const img = (await viaImgElement(url, timeoutMs)) ?? (await viaFetch(url, timeoutMs));
       const result = await Promise.race([Promise.resolve(img), guard.promise]);
       if (result) okCache.set(url, result);
       else failedAt.set(url, Date.now());

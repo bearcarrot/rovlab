@@ -35,3 +35,6 @@ Objects are already uploaded with `Cache-Control: public, max-age=31536000, immu
 - Caching > Tiered Cache: enable **Smart Tiered Cache** (fewer origin/R2 reads on a miss).
 - Do not add a "Bypass cache" or short Edge/Browser TTL override for this hostname, and do not purge everything on deploy: keys are unique, so there is nothing to purge.
 - Check Analytics > Cache: a healthy `assets.rovlab.app` shows a high cache-hit ratio; misses on repeated keys point to a rule overriding the origin headers.
+
+## CORS (needed for share-image export)
+The share-image canvas loads icons with `crossOrigin="anonymous"`, so `assets.rovlab.app` must answer with `Access-Control-Allow-Origin` for the site origins (`https://rovlab.vercel.app`, `https://rovlab.app`). Without it share images draw placeholders instead of hero icons. R2 bucket > Settings > CORS policy: allow `GET`/`HEAD` from those origins. Quick check: `curl -sI -H "Origin: https://rovlab.vercel.app" https://assets.rovlab.app/<any key> | grep -i access-control`.

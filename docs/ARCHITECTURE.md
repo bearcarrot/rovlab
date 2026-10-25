@@ -160,7 +160,6 @@ When architecture changes significantly, update:
 ## CDN caching (Vercel + Cloudflare R2)
 
 - `/assets/*` (hashed by Vite) and `/v1/*` are `immutable` for a year. **`/v1/` is a versioned path: to change a brand image, add a new file or move to `/v2/` — never edit in place.**
-- `/img/*` (rewrite to the Supabase `hero-icons` bucket) is `immutable` for a year at the browser and the edge: admin uploads use unique `<folder>/<timestamp>-<name>` keys with `upsert:false`, so an object never changes.
 - Other root images (`/logo.png`, `/gold.svg`, ...) keep 1 day + stale-while-revalidate.
-- Icons are always requested as one URL per icon: `src/lib/imageUrl.ts` (`viaVercel`) is used by `HeroIcon` (display) and the share-image canvas loader, so exporting a share image reuses the cached icon instead of re-downloading it from Supabase.
-- R2 (`https://assets.rovlab.app`) objects are written with `Cache-Control: public, max-age=31536000, immutable`. Cloudflare-side settings are not in this repo — see the Cache Rule checklist in `docs/r2-uploads.md`.
+- All catalog/hero/announcement/avatar images live in Cloudflare R2 (`https://assets.rovlab.app`, see `docs/r2-uploads.md`) and are written with `Cache-Control: public, max-age=31536000, immutable` under unique keys. The old `/img/*` Supabase proxy was removed once every DB URL pointed at R2; admin icon uploads (`AdminEditor`, `AdminGameData`) now go through `/api/upload` (`src/lib/r2Upload.ts`). `tests/security/cacheHeaders.test.ts` fails if app code goes back to `supabase.storage` or `/img/`.
+- Cloudflare-side settings are not in this repo — see the Cache Rule + CORS checklist in `docs/r2-uploads.md`.

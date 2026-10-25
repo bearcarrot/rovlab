@@ -6,13 +6,13 @@ import { RuneSlots, ItemSlots, type RowMove } from "@/features/admin/BuildSlots"
 import { ITEM_TYPE_CHOICES } from "@/features/build/buildView";
 import { ImageSelect } from "@/features/admin/ImageSelect";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { supabase } from "@/lib/supabase";
+import { uploadCatalogImage } from "@/lib/r2Upload";
 import { EFFECT_COLOR_PRESETS, safeHex, tagColor, tagNames } from "@/lib/effectTags";
 import { clearFilterIconsCache, sortByOrder } from "@/services/filterIcons";
 import { clearEffectTagStylesCache } from "@/services/effectTagStyles";
 import { useToast } from "@/components/ui/toast";
 import type { HeroLane, HeroRole } from "@/types/hero";
-import { db, Row, RefOpt, Col, Labels, Cfg, REF_TYPES, BUCKET, TAG_STYLES_TABLE, MAX_SLOTS, SLOT_COLORS, DIFFICULTY_TH, ITEM_TIER_FILTERS, ITEM_TYPE_LABEL, ROUND } from "@/features/admin/adminConfig";
+import { db, Row, RefOpt, Col, Labels, Cfg, REF_TYPES, TAG_STYLES_TABLE, MAX_SLOTS, SLOT_COLORS, DIFFICULTY_TH, ITEM_TIER_FILTERS, ITEM_TYPE_LABEL, ROUND } from "@/features/admin/adminConfig";
 
 // ---------- UI primitives ----------
 
@@ -203,14 +203,6 @@ export function summarizeSlots(rows: Row[], rune: RefOpt[]) {
     else uncolored += n;
   }
   return { used, uncolored };
-}
-
-// อัปโหลดรูปเข้า Supabase Storage (bucket hero-icons, แยกโฟลเดอร์ตามชื่อตาราง) แล้วคืน public URL
-async function uploadImage(file: File, folder: string): Promise<string> {
-  const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
-  if (error) throw new Error(error.message);
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 // ปุ่มชิปจากรายการคงที่ (Tier ไอเทม / ประเภทไอเทม): ค่าเดียว แตะซ้ำเพื่อเอาออก / หลายค่า (multiChoice) แตะสลับเลือก
@@ -471,7 +463,7 @@ export function Cell({
               const f = input.files?.[0];
               if (!f) return;
               try {
-                change(await uploadImage(f, folder));
+                change(await uploadCatalogImage(f, folder)); // R2 via /api/upload (docs/r2-uploads.md)
               } catch (err) {
                 onError(`อัปโหลดไม่สำเร็จ: ${(err as Error).message}`);
               }
