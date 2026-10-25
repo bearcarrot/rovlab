@@ -24,7 +24,7 @@ import {
 } from "@/services/userTierLists";
 import type { HeroSummary } from "@/types/hero";
 import type { TierData } from "./tierData";
-import { TierRows } from "./TierRows";
+import { TierLaneView } from "./LaneGrid";
 
 const SORTS: { value: CommunitySort; label: string }[] = [
   { value: "new", label: "ล่าสุด" },
@@ -255,7 +255,7 @@ function TierViewModal({
             {state.data.patch ? ` · Patch ${state.data.patch}` : ""}
           </p>
           {state.data.description && <p className="text-sm text-text-muted">{state.data.description}</p>}
-          <TierRows data={state.data.data} byId={byId} />
+          <TierLaneView data={state.data.data} byId={byId} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             {item ? (
               <ReactionButtons likes={item.likes} dislikes={item.dislikes} value={item.myValue} disabled={pending} onChange={onReact} />
