@@ -4,6 +4,7 @@ import { Bookmark, FilePlus2, FolderOpen, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Modal } from "@/features/community/Modal";
 import { confirmDialog } from "@/features/community/confirm";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
@@ -51,7 +52,8 @@ export function MyTierListWorkspace({
   const [current, setCurrent] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
   const [cloud, setCloudState] = useState<CloudState>(() => readCloud());
   const [showSaved, setShowSaved] = useState(false);
-  const [showLanes, setShowLanes] = useState(false);
+  // View preference only (the read-only lane view). Default OFF; remembered with the page's existing persisted-state hook, no network.
+  const [showLanes, setShowLanes] = usePersistedState<boolean>("rovlab:tier:mine:lanes", false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -169,17 +171,23 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
+        {/* ON/OFF switch for the read-only lane view. It only shows/hides MyLaneView: the editor below stays mounted, so nothing in it changes. */}
         <button
           type="button"
-          aria-pressed={showLanes}
+          role="switch"
+          aria-checked={showLanes}
+          aria-label="มุมมองตามเลน (ดูอย่างเดียว)"
           onClick={() => setShowLanes((s) => !s)}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm",
+            "flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             showLanes ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
           )}
         >
-          <LayoutGrid className="h-4 w-4" />
+          <LayoutGrid className="h-4 w-4" aria-hidden="true" />
           ตามเลน
+          <span aria-hidden="true" className={cn("rounded px-1.5 text-xs font-semibold", showLanes ? "bg-accent text-accent-fg" : "bg-bg-raised text-text-faint")}>
+            {showLanes ? "ON" : "OFF"}
+          </span>
         </button>
         <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
