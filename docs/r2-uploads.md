@@ -28,3 +28,10 @@ Local: put them in `.env.local` (git-ignored) and run `vercel dev` (plain `vite 
 - 401/403: session expired / user is not admin. 503 `AUTH_UNAVAILABLE`: Supabase `rpc/is_admin` unreachable.
 - 502 `UPLOAD_FAILED`: see `r2 put failed <status>` in logs. 403 = token lacks write on the bucket; 412 = key already exists; 404 = wrong bucket/account id.
 - Image uploaded but not visible: check the custom domain on the bucket, not `r2.dev`.
+
+## Keeping Cloudflare CDN requests low (dashboard checklist)
+Objects are already uploaded with `Cache-Control: public, max-age=31536000, immutable` and never overwritten, so they can be cached as long as possible. In the Cloudflare dashboard for `rovlab.app` (not configurable from this repo):
+- Caching > Cache Rules: for hostname `assets.rovlab.app` set **Eligible for cache**, Edge TTL = *Use cache-control header if present*, Browser TTL = *Respect origin*.
+- Caching > Tiered Cache: enable **Smart Tiered Cache** (fewer origin/R2 reads on a miss).
+- Do not add a "Bypass cache" or short Edge/Browser TTL override for this hostname, and do not purge everything on deploy: keys are unique, so there is nothing to purge.
+- Check Analytics > Cache: a healthy `assets.rovlab.app` shows a high cache-hit ratio; misses on repeated keys point to a rule overriding the origin headers.

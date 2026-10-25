@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { viaVercel } from "@/lib/imageUrl";
 
 type Props = {
   icon?: string | null;
@@ -16,8 +17,6 @@ type Props = {
 // รูปใน bucket hero-icons ถูกโหลดผ่าน /img/* (rewrite ใน vercel.json) เพื่อไม่ให้ทุก request ไปติด API Gateway log ของ Supabase
 // รูปที่ไม่ใช่ Supabase Storage (เช่น R2 https://assets.rovlab.app/...) ใช้ URL เดิมตรงๆ ไม่ผ่าน proxy
 // ทุกที่ที่แสดงไอคอนฮีโร่ควรใช้ HeroIcon เพื่อให้รูปเดียวกันใช้ URL เดียวกัน (เบราว์เซอร์จะใช้แคชซ้ำได้)
-const STORAGE_PREFIX = "https://mttcdaiwuasnkqlxbeqs.supabase.co/storage/v1/object/public/hero-icons/";
-const viaVercel = (url: string) => (url.startsWith(STORAGE_PREFIX) ? `/img/${url.slice(STORAGE_PREFIX.length)}` : url);
 
 export function HeroIcon({ icon, name, fallback, className, decorative = false, eager = false }: Props) {
   const [failed, setFailed] = useState(false);
