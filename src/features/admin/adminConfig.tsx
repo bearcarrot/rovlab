@@ -94,7 +94,6 @@ export type Cfg = {
 export const TIERS = ["S+", "S", "A", "B", "C"];
 export const SOURCES = ["curated", "heuristic"];
 export const REF_TYPES: string[] = ["hero", "item", "rune", "patch", "guideCat"];
-export const BUCKET = "hero-icons";
 // แรงก์ที่ใช้ใน DB (hero_stats.rank_tier / tier_lists.rank_tier): all = ทั้งหมด, high = Commander ขึ้นไป — ชุดเดียวกันทั้งแท็บสถิติและ Tier List
 export const RANK_CHIPS = [
   { value: "all", label: "ทั้งหมด" },
