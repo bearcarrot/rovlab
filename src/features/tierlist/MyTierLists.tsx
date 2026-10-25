@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Copy, FolderOpen, Globe, Lock, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { Copy, Eye, FolderOpen, Globe, Lock, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
@@ -8,6 +8,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { Modal } from "@/features/community/Modal";
 import { timeAgo } from "@/features/community/format";
 import { confirmDialog } from "@/features/community/confirm";
 import { Switch } from "@/features/community/Switch";
@@ -41,6 +42,8 @@ export function MyTierLists({
   const toast = useToast();
   const list = useAsync(() => (user ? listMyTierLists() : Promise.resolve([] as MyTierList[])), [user?.id, refreshKey]);
   const [busy, setBusy] = useState<string | null>(null);
+  // Hero images of a tier list load only when the user opens it (keeps the list light on CDN requests).
+  const [viewId, setViewId] = useState<string | null>(null);
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
 
   async function run(id: string, ok: string, fn: () => Promise<unknown>) {
@@ -75,82 +78,101 @@ export function MyTierLists({
     return <EmptyState icon={FolderOpen} title="ยังไม่มี Tier List ที่บันทึกไว้" description="จัดอันดับฮีโร่แล้วกด “บันทึก” เพื่อเก็บไว้ที่นี่" />;
   }
 
+  const viewItem = viewId ? list.data.find((x) => x.id === viewId) : undefined;
+
   return (
-    <ul className="space-y-2">
-      {list.data.map((l) => {
-        const isPublic = l.visibility === "public";
-        const disabled = busy !== null;
-        return (
-          <li key={l.id} className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-            <div className="min-w-0">
-              <p className="truncate font-medium">
-                {l.name}
-                {l.id === currentId && <span className="ml-2 text-xs text-accent">กำลังแก้ไข</span>}
-              </p>
-              <p className="text-xs text-text-faint">
-                {l.patch ? `Patch ${l.patch} · ` : ""}
-                {l.heroCount} ฮีโร่ · {isPublic ? "Public" : "Private"} · แก้ไขล่าสุด {timeAgo(l.updatedAt)}
-              </p>
-              {l.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{l.description}</p>}
-            </div>
-            <TierRows data={l.data} byId={byId} size="sm" maxPerTier={10} />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Switch
-                checked={isPublic}
-                disabled={disabled}
-                label={
-                  <span className="inline-flex items-center gap-1">
-                    {isPublic ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                    {isPublic ? "เผยแพร่ใน Community" : "ส่วนตัว"}
-                  </span>
-                }
-                onChange={(on) =>
-                  run(l.id, on ? "เผยแพร่ไปยัง Community แล้ว" : "เอาออกจาก Community แล้ว", () =>
-                    on ? publishTierList(l.id) : setTierListVisibility(l.id, "private")
-                  )
-                }
-              />
-              <div className="flex flex-wrap gap-1.5">
-                <button type="button" disabled={disabled} className={btn} onClick={() => onOpen(l)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                  แก้ไข
-                </button>
-                <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "คัดลอกแล้ว", () => createTierListCopy(user.id, l))}>
-                  <Copy className="h-3.5 w-3.5" />
-                  คัดลอก
-                </button>
-                {isPublic && (
-                  <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "อัปเดตเป็นเวอร์ชันล่าสุดแล้ว", () => publishTierList(l.id))}>
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    อัปเดต
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className={`${btn} text-loss`}
-                  onClick={async () => {
-                    const ok = await confirmDialog({
-                      title: `ลบ “${l.name}”?`,
-                      message: isPublic ? "Tier List นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
-                      confirmLabel: "ลบ",
-                      danger: true,
-                    });
-                    if (!ok) return;
-                    await run(l.id, "ลบแล้ว", async () => {
-                      await deleteTierList(l.id);
-                      onDeleted(l.id);
-                    });
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  ลบ
-                </button>
+    <>
+      <ul className="space-y-2">
+        {list.data.map((l) => {
+          const isPublic = l.visibility === "public";
+          const disabled = busy !== null;
+          return (
+            <li key={l.id} className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">
+                  {l.name}
+                  {l.id === currentId && <span className="ml-2 text-xs text-accent">กำลังแก้ไข</span>}
+                </p>
+                <p className="text-xs text-text-faint">
+                  {l.patch ? `Patch ${l.patch} · ` : ""}
+                  {l.heroCount} ฮีโร่ · {isPublic ? "Public" : "Private"} · แก้ไขล่าสุด {timeAgo(l.updatedAt)}
+                </p>
+                {l.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{l.description}</p>}
               </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Switch
+                  checked={isPublic}
+                  disabled={disabled}
+                  label={
+                    <span className="inline-flex items-center gap-1">
+                      {isPublic ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      {isPublic ? "เผยแพร่ใน Community" : "ส่วนตัว"}
+                    </span>
+                  }
+                  onChange={(on) =>
+                    run(l.id, on ? "เผยแพร่ไปยัง Community แล้ว" : "เอาออกจาก Community แล้ว", () =>
+                      on ? publishTierList(l.id) : setTierListVisibility(l.id, "private")
+                    )
+                  }
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" className={btn} onClick={() => setViewId(l.id)}>
+                    <Eye className="h-3.5 w-3.5" />
+                    ดู Tier List
+                  </button>
+                  <button type="button" disabled={disabled} className={btn} onClick={() => onOpen(l)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    แก้ไข
+                  </button>
+                  <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "คัดลอกแล้ว", () => createTierListCopy(user.id, l))}>
+                    <Copy className="h-3.5 w-3.5" />
+                    คัดลอก
+                  </button>
+                  {isPublic && (
+                    <button type="button" disabled={disabled} className={btn} onClick={() => run(l.id, "อัปเดตเป็นเวอร์ชันล่าสุดแล้ว", () => publishTierList(l.id))}>
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      อัปเดต
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className={`${btn} text-loss`}
+                    onClick={async () => {
+                      const ok = await confirmDialog({
+                        title: `ลบ “${l.name}”?`,
+                        message: isPublic ? "Tier List นี้จะถูกเอาออกจาก Community ด้วย และกู้คืนไม่ได้" : "ลบแล้วกู้คืนไม่ได้",
+                        confirmLabel: "ลบ",
+                        danger: true,
+                      });
+                      if (!ok) return;
+                      await run(l.id, "ลบแล้ว", async () => {
+                        await deleteTierList(l.id);
+                        onDeleted(l.id);
+                      });
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    ลบ
+                  </button>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {viewItem && (
+        <Modal title={viewItem.name} onClose={() => setViewId(null)} wide>
+          <div className="space-y-4">
+            <p className="text-xs text-text-faint">
+              {viewItem.patch ? `Patch ${viewItem.patch} · ` : ""}
+              {viewItem.heroCount} ฮีโร่
+            </p>
+            {viewItem.description && <p className="text-sm text-text-muted">{viewItem.description}</p>}
+            <TierRows data={viewItem.data} byId={byId} />
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
