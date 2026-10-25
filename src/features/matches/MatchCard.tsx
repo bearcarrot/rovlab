@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HeroIcon } from "@/components/HeroIcon";
 import { formatDuration } from "@/features/matches/scan";
 import { STAT_GRID, StatHeader } from "@/features/matches/ScoreIcons";
 import type { ItemSummary } from "@/types/item";
@@ -13,14 +15,9 @@ function when(iso: string): string {
   return d.toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+// ไอคอนฮีโร่ใช้ HeroIcon ตัวเดียวกับทุกหน้า (URL เดียวกัน แคชร่วมกัน, lazy, มีตัวอักษรย่อเมื่อไม่มีรูป)
 function HeroThumb({ src, name, size }: { src?: string; name: string; size: string }) {
-  return src ? (
-    <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className={cn(size, "shrink-0 rounded bg-bg-raised object-cover")} />
-  ) : (
-    <span className={cn(size, "flex shrink-0 items-center justify-center rounded bg-bg-raised font-display text-[10px] text-text-faint")}>
-      {name.slice(0, 2).toUpperCase()}
-    </span>
-  );
+  return <HeroIcon icon={src} name={name} decorative className={cn(size, "rounded text-[10px]")} />;
 }
 
 // The items bought in this match (the user's own six slots, empty slots skipped). 24 px icons with a 4 px gap: all six take
@@ -40,6 +37,7 @@ function ItemRow({ slugs, itemBySlug }: { slugs: (string | null)[] | undefined; 
                 src={it.icon}
                 alt={name}
                 loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
                 className="h-6 w-6 rounded bg-bg-raised object-cover"
                 onError={(e) => {
@@ -125,6 +123,9 @@ export function MatchCard({
 }) {
   const win = match.result === "victory";
   const myIcon = match.myHeroId ? iconById.get(match.myHeroId) : undefined;
+  // รายชื่อผู้เล่นทั้ง 10 คน (พร้อมรูป) ถูก render เมื่อกางเท่านั้น: <details> ที่ปิดอยู่ยังคง mount ลูกไว้ใน DOM
+  // ทำให้เบราว์เซอร์บางตัวโหลดรูป 10 รูปต่อแมตช์ทั้งที่ผู้ใช้ไม่เคยเปิดดู
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <li className="rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center gap-3">
@@ -158,12 +159,14 @@ export function MatchCard({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <details className="mt-2" open={defaultOpen}>
+      <details className="mt-2" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="cursor-pointer text-xs text-text-muted">ผู้เล่นทั้ง 10 คน</summary>
-        <div className="mt-2 grid gap-3 lg:grid-cols-2">
-          <TeamBlock team="blue" match={match} iconById={iconById} />
-          <TeamBlock team="red" match={match} iconById={iconById} />
-        </div>
+        {open && (
+          <div className="mt-2 grid gap-3 lg:grid-cols-2">
+            <TeamBlock team="blue" match={match} iconById={iconById} />
+            <TeamBlock team="red" match={match} iconById={iconById} />
+          </div>
+        )}
       </details>
     </li>
   );
