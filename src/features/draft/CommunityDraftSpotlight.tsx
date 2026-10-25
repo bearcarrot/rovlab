@@ -9,6 +9,7 @@ import { analyzeTeam } from "@/features/draft/analyzeTeam";
 import { findTeamGaps } from "@/features/draft/teamGaps";
 import { buildKits, type KitsByHero } from "@/features/draft/skillTags";
 import { DraftPreviewPanel } from "@/features/draft/DraftPreviewPanel";
+import { HeroIcon } from "@/components/HeroIcon";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
@@ -94,6 +95,7 @@ async function fetchKits(heroIds: string[]): Promise<KitsByHero | null> {
 
 // ไอคอนขยายตามความกว้างการ์ด (grid 5 คอลัมน์, aspect-square) แทนขนาด 32px คงที่ มือถือไม่เหลือที่ว่างขวา
 // max-w-72 จำกัดไม่ให้ไอคอนใหญ่เกินไปบนจอกว้าง
+// รูปใช้ HeroIcon ตัวกลาง (lazy, fallback เป็นตัวอักษรย่อ) เพื่อให้ใช้ URL/แคชเดียวกับที่อื่น
 function TeamRow({ label, slugs, bySlug }: { label: string; slugs: HeroKey[]; bySlug: Map<string, HeroSummary> }) {
   return (
     <div className="flex items-center gap-2">
@@ -102,23 +104,15 @@ function TeamRow({ label, slugs, bySlug }: { label: string; slugs: HeroKey[]; by
         {Array.from({ length: TEAM_SIZE }).map((_, i) => {
           const h = slugs[i] ? bySlug.get(slugs[i]) : undefined;
           return (
-            <div key={i} className="aspect-square w-full overflow-hidden rounded-md bg-bg-raised">
-              {h?.icon ? (
-                <img
-                  src={h.icon}
-                  alt={h.nameTh}
-                  title={h.nameTh}
-                  width={48}
-                  height={48}
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
+            <div key={i} title={h?.nameTh} className="aspect-square w-full overflow-hidden rounded-md bg-bg-raised">
+              {h && (
+                <HeroIcon
+                  icon={h.icon}
+                  name={h.nameTh}
+                  fallback={h.name.slice(0, 2).toUpperCase()}
+                  className="h-full w-full rounded-md"
                 />
-              ) : null}
+              )}
             </div>
           );
         })}

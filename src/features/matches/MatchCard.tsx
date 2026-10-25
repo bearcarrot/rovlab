@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/features/matches/scan";
@@ -125,6 +126,11 @@ export function MatchCard({
 }) {
   const win = match.result === "victory";
   const myIcon = match.myHeroId ? iconById.get(match.myHeroId) : undefined;
+  // The ten player rows (and their hero icons) are mounted only while the section is open, so closed cards request no player images.
+  // `open` follows the native <details> via its toggle event; the effect keeps the old `open={defaultOpen}` behaviour when the prop changes
+  // (for example the newest match moving to the top of the list).
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   return (
     <li className="rounded-card border border-border bg-bg-surface p-3">
       <div className="flex items-center gap-3">
@@ -158,12 +164,14 @@ export function MatchCard({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <details className="mt-2" open={defaultOpen}>
+      <details className="mt-2" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="cursor-pointer text-xs text-text-muted">ผู้เล่นทั้ง 10 คน</summary>
-        <div className="mt-2 grid gap-3 lg:grid-cols-2">
-          <TeamBlock team="blue" match={match} iconById={iconById} />
-          <TeamBlock team="red" match={match} iconById={iconById} />
-        </div>
+        {open && (
+          <div className="mt-2 grid gap-3 lg:grid-cols-2">
+            <TeamBlock team="blue" match={match} iconById={iconById} />
+            <TeamBlock team="red" match={match} iconById={iconById} />
+          </div>
+        )}
       </details>
     </li>
   );
