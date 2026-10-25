@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Users } from "lucide-react";
-import { HeroIcon } from "@/components/HeroIcon";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/ui/toast";
 import { useAsync } from "@/hooks/useAsync";
@@ -182,14 +181,6 @@ export function CommunityTierLists({
                 {it.handle && it.authorName && <span className="text-text-faint">@{it.handle}</span>}
               </p>
               {it.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{it.description}</p>}
-              {it.preview.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {it.preview.map((id) => {
-                    const h = byId.get(id);
-                    return h ? <HeroIcon key={id} icon={h.icon} name={h.name} className="h-8 w-8 rounded-md" /> : null;
-                  })}
-                </div>
-              )}
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <ReactionButtons likes={it.likes} dislikes={it.dislikes} value={it.myValue} disabled={pending.has(it.id)} onChange={(n) => void setReaction(it, n)} />
                 <div className="flex gap-1.5">
