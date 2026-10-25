@@ -70,6 +70,44 @@ export function buildLaneGrid<H extends { id: string }>(
   return { lanes, rows: out, hasUnassigned };
 }
 
+/**
+ * Official grid with lane-specific rankings (no lane filter). `lists` = lane code (or `allKey`) -> hero id -> Tier, as
+ * returned by getCuratedTierLists(). A lane that has its own list is authoritative for that column: a hero is in the
+ * Tier that list gives it, and only if it is in the list. A lane without its own list falls back to the all-lanes list
+ * for heroes tagged with that lane (what the page showed before). Nothing is inferred: a hero absent from a lane's list
+ * is not shown in that lane. Empty Tier rows are dropped; cells are A-Z by name.
+ */
+export function buildCuratedLaneGrid<H extends { id: string; name: string }>(
+  heroes: readonly H[],
+  lists: ReadonlyMap<string, ReadonlyMap<string, string>>,
+  opts: { lanes: readonly string[]; laneOf: (h: H) => readonly string[]; tiers: readonly string[]; allKey: string; tier?: string | null }
+): LaneGrid<H> {
+  const lanes = [...opts.lanes];
+  const all = lists.get(opts.allKey);
+  const rows = new Map<string, GridRow<H>>();
+  for (const t of opts.tiers) {
+    if (opts.tier && t !== opts.tier) continue;
+    rows.set(t, { id: t, label: t, cells: Object.fromEntries(lanes.map((l) => [l, [] as H[]])), unassigned: [] });
+  }
+  for (const h of heroes) {
+    const mine = opts.laneOf(h);
+    for (const l of lanes) {
+      const own = lists.get(l);
+      const t = own ? own.get(h.id) : mine.includes(l) ? all?.get(h.id) : undefined;
+      if (t !== undefined) rows.get(t)?.cells[l].push(h);
+    }
+    const t = all?.get(h.id);
+    if (t !== undefined && !mine.some((l) => lanes.includes(l))) rows.get(t)?.unassigned.push(h);
+  }
+  const byName = (a: H, b: H) => a.name.localeCompare(b.name, "en");
+  const out = [...rows.values()].filter((r) => r.unassigned.length > 0 || lanes.some((l) => r.cells[l].length > 0));
+  for (const r of out) {
+    for (const l of lanes) r.cells[l].sort(byName);
+    r.unassigned.sort(byName);
+  }
+  return { lanes, rows: out, hasUnassigned: out.some((r) => r.unassigned.length > 0) };
+}
+
 export interface ShareCellHero {
   id: string;
   name: string;
