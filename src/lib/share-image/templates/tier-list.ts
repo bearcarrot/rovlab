@@ -2,7 +2,7 @@ import { readableTextColor } from "../../readableText";
 import { drawBackground, drawHeroIcon, fillRound, fitFontSize, font, text } from "../draw";
 import { drawLogo } from "../logo";
 import { COLORS, CREDIT_TH, DISCLAIMER_TH, SITE_LABEL, SITE_URL, TIER_COLORS } from "../theme";
-import type { ImageTemplate, ShareHero } from "../types";
+import type { ImageStore, ImageTemplate, ShareHero } from "../types";
 import { FOOTER_H, GAP, H, HEADER_H, LABEL_W, MIN_ROW_H, PAD, W, layout } from "./tierLayout";
 
 export interface TierListImageData {
@@ -21,6 +21,32 @@ export interface TierListImageData {
 // ความสูงโลโก้เต็ม (ความกว้างคำนวณจากอัตราส่วนจริง)
 const LOGO_H = 64;
 
+/** Header and footer are shared with the lane-grid template (tier-lane-grid.ts). */
+export function drawTierHeader(
+  ctx: CanvasRenderingContext2D,
+  images: ImageStore,
+  d: { title: string; patch: string; filterLabel: string; extraLabel?: string }
+) {
+  // Header: โลโก้เต็ม (มีชื่อแบรนด์อยู่ในโลโก้แล้ว) + ชื่อหน้า
+  const logoW = drawLogo(ctx, images, PAD, 28, LOGO_H);
+  text(ctx, "TIER LIST", PAD + logoW + 20, 68, { font: font(500, 24, "display"), color: COLORS.muted });
+  const maxTitleW = W - PAD * 2;
+  const size = fitFontSize(ctx, d.title, maxTitleW, 700, 64, 30);
+  text(ctx, d.title, PAD, 160, { font: font(700, size, "display"), color: COLORS.text, maxWidth: maxTitleW });
+  const meta = [`Patch ${d.patch}`, d.filterLabel, d.extraLabel].filter(Boolean).join("  ·  ");
+  text(ctx, meta, PAD, 198, { font: font(500, 24), color: COLORS.muted, maxWidth: maxTitleW });
+}
+
+export function drawTierFooter(ctx: CanvasRenderingContext2D, height: number, generatedDate: string) {
+  const fy = height - FOOTER_H;
+  ctx.fillStyle = COLORS.border;
+  ctx.fillRect(PAD, fy + 8, W - PAD * 2, 2);
+  text(ctx, `${SITE_LABEL}  ·  ${SITE_URL}`, PAD, fy + 46, { font: font(600, 24, "display"), color: COLORS.text });
+  text(ctx, `Generated: ${generatedDate}`, W - PAD, fy + 46, { font: font(500, 22), color: COLORS.muted, align: "right" });
+  text(ctx, DISCLAIMER_TH, PAD, fy + 80, { font: font(500, 20), color: COLORS.muted, maxWidth: W - PAD * 2 });
+  text(ctx, CREDIT_TH, PAD, fy + 108, { font: font(400, 18), color: COLORS.faint, maxWidth: W - PAD * 2 });
+}
+
 export const tierListTemplate: ImageTemplate<TierListImageData> = {
   id: "tier-list",
   width: W,
@@ -28,15 +54,7 @@ export const tierListTemplate: ImageTemplate<TierListImageData> = {
   collectImageUrls: (d) => d.tiers.flatMap((t) => t.heroes.map((h) => h.icon)),
   draw({ ctx, images }, d) {
     drawBackground(ctx, W, H);
-
-    // Header: โลโก้เต็ม (มีชื่อแบรนด์อยู่ในโลโก้แล้ว) + ชื่อหน้า
-    const logoW = drawLogo(ctx, images, PAD, 28, LOGO_H);
-    text(ctx, "TIER LIST", PAD + logoW + 20, 68, { font: font(500, 24, "display"), color: COLORS.muted });
-    const maxTitleW = W - PAD * 2;
-    const size = fitFontSize(ctx, d.title, maxTitleW, 700, 64, 30);
-    text(ctx, d.title, PAD, 160, { font: font(700, size, "display"), color: COLORS.text, maxWidth: maxTitleW });
-    const meta = [`Patch ${d.patch}`, d.filterLabel, d.extraLabel].filter(Boolean).join("  ·  ");
-    text(ctx, meta, PAD, 198, { font: font(500, 24), color: COLORS.muted, maxWidth: maxTitleW });
+    drawTierHeader(ctx, images, d);
 
     // Tier rows
     const { size: icon, perRow, heights, rowGap, pad } = layout(d.tiers);
@@ -72,13 +90,6 @@ export const tierListTemplate: ImageTemplate<TierListImageData> = {
       y += h + rowGap;
     });
 
-    // Footer
-    const fy = H - FOOTER_H;
-    ctx.fillStyle = COLORS.border;
-    ctx.fillRect(PAD, fy + 8, W - PAD * 2, 2);
-    text(ctx, `${SITE_LABEL}  ·  ${SITE_URL}`, PAD, fy + 46, { font: font(600, 24, "display"), color: COLORS.text });
-    text(ctx, `Generated: ${d.generatedDate}`, W - PAD, fy + 46, { font: font(500, 22), color: COLORS.muted, align: "right" });
-    text(ctx, DISCLAIMER_TH, PAD, fy + 80, { font: font(500, 20), color: COLORS.muted, maxWidth: W - PAD * 2 });
-    text(ctx, CREDIT_TH, PAD, fy + 108, { font: font(400, 18), color: COLORS.faint, maxWidth: W - PAD * 2 });
+    drawTierFooter(ctx, H, d.generatedDate);
   },
 };

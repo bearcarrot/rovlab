@@ -13,15 +13,15 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-function paint<T>(template: ImageTemplate<T>, data: T, images: ImageStore, scale: number) {
+function paint<T>(template: ImageTemplate<T>, data: T, images: ImageStore, scale: number, height: number) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(template.width * scale);
-  canvas.height = Math.round(template.height * scale);
+  canvas.height = Math.round(height * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("เบราว์เซอร์ไม่รองรับ Canvas");
   ctx.scale(scale, scale);
   ctx.imageSmoothingQuality = "high";
-  template.draw({ ctx, width: template.width, height: template.height, images }, data);
+  template.draw({ ctx, width: template.width, height, images }, data);
   return canvas;
 }
 
@@ -30,9 +30,11 @@ function paint<T>(template: ImageTemplate<T>, data: T, images: ImageStore, scale
  * ลำดับ: โหลดรูป → โหลดฟอนต์ → วาด → export
  * รูปโหลดไม่ได้ = placeholder (ไม่ล้มทั้งงาน); ถ้า export ล้มเพราะ canvas ถูก taint จะวาดใหม่แบบไม่ใช้รูปภายนอก
  * โลโก้ RoV LAB โหลดให้ทุก template เสมอ (same-origin จึงไม่ทำให้ canvas taint และคงอยู่ในรูปสำรองด้วย)
+ * ความสูงรูป = template.heightFor(data) ถ้ามี ไม่งั้น template.height
  */
 export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: RenderOptions = {}): Promise<RenderResult> {
   const scale = opts.scale ?? 1;
+  const height = template.heightFor?.(data) ?? template.height;
   const [images, fontsReady] = await Promise.all([
     loadImages([LOGO_URL, ...template.collectImageUrls(data)], { timeoutMs: opts.imageTimeoutMs }),
     ensureFonts(undefined, opts.fontTimeoutMs),
@@ -40,16 +42,16 @@ export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: 
   const missingImages = [...images].filter(([url, v]) => url !== LOGO_URL && v === null).length;
 
   try {
-    const blob = await canvasToBlob(paint(template, data, images, scale));
-    return { blob, width: Math.round(template.width * scale), height: Math.round(template.height * scale), missingImages, fontsReady };
+    const blob = await canvasToBlob(paint(template, data, images, scale, height));
+    return { blob, width: Math.round(template.width * scale), height: Math.round(height * scale), missingImages, fontsReady };
   } catch {
     // สำรอง: วาดซ้ำโดยไม่ใส่รูปภายนอกเลย (placeholder ทั้งหมด แต่คงโลโก้ไว้) ดีกว่าไม่ได้รูป
     const logoOnly: ImageStore = new Map([[LOGO_URL, images.get(LOGO_URL) ?? null]]);
-    const blob = await canvasToBlob(paint(template, data, logoOnly, scale));
+    const blob = await canvasToBlob(paint(template, data, logoOnly, scale, height));
     return {
       blob,
       width: Math.round(template.width * scale),
-      height: Math.round(template.height * scale),
+      height: Math.round(height * scale),
       missingImages: Math.max(0, images.size - 1),
       fontsReady,
     };

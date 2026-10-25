@@ -16,6 +16,8 @@ export interface ImageTemplate<T> {
   id: string;
   width: number;
   height: number;
+  /** ความสูงตามข้อมูล (ถ้ามี ใช้แทน height) สำหรับเทมเพลตที่ยาวขึ้นตามจำนวนฮีโร่ */
+  heightFor?(data: T): number;
   /** url ของรูปที่เทมเพลตจะวาด (ใช้โหลดล่วงหน้า) */
   collectImageUrls(data: T): string[];
   draw(rc: RenderContext, data: T): void;
