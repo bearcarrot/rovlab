@@ -52,7 +52,8 @@ export function MyTierListWorkspace({
   const [current, setCurrent] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
   const [cloud, setCloudState] = useState<CloudState>(() => readCloud());
   const [showSaved, setShowSaved] = useState(false);
-  // View preference only (the read-only lane view). Default OFF; remembered with the page's existing persisted-state hook, no network.
+  // View preference only (the read-only lane view). Default OFF; remembered for the tab session with the page's existing
+  // persisted-state hook (sessionStorage), no network. The hook's setter takes a value, not an updater function.
   const [showLanes, setShowLanes] = usePersistedState<boolean>("rovlab:tier:mine:lanes", false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -177,7 +178,7 @@ export function MyTierListWorkspace({
           role="switch"
           aria-checked={showLanes}
           aria-label="มุมมองตามเลน (ดูอย่างเดียว)"
-          onClick={() => setShowLanes((s) => !s)}
+          onClick={() => setShowLanes(!showLanes)}
           className={cn(
             "flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             showLanes ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
