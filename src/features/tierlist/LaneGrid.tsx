@@ -67,16 +67,27 @@ export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>, 
 
 /**
  * Read-only Tier rows x lane columns. Scrolls sideways on phones; the Tier label column stays visible.
- * On phones, lane chips narrow the same grid to one lane (a view filter only: this component never edits placements,
- * and there is a single grid, so no extra hero images are rendered).
+ * Lane choice normally comes from the page's own lane filter (the caller passes only that column), so there is no second lane
+ * filter here. `laneChips` adds a view-only lane picker for hosts that have no filter of their own (the Community preview modal).
+ * Either way this component never edits placements, and there is a single grid, so no extra hero images are rendered.
  */
-export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGridData<HeroSummary>; columns: LaneColumn[]; balanceBadge?: boolean }) {
+export function LaneGrid({
+  grid,
+  columns,
+  balanceBadge = false,
+  laneChips = false,
+}: {
+  grid: LaneGridData<HeroSummary>;
+  columns: LaneColumn[];
+  balanceBadge?: boolean;
+  laneChips?: boolean;
+}) {
   const [picked, setPicked] = useState<string | null>(null);
   const meta = new Map(columns.map((c) => [c.code, c]));
   const all: LaneColumn[] = grid.lanes.map((code) => meta.get(code) ?? { code, label: code });
   if (grid.hasUnassigned) all.push({ code: OTHER_LANE, label: "อื่นๆ" });
   // a stale pick (that lane is no longer a column) falls back to all lanes
-  const cols = picked ? all.filter((c) => c.code === picked) : all;
+  const cols = laneChips && picked ? all.filter((c) => c.code === picked) : all;
   const shown = cols.length > 0 ? cols : all;
   const style = {
     gridTemplateColumns: `3.5rem repeat(${shown.length}, minmax(7.5rem, 1fr))`,
@@ -84,8 +95,8 @@ export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGr
   };
   return (
     <div className="space-y-2">
-      {all.length > 1 && (
-        <div role="group" aria-label="เลือกเลนที่จะดู (ดูอย่างเดียว)" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 md:hidden">
+      {laneChips && all.length > 1 && (
+        <div role="group" aria-label="เลือกเลนที่จะดู (ดูอย่างเดียว)" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {[{ code: null as string | null, label: "ทุกเลน", icon: undefined as string | undefined }, ...all].map((c) => {
             const active = (c.code ?? null) === (shown === all ? null : picked);
             return (
@@ -93,7 +104,7 @@ export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGr
                 key={c.code ?? "all"}
                 type="button"
                 aria-pressed={active}
-                onClick={() => setPicked(c.code)}
+                onClick={() => setPicked(active && c.code !== null ? null : c.code)}
                 className={cn(
                   "flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active ? "border-accent bg-accent/10 text-accent" : "border-border text-text-muted hover:text-text"
@@ -151,9 +162,9 @@ export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGr
   );
 }
 
-/** Community snapshot / any saved list: the lane grid, or the same empty message TierRows used. */
+/** Community snapshot / any saved list: the lane grid (with its own view-only lane picker), or the same empty message TierRows used. */
 export function TierLaneView({ data, byId, lanes = null }: { data: TierData; byId: Map<string, HeroSummary>; lanes?: LaneAssign | null }) {
   const { grid, columns, placed } = useTierLaneGrid(data, byId, lanes);
   if (placed === 0) return <p className="text-xs text-text-faint">ยังไม่มีฮีโร่ใน Tier List นี้</p>;
-  return <LaneGrid grid={grid} columns={columns} />;
+  return <LaneGrid grid={grid} columns={columns} laneChips />;
 }
