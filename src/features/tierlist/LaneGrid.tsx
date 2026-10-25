@@ -2,14 +2,17 @@ import { Fragment, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { HeroIcon } from "@/components/HeroIcon";
 import { LaneIcon } from "@/components/LaneIcon";
-import { Badge } from "@/components/ui/badge";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { LANE_OPTIONS, useFilterIcons } from "@/features/heroes/HeroFilters";
 import { heroLanes } from "@/lib/heroPositions";
-import type { HeroSummary, Tier } from "@/types/hero";
+import type { HeroSummary } from "@/types/hero";
 import { OTHER_LANE, buildLaneGrid, orderLanes, type GridRowIn, type LaneGrid as LaneGridData } from "./laneGrid";
-import type { TierData } from "./tierData";
+import { emptyTierData, type TierData } from "./tierData";
 import { TierLabel } from "./TierRows";
+
+// Official Tier names -> the same colors as the official badges (tierData's default rows). Unknown names get a neutral color.
+const OFFICIAL_TIER_COLOR = new Map(emptyTierData().map((r) => [r.label, r.color]));
+const NEUTRAL_TIER_COLOR = "#64748B";
 
 export interface LaneColumn {
   code: string;
@@ -81,12 +84,12 @@ export function LaneGrid({ grid, columns, balanceBadge = false }: { grid: LaneGr
         ))}
         {grid.rows.map((r) => (
           <Fragment key={r.id}>
-            <div className="sticky left-0 z-10 flex items-start bg-bg">
-              {r.color ? (
-                <TierLabel row={{ label: r.label, color: r.color }} className="min-h-[2.5rem] w-full self-stretch" />
-              ) : (
-                <Badge tier={r.label as Tier} className="px-2.5 py-1 text-sm">{r.label}</Badge>
-              )}
+            {/* the grid cell is as tall as the row; the flex child stretches to it (no fixed height, so wrapped rows never clip) */}
+            <div className="sticky left-0 z-10 flex bg-bg">
+              <TierLabel
+                row={{ label: r.label, color: r.color ?? OFFICIAL_TIER_COLOR.get(r.label) ?? NEUTRAL_TIER_COLOR }}
+                className="min-h-[2.5rem] w-full"
+              />
             </div>
             {cols.map((c) => {
               const heroes = c.code === OTHER_LANE ? r.unassigned : (r.cells[c.code] ?? []);
