@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, FilePlus2, FolderOpen } from "lucide-react";
+import { Bookmark, FilePlus2, FolderOpen, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/features/community/Modal";
 import { confirmDialog } from "@/features/community/confirm";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
+import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import { CustomTierBoard } from "./CustomTierBoard";
 import { DEFAULT_CUSTOM_NAME, clearCustom, createDefault, loadCustom, type CustomTierList } from "./customTierList";
@@ -21,6 +22,7 @@ import {
   writeCloud,
   type CloudState,
 } from "./cloudTierList";
+import { MyLaneView } from "./MyLaneView";
 import { MyTierLists } from "./MyTierLists";
 import { SaveTierListDialog, type SaveTierListValues } from "./SaveTierListDialog";
 import { TierLinkShare } from "./TierLinkShare";
@@ -49,6 +51,7 @@ export function MyTierListWorkspace({
   const [current, setCurrent] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
   const [cloud, setCloudState] = useState<CloudState>(() => readCloud());
   const [showSaved, setShowSaved] = useState(false);
+  const [showLanes, setShowLanes] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -166,6 +169,18 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
+        <button
+          type="button"
+          aria-pressed={showLanes}
+          onClick={() => setShowLanes((s) => !s)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm",
+            showLanes ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
+          )}
+        >
+          <LayoutGrid className="h-4 w-4" />
+          ตามเลน
+        </button>
         <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
           ใหม่
@@ -186,6 +201,8 @@ export function MyTierListWorkspace({
           />
         </section>
       )}
+
+      {showLanes && <MyLaneView list={current} heroes={heroes} name={name} patch={patch} />}
 
       <CustomTierBoard
         key={boardKey}
