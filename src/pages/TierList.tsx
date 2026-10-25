@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BarChart3, HelpCircle } from "lucide-react";
 import { getHeroes } from "@/services/heroes";
 import { getCuratedTiersStrict } from "@/services/tierlist";
 import { useAsync } from "@/hooks/useAsync";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useToast } from "@/components/ui/toast";
-import { HeroIcon } from "@/components/HeroIcon";
 import { Chip, RoleFilterRow, LaneFilterRow, TierFilterRow, ROLE_OPTIONS, LANE_OPTIONS, TIER_OPTIONS, useFilterLabels } from "@/features/heroes/HeroFilters";
 import { getLatestPatch } from "@/services/meta";
 import { heroLanes, heroRoles } from "@/lib/heroPositions";
-import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { MyTierListWorkspace, type IncomingPreset } from "@/features/tierlist/MyTierListWorkspace";
 import { CommunityTierLists, type PresetLoad } from "@/features/tierlist/CommunityTierLists";
 import { editorHasUnsavedWork } from "@/features/tierlist/cloudTierList";
+import { LaneGrid, useLaneGrid } from "@/features/tierlist/LaneGrid";
+import { toShareTiers, type GridRowIn } from "@/features/tierlist/laneGrid";
 import { ConfirmHost, confirmDialog } from "@/features/community/confirm";
 import { DraftOnboarding, useDraftOnboarding } from "@/features/draft/DraftOnboarding";
 import { TIER_TOUR_KEY, TIER_TOUR_STEPS } from "@/features/tierlist/tierTour";
@@ -22,13 +22,12 @@ import { ShareLinkButton } from "@/features/share/ShareLinkButton";
 import { shortIdToUuid } from "@/features/share/shareId";
 import { buildOfficialTierUrl } from "@/features/share/shareLink";
 import { useShareImage } from "@/features/share/useShareImage";
-import { formatGeneratedDate, makeFilename, preloadImages, tierListTemplate, type TierListImageData } from "@/lib/share-image";
+import { formatGeneratedDate, makeFilename, preloadImages, tierLaneGridTemplate, type TierLaneGridImageData } from "@/lib/share-image";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { Badge } from "@/components/ui/badge";
 import { RANK_LABEL, setRank, useRank } from "@/lib/rank";
-import type { HeroLane, HeroRole, Tier } from "@/types/hero";
+import type { HeroLane, HeroRole, HeroSummary, Tier } from "@/types/hero";
 
 const TIER_ORDER: Tier[] = TIER_OPTIONS;
 
@@ -119,6 +118,13 @@ export function TierList() {
     return map;
   }, [heroes, curated, role, lane, tier]);
 
+  // Tier x เลน: จัดกลุ่มจากข้อมูลที่กรองแล้วในหน่วยความจำ (ไม่มีคำขอเพิ่ม) มีตัวกรองเลน = แสดงเลนเดียว
+  const gridRows = useMemo<GridRowIn<HeroSummary>[]>(
+    () => (grouped ? TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((t) => ({ id: t, label: t, heroes: grouped.get(t)! })) : []),
+    [grouped]
+  );
+  const { grid, columns } = useLaneGrid(gridRows, lane);
+
   const isCurated = curated.status === "success" && curated.data !== null;
   const totalShown = grouped ? [...grouped.values()].reduce((n, l) => n + l.length, 0) : 0;
   // แพตช์ล่าสุดจากตาราง patches (cache แล้ว) เพื่อให้ตรงกับลิสต์ที่แอดมินจัด แม้ยังไม่มีสถิติฮีโร่เลย; ไม่ได้ก็ใช้ค่าจากสถิติ
@@ -129,23 +135,21 @@ export function TierList() {
   // คู่มือใช้งานครั้งแรกของโหมด “Tier List ของฉัน” (ใช้ตัวทัวร์เดียวกับ Draft Assistant): เปิดเองเมื่อโหลดฮีโร่เสร็จและยังไม่เคยดู
   const tour = useDraftOnboarding(mode === "mine" && heroes.status === "success", TIER_TOUR_KEY);
 
-  // รูปแชร์ของ Tier List ทางการ: ใช้ผลที่กรองอยู่ตอนนี้ (Role/Lane/Tier เดียวกับที่เห็นบนหน้า)
+  // รูปแชร์ของ Tier List ทางการ: ใช้ผลที่กรองอยู่ตอนนี้ (Role/Lane/Tier เดียวกับที่เห็นบนหน้า) ในรูปแบบ Tier x เลน จาก grid เดียวกับบนหน้าเว็บ
   const buildShare = useCallback(() => {
     const filterParts = [role ? roleLabel(role) : null, lane ? laneLabel(lane) : null].filter(Boolean);
-    const data: TierListImageData = {
+    const data: TierLaneGridImageData = {
       title: "Tier List",
       patch: patchLabel,
       filterLabel: filterParts.length > 0 ? filterParts.join(" · ") : "All Roles",
       extraLabel: RANK_LABEL[rank],
-      tiers: TIER_ORDER.filter((t) => (grouped?.get(t)?.length ?? 0) > 0).map((t) => ({
-        tier: t,
-        heroes: grouped!.get(t)!.map((h) => ({ id: h.id, name: h.name, icon: h.icon })),
-      })),
+      lanes: columns,
+      tiers: toShareTiers(grid),
       generatedDate: formatGeneratedDate(),
     };
     return { data, filename: makeFilename("rovlab-tier-list"), title: "RoV LAB Tier List" };
-  }, [grouped, patchLabel, rank, role, lane, roleLabel, laneLabel]);
-  const share = useShareImage(tierListTemplate, buildShare);
+  }, [grid, columns, patchLabel, rank, role, lane, roleLabel, laneLabel]);
+  const share = useShareImage(tierLaneGridTemplate, buildShare);
 
   // ลิงก์ของ Tier List ทางการ = ตัวกรองที่ใช้อยู่ (ไม่ต้องเก็บอะไรลง DB ไม่ต้องล็อกอิน)
   const buildOfficialLink = useCallback(
@@ -195,7 +199,7 @@ export function TierList() {
         </div>
         {mode === "official" && (
           <p className="mt-1 text-xs text-text-faint">
-            {isCurated ? "Tier จัดโดยทีมงาน" : "Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก"} · เรียง A–Z ในแต่ละ Tier · แตะไอคอนเพื่อดูข้อมูลฮีโร่
+            {isCurated ? "Tier จัดโดยทีมงาน" : "Tier คำนวณจาก Win Rate ของแรงก์ที่เลือก"} · แยกตามเลน · เรียง A–Z ในแต่ละช่อง · แตะไอคอนเพื่อดูข้อมูลฮีโร่
           </p>
         )}
       </div>
@@ -264,37 +268,7 @@ export function TierList() {
               description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Tier, Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
             />
           )}
-          {!loading && grouped && totalShown > 0 && (
-            <div className="space-y-5">
-              {TIER_ORDER.filter((t) => (grouped.get(t)?.length ?? 0) > 0).map((t) => (
-                <div key={t}>
-                  <div className="mb-2 flex items-center gap-2">
-                    <Badge tier={t} className="text-sm px-2.5 py-1">{t}</Badge>
-                    <span className="text-xs text-text-faint">{grouped.get(t)?.length} ฮีโร่</span>
-                  </div>
-                  <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
-                    {grouped.get(t)!.map((h) => (
-                      <Link
-                        key={h.id}
-                        to={`/heroes/${h.slug}`}
-                        aria-label={h.nameTh}
-                        title={h.nameTh}
-                        className="relative flex aspect-square w-full items-center justify-center rounded-lg bg-bg-raised font-display text-text-faint hover:ring-2 hover:ring-accent/40"
-                      >
-                        <HeroIcon
-                          icon={h.icon}
-                          name={h.nameTh}
-                          fallback={h.name.slice(0, 2).toUpperCase()}
-                          className="h-full w-full rounded-lg text-base"
-                        />
-                        <HeroBalanceBadge heroId={h.id} size="md" inside />
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {!loading && grouped && totalShown > 0 && <LaneGrid grid={grid} columns={columns} balanceBadge />}
         </>
       )}
       {tour.open && <DraftOnboarding steps={TIER_TOUR_STEPS} onClose={tour.close} />}
