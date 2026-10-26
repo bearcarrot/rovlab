@@ -174,7 +174,9 @@ export function TierList() {
     [rank, role, lane, tier]
   );
 
-  useEffect(() => {
+  // โหลดไอคอนล่วงหน้าเมื่อผู้ใช้เริ่มสนใจปุ่มแชร์ (hover/แตะ/โฟกัส) ไม่โหลดตอนเปิดหน้า — ผู้เข้าชมส่วนใหญ่ไม่กดแชร์ จึงไม่ต้องยิงคำขอไป R2 ทุกรูป
+  // เรียกซ้ำได้: รูปที่โหลดแล้ว/กำลังโหลดไม่ถูกขอใหม่
+  const preloadShareIcons = useCallback(() => {
     if (mode !== "official" || !grouped) return;
     preloadImages([...grouped.values()].flatMap((l) => l.map((h) => h.icon)));
   }, [mode, grouped]);
@@ -259,13 +261,16 @@ export function TierList() {
           </div>
 
           {!loading && grouped && totalShown > 0 && (
-            <ShareImageButtons
-              busy={share.busy}
-              pending={share.pending}
-              onShare={share.share}
-              onDownload={share.download}
-              extra={<ShareLinkButton build={buildOfficialLink} />}
-            />
+            // display: contents = ไม่เปลี่ยนเลย์เอาต์ แค่ดักเหตุการณ์ที่ลอยขึ้นมาจากปุ่มแชร์เพื่อเริ่มโหลดไอคอน
+            <div className="contents" onPointerEnter={preloadShareIcons} onPointerDown={preloadShareIcons} onFocus={preloadShareIcons}>
+              <ShareImageButtons
+                busy={share.busy}
+                pending={share.pending}
+                onShare={share.share}
+                onDownload={share.download}
+                extra={<ShareLinkButton build={buildOfficialLink} />}
+              />
+            </div>
           )}
 
           {loading && (

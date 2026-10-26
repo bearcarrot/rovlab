@@ -76,21 +76,25 @@ export function DraftShareBar({
 
   const share = useShareImage(draftAssistantTemplate, build);
 
-  useEffect(() => {
+  // โหลดไอคอนล่วงหน้าเมื่อผู้ใช้เริ่มสนใจปุ่มแชร์ (hover/แตะ/โฟกัส) ไม่โหลดทุกครั้งที่ทีมเปลี่ยน — เรียกซ้ำได้ รูปที่โหลดแล้วไม่ถูกขอใหม่
+  const preloadShareIcons = useCallback(() => {
     const icons = [...myTeam, ...enemyTeam, ...recs.slice(0, 5).map((r) => r.hero)].map((h) => h?.icon ?? "");
     preloadImages(icons);
   }, [myTeam, enemyTeam, recs]);
 
   return (
     <div className="space-y-2">
-      <ShareImageButtons
-        busy={share.busy}
-        pending={share.pending}
-        disabled={filled === 0}
-        onShare={share.share}
-        onDownload={share.download}
-        extra={linkShare}
-      />
+      {/* display: contents = ไม่เปลี่ยนเลย์เอาต์ แค่ดักเหตุการณ์ที่ลอยขึ้นมาจากปุ่มแชร์ */}
+      <div className="contents" onPointerEnter={preloadShareIcons} onPointerDown={preloadShareIcons} onFocus={preloadShareIcons}>
+        <ShareImageButtons
+          busy={share.busy}
+          pending={share.pending}
+          disabled={filled === 0}
+          onShare={share.share}
+          onDownload={share.download}
+          extra={linkShare}
+        />
+      </div>
       {hasCoach && (
         <label className="flex items-center gap-2 text-xs text-text-muted">
           <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} className="h-4 w-4 accent-[#E8A33D]" />

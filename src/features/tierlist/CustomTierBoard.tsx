@@ -198,8 +198,8 @@ export function CustomTierBoard({
 
   const totalPlaced = list.tiers.reduce((n, r) => n + r.heroes.filter((id) => byId.has(id)).length, 0);
 
-  // โหลดไอคอนที่จัดแล้วล่วงหน้า ให้การกดแชร์ครั้งแรกเร็ว
-  useEffect(() => {
+  // โหลดไอคอนที่จัดแล้วล่วงหน้าเมื่อผู้ใช้เริ่มสนใจปุ่มแชร์ (hover/แตะ/โฟกัส) ไม่โหลดทุกครั้งที่จัดใหม่ — เรียกซ้ำได้ รูปที่โหลดแล้วไม่ถูกขอใหม่
+  const preloadShareIcons = useCallback(() => {
     preloadImages(list.tiers.flatMap((r) => r.heroes.map((id) => byId.get(id)?.icon ?? "")));
   }, [list.tiers, byId]);
 
@@ -412,7 +412,7 @@ export function CustomTierBoard({
           </div>
         )}
 
-        <div data-tour="custom-share">
+        <div data-tour="custom-share" onPointerEnter={preloadShareIcons} onPointerDown={preloadShareIcons} onFocus={preloadShareIcons}>
           <ShareImageButtons
             busy={share.busy}
             pending={share.pending}

@@ -5,7 +5,8 @@ import type { ImageSource, ImageStore } from "./types";
 
 const DEFAULT_TIMEOUT = 8000;
 const DEFAULT_CONCURRENCY = 8;
-const FAIL_TTL_MS = 60_000;
+// รูปที่โหลดไม่ได้จะไม่ถูกลองซ้ำภายในเวลานี้ (กัน preload ยิงซ้ำไปที่ CDN ทุกครั้งที่ผู้ใช้โฮเวอร์/กดปุ่มแชร์)
+const FAIL_TTL_MS = 5 * 60_000;
 
 const okCache = new Map<string, ImageSource>();
 const inflight = new Map<string, Promise<ImageSource | null>>();
@@ -39,14 +40,14 @@ function viaImgElement(url: string, timeoutMs: number): Promise<HTMLImageElement
   });
 }
 
-// สำรอง: บางเบราว์เซอร์เก็บแคชของรูปที่เคยโหลดแบบไม่ใช้ CORS แล้วปฏิเสธคำขอแบบ CORS ครั้งถัดไป
-// fetch + cache:"reload" บังคับขอใหม่ ถ้าเซิร์ฟเวอร์ไม่ส่ง Access-Control-Allow-Origin ก็ยังล้มเหลวตามเดิม
+// สำรอง: ใช้ fetch แบบ CORS เมื่อโหลดผ่าน <img> ไม่สำเร็จ (ใช้ cache ปกติของเบราว์เซอร์ ไม่บังคับขอใหม่ —
+// ไม่งั้นทุกรูปที่ล้มเหลวจะยิงคำขอที่ข้ามแคชไปที่ CDN เพิ่มอีก 1 ครั้ง) ถ้าเซิร์ฟเวอร์ไม่ส่ง Access-Control-Allow-Origin ก็ยังล้มเหลวตามเดิม
 async function viaFetch(url: string, timeoutMs: number): Promise<ImageBitmap | null> {
   if (typeof fetch === "undefined" || typeof createImageBitmap === "undefined") return null;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { mode: "cors", cache: "reload", referrerPolicy: "no-referrer", signal: ctrl.signal });
+    const res = await fetch(url, { mode: "cors", referrerPolicy: "no-referrer", signal: ctrl.signal });
     if (!res.ok) return null;
     const blob = await res.blob();
     return await createImageBitmap(blob);
@@ -99,7 +100,11 @@ export async function loadImages(
   return out;
 }
 
-/** โหลดล่วงหน้าให้การกดแชร์ครั้งแรกเร็วขึ้น (สำคัญกับ iOS ที่ share() ต้องเรียกใกล้เวลากดปุ่ม) — ไม่ throw */
+/**
+ * โหลดล่วงหน้าให้การกดแชร์ครั้งแรกเร็วขึ้น (สำคัญกับ iOS ที่ share() ต้องเรียกใกล้เวลากดปุ่ม) — ไม่ throw
+ * เรียกตอนผู้ใช้เริ่มสนใจปุ่มแชร์ (โฮเวอร์/แตะ/โฟกัส) ไม่ใช่ตอนเปิดหน้า เพื่อไม่ให้ทุกผู้เข้าชมโหลดรูปทั้งหมดโดยไม่ได้แชร์
+ * เรียกซ้ำได้ถูก: รูปที่โหลดแล้ว/กำลังโหลด/เพิ่งล้มเหลวจะไม่ยิงคำขอใหม่
+ */
 export function preloadImages(urls: string[]): void {
   const run = () => void loadImages(urls).catch(() => undefined);
   const ric = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
