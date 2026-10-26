@@ -18,6 +18,10 @@ type Props = {
 // โดเมนอื่นอาจไม่ส่ง CORS header จึงไม่ใส่ crossOrigin
 const R2_ORIGIN = "https://assets.rovlab.app/";
 
+// URL ที่ขอแบบ CORS แล้วล้มเหลวในเซสชันนี้ (เช่นโดเมนที่ยังไม่อยู่ใน CORS policy ของบักเก็ต) จำไว้ระดับโมดูล:
+// HeroIcon ถูกเมานต์ใหม่ทุกครั้งที่สลับหน้า ถ้าจำไว้แค่ใน state จะยิงคำขอ CORS ที่รู้อยู่แล้วว่าล้มซ้ำไปที่ CDN ทุกรูปทุกครั้ง
+const corsFailed = new Set<string>();
+
 // ทุกที่ที่แสดงไอคอนฮีโร่ควรใช้ HeroIcon เพื่อให้รูปเดียวกันใช้ URL เดียวกัน (เบราว์เซอร์/Cloudflare จะใช้แคชซ้ำได้)
 // รูปทั้งหมดอยู่ใน Cloudflare R2 (https://assets.rovlab.app/...) และถูกส่งด้วย Cache-Control: immutable
 export function HeroIcon({ icon, name, fallback, className, decorative = false, eager = false }: Props) {
@@ -30,7 +34,7 @@ export function HeroIcon({ icon, name, fallback, className, decorative = false, 
     setNoCors(false);
   }, [icon]);
 
-  const withCors = !!icon && icon.startsWith(R2_ORIGIN) && !noCors;
+  const withCors = !!icon && icon.startsWith(R2_ORIGIN) && !noCors && !corsFailed.has(icon);
   const initials = fallback ?? Array.from(name).slice(0, 2).join("").toUpperCase();
   return (
     <div
@@ -49,7 +53,11 @@ export function HeroIcon({ icon, name, fallback, className, decorative = false, 
           referrerPolicy="no-referrer"
           crossOrigin={withCors ? "anonymous" : undefined}
           className="h-full w-full object-cover"
-          onError={() => (withCors ? setNoCors(true) : setFailed(true))}
+          onError={() => {
+            if (!withCors) return setFailed(true);
+            if (icon) corsFailed.add(icon);
+            setNoCors(true);
+          }}
         />
       ) : (
         <span aria-hidden={decorative || undefined}>{initials}</span>
