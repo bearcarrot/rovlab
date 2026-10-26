@@ -23,8 +23,9 @@ import {
   type CommunityTierListSummary,
 } from "@/services/userTierLists";
 import type { HeroSummary } from "@/types/hero";
+import type { LaneAssign } from "./tierData";
 import type { TierData } from "./tierData";
-import { TierRows } from "./TierRows";
+import { TierLaneView } from "./LaneGrid";
 
 const SORTS: { value: CommunitySort; label: string }[] = [
   { value: "new", label: "ล่าสุด" },
@@ -38,6 +39,7 @@ export interface PresetLoad {
   patch: string;
   data: TierData;
   allowDuplicates?: boolean; // "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" of the published list (missing = false)
+  lanes?: LaneAssign | null; // independent per-lane Tiers of the published list
   cloudId: string | null; // id of the new copy in My Tier Lists (null when not signed in)
 }
 
@@ -107,7 +109,7 @@ export function CommunityTierLists({
       const full = await getCommunityTierList(id);
       if (!user) {
         // Not signed in: open an unsaved copy in the editor (saving it later asks to sign in).
-        onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, cloudId: null });
+        onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, lanes: full.lanes, cloudId: null });
         toast.info("โหลดเป็นสำเนาในตัวจัดอันดับแล้ว เข้าสู่ระบบเพื่อบันทึกไว้ใน Tier List ของฉัน");
         return;
       }
@@ -117,8 +119,9 @@ export function CommunityTierLists({
         patch: full.patch,
         data: full.data,
         allowDuplicates: full.allowDuplicates,
+        lanes: full.lanes,
       });
-      onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, cloudId });
+      onLoadPreset({ name: full.title, description: full.description, patch: full.patch, data: full.data, allowDuplicates: full.allowDuplicates, lanes: full.lanes, cloudId });
       toast.success("เพิ่มสำเนาไว้ใน Tier List ของฉันแล้ว");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "โหลด Tier List ไม่สำเร็จ");
@@ -255,7 +258,7 @@ function TierViewModal({
             {state.data.patch ? ` · Patch ${state.data.patch}` : ""}
           </p>
           {state.data.description && <p className="text-sm text-text-muted">{state.data.description}</p>}
-          <TierRows data={state.data.data} byId={byId} />
+          <TierLaneView data={state.data.data} byId={byId} lanes={state.data.lanes} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             {item ? (
               <ReactionButtons likes={item.likes} dislikes={item.dislikes} value={item.myValue} disabled={pending} onChange={onReact} />

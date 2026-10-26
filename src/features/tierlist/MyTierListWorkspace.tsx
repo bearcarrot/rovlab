@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, FilePlus2, FolderOpen } from "lucide-react";
+import { Bookmark, FilePlus2, FolderOpen, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { withNext } from "@/features/auth/nav";
 import { useToast } from "@/components/ui/toast";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Modal } from "@/features/community/Modal";
 import { confirmDialog } from "@/features/community/confirm";
 import { saveTierList, type MyTierList } from "@/services/userTierLists";
+import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 import { CustomTierBoard } from "./CustomTierBoard";
 import { DEFAULT_CUSTOM_NAME, clearCustom, createDefault, loadCustom, type CustomTierList } from "./customTierList";
@@ -21,6 +23,8 @@ import {
   writeCloud,
   type CloudState,
 } from "./cloudTierList";
+import { laneHeroIds } from "./tierData";
+import { MyLaneView } from "./MyLaneView";
 import { MyTierLists } from "./MyTierLists";
 import { SaveTierListDialog, type SaveTierListValues } from "./SaveTierListDialog";
 import { TierLinkShare } from "./TierLinkShare";
@@ -31,7 +35,7 @@ export interface IncomingPreset extends PresetLoad {
   nonce: number;
 }
 
-// Wraps the existing editor (CustomTierBoard, unchanged UX) with Save / My Tier Lists.
+// Wraps the existing editor (CustomTierBoard) with Save / My Tier Lists.
 // The editor still autosaves locally; "บันทึก" stores it on the account, and it remembers which saved list it came from.
 export function MyTierListWorkspace({
   heroes,
@@ -49,6 +53,10 @@ export function MyTierListWorkspace({
   const [current, setCurrent] = useState<CustomTierList>(() => loadCustom() ?? createDefault(patch));
   const [cloud, setCloudState] = useState<CloudState>(() => readCloud());
   const [showSaved, setShowSaved] = useState(false);
+  // View preference only: ON shows the editable lane grid instead of the traditional board (the board stays mounted, hidden).
+  // Default OFF; remembered for the tab session with the page's persisted-state hook (sessionStorage), no network.
+  // The hook's setter takes a value, not an updater function.
+  const [showLanes, setShowLanes] = usePersistedState<boolean>("rovlab:tier:mine:lanes", false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,7 +68,7 @@ export function MyTierListWorkspace({
     setCloudState(c);
   }, []);
 
-  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers);
+  const dirty = cloud.id ? sigOf(current) !== cloud.savedSig : hasLocalWork(current.tiers, current.lanes);
   const name = current.name.trim() || DEFAULT_CUSTOM_NAME;
 
   function replaceBoard(list: CustomTierList, nextCloud: CloudState) {
@@ -74,7 +82,7 @@ export function MyTierListWorkspace({
   useEffect(() => {
     if (!incoming || lastNonce.current === incoming.nonce) return;
     lastNonce.current = incoming.nonce;
-    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data, allowDuplicates: incoming.allowDuplicates });
+    const list = toCustom({ name: incoming.name, patch: incoming.patch, data: incoming.data, allowDuplicates: incoming.allowDuplicates, lanes: incoming.lanes });
     replaceBoard(
       list,
       incoming.cloudId
@@ -129,6 +137,7 @@ export function MyTierListWorkspace({
         visibility: v.visibility,
         data: current.tiers,
         allowDuplicates: current.allowDuplicates,
+        lanes: current.lanes,
       });
       setCloud({ id, description: v.description.trim(), patch: v.patch.trim(), visibility: v.visibility, savedSig: sigOf(current) });
       setRefreshKey((k) => k + 1);
@@ -166,6 +175,24 @@ export function MyTierListWorkspace({
           <FolderOpen className="h-4 w-4" />
           รายการของฉัน
         </button>
+        {/* ON/OFF switch: ON = editable lane grid, OFF = the traditional board. Pure view state; no data is touched. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showLanes}
+          aria-label="มุมมองตามเลน (แก้ไขได้)"
+          onClick={() => setShowLanes(!showLanes)}
+          className={cn(
+            "flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            showLanes ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
+          )}
+        >
+          <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+          ตามเลน
+          <span aria-hidden="true" className={cn("rounded px-1.5 text-xs font-semibold", showLanes ? "bg-accent text-accent-fg" : "bg-bg-raised text-text-faint")}>
+            {showLanes ? "ON" : "OFF"}
+          </span>
+        </button>
         <button type="button" onClick={() => void startNew()} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-muted hover:text-text">
           <FilePlus2 className="h-4 w-4" />
           ใหม่
@@ -193,6 +220,9 @@ export function MyTierListWorkspace({
         patch={patch}
         initial={initial}
         onChange={setCurrent}
+        laneView={({ list, setLanes, shareExtra }) =>
+          showLanes ? <MyLaneView list={list} setLanes={setLanes} heroes={heroes} name={name} patch={patch} shareExtra={shareExtra} /> : null
+        }
         onReset={() => setCloud({ ...EMPTY_CLOUD })}
         shareExtra={
           <TierLinkShare
@@ -201,7 +231,7 @@ export function MyTierListWorkspace({
             name={name}
             patch={patch}
             dirty={dirty}
-            empty={tierHeroCount(current.tiers) === 0}
+            empty={tierHeroCount(current.tiers) === 0 && laneHeroIds(current.lanes).length === 0}
             onPublished={(c) => {
               setCloud(c);
               setRefreshKey((k) => k + 1);

@@ -40,3 +40,48 @@ export function layout(tiers: { heroes: unknown[] }[]): Plan {
   return normal.fits ? normal : plan(tiers, 6, 6, 26, 16);
 }
 
+// ---- lane grid variant (Tier rows x lane columns) ----
+// The image grows taller instead of dropping heroes: icons shrink (48 -> 24px) until the image is at most GRID_MAX_TARGET_H
+// tall; at 24px it just keeps growing (20 rows x 200 placements stays far below canvas limits).
+
+export const GRID_LABEL_W = 96;
+export const GRID_HEAD_H = 64;
+export const GRID_CELL_PAD = 8;
+export const GRID_ROW_GAP = 10;
+export const GRID_MIN_ROW_H = 64;
+export const GRID_MIN_H = H;
+export const GRID_MAX_TARGET_H = 3200;
+const GRID_SIZES = [48, 44, 40, 36, 32, 28, 24];
+
+export interface GridPlan {
+  /** x of the first lane column, and the width of each column */
+  x0: number;
+  colW: number;
+  size: number;
+  perRow: number;
+  rowHeights: number[];
+  /** y of the first Tier row */
+  rowsTop: number;
+  /** total image height */
+  height: number;
+}
+
+/** counts[row][column] = number of heroes in that cell; `cols` >= 1 columns (lanes, plus an optional "other" column). */
+export function planLaneGrid(counts: number[][], cols: number): GridPlan {
+  const x0 = PAD + GRID_LABEL_W + GAP;
+  const colW = Math.floor((W - PAD - x0 - GAP * (cols - 1)) / cols);
+  const rowsTop = HEADER_H + GRID_HEAD_H;
+  let result!: GridPlan;
+  for (const size of GRID_SIZES) {
+    const perRow = Math.max(1, Math.floor((colW - GRID_CELL_PAD * 2 + GAP) / (size + GAP)));
+    const rowHeights = counts.map((r) => {
+      const lines = Math.max(0, ...r.map((n) => Math.ceil(n / perRow)));
+      return Math.max(GRID_MIN_ROW_H, lines * (size + GAP) - GAP + GRID_CELL_PAD * 2);
+    });
+    const body = rowHeights.reduce((a, b) => a + b, 0) + GRID_ROW_GAP * Math.max(0, counts.length - 1);
+    const height = Math.max(GRID_MIN_H, rowsTop + body + FOOTER_H + 16);
+    result = { x0, colW, size, perRow, rowHeights, rowsTop, height };
+    if (height <= GRID_MAX_TARGET_H) return result;
+  }
+  return result;
+}

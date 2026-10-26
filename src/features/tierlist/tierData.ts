@@ -9,6 +9,9 @@
 // Optional per-list setting "allowDuplicates" (UI: อนุญาตให้ฮีโร่อยู่ได้หลาย Tier). Stored as { "v": 2, "rows": [...], "dup": true }
 // and ONLY written when ON, so every list saved with the setting OFF is byte-identical to before. Missing / non-true = OFF.
 // OFF: a hero id may occur once on the whole board. ON: once per row (it may appear in several rows).
+//
+// Optional independent per-lane placements (laneAssign.ts): { v: 2, rows, lanes: { "<lane>": { "<rowId>": [heroId] } } }.
+// ONLY written once the user edits a lane, so every list that never used it stays byte-identical to before.
 
 export const NAME_MAX = 40;
 export const TIER_LABEL_MAX = 12;
@@ -112,10 +115,22 @@ export function parseTierData(raw: unknown, allowDuplicates: boolean = readAllow
  * The jsonb written to the DB. Normalizes first, so invalid input can never reach the CHECK constraint.
  * `dup: true` is added only when the setting is ON; OFF output is exactly the pre-existing { v: 2, rows }.
  */
-export function serializeTierData(rows: TierData, allowDuplicates = false): { v: 2; rows: TierData; dup?: true } {
-  const out = { v: 2 as const, rows: parseTierData(rows, allowDuplicates) };
-  return allowDuplicates ? { ...out, dup: true } : out;
+export function serializeTierData(
+  rows: TierData,
+  allowDuplicates = false,
+  lanes: LaneAssign | null = null
+): { v: 2; rows: TierData; dup?: true; lanes?: LaneAssign } {
+  const norm = parseTierData(rows, allowDuplicates);
+  const l = parseLanes(lanes, norm);
+  return { v: 2 as const, rows: norm, ...(allowDuplicates ? { dup: true as const } : {}), ...(l ? { lanes: l } : {}) };
 }
+
+/** The per-lane layer stored in a v2 document (null = none). Needs the parsed rows to drop unknown row ids. */
+export const readLanes = (raw: unknown, rows: TierData): LaneAssign | null => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as { v?: unknown; lanes?: unknown };
+  return o.v === 2 ? parseLanes(o.lanes, rows) : null;
+};
 
 /** Number of placements (a hero in two rows counts twice). Used for the MAX_HEROES cap and "is the board empty". */
 export const tierHeroCount = (d: TierData): number => d.reduce((n, r) => n + r.heroes.length, 0);
@@ -130,8 +145,8 @@ export const duplicatePlacementCount = (d: TierData): number => tierHeroCount(d)
 export const tierSig = (d: TierData): string => JSON.stringify(d.map((r) => [r.id, r.label, r.color, r.heroes]));
 
 /** Whole-list signature. With the setting OFF it is exactly the signature used before the setting existed. */
-export const listSig = (name: string, d: TierData, allowDuplicates: boolean): string =>
-  JSON.stringify(allowDuplicates ? [name.trim(), tierSig(d), true] : [name.trim(), tierSig(d)]);
+export const listSig = (name: string, d: TierData, allowDuplicates: boolean, laneSig = ""): string =>
+  JSON.stringify([name.trim(), tierSig(d), ...(allowDuplicates || laneSig ? [allowDuplicates] : []), ...(laneSig ? [laneSig] : [])]);
 
 /** True when the rows differ from the default five (ignoring heroes), e.g. renamed, recolored, added, reordered. */
 export const rowsCustomized = (d: TierData): boolean =>
@@ -250,18 +265,145 @@ export interface Draft {
   patch: string;
   tiers: TierData;
   allowDuplicates: boolean;
+  lanes: LaneAssign | null;
 }
 
 /** Reads a stored editor draft. Version 1 = legacy fixed tiers, version 2 = rows (+ optional allowDuplicates). Anything malformed returns null. */
 export function parseDraft(raw: unknown): Draft | null {
   if (!raw || typeof raw !== "object") return null;
-  const v = raw as { version?: unknown; name?: unknown; patch?: unknown; tiers?: unknown; allowDuplicates?: unknown };
+  const v = raw as { version?: unknown; name?: unknown; patch?: unknown; tiers?: unknown; allowDuplicates?: unknown; lanes?: unknown };
   if ((v.version !== 1 && v.version !== 2) || typeof v.name !== "string" || !v.tiers || typeof v.tiers !== "object") return null;
   const allowDuplicates = v.version === 2 && v.allowDuplicates === true;
+  const tiers = parseTierData(v.tiers, allowDuplicates);
   return {
     name: v.name.slice(0, NAME_MAX),
     patch: typeof v.patch === "string" ? v.patch : "",
-    tiers: parseTierData(v.tiers, allowDuplicates),
+    tiers,
     allowDuplicates,
+    lanes: v.version === 2 ? parseLanes(v.lanes, tiers) : null,
   };
 }
+
+// ---- independent per-lane placements (kept in this file so it stays dependency-free and unit-testable) ----
+// Independent per-lane Tier placements of a custom tier list (My Tier Lists / Community snapshots).
+// Stored next to the rows in the same jsonb: { v: 2, rows: [...], lanes: { "<lane>": { "<rowId>": ["heroId", ...] } } }.
+// `rows` still defines the Tiers (id, label, color, order) and the traditional board; `lanes` is a separate layer.
+// Rules: one Tier per hero per lane; the same hero may be in any number of lanes, each with its own Tier.
+// Any hero may go in any lane: nothing here looks at hero role / lane metadata (that is only used by seedLanes, once, to
+// copy a legacy list into lanes). Dependency-free so it can be unit tested.
+
+
+export type LaneAssign = Record<string, Record<string, string[]>>; // lane -> rowId -> hero ids
+
+export const MAX_LANES = 12;
+export const MAX_LANE_PLACEMENTS = 600; // across all lanes (keeps the jsonb far below the 64 KiB cap)
+const LANE_RE = /^[a-z0-9_-]{1,32}$/;
+
+export const laneCount = (l: LaneAssign | null | undefined): number => (l ? Object.keys(l).length : 0);
+export const lanePlacementCount = (l: LaneAssign): number =>
+  Object.values(l).reduce((n, rows) => n + Object.values(rows).reduce((m, h) => m + h.length, 0), 0);
+
+/** Never trust jsonb / localStorage. Unknown row ids, bad lane codes, bad hero ids and repeats inside a lane are dropped
+ *  (first occurrence wins, in row order). Returns null when nothing valid is left, so "no lane edits" stays absent. */
+export function parseLanes(raw: unknown, rows: TierData): LaneAssign | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const order = rows.map((r) => r.id);
+  const out: LaneAssign = {};
+  let total = 0;
+  for (const [lane, byRow] of Object.entries(raw as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_LANES) break;
+    if (!LANE_RE.test(lane) || !byRow || typeof byRow !== "object" || Array.isArray(byRow)) continue;
+    const seen = new Set<string>();
+    const cells: Record<string, string[]> = {};
+    for (const rowId of order) {
+      const list = (byRow as Record<string, unknown>)[rowId];
+      if (!Array.isArray(list)) continue;
+      const heroes: string[] = [];
+      for (const id of list) {
+        if (typeof id !== "string" || id.length === 0 || id.length > HERO_ID_MAX || seen.has(id) || total >= MAX_LANE_PLACEMENTS) continue;
+        seen.add(id);
+        total++;
+        heroes.push(id);
+      }
+      if (heroes.length > 0) cells[rowId] = heroes;
+    }
+    if (Object.keys(cells).length > 0) out[lane] = cells;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** The Tier row id a hero has in a lane (null = not in that lane). */
+export function laneTierOf(l: LaneAssign | null | undefined, lane: string, heroId: string): string | null {
+  const cells = l?.[lane];
+  if (!cells) return null;
+  for (const [rowId, heroes] of Object.entries(cells)) if (heroes.includes(heroId)) return rowId;
+  return null;
+}
+
+/**
+ * Put a hero in `rowId` of ONE lane (adds it, or moves it from its current Tier in that lane). `rowId` null removes it from
+ * that lane. Other lanes are never touched. Returns the same object when nothing changes or the target row does not exist.
+ */
+export function setLaneTier(l: LaneAssign | null | undefined, rows: TierData, lane: string, heroId: string, rowId: string | null): LaneAssign {
+  const base = l ?? {};
+  if (!LANE_RE.test(lane)) return base;
+  if (rowId !== null && !rows.some((r) => r.id === rowId)) return base;
+  const cur = laneTierOf(base, lane, heroId);
+  if (cur === rowId) return base;
+  if (cur === null && lanePlacementCount(base) >= MAX_LANE_PLACEMENTS) return base;
+  if (cur === null && !(lane in base) && laneCount(base) >= MAX_LANES) return base;
+  const cells: Record<string, string[]> = {};
+  for (const [id, heroes] of Object.entries(base[lane] ?? {})) {
+    const kept = heroes.filter((x) => x !== heroId);
+    if (kept.length > 0) cells[id] = kept;
+  }
+  if (rowId !== null) cells[rowId] = [...(cells[rowId] ?? []), heroId];
+  const next = { ...base };
+  if (Object.keys(cells).length > 0) next[lane] = cells;
+  else delete next[lane];
+  return next;
+}
+
+/** Heroes of a lane per row, in the order of `rows` (every row present, maybe empty). */
+export const laneRows = (l: LaneAssign | null | undefined, rows: TierData, lane: string): { id: string; heroes: string[] }[] =>
+  rows.map((r) => ({ id: r.id, heroes: l?.[lane]?.[r.id] ?? [] }));
+
+/**
+ * One-time copy of a legacy list into lanes: each placed hero goes, with the Tier it has on the board, into every lane in
+ * `laneOf(hero)` that is one of `lanes`. A hero with none of those lanes is not invented anywhere. Used the first time the user
+ * edits a lane; after that the stored lanes are the only source of truth.
+ */
+export function seedLanes<H extends { id: string }>(rows: TierData, byId: ReadonlyMap<string, H>, laneOf: (h: H) => readonly string[], lanes: readonly string[]): LaneAssign {
+  const out: LaneAssign = {};
+  for (const r of rows) {
+    for (const id of r.heroes) {
+      const h = byId.get(id);
+      if (!h) continue;
+      for (const lane of new Set(laneOf(h))) {
+        if (!lanes.includes(lane) || !LANE_RE.test(lane)) continue;
+        const cells = (out[lane] ??= {});
+        if (Object.values(cells).some((x) => x.includes(id))) continue;
+        (cells[r.id] ??= []).push(id);
+      }
+    }
+  }
+  return parseLanes(out, rows) ?? {};
+}
+
+/** Signature piece for unsaved-change detection (empty string = no lane edits, so old signatures stay unchanged). */
+export const laneSig = (l: LaneAssign | null | undefined): string => (l && laneCount(l) > 0 ? JSON.stringify(Object.entries(l).sort(([a], [b]) => (a < b ? -1 : 1))) : "");
+
+/** A deleted Tier row takes its lane placements with it (its id can be reused by a new row). */
+export function dropRowFromLanes(l: LaneAssign | null | undefined, rowId: string): LaneAssign | null {
+  if (!l) return null;
+  const out: LaneAssign = {};
+  for (const [lane, cells] of Object.entries(l)) {
+    const { [rowId]: _gone, ...rest } = cells;
+    if (Object.keys(rest).length > 0) out[lane] = rest;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** Hero ids placed in any lane (with repeats). */
+export const laneHeroIds = (l: LaneAssign | null | undefined): string[] =>
+  l ? Object.values(l).flatMap((cells) => Object.values(cells).flat()) : [];

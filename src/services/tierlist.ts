@@ -103,3 +103,10 @@ export async function getCuratedTiersStrict(rank: RankBucket, lane: HeroLane | n
   if (!raw.ok) throw new Error("ไม่สามารถโหลด Tier List ทางการได้");
   return build(raw)?.get(lane ?? ALL_LANES) ?? null;
 }
+
+/** ทุกเลนในครั้งเดียว แบบ strict (อ่านไม่ได้ = throw) ใช้ cache entry เดียวกับ getCuratedTiersStrict จึงไม่มีคำขอเพิ่ม */
+export async function getCuratedTierListsStrict(rank: RankBucket): Promise<CuratedTierLists | null> {
+  const raw = await loadCached(rank);
+  if (!raw.ok) throw new Error("ไม่สามารถโหลด Tier List ทางการได้");
+  return build(raw);
+}

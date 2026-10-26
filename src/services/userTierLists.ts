@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { copyName } from "@/features/community/format";
 import { toReaction, type Reaction } from "@/features/community/reactions";
-import { distinctHeroCount, parseTierData, readAllowDuplicates, serializeTierData, type TierData } from "@/features/tierlist/tierData";
+import { laneHeroIds, type LaneAssign } from "@/features/tierlist/tierData";
+import { parseTierData, readAllowDuplicates, readLanes, serializeTierData, type TierData } from "@/features/tierlist/tierData";
 import type { Visibility } from "@/services/draftSeries";
 import { trackActivity } from "@/services/activity";
 
@@ -26,6 +27,8 @@ export interface MyTierList extends MyTierListSummary {
   data: TierData;
   /** "อนุญาตให้ฮีโร่อยู่ได้หลาย Tier": stored with the list (jsonb dup:true). Missing = false. */
   allowDuplicates: boolean;
+  /** independent per-lane Tiers (jsonb "lanes"); null = never edited per lane */
+  lanes: LaneAssign | null;
 }
 
 export interface CommunityTierListSummary {
@@ -58,16 +61,18 @@ const COLS = "id, name, description, patch, visibility, updated_at";
 const toMine = (r: any): MyTierList => {
   const allowDuplicates = readAllowDuplicates(r.data);
   const data = parseTierData(r.data, allowDuplicates);
+  const lanes = readLanes(r.data, data);
   return {
     id: r.id,
     name: r.name ?? "",
     description: r.description ?? "",
     patch: r.patch ?? "",
     visibility: r.visibility === "public" ? "public" : "private",
-    heroCount: distinctHeroCount(data),
+    heroCount: new Set([...data.flatMap((x) => x.heroes), ...laneHeroIds(lanes)]).size, // same as tier_hero_count in the DB
     updatedAt: r.updated_at,
     data,
     allowDuplicates,
+    lanes,
   };
 };
 
@@ -92,6 +97,7 @@ export interface SaveTierListInput {
   visibility: Visibility;
   data: TierData;
   allowDuplicates?: boolean; // default false (= the stored shape is unchanged from before the setting existed)
+  lanes?: LaneAssign | null; // default null (= nothing extra is written)
 }
 
 /** Making a list public creates the community snapshot (DB trigger); editing an already public list does not. */
@@ -101,7 +107,7 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
     description: input.description.trim() || null,
     patch: input.patch.trim().slice(0, TIER_PATCH_MAX),
     visibility: input.visibility,
-    data: serializeTierData(input.data, input.allowDuplicates === true),
+    data: serializeTierData(input.data, input.allowDuplicates === true, input.lanes ?? null),
   };
   if (input.id) {
     const { data, error } = await supabase.from("user_tier_lists").update(row).eq("id", input.id).select("id").single();
@@ -118,7 +124,7 @@ export async function saveTierList(input: SaveTierListInput): Promise<string> {
 /** New private list owned by the user (Duplicate and Load Preset). Original is never touched. Keeps the duplicates setting. */
 export async function createTierListCopy(
   userId: string,
-  src: { name: string; description: string; patch: string; data: TierData; allowDuplicates?: boolean }
+  src: { name: string; description: string; patch: string; data: TierData; allowDuplicates?: boolean; lanes?: LaneAssign | null }
 ): Promise<string> {
   return saveTierList({
     userId,
@@ -128,6 +134,7 @@ export async function createTierListCopy(
     visibility: "private",
     data: src.data,
     allowDuplicates: src.allowDuplicates,
+    lanes: src.lanes,
   });
 }
 
@@ -184,13 +191,14 @@ export async function listCommunityTierLists(args: {
   return (data ?? []).map(toCommunity);
 }
 
-export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { data: TierData; allowDuplicates: boolean }> {
+export async function getCommunityTierList(id: string): Promise<CommunityTierListSummary & { data: TierData; allowDuplicates: boolean; lanes: LaneAssign | null }> {
   const { data, error } = await supabase.rpc("list_community_tier_lists", { p_only_id: id, p_limit: 1 });
   check(error);
   const row = data?.[0];
   if (!row) throw new Error("ไม่พบ Tier List นี้ (อาจถูกเอาออกจาก Community แล้ว)");
   const allowDuplicates = readAllowDuplicates(row.data);
-  return { ...toCommunity(row), data: parseTierData(row.data, allowDuplicates), allowDuplicates };
+  const parsed = parseTierData(row.data, allowDuplicates);
+  return { ...toCommunity(row), data: parsed, allowDuplicates, lanes: readLanes(row.data, parsed) };
 }
 
 /** value 0 removes the reaction. One row per (list, user): switching like <-> dislike is an upsert. */

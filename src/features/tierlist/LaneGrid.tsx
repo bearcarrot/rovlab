@@ -1,0 +1,170 @@
+import { Fragment, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { HeroIcon } from "@/components/HeroIcon";
+import { LaneIcon } from "@/components/LaneIcon";
+import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
+import { LANE_OPTIONS, useFilterIcons } from "@/features/heroes/HeroFilters";
+import { heroLanes } from "@/lib/heroPositions";
+import { cn } from "@/lib/utils";
+import type { HeroSummary } from "@/types/hero";
+import type { LaneAssign } from "./tierData";
+import { OTHER_LANE, buildAssignedLaneGrid, buildLaneGrid, laneCodesWith, orderLanes, type GridRowIn, type LaneGrid as LaneGridData } from "./laneGrid";
+import { emptyTierData, type TierData } from "./tierData";
+import { TierLabel } from "./TierRows";
+
+// Official Tier names -> the same colors as the official badges (tierData's default rows). Unknown names get a neutral color.
+const OFFICIAL_TIER_COLOR = new Map(emptyTierData().map((r) => [r.label, r.color]));
+const NEUTRAL_TIER_COLOR = "#64748B";
+
+export interface LaneColumn {
+  code: string;
+  label: string;
+  icon?: string;
+}
+
+/** Lane columns in hero_lanes order with DB labels/icons (fallback labels/order until they load). Uses the cached getFilterIcons(): no new request. */
+export function useLaneColumns(only?: string | null, extra?: LaneAssign | null): LaneColumn[] {
+  const icons = useFilterIcons();
+  return useMemo(() => {
+    const codes = only ? [only] : laneCodesWith(orderLanes(icons.laneOrder), extra);
+    return codes.map((code) => ({
+      code,
+      label: icons.laneLabels[code] ?? LANE_OPTIONS.find((o) => o.value === code)?.label ?? code,
+      icon: icons.lanes[code],
+    }));
+  }, [icons, only, extra]);
+}
+
+/** Rows of a custom tier list / Community snapshot. Unknown hero ids are skipped (as in TierRows); empty rows are kept. */
+export function useTierLaneGrid(data: TierData, byId: Map<string, HeroSummary>, assigned: LaneAssign | null = null) {
+  const rows = useMemo<GridRowIn<HeroSummary>[]>(
+    () =>
+      data.map((r) => ({
+        id: r.id,
+        label: r.label,
+        color: r.color,
+        heroes: r.heroes.flatMap((id) => {
+          const h = byId.get(id);
+          return h ? [h] : [];
+        }),
+      })),
+    [data, byId]
+  );
+  const columns = useLaneColumns(null, assigned);
+  // stored per-lane placements are the source of truth; a list without them (legacy / never edited per lane) keeps the old projection
+  const grid = useMemo(
+    () =>
+      assigned
+        ? buildAssignedLaneGrid(rows, assigned, byId, columns.map((c) => c.code))
+        : buildLaneGrid(rows, { lanes: columns.map((c) => c.code), laneOf: heroLanes }),
+    [rows, assigned, byId, columns]
+  );
+  const placed = assigned
+    ? grid.rows.reduce((n, r) => n + Object.values(r.cells).reduce((m, c) => m + c.length, 0), 0)
+    : rows.reduce((n, r) => n + r.heroes.length, 0);
+  return { grid, columns, placed };
+}
+
+/**
+ * Read-only Tier rows x lane columns. Scrolls sideways on phones; the Tier label column stays visible.
+ * Lane choice normally comes from the page's own lane filter (the caller passes only that column), so there is no second lane
+ * filter here. `laneChips` adds a view-only lane picker for hosts that have no filter of their own (the Community preview modal).
+ * Either way this component never edits placements, and there is a single grid, so no extra hero images are rendered.
+ */
+export function LaneGrid({
+  grid,
+  columns,
+  balanceBadge = false,
+  laneChips = false,
+}: {
+  grid: LaneGridData<HeroSummary>;
+  columns: LaneColumn[];
+  balanceBadge?: boolean;
+  laneChips?: boolean;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const meta = new Map(columns.map((c) => [c.code, c]));
+  const all: LaneColumn[] = grid.lanes.map((code) => meta.get(code) ?? { code, label: code });
+  if (grid.hasUnassigned) all.push({ code: OTHER_LANE, label: "อื่นๆ" });
+  // a stale pick (that lane is no longer a column) falls back to all lanes
+  const cols = laneChips && picked ? all.filter((c) => c.code === picked) : all;
+  const shown = cols.length > 0 ? cols : all;
+  const style = {
+    gridTemplateColumns: `3.5rem repeat(${shown.length}, minmax(7.5rem, 1fr))`,
+    minWidth: `${3.5 + shown.length * 7.875}rem`,
+  };
+  return (
+    <div className="space-y-2">
+      {laneChips && all.length > 1 && (
+        <div role="group" aria-label="เลือกเลนที่จะดู (ดูอย่างเดียว)" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {[{ code: null as string | null, label: "ทุกเลน", icon: undefined as string | undefined }, ...all].map((c) => {
+            const active = (c.code ?? null) === (shown === all ? null : picked);
+            return (
+              <button
+                key={c.code ?? "all"}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPicked(active && c.code !== null ? null : c.code)}
+                className={cn(
+                  "flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  active ? "border-accent bg-accent/10 text-accent" : "border-border text-text-muted hover:text-text"
+                )}
+              >
+                {c.code !== null && c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="overflow-x-auto pb-1">
+        <div className="grid gap-1.5" style={style}>
+          <div className="sticky left-0 z-10 bg-bg" />
+          {shown.map((c) => (
+            <div key={c.code} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2 py-1.5 text-xs font-medium">
+              {c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
+              <span className="truncate">{c.label}</span>
+            </div>
+          ))}
+          {grid.rows.map((r) => (
+            <Fragment key={r.id}>
+              {/* the grid cell is as tall as the row; the flex child stretches to it (no fixed height, so wrapped rows never clip) */}
+              <div className="sticky left-0 z-10 flex bg-bg">
+                <TierLabel
+                  row={{ label: r.label, color: r.color ?? OFFICIAL_TIER_COLOR.get(r.label) ?? NEUTRAL_TIER_COLOR }}
+                  className="min-h-[2.5rem] w-full"
+                />
+              </div>
+              {shown.map((c) => {
+                const heroes = c.code === OTHER_LANE ? r.unassigned : (r.cells[c.code] ?? []);
+                return (
+                  <div key={c.code} className="flex min-h-[3.5rem] flex-wrap content-start gap-1 rounded-lg bg-bg-surface p-1.5">
+                    {heroes.map((h) => (
+                      <Link
+                        key={h.id}
+                        to={`/heroes/${h.slug}`}
+                        aria-label={h.nameTh}
+                        title={h.nameTh}
+                        className="relative h-10 w-10 shrink-0 rounded-lg bg-bg-raised hover:ring-2 hover:ring-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-lg text-base" />
+                        {balanceBadge && <HeroBalanceBadge heroId={h.id} size="md" inside />}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Community snapshot / any saved list: the lane grid (with its own view-only lane picker), or the same empty message TierRows used. */
+export function TierLaneView({ data, byId, lanes = null }: { data: TierData; byId: Map<string, HeroSummary>; lanes?: LaneAssign | null }) {
+  const { grid, columns, placed } = useTierLaneGrid(data, byId, lanes);
+  if (placed === 0) return <p className="text-xs text-text-faint">ยังไม่มีฮีโร่ใน Tier List นี้</p>;
+  return <LaneGrid grid={grid} columns={columns} laneChips />;
+}

@@ -34,6 +34,8 @@ import {
   shiftHero,
   updateRow,
 } from "./tierData";
+import { dropRowFromLanes, laneTierOf, type LaneAssign } from "./tierData";
+import { useLaneColumns } from "./LaneGrid";
 import { TierLabel } from "./TierRows";
 import { TierRowEditor } from "./TierRowEditor";
 
@@ -52,6 +54,7 @@ export function CustomTierBoard({
   onChange,
   onReset,
   shareExtra,
+  laneView,
 }: {
   heroes: HeroSummary[];
   patch: string;
@@ -63,6 +66,15 @@ export function CustomTierBoard({
   onReset?: () => void;
   /** ปุ่มเสริมในแถวเดียวกับปุ่มแชร์รูป (เช่น ปุ่มแชร์ลิงก์ ซึ่งต้องรู้สถานะบัญชีที่ตัวห่อถืออยู่) */
   shareExtra?: ReactNode;
+  /**
+   * ตัวแก้รายเลน: ถ้าคืนค่า (ไม่ใช่ null) จะแสดงแทนบอร์ดปกติ — บอร์ดยังคง mount อยู่แค่ซ่อน (hidden)
+   * จึงไม่เสียสถานะ/ไม่โหลดรูปซ้ำ แก้ list.lanes ผ่าน setLanes เท่านั้น (ไม่แตะ tiers)
+   */
+  laneView?: (api: {
+    list: CustomTierList;
+    setLanes: (fn: (cur: LaneAssign | null) => LaneAssign | null) => void;
+    shareExtra?: ReactNode;
+  }) => ReactNode;
 }) {
   const toast = useToast();
   const [list, setList] = useState<CustomTierList>(() => initial ?? loadCustom() ?? createDefault(patch));
@@ -73,6 +85,7 @@ export function CustomTierBoard({
   const [editRows, setEditRows] = useState(false);
   const filters = useHeroFilters("custom");
   const resetTimer = useRef<ReturnType<typeof setTimeout>>();
+  const laneCols = useLaneColumns(null, list.lanes);
 
   const byId = useMemo(() => new Map(heroes.map((h) => [h.id, h])), [heroes]);
   const allow = list.allowDuplicates;
@@ -94,6 +107,7 @@ export function CustomTierBoard({
   const pool = useMemo(() => available.filter((h) => match(h) && heroMatchesQuery(h, query)), [available, match, query]);
 
   const update = useCallback((fn: (l: CustomTierList) => CustomTierList) => setList((l) => fn(l)), []);
+  const setLanes = useCallback((fn: (cur: LaneAssign | null) => LaneAssign | null) => setList((l) => ({ ...l, lanes: fn(l.lanes) })), []);
 
   // ใส่ฮีโร่เข้าแถว: OFF = ย้าย (ออกจากแถวเดิม) · ON = เพิ่มจุดวางใหม่ แถวเดิมยังอยู่
   function place(id: string, rowId: string) {
@@ -124,7 +138,7 @@ export function CustomTierBoard({
       if (!ok) return;
     }
     setSelected((s) => (s?.rowId === rowId ? null : s));
-    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId) }));
+    update((l) => ({ ...l, tiers: deleteRow(l.tiers, rowId), lanes: dropRowFromLanes(l.lanes, rowId) }));
   }
 
   // สลับการอนุญาตให้ฮีโร่อยู่ได้หลาย Tier ปิด = กลับมากฎ 1 ฮีโร่ ต่อ 1 Tier: ถามก่อนถ้าจะต้องตัดตำแหน่งซ้ำ
@@ -201,219 +215,248 @@ export function CustomTierBoard({
       ? findTier(list.tiers, selId)
       : null;
 
+  // Tier รายเลนของฮีโร่ที่เลือก (แสดงเฉพาะที่ผู้ใช้จัดไว้จริงใน list.lanes ไม่เดาจากข้อมูลแอดมิน)
+  const laneChips =
+    selId && list.lanes
+      ? laneCols.flatMap((c) => {
+          const rid = laneTierOf(list.lanes, c.code, selId);
+          const row = rid ? list.tiers.find((r) => r.id === rid) : undefined;
+          return row ? [{ code: c.code, lane: c.label, tier: row.label, color: row.color }] : [];
+        })
+      : [];
+
+  // ตัวแก้รายเลน (ถ้าเปิดอยู่) แสดงแทนบอร์ด — บอร์ดแค่ซ่อน ไม่ unmount
+  const lanes = laneView?.({ list, setLanes, shareExtra }) ?? null;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-2">
-        <label data-tour="custom-name" className="min-w-[10rem] flex-1">
-          <span className="mb-1 block text-xs text-text-faint">ชื่อ Tier List (แสดงบนรูปที่แชร์)</span>
-          <input
-            value={list.name}
-            maxLength={NAME_MAX}
-            onChange={(e) => update((l) => ({ ...l, name: e.target.value }))}
-            placeholder={DEFAULT_CUSTOM_NAME}
-            className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent/60"
-          />
-        </label>
-        <button
-          type="button"
-          data-tour="custom-edit"
-          aria-pressed={editRows}
-          onClick={() => setEditRows((e) => !e)}
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
-            editRows ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
-          )}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          แก้ไขแถว
-        </button>
-        <button
-          type="button"
-          onClick={reset}
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
-            confirmReset ? "border-red-400 text-red-400" : "border-border text-text-muted hover:text-text"
-          )}
-        >
-          <RotateCcw className="h-4 w-4" />
-          {confirmReset ? "ยืนยันรีเซ็ต?" : "รีเซ็ต"}
-        </button>
-      </div>
-
-      <div data-tour="custom-dup" className="space-y-1 rounded-card border border-border bg-bg-surface px-3 py-2">
-        <Switch checked={allow} onChange={(next) => void toggleDuplicates(next)} label="อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" />
-        <p className="text-xs text-text-faint">
-          เปิดแล้วฮีโร่ตัวเดียวกันอยู่ได้หลายแถว Tier พร้อมกัน (เช่น S และ A) · ในแถวเดียวกันใส่ซ้ำไม่ได้ · ปิด = 1 ฮีโร่ต่อ 1 Tier เหมือนเดิม
-        </p>
-      </div>
-
-      <p className="text-xs text-text-faint">
-        แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
-        {allow ? " · โหมดหลาย Tier: ลากวาง = เพิ่มใหม่ (ไม่ย้ายจากแถวเดิม) แตะชื่อ Tier ซ้ำเพื่อเอาออกจากแถวนั้น" : ""}
-      </p>
-
-      <div data-tour="custom-rows" className="space-y-2">
-        {list.tiers.map((row, i) => {
-          const ids = row.heroes.filter((id) => byId.has(id));
-          return (
-            <div key={row.id} className="space-y-1.5">
-              <div
-                onDragOver={(e) => {
-                  if (e.dataTransfer.types.includes(DRAG_TYPE)) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = allow ? "copy" : "move";
-                    setDragOver(row.id);
-                  }
-                }}
-                onDragLeave={() => setDragOver((d) => (d === row.id ? null : d))}
-                onDrop={(e) => {
-                  const id = e.dataTransfer.getData(DRAG_TYPE);
-                  setDragOver(null);
-                  if (id) place(id, row.id);
-                }}
-                className={cn(
-                  "flex min-h-[3.5rem] items-stretch gap-2 rounded-card border bg-bg-surface p-2",
-                  dragOver === row.id ? "border-accent" : "border-border"
-                )}
-              >
-                <TierLabel row={row} className="w-12 shrink-0 self-stretch sm:w-14" />
-                <div className="flex flex-1 flex-wrap content-start gap-1.5">
-                  {ids.length === 0 && <span className="self-center text-xs text-text-faint">ยังไม่มีฮีโร่</span>}
-                  {ids.map((id) => {
-                    const h = byId.get(id)!;
-                    const isSel = selected?.id === id && (!allow || selected.rowId === row.id);
-                    return (
-                      <HeroTile
-                        key={id}
-                        hero={h}
-                        active={isSel}
-                        allowCopy={allow}
-                        onSelect={() => setSelected(isSel ? null : { id, rowId: row.id })}
-                      />
-                    );
-                  })}
-                  {allow && dragOver === row.id && <span aria-hidden className="self-center text-xs font-medium text-accent">+ เพิ่มที่นี่</span>}
-                </div>
-              </div>
-              {editRows && (
-                <TierRowEditor
-                  row={row}
-                  index={i}
-                  count={list.tiers.length}
-                  onLabel={(label) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { label }) }))}
-                  onColor={(color) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { color }) }))}
-                  onMove={(dir) => update((l) => ({ ...l, tiers: moveRow(l.tiers, row.id, dir) }))}
-                  onDelete={() => void removeRow(row.id)}
-                />
-              )}
-            </div>
-          );
-        })}
-        {editRows && (
+      {lanes}
+      <div hidden={lanes !== null} className="space-y-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <label data-tour="custom-name" className="min-w-[10rem] flex-1">
+            <span className="mb-1 block text-xs text-text-faint">ชื่อ Tier List (แสดงบนรูปที่แชร์)</span>
+            <input
+              value={list.name}
+              maxLength={NAME_MAX}
+              onChange={(e) => update((l) => ({ ...l, name: e.target.value }))}
+              placeholder={DEFAULT_CUSTOM_NAME}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent/60"
+            />
+          </label>
           <button
             type="button"
-            disabled={list.tiers.length >= MAX_ROWS}
-            onClick={() => update((l) => ({ ...l, tiers: addRow(l.tiers) }))}
-            className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border px-3 py-2 text-sm text-text-muted hover:text-text disabled:opacity-50"
+            data-tour="custom-edit"
+            aria-pressed={editRows}
+            onClick={() => setEditRows((e) => !e)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+              editRows ? "border-accent text-accent" : "border-border text-text-muted hover:text-text"
+            )}
           >
-            <Plus className="h-4 w-4" />
-            {list.tiers.length >= MAX_ROWS ? `ครบ ${MAX_ROWS} แถวแล้ว` : "เพิ่มแถว"}
+            <SlidersHorizontal className="h-4 w-4" />
+            แก้ไขแถว
           </button>
-        )}
-      </div>
+          <button
+            type="button"
+            onClick={reset}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+              confirmReset ? "border-red-400 text-red-400" : "border-border text-text-muted hover:text-text"
+            )}
+          >
+            <RotateCcw className="h-4 w-4" />
+            {confirmReset ? "ยืนยันรีเซ็ต?" : "รีเซ็ต"}
+          </button>
+        </div>
 
-      {selectedHero && (
-        <div className="sticky bottom-20 z-10 space-y-2 rounded-card border border-accent/50 bg-bg-surface p-3 shadow-card md:bottom-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-medium">{selectedHero.name}</p>
-            <button type="button" aria-label="ยกเลิกการเลือก" onClick={() => setSelected(null)} className="text-text-faint hover:text-text">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {list.tiers.map((row, i) => {
-              const isIn = placedRows.includes(row.id);
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  aria-pressed={isIn}
-                  aria-label={allow ? `${isIn ? "เอาออกจาก" : "เพิ่มใน"}แถว ${row.label} (แถวที่ ${i + 1})` : `ย้ายไปแถว ${row.label} (แถวที่ ${i + 1})`}
-                  onClick={() => {
-                    if (allow && isIn) update((l) => ({ ...l, tiers: removeFromRow(l.tiers, selectedHero.id, row.id) }));
-                    else place(selectedHero.id, row.id);
+        <div data-tour="custom-dup" className="space-y-1 rounded-card border border-border bg-bg-surface px-3 py-2">
+          <Switch checked={allow} onChange={(next) => void toggleDuplicates(next)} label="อนุญาตให้ฮีโร่อยู่ได้หลาย Tier" />
+          <p className="text-xs text-text-faint">
+            เปิดแล้วฮีโร่ตัวเดียวกันอยู่ได้หลายแถว Tier พร้อมกัน (เช่น S และ A) · ในแถวเดียวกันใส่ซ้ำไม่ได้ · ปิด = 1 ฮีโร่ต่อ 1 Tier เหมือนเดิม
+          </p>
+        </div>
+
+        <p className="text-xs text-text-faint">
+          แตะฮีโร่เพื่อเลือก แล้วเลือก Tier ที่ต้องการ (บนคอมลากวางลงแถว Tier ได้) · ร่างเก็บไว้ในเครื่องนี้อัตโนมัติ กด “บันทึก” ด้านบนเพื่อเก็บไว้ในบัญชีของคุณ
+          {allow ? " · โหมดหลาย Tier: ลากวาง = เพิ่มใหม่ (ไม่ย้ายจากแถวเดิม) แตะชื่อ Tier ซ้ำเพื่อเอาออกจากแถวนั้น" : ""}
+        </p>
+
+        <div data-tour="custom-rows" className="space-y-2">
+          {list.tiers.map((row, i) => {
+            const ids = row.heroes.filter((id) => byId.has(id));
+            return (
+              <div key={row.id} className="space-y-1.5">
+                <div
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes(DRAG_TYPE)) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = allow ? "copy" : "move";
+                      setDragOver(row.id);
+                    }
+                  }}
+                  onDragLeave={() => setDragOver((d) => (d === row.id ? null : d))}
+                  onDrop={(e) => {
+                    const id = e.dataTransfer.getData(DRAG_TYPE);
+                    setDragOver(null);
+                    if (id) place(id, row.id);
                   }}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold",
-                    isIn ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
+                    "flex min-h-[3.5rem] items-stretch gap-2 rounded-card border bg-bg-surface p-2",
+                    dragOver === row.id ? "border-accent" : "border-border"
                   )}
                 >
-                  <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
-                  <span className="max-w-[6rem] truncate">{row.label}</span>
-                </button>
-              );
-            })}
-            {activeRowId && (
-              <>
-                <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                <button type="button" aria-label="เลื่อนไปขวา" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, 1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => removePlacement(selectedHero.id, activeRowId)} className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-bg-raised">
-                  {allow ? "เอาออกจากแถวนี้" : "เอาออก"}
-                </button>
-              </>
+                  <TierLabel row={row} className="w-12 shrink-0 self-stretch sm:w-14" />
+                  <div className="flex flex-1 flex-wrap content-start gap-1.5">
+                    {ids.length === 0 && <span className="self-center text-xs text-text-faint">ยังไม่มีฮีโร่</span>}
+                    {ids.map((id) => {
+                      const h = byId.get(id)!;
+                      const isSel = selected?.id === id && (!allow || selected.rowId === row.id);
+                      return (
+                        <HeroTile
+                          key={id}
+                          hero={h}
+                          active={isSel}
+                          allowCopy={allow}
+                          onSelect={() => setSelected(isSel ? null : { id, rowId: row.id })}
+                        />
+                      );
+                    })}
+                    {allow && dragOver === row.id && <span aria-hidden className="self-center text-xs font-medium text-accent">+ เพิ่มที่นี่</span>}
+                  </div>
+                </div>
+                {editRows && (
+                  <TierRowEditor
+                    row={row}
+                    index={i}
+                    count={list.tiers.length}
+                    onLabel={(label) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { label }) }))}
+                    onColor={(color) => update((l) => ({ ...l, tiers: updateRow(l.tiers, row.id, { color }) }))}
+                    onMove={(dir) => update((l) => ({ ...l, tiers: moveRow(l.tiers, row.id, dir) }))}
+                    onDelete={() => void removeRow(row.id)}
+                  />
+                )}
+              </div>
+            );
+          })}
+          {editRows && (
+            <button
+              type="button"
+              disabled={list.tiers.length >= MAX_ROWS}
+              onClick={() => update((l) => ({ ...l, tiers: addRow(l.tiers) }))}
+              className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border px-3 py-2 text-sm text-text-muted hover:text-text disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              {list.tiers.length >= MAX_ROWS ? `ครบ ${MAX_ROWS} แถวแล้ว` : "เพิ่มแถว"}
+            </button>
+          )}
+        </div>
+
+        {selectedHero && (
+          <div className="sticky bottom-20 z-10 space-y-2 rounded-card border border-accent/50 bg-bg-surface p-3 shadow-card md:bottom-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-sm font-medium">{selectedHero.name}</p>
+              <button type="button" aria-label="ยกเลิกการเลือก" onClick={() => setSelected(null)} className="text-text-faint hover:text-text">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {list.tiers.map((row, i) => {
+                const isIn = placedRows.includes(row.id);
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    aria-pressed={isIn}
+                    aria-label={allow ? `${isIn ? "เอาออกจาก" : "เพิ่มใน"}แถว ${row.label} (แถวที่ ${i + 1})` : `ย้ายไปแถว ${row.label} (แถวที่ ${i + 1})`}
+                    onClick={() => {
+                      if (allow && isIn) update((l) => ({ ...l, tiers: removeFromRow(l.tiers, selectedHero.id, row.id) }));
+                      else place(selectedHero.id, row.id);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold",
+                      isIn ? "border-accent bg-accent text-accent-fg" : "border-border text-text hover:bg-bg-raised"
+                    )}
+                  >
+                    <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                    <span className="max-w-[6rem] truncate">{row.label}</span>
+                  </button>
+                );
+              })}
+              {activeRowId && (
+                <>
+                  <button type="button" aria-label="เลื่อนไปซ้าย" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, -1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <button type="button" aria-label="เลื่อนไปขวา" onClick={() => update((l) => ({ ...l, tiers: shiftHero(l.tiers, selectedHero.id, 1, activeRowId) }))} className="rounded-md border border-border p-1.5 text-text hover:bg-bg-raised">
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => removePlacement(selectedHero.id, activeRowId)} className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-bg-raised">
+                    {allow ? "เอาออกจากแถวนี้" : "เอาออก"}
+                  </button>
+                </>
+              )}
+            </div>
+            {laneChips.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-text-faint">Tier แยกตามเลน (แยกจาก Tier ด้านบน ไม่เปลี่ยนตามกัน)</p>
+                <ul className="flex flex-wrap gap-1">
+                  {laneChips.map((c) => (
+                    <li key={c.code} aria-label={`ในเลน ${c.lane} อยู่ Tier ${c.tier}`} className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs">
+                      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                      {c.lane} · {c.tier}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      <div data-tour="custom-share">
-        <ShareImageButtons
-          busy={share.busy}
-          pending={share.pending}
-          disabled={totalPlaced === 0}
-          onShare={share.share}
-          onDownload={share.download}
-          extra={shareExtra}
-        />
-      </div>
-      {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
-
-      <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
-        <h2 className="font-display text-sm font-semibold">{allow ? `ฮีโร่ทั้งหมด (ใส่ได้หลาย Tier) (${pool.length})` : `ฮีโร่ที่ยังไม่ได้จัด (${pool.length})`}</h2>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-text-faint" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ค้นหาชื่อฮีโร่"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
+        <div data-tour="custom-share">
+          <ShareImageButtons
+            busy={share.busy}
+            pending={share.pending}
+            disabled={totalPlaced === 0}
+            onShare={share.share}
+            onDownload={share.download}
+            extra={shareExtra}
           />
         </div>
-        <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
-        {pool.length === 0 ? (
-          <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
-        ) : (
-          <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 lg:grid-cols-10">
-            {pool.map((h) => {
-              const isSel = selected?.id === h.id && (!allow || selected.rowId === null);
-              return (
-                <HeroTile
-                  key={h.id}
-                  hero={h}
-                  active={isSel}
-                  allowCopy={allow}
-                  onSelect={() => setSelected(isSel ? null : { id: h.id, rowId: null })}
-                  block
-                />
-              );
-            })}
+        {totalPlaced === 0 && <p className="-mt-2 text-xs text-text-faint">เลือกฮีโร่เข้า Tier อย่างน้อย 1 ตัวก่อนแชร์</p>}
+
+        <section data-tour="custom-pool" className="space-y-2 rounded-card border border-border bg-bg-surface p-3">
+          <h2 className="font-display text-sm font-semibold">{allow ? `ฮีโร่ทั้งหมด (ใส่ได้หลาย Tier) (${pool.length})` : `ฮีโร่ที่ยังไม่ได้จัด (${pool.length})`}</h2>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-text-faint" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหาชื่อฮีโร่"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-text-faint"
+            />
           </div>
-        )}
-      </section>
+          <HeroFilterBar role={filters.role} lane={filters.lane} onRole={filters.setRole} onLane={filters.setLane} />
+          {pool.length === 0 ? (
+            <p className="text-sm text-text-faint">ไม่พบฮีโร่ที่ตรงกับตัวกรอง</p>
+          ) : (
+            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 lg:grid-cols-10">
+              {pool.map((h) => {
+                const isSel = selected?.id === h.id && (!allow || selected.rowId === null);
+                return (
+                  <HeroTile
+                    key={h.id}
+                    hero={h}
+                    active={isSel}
+                    allowCopy={allow}
+                    onSelect={() => setSelected(isSel ? null : { id: h.id, rowId: null })}
+                    block
+                  />
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
