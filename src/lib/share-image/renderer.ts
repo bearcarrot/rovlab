@@ -1,4 +1,4 @@
-import { loadImages } from "./assets";
+import { imageFailure, loadImages } from "./assets";
 import { ensureFonts } from "./fonts";
 import { LOGO_URL } from "./theme";
 import type { ImageStore, ImageTemplate, RenderOptions, RenderResult } from "./types";
@@ -31,6 +31,7 @@ function paint<T>(template: ImageTemplate<T>, data: T, images: ImageStore, scale
  * รูปโหลดไม่ได้ = placeholder (ไม่ล้มทั้งงาน); ถ้า export ล้มเพราะ canvas ถูก taint จะวาดใหม่แบบไม่ใช้รูปภายนอก
  * โลโก้ RoV LAB โหลดให้ทุก template เสมอ (same-origin จึงไม่ทำให้ canvas taint และคงอยู่ในรูปสำรองด้วย)
  * ความสูงรูป = template.heightFor(data) ถ้ามี ไม่งั้น template.height
+ * รูปที่โหลดไม่ได้จะถูกรายงานใน failedImages (host+path+สาเหตุ) และ console.warn หนึ่งครั้งต่อการ export
  */
 export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: RenderOptions = {}): Promise<RenderResult> {
   const scale = opts.scale ?? 1;
@@ -39,12 +40,15 @@ export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: 
     loadImages([LOGO_URL, ...template.collectImageUrls(data)], { timeoutMs: opts.imageTimeoutMs }),
     ensureFonts(undefined, opts.fontTimeoutMs),
   ]);
-  const missingImages = [...images].filter(([url, v]) => url !== LOGO_URL && v === null).length;
+  const failedImages = [...images].filter(([url, v]) => url !== LOGO_URL && v === null).map(([url]) => imageFailure(url));
+  const missingImages = failedImages.length;
+  if (missingImages) console.warn(`[share-image] ${missingImages} image(s) fell back to placeholder`, failedImages.slice(0, 5));
 
   try {
     const blob = await canvasToBlob(paint(template, data, images, scale, height));
-    return { blob, width: Math.round(template.width * scale), height: Math.round(height * scale), missingImages, fontsReady };
-  } catch {
+    return { blob, width: Math.round(template.width * scale), height: Math.round(height * scale), missingImages, failedImages, fontsReady };
+  } catch (e) {
+    console.warn("[share-image] export failed (canvas tainted?); re-rendering without remote images", e);
     // สำรอง: วาดซ้ำโดยไม่ใส่รูปภายนอกเลย (placeholder ทั้งหมด แต่คงโลโก้ไว้) ดีกว่าไม่ได้รูป
     const logoOnly: ImageStore = new Map([[LOGO_URL, images.get(LOGO_URL) ?? null]]);
     const blob = await canvasToBlob(paint(template, data, logoOnly, scale, height));
@@ -53,6 +57,7 @@ export async function renderImage<T>(template: ImageTemplate<T>, data: T, opts: 
       width: Math.round(template.width * scale),
       height: Math.round(height * scale),
       missingImages: Math.max(0, images.size - 1),
+      failedImages,
       fontsReady,
     };
   }

@@ -36,6 +36,8 @@ export interface RenderResult {
   height: number;
   /** จำนวนรูปที่โหลดไม่ได้และถูกแทนด้วย placeholder */
   missingImages: number;
+  /** รูปที่โหลดไม่ได้: "host/path [สาเหตุ]" (ไม่มี query string) ใช้ debug เท่านั้น */
+  failedImages?: string[];
   /** false = ฟอนต์บางตัวโหลดไม่ทัน ข้อความอาจใช้ฟอนต์สำรอง */
   fontsReady: boolean;
 }

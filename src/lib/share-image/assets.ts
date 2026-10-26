@@ -10,6 +10,23 @@ const FAIL_TTL_MS = 60_000;
 const okCache = new Map<string, ImageSource>();
 const inflight = new Map<string, Promise<ImageSource | null>>();
 const failedAt = new Map<string, number>();
+const failReason = new Map<string, string>();
+
+/** สาเหตุที่รูปโหลดไม่ได้ สำหรับ debug — มีแค่ host+path (ไม่มี query/ข้อมูลผู้ใช้) เช่น "assets.rovlab.app/h/x.webp [img-error > fetch-blocked]" */
+export function imageFailure(url: string): string {
+  let where = url;
+  try {
+    const u = new URL(url);
+    where = u.host + u.pathname;
+  } catch {
+    /* ใช้ค่าดิบ */
+  }
+  return `${where} [${failReason.get(url) ?? "unknown"}]`;
+}
+
+function note(url: string, reason: string) {
+  failReason.set(url, [failReason.get(url), reason].filter(Boolean).join(" > "));
+}
 
 function timeoutAfter<T>(ms: number, value: T): { promise: Promise<T>; cancel: () => void } {
   let id: ReturnType<typeof setTimeout>;
@@ -23,18 +40,20 @@ function viaImgElement(url: string, timeoutMs: number): Promise<HTMLImageElement
   return new Promise((resolve) => {
     const img = new Image();
     let done = false;
-    const finish = (v: HTMLImageElement | null) => {
+    const finish = (v: HTMLImageElement | null, reason?: string) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
+      if (!v && reason) note(url, reason);
       resolve(v);
     };
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => finish(null, "img-timeout"), timeoutMs);
     img.crossOrigin = "anonymous";
     img.referrerPolicy = "no-referrer"; // ตรงกับ <img> ที่ใช้ในหน้าเว็บ
     img.decoding = "async";
-    img.onload = () => finish(img.naturalWidth > 0 ? img : null);
-    img.onerror = () => finish(null);
+    img.onload = () => finish(img.naturalWidth > 0 ? img : null, "img-empty");
+    // onerror ของ <img> แยก CORS / 404 / decode ไม่ได้ — fetch สำรองด้านล่างช่วยแยกสาเหตุ
+    img.onerror = () => finish(null, "img-error");
     img.src = url;
   });
 }
@@ -42,16 +61,31 @@ function viaImgElement(url: string, timeoutMs: number): Promise<HTMLImageElement
 // สำรอง: บางเบราว์เซอร์เก็บแคชของรูปที่เคยโหลดแบบไม่ใช้ CORS แล้วปฏิเสธคำขอแบบ CORS ครั้งถัดไป
 // fetch + cache:"reload" บังคับขอใหม่ ถ้าเซิร์ฟเวอร์ไม่ส่ง Access-Control-Allow-Origin ก็ยังล้มเหลวตามเดิม
 async function viaFetch(url: string, timeoutMs: number): Promise<ImageBitmap | null> {
-  if (typeof fetch === "undefined" || typeof createImageBitmap === "undefined") return null;
+  if (typeof fetch === "undefined" || typeof createImageBitmap === "undefined") {
+    note(url, "fetch-unsupported");
+    return null;
+  }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { mode: "cors", cache: "reload", referrerPolicy: "no-referrer", signal: ctrl.signal });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await createImageBitmap(blob);
-  } catch {
-    return null;
+    let res: Response;
+    try {
+      res = await fetch(url, { mode: "cors", cache: "reload", referrerPolicy: "no-referrer", signal: ctrl.signal });
+    } catch (e) {
+      // TypeError จาก fetch = เครือข่ายล้ม หรือ CORS ไม่ผ่าน (เบราว์เซอร์ไม่บอกแยก)
+      note(url, e instanceof DOMException && e.name === "AbortError" ? "fetch-timeout" : "fetch-blocked");
+      return null;
+    }
+    if (!res.ok) {
+      note(url, `fetch-${res.status}`);
+      return null;
+    }
+    try {
+      return await createImageBitmap(await res.blob());
+    } catch {
+      note(url, "decode");
+      return null;
+    }
   } finally {
     clearTimeout(t);
   }
@@ -68,11 +102,18 @@ export async function loadImage(url: string, timeoutMs = DEFAULT_TIMEOUT): Promi
 
   const job = (async () => {
     const guard = timeoutAfter(timeoutMs * 2, null);
+    failReason.delete(url);
     try {
       const img = (await viaImgElement(url, timeoutMs)) ?? (await viaFetch(url, timeoutMs));
       const result = await Promise.race([Promise.resolve(img), guard.promise]);
-      if (result) okCache.set(url, result);
-      else failedAt.set(url, Date.now());
+      if (result) {
+        okCache.set(url, result);
+        failedAt.delete(url);
+      } else {
+        if (!failReason.has(url)) note(url, "guard-timeout");
+        // timeout อาจเป็นแค่เครือข่ายช้า — ไม่จำว่าล้มเหลว เพื่อให้กดแชร์ซ้ำแล้วลองใหม่ได้ทันที
+        if (!failReason.get(url)?.includes("timeout")) failedAt.set(url, Date.now());
+      }
       return result;
     } finally {
       guard.cancel();
