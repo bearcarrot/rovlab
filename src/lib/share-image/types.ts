@@ -5,6 +5,42 @@ export type ImageSource = ImageBitmap | HTMLImageElement;
 /** รูปที่โหลดแล้ว: url → รูป หรือ null เมื่อโหลดไม่ได้ (เทมเพลตต้องวาด placeholder แทน) */
 export type ImageStore = ReadonlyMap<string, ImageSource | null>;
 
+/** ขั้นที่รูปล้มเหลว — "timeout" = หมดเวลาโดยไม่รู้ผล (ไม่ได้แปลว่าเซิร์ฟเวอร์ปฏิเสธ) */
+export type ImageFailCode =
+  | "image-load-error" // <img>.onerror — เบราว์เซอร์ไม่บอกสาเหตุ (CORS/404/decode แยกไม่ได้)
+  | "fetch-network-or-cors-error" // fetch() throw โดยไม่มี response — เครือข่าย หรือ CORS (เบราว์เซอร์ซ่อนสาเหตุ)
+  | "fetch-unavailable"
+  | "http-error" // มี response และ !ok เท่านั้น
+  | "empty-response"
+  | "blob-error"
+  | "image-decode-error"
+  | "timeout";
+
+export interface ImageAttempt {
+  method: "image" | "fetch";
+  stage: "image" | "fetch" | "response" | "blob" | "decode";
+  code: ImageFailCode;
+  /** "TypeError: Failed to fetch" */
+  error?: string;
+  ok?: boolean;
+  status?: number;
+  statusText?: string;
+  responseType?: string;
+  /** เฉพาะเมื่อ redirect (ไม่มี query) */
+  responseUrl?: string;
+  contentType?: string;
+  /** ผล fetch แบบ no-cors หลัง fetch แบบ cors ล้ม: reachable = โฮสต์ตอบกลับ (opaque) */
+  probe?: "reachable" | "unreachable";
+}
+
+/** รูปที่โหลดไม่ได้ — url ไม่มี query/hash/credentials; attempts เรียงตามลำดับที่ลอง (อันสุดท้ายคือสาเหตุที่เจาะจงที่สุด) */
+export interface ImageFailure {
+  url: string;
+  attempts: ImageAttempt[];
+  /** มีค่าเมื่อเป็นผลที่แคชไว้จากรอบก่อน (ไม่ได้ลองใหม่) */
+  cachedAgeMs?: number;
+}
+
 export interface RenderContext {
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -36,8 +72,8 @@ export interface RenderResult {
   height: number;
   /** จำนวนรูปที่โหลดไม่ได้และถูกแทนด้วย placeholder */
   missingImages: number;
-  /** รูปที่โหลดไม่ได้: "host/path [สาเหตุ]" (ไม่มี query string) ใช้ debug เท่านั้น */
-  failedImages?: string[];
+  /** รายละเอียดรูปที่โหลดไม่ได้ ใช้ debug เท่านั้น */
+  failedImages?: ImageFailure[];
   /** false = ฟอนต์บางตัวโหลดไม่ทัน ข้อความอาจใช้ฟอนต์สำรอง */
   fontsReady: boolean;
 }
