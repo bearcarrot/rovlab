@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export const SITE_URL = "https://rovlab.vercel.app";
+export const SITE_URL = "https://rovlab.app";
 
 export interface Crumb {
   name: string;
