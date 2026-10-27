@@ -16,7 +16,7 @@
 | secret | ไว้ทำอะไร |
 | --- | --- |
 | `GAME_SKILLS_URL` (ไม่บังคับ) | URL https ของ API สกิล ค่าเริ่มต้น `https://kgth-api.mobagarena.com/api/hero/getskilllist` โฮสต์ต้องลงท้าย `.mobagarena.com` |
-| `GAME_API_HEADERS` (ไม่บังคับ) | JSON ของ header คงที่เพิ่มเติม เท่ากับ `api_headers` ใน `config.php` เดิม (ไม่ควรใส่ `Msdk-Itopencodeparam` ที่นี่ — ดูหัวข้อ EP/itop คู่กัน) |
+| `GAME_API_HEADERS` (ไม่บังคับ) | JSON ของ header คงที่เพิ่มเติม เท่ากับ `api_headers` ใน `config.php` เดิม (ไม่ควรใส่ `Msdk-Itopencodeparam` ที่นี่ — ดูหัวข้อ EP และ itop คู่กัน) |
 | `GAME_EP_HEADER` (ไม่บังคับ) | ชื่อ header ของ Encodeparam ค่าเริ่มต้น `Encodeparam` |
 | `GAME_ITOP_HEADER` (ไม่บังคับ) | ชื่อ header ของ itop ค่าเริ่มต้น `Msdk-Itopencodeparam` |
 | `GAME_HERO_HEADER` (ไม่บังคับ) | ชื่อ header ที่ใช้ส่ง `hero_id` ให้ API สกิล ค่าเริ่มต้น `hero_id` (ยังไม่ได้ยืนยันชื่อจริงจาก request ของเกม ถ้าไม่ตรงให้ตั้งค่านี้) |
@@ -33,9 +33,9 @@ Deploy: `supabase functions deploy game-fetch`
 - ไฟล์ `ep.json`: ใส่ `"itop"` ในแต่ละรายการ เช่น `[{"label":"EP A","value":"...","itop":"...","at":1760000000000}]`
 - โหมดวางเอง: ช่องที่สองสำหรับ itop (ไม่บังคับ)
 - โหมด URL: function หยิบ itop จาก `ep.json` บน URL เอง ไม่ส่งค่ากลับไปที่เบราว์เซอร์ (คืนแค่ว่ามีหรือไม่)
-- ถ้าไม่มี itop คู่กัน EP จะใช้ค่าใน `GAME_API_HEADERS` แทน (พฤติกรรมเดิม) และหน้า admin จะเตือนในแถวตัวสลับ
+- ถ้าไม่มี itop คู่กับ EP จะใช้ค่าใน `GAME_API_HEADERS` แทน (พฤติกรรมเดิม) และหน้า admin จะเตือนในแถวตัวสลับ
 
-ชุด header คงที่ (`Camp-Source`, `Camp-Authtype`, `Aov-Region`, `Aov-Language`, `Msdk-Gameid`, `Msdk-Channelid`, `Msdk-Os`, `logicworldid`, `areaid` ฟอร์มอยู่ใน `GAME_API_HEADERS` ต่อไป
+ชุด header คงที่ (`Camp-Source`, `Camp-Authtype`, `Aov-Region`, `Aov-Language`, `Msdk-Gameid`, `Msdk-Channelid`, `Msdk-Os`, `logicworldid`, `areaid`) ยังอยู่ใน `GAME_API_HEADERS` ตามเดิม
 
 ## แหล่ง EP 3 แบบ
 
