@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cached, setCacheBypass } from "../../src/lib/ttlCache.ts";
+import { cached, peek, setCacheBypass } from "../../src/lib/ttlCache.ts";
 
 // Run: node --experimental-strip-types --test tests/lib/ttlCache.test.ts
 
@@ -22,6 +22,10 @@ Object.defineProperty(globalThis, "localStorage", {
     },
   },
 });
+
+const HOUR = 60 * 60 * 1000;
+// pre-seed a persisted entry written `ageMs` ago, as an earlier page view would have left it
+const seed = (key: string, ageMs: number, v: unknown) => mem.set(`rovlab:cache:v2:${key}`, JSON.stringify({ at: Date.now() - ageMs, v }));
 
 test("bypass (admin): concurrent callers share one in-flight load; a later call loads again", async () => {
   setCacheBypass(true);
@@ -68,4 +72,46 @@ test("guide list, categories and detail are persisted to localStorage (public da
 test("per-user style keys are not persisted", async () => {
   await cached("my-builds:u1", 1000, async () => [1]);
   assert.equal(mem.has("rovlab:cache:v2:my-builds:u1"), false);
+});
+
+test("hero list and draft relations stay cached for hours, not 15 minutes", async () => {
+  for (const key of ["heroes:t-fresh", "draft-relations"]) {
+    seed(key, 3 * HOUR, ["old"]);
+    let calls = 0;
+    const v = await cached(key, 1000, async () => {
+      calls++;
+      return ["new"];
+    });
+    assert.deepEqual(v, ["old"], `${key} aged 3 h should still be served from storage`);
+    assert.equal(calls, 0);
+  }
+});
+
+test("hero list older than 6 hours is reloaded", async () => {
+  seed("heroes:t-stale", 7 * HOUR, ["old"]);
+  let calls = 0;
+  const v = await cached("heroes:t-stale", 1000, async () => {
+    calls++;
+    return ["new"];
+  });
+  assert.deepEqual(v, ["new"]);
+  assert.equal(calls, 1);
+});
+
+test("other persisted keys keep the 15 minute limit", async () => {
+  seed("guide:t-old", 3 * HOUR, ["old"]);
+  let calls = 0;
+  const v = await cached("guide:t-old", 1000, async () => {
+    calls++;
+    return ["new"];
+  });
+  assert.deepEqual(v, ["new"]);
+  assert.equal(calls, 1);
+});
+
+test("peek returns a persisted hero list older than the in-memory TTL, but never for non-persisted keys", () => {
+  seed("heroes:t-peek", 3 * HOUR, ["listed"]);
+  assert.deepEqual(peek("heroes:t-peek", 5 * 60 * 1000), ["listed"]);
+  assert.equal(peek("heroes:t-missing", 5 * 60 * 1000), undefined);
+  assert.equal(peek("not-persisted-key", 5 * 60 * 1000), undefined);
 });

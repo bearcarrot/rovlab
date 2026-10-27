@@ -103,9 +103,10 @@
           } catch (e) {}
           // ข้าม prefetch เมื่อผลจะถูกทิ้ง: ล็อกอินอยู่ (supabase-js ส่ง JWT ผู้ใช้ แต่ prefetch ใช้ anon key จึงใช้ซ้ำไม่ได้ แอปยิงใหม่เอง)
           try { if (localStorage.getItem("sb-" + base.replace(/^https?:\/\//, "").split(".")[0] + "-auth-token")) return; } catch (e) {}
-          // และเมื่อแคช localStorage ของ ttlCache ยังสด (แอปไม่ยิงชุดนี้เลย) — prefix/อายุต้องตรง PERSIST_KEY และ PERSIST_TTL_MS ใน src/lib/ttlCache.ts
-          function fresh(k) {
-            try { var c = JSON.parse(localStorage.getItem("rovlab:cache:v2:" + k)); return !!c && Date.now() - c.at < 900000; } catch (e) { return false; }
+          // และเมื่อแคช localStorage ของ ttlCache ยังสด (แอปไม่ยิงชุดนี้เลย) — prefix/อายุต้องตรง PERSIST_KEY และ PERSIST_TTL_MS / LONG_PERSIST_TTL_MS ใน src/lib/ttlCache.ts
+          // (heroes:<rank> = 6 ชม. = 21600000, balance:recent = 15 นาที = 900000)
+          function fresh(k, ttl) {
+            try { var c = JSON.parse(localStorage.getItem("rovlab:cache:v2:" + k)); return !!c && Date.now() - c.at < ttl; } catch (e) { return false; }
           }
           var store = (window.__earlyFetch = {});
           function get(table, params) {
@@ -120,9 +121,9 @@
           }
           function json(p) { return p.then(function (r) { return r.clone().json(); }); }
           // heroes:<rank> (รายชื่อ + สถิติ + tier) สดอยู่ = แอปไม่ยิง heroes/patches/hero_stats/tier_lists เลย จึงไม่ prefetch ชุดนี้
-          var heroesFresh = fresh("heroes:" + rank);
+          var heroesFresh = fresh("heroes:" + rank, 21600000);
           if (!heroesFresh) get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url"], ["order", "name.asc"]]);
-          if (!fresh("balance:recent")) get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
+          if (!fresh("balance:recent", 900000)) get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
           if (heroesFresh) return;
           json(get("patches", [["select", "id,code,released_at"], ["order", "released_at.desc.nullslast"], ["limit", "1"]])).then(function (rows) {
             var id = rows && rows[0] && rows[0].id;
