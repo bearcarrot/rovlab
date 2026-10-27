@@ -1,12 +1,40 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { proxyUrlFor } from "@/lib/restProxy";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
+const REST_BASE = `${url ?? ""}/rest/v1/`;
+
+// Public reads of a few shared tables (hero list, stats, tier lists, draft relations, balance changes) go through /api/sb, an edge
+// handler whose responses Vercel's CDN keeps for several minutes, so Supabase serves a cache miss instead of every visitor.
+// Only for logged-out visitors (Authorization = anon key: the data is the same for everyone) and only in production builds.
+// Any problem with the proxy (not deployed, 4xx/5xx, not JSON, network error) falls back to the normal direct request.
+function fetchPublic(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    if (import.meta.env.PROD && (!init?.method || init.method === "GET")) {
+      const h = new Headers(init?.headers);
+      if (h.get("authorization") === `Bearer ${anonKey}`) {
+        const proxy = proxyUrlFor(input, REST_BASE, h);
+        if (proxy) {
+          return fetch(proxy, { headers: { Accept: "application/json" }, signal: init?.signal ?? undefined }).then(
+            (res) => (res.ok && (res.headers.get("content-type") ?? "").includes("json") ? res : fetch(input, init)),
+            () => fetch(input, init),
+          );
+        }
+      }
+    }
+  } catch {
+    // fall through to a direct request
+  }
+  return fetch(input, init);
+}
+
 // คำขอข้อมูลอ้างอิงของหน้าแรกถูกยิงล่วงหน้าจากสคริปต์ใน index.html (window.__earlyFetch) ตั้งแต่ parse HTML
 // ที่นี่หยิบผลมาใช้ "ครั้งเดียว" เมื่อ URL ตรงเป๊ะ + เป็น GET + Accept ตรง + ยังไม่ login (Authorization = anon key)
+// (index.html ยิงผ่าน /api/sb แต่เก็บผลโดยใช้ URL ตรงของ Supabase เป็น key — ดู fetchPublic ด้านบน)
 // อย่างอื่น (ไม่ตรง/เก่าเกิน 15 วิ/prefetch พลาด) ตกกลับไปใช้ fetch ปกติ จึงไม่เปลี่ยนพฤติกรรมของแอป
 type Early = { p: Promise<Response>; t: number };
 const EARLY_MAX_AGE_MS = 15_000;
@@ -20,14 +48,14 @@ const earlyAwareFetch: typeof fetch = (input, init) => {
         delete store[input];
         const h = new Headers(init?.headers);
         if (Date.now() - hit.t < EARLY_MAX_AGE_MS && h.get("accept") === "application/json" && h.get("authorization") === `Bearer ${anonKey}`) {
-          return hit.p.catch(() => fetch(input, init));
+          return hit.p.catch(() => fetchPublic(input, init));
         }
       }
     }
   } catch {
     // fall through to a normal request
   }
-  return fetch(input, init);
+  return typeof input === "string" ? fetchPublic(input, init) : fetch(input, init);
 };
 
 // Falls back to a dummy client when env vars are missing so the app can still
