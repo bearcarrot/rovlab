@@ -4,6 +4,25 @@ import { cached, setCacheBypass } from "../../src/lib/ttlCache.ts";
 
 // Run: node --experimental-strip-types --test tests/lib/ttlCache.test.ts
 
+// Minimal in-memory localStorage so the persisted-prefix test can run under plain node.
+const mem = new Map<string, string>();
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => {
+      mem.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      mem.delete(k);
+    },
+    key: (i: number) => Array.from(mem.keys())[i] ?? null,
+    get length() {
+      return mem.size;
+    },
+  },
+});
+
 test("bypass (admin): concurrent callers share one in-flight load; a later call loads again", async () => {
   setCacheBypass(true);
   try {
@@ -37,4 +56,16 @@ test("bypass: a failed load is not shared with later callers", async () => {
   } finally {
     setCacheBypass(false);
   }
+});
+
+test("guide list, categories and detail are persisted to localStorage (public data, survives a reload)", async () => {
+  for (const key of ["guides", "guide-categories", "guide:macro-basics"]) {
+    await cached(key, 1000, async () => [{ id: key }]);
+    assert.ok(mem.has(`rovlab:cache:v2:${key}`), `${key} should be written to localStorage`);
+  }
+});
+
+test("per-user style keys are not persisted", async () => {
+  await cached("my-builds:u1", 1000, async () => [1]);
+  assert.equal(mem.has("rovlab:cache:v2:my-builds:u1"), false);
 });

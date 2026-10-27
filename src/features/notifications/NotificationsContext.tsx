@@ -16,7 +16,8 @@ const NotificationsContext = createContext<NotificationsValue>({
 
 // Re-count while the tab is visible. Replaces a Supabase Realtime subscription, whose
 // always-on replication poller was consuming the project's Disk IO budget.
-const POLL_MS = 180_000;
+// 5 minutes (was 3): every poll is one API Gateway request, and a tab left open all day is the main source of them.
+const POLL_MS = 300_000;
 // Coming back to the tab only re-counts if the last count is older than this (quick tab switches cost nothing).
 const VISIBLE_MIN_MS = 30_000;
 
