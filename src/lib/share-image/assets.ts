@@ -16,6 +16,26 @@ const inflight = new Map<string, Promise<ImageSource | null>>();
 const failedUntil = new Map<string, number>();
 // url ที่ preloadImages รับเข้าคิวแล้วแต่ยังไม่จบ: กันโฮเวอร์/แตะ/โฟกัสต่อเนื่องเปิด batch ซ้อนกัน
 const queuedForPreload = new Set<string>();
+// url ที่ลองโหลดแบบข้ามแคชเบราว์เซอร์ไปแล้วในเซสชันนี้: ลองแค่ครั้งเดียวต่อรูป (ดู viaFetch/loadImage)
+const bypassTried = new Set<string>();
+// url → สาเหตุที่โหลดไม่ได้ (ใช้ debug เท่านั้น)
+const failReason = new Map<string, string>();
+
+function note(url: string, reason: string) {
+  failReason.set(url, [failReason.get(url), reason].filter(Boolean).join(" > "));
+}
+
+/** "host/path [สาเหตุ]" สำหรับ debug — ไม่มี query string หรือข้อมูลผู้ใช้ */
+export function imageFailure(url: string): string {
+  let where = url;
+  try {
+    const u = new URL(url);
+    where = u.host + u.pathname;
+  } catch {
+    /* ใช้ค่าดิบ */
+  }
+  return `${where} [${failReason.get(url) ?? "cached-failure"}]`;
+}
 
 function recentlyFailed(url: string): boolean {
   const until = failedUntil.get(url);
@@ -37,41 +57,72 @@ function viaImgElement(url: string, timeoutMs: number, onTimeout: () => void): P
   return new Promise((resolve) => {
     const img = new Image();
     let done = false;
-    const finish = (v: HTMLImageElement | null) => {
+    const finish = (v: HTMLImageElement | null, reason?: string) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
+      if (!v && reason) note(url, reason);
       resolve(v);
     };
     const timer = setTimeout(() => {
       onTimeout();
-      finish(null);
+      finish(null, "img-timeout");
     }, timeoutMs);
     img.crossOrigin = "anonymous";
     img.referrerPolicy = "no-referrer"; // ตรงกับ <img> ที่ใช้ในหน้าเว็บ
     img.decoding = "async";
-    img.onload = () => finish(img.naturalWidth > 0 ? img : null);
-    img.onerror = () => finish(null);
+    img.onload = () => finish(img.naturalWidth > 0 ? img : null, "img-empty");
+    img.onerror = () => finish(null, "img-error");
     img.src = url;
   });
 }
 
 // สำรอง: ใช้ fetch แบบ CORS เมื่อโหลดผ่าน <img> ไม่สำเร็จ (ใช้ cache ปกติของเบราว์เซอร์ ไม่บังคับขอใหม่ —
 // ไม่งั้นทุกรูปที่ล้มเหลวจะยิงคำขอที่ข้ามแคชไปที่ CDN เพิ่มอีก 1 ครั้ง) ถ้าเซิร์ฟเวอร์ไม่ส่ง Access-Control-Allow-Origin ก็ยังล้มเหลวตามเดิม
-async function viaFetch(url: string, timeoutMs: number, onTimeout: () => void): Promise<ImageBitmap | null> {
-  if (typeof fetch === "undefined" || typeof createImageBitmap === "undefined") return null;
+// หมายเหตุ: fetch ถูกควบคุมด้วย CSP connect-src (vercel.json) ต้องมี https://assets.rovlab.app ไม่งั้นถูกบล็อกก่อนส่งคำขอ
+// cache = "reload": ใช้เฉพาะรอบกู้แคชเสีย (ดู loadImage) — รูป R2 เป็น immutable 1 ปี ถ้าเบราว์เซอร์เคยเก็บสำเนาที่ไม่มี
+// Access-Control-Allow-Origin ไว้ (เช่นโหลดก่อนตั้ง CORS ครบ) คำขอ CORS จะใช้สำเนานั้นแล้วล้มตลอดจนกว่าผู้ใช้จะล้างแคช
+// การขอใหม่ข้ามแคชจะได้สำเนาที่มี header ถูกต้อง และเขียนทับสำเนาเสียในแคชด้วย
+async function viaFetch(
+  url: string,
+  timeoutMs: number,
+  onTimeout: () => void,
+  cache?: RequestCache
+): Promise<ImageBitmap | null> {
+  const tag = cache ? "bypass-" : "";
+  if (typeof fetch === "undefined" || typeof createImageBitmap === "undefined") {
+    note(url, `${tag}fetch-unsupported`);
+    return null;
+  }
   const ctrl = new AbortController();
   const t = setTimeout(() => {
     onTimeout();
     ctrl.abort();
   }, timeoutMs);
   try {
-    const res = await fetch(url, { mode: "cors", referrerPolicy: "no-referrer", signal: ctrl.signal });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await createImageBitmap(blob);
-  } catch {
-    return null;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        mode: "cors",
+        referrerPolicy: "no-referrer",
+        signal: ctrl.signal,
+        ...(cache ? { cache } : {}),
+      });
+    } catch (e) {
+      // TypeError = CSP connect-src บล็อก / CORS ไม่ผ่าน / เครือข่ายล้ม (เบราว์เซอร์ไม่บอกแยก)
+      note(url, `${tag}${e instanceof DOMException && e.name === "AbortError" ? "fetch-timeout" : "fetch-blocked"}`);
+      return null;
+    }
+    if (!res.ok) {
+      note(url, `${tag}fetch-${res.status}`);
+      return null;
+    }
+    try {
+      return await createImageBitmap(await res.blob());
+    } catch {
+      note(url, `${tag}decode`);
+      return null;
+    }
   } finally {
     clearTimeout(t);
   }
@@ -91,13 +142,21 @@ export async function loadImage(url: string, timeoutMs = DEFAULT_TIMEOUT): Promi
     const markTimeout = () => {
       state.timedOut = true;
     };
+    failReason.delete(url);
     try {
-      const img = (await viaImgElement(url, timeoutMs, markTimeout)) ?? (await viaFetch(url, timeoutMs, markTimeout));
+      let img = (await viaImgElement(url, timeoutMs, markTimeout)) ?? (await viaFetch(url, timeoutMs, markTimeout));
+      // กู้แคชเสีย: ลองขอใหม่ข้ามแคชเบราว์เซอร์ 1 ครั้งต่อรูปต่อเซสชัน — ข้ามถ้าหมดเวลา (ไม่ใช่เรื่องแคช)
+      // หรือเซิร์ฟเวอร์ตอบ HTTP error มาแล้ว (ขอซ้ำก็ได้ผลเดิม)
+      if (!img && !state.timedOut && !bypassTried.has(url) && !/fetch-\d/.test(failReason.get(url) ?? "")) {
+        bypassTried.add(url);
+        img = await viaFetch(url, timeoutMs, markTimeout, "reload");
+      }
       const result = await Promise.race([Promise.resolve(img), guard.promise]);
       if (result) {
         okCache.set(url, result);
         failedUntil.delete(url);
       } else {
+        if (!failReason.has(url)) note(url, "guard-timeout");
         failedUntil.set(url, Date.now() + (state.timedOut ? TIMEOUT_FAIL_TTL_MS : FAIL_TTL_MS));
       }
       return result;
