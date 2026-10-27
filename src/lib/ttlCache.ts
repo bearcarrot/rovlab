@@ -27,6 +27,7 @@ const PERSISTED_PREFIXES = [
   "tiers:",
   "balance:recent",
   "catalog:", // items / runes / spells / enchantments (public game data; see services/gameCatalog.ts)
+  "guide", // "guides" (list), "guide-categories" and "guide:<slug>" (see services/guides.ts). The list carries every guide's full text, so it is the heaviest public payload to refetch on each reload
 ];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored
