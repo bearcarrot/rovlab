@@ -28,7 +28,7 @@ export const FONT_DISPLAY = '"Kanit", "IBM Plex Sans Thai", sans-serif';
 export const FONT_BODY = '"IBM Plex Sans Thai", "Inter", sans-serif';
 
 export const SITE_LABEL = "RoV LAB";
-export const SITE_URL = "rovlab.vercel.app";
+export const SITE_URL = "rovlab.app";
 // โลโก้เต็ม (แนวกว้าง) อยู่ใน public/v1/ (same-origin) จึงวาดลง Canvas แล้ว export ได้โดยไม่ติด CORS
 // ไฟล์เดิม /logo.png ยังอยู่ใน public/ เพื่อใช้ rollback
 export const LOGO_URL = "/v1/logo-share.png";
