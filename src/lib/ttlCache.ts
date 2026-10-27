@@ -1,13 +1,16 @@
 // Tiny in-memory TTL cache for read-mostly public data (heroes, stats, tier lists, guides, builds).
 // - Concurrent callers share one in-flight request.
 // - A failed load is never cached; `keep` can also veto caching a "soft failure" result.
-// - Admins bypass the cache entirely (see useIsAdmin) so they always see their own edits immediately.
+// - Admins bypass the cache entirely (see useIsAdmin) so they always see their own edits immediately. Bypass still
+//   shares requests that are in flight at the same moment (never reuses a finished one), so N components asking for
+//   the same key at once cost one request, not N.
 // - Keys listed in PERSISTED_PREFIXES are also kept in localStorage, so a page reload or a new tab does not
 //   refetch the same public hero data (each fetch is a Supabase API Gateway log line). Public data only: never add
 //   per-user keys here, or the next person on a shared device would see them.
 type Entry = { at: number; value: Promise<unknown>; settled?: { v: unknown } };
 
 const store = new Map<string, Entry>();
+const bypassInflight = new Map<string, Promise<unknown>>();
 let bypass = false;
 
 export const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -54,6 +57,8 @@ function writePersisted(key: string, v: unknown): void {
   }
 }
 
+// Clears every persisted entry whose key starts with `prefix`, including the "site:" entries of lib/sitePersist.ts
+// (same namespace), so an admin never keeps a stale or draft-bearing copy.
 function clearPersisted(prefix: string): void {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -73,6 +78,10 @@ export function setCacheBypass(on: boolean): void {
   }
 }
 
+export function isCacheBypassed(): boolean {
+  return bypass;
+}
+
 export function clearCache(prefix = ""): void {
   for (const key of Array.from(store.keys())) {
     if (key.startsWith(prefix)) store.delete(key);
@@ -86,7 +95,17 @@ export function cached<T>(
   load: () => Promise<T>,
   keep: (value: T) => boolean = () => true,
 ): Promise<T> {
-  if (bypass) return load();
+  if (bypass) {
+    const running = bypassInflight.get(key);
+    if (running) return running as Promise<T>;
+    const p = load();
+    bypassInflight.set(key, p);
+    const done = () => {
+      if (bypassInflight.get(key) === p) bypassInflight.delete(key);
+    };
+    p.then(done, done);
+    return p;
+  }
   const hit = store.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.value as Promise<T>;
   const persist = isPersisted(key);

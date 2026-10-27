@@ -6,6 +6,9 @@ export const STALE_MS = 60_000;
 export const JITTER_MIN_MS = 250;
 export const JITTER_MAX_MS = 3000;
 
+// Last good answer, kept by the glue (localStorage, short TTL) so a full reload can skip the first two requests.
+export type PersistedAnnouncements = { at: number; items: Announcement[]; offsetMs: number; nextChangeMs: number | null };
+
 export type StoreDeps = {
   fetchItems(): Promise<Announcement[]>;
   fetchSchedule(): Promise<{ serverNow: string; nextChange: string | null }>;
@@ -15,6 +18,7 @@ export type StoreDeps = {
   random(): number;
   onVisible(cb: () => void): () => void;
   onOnline(cb: () => void): () => void;
+  persist?: { read(): PersistedAnnouncements | null; write(state: PersistedAnnouncements): void };
 };
 
 export type Snapshot = { status: "idle" | "loading" | "ready" | "error"; items: Announcement[]; nowMs: number };
@@ -67,6 +71,21 @@ export function createAnnouncementStore(deps: StoreDeps): AnnouncementStore {
     void load(false); // then ask the server (authoritative; also re-arms, which handles the capped-timer case)
   }
 
+  // Reuse a recent answer saved by a previous page load, unless the next scheduled change has already passed.
+  function hydrate(): boolean {
+    const saved = deps.persist?.read() ?? null;
+    if (saved === null) return false;
+    const now = deps.now();
+    if (saved.at > now) return false; // clock went backwards: do not trust it
+    if (saved.nextChangeMs !== null && now + saved.offsetMs >= saved.nextChangeMs) return false;
+    offsetMs = saved.offsetMs;
+    nextChangeMs = saved.nextChangeMs;
+    lastFetchAt = now;
+    lastFailed = false;
+    setSnapshot({ status: "ready", items: saved.items, nowMs: serverNow() });
+    return true;
+  }
+
   function load(force: boolean): Promise<void> {
     if (inflight !== null && !force) return inflight;
     const gen = ++generation; // a newer request supersedes any older one still in flight
@@ -82,6 +101,7 @@ export function createAnnouncementStore(deps: StoreDeps): AnnouncementStore {
         lastFailed = false;
         setSnapshot({ status: "ready", items, nowMs: serverNow() });
         arm();
+        deps.persist?.write({ at: lastFetchAt, items, offsetMs, nextChangeMs });
       } catch {
         if (gen !== generation) return;
         lastFailed = true;
@@ -114,8 +134,9 @@ export function createAnnouncementStore(deps: StoreDeps): AnnouncementStore {
       if (wasEmpty) {
         unsubVisible = deps.onVisible(handleVisible);
         unsubOnline = deps.onOnline(handleOnline);
+        const hydrated = snapshot.status === "idle" && hydrate();
         const stale = lastFetchAt === null || deps.now() - lastFetchAt > STALE_MS;
-        if (snapshot.status === "idle" || stale) void load(false);
+        if (!hydrated && (snapshot.status === "idle" || stale)) void load(false);
         else arm();
       }
       return () => {

@@ -96,6 +96,9 @@ export function validateForm(v: FormValues, toIso: (local: string) => string, no
 
 // ---------------- store ----------------
 
+// Last good answer, kept by the glue (localStorage, short TTL) so a full reload can skip the first request.
+export type PersistedMaintenance = { at: number; config: MaintenanceConfig; offsetMs: number };
+
 export type StoreDeps = {
   fetchConfig(): Promise<FetchResult>;
   now(): number;
@@ -104,6 +107,7 @@ export type StoreDeps = {
   random(): number;
   onVisible(cb: () => void): () => void;
   onOnline(cb: () => void): () => void;
+  persist?: { read(): PersistedMaintenance | null; write(state: PersistedMaintenance): void };
 };
 
 export type Snapshot = {
@@ -135,7 +139,7 @@ export function createMaintenanceStore(deps: StoreDeps): MaintenanceStore {
   let unsubOnline: (() => void) | null = null;
 
   const serverNow = () => deps.now() + offsetMs;
-  const jitter = () => JITTER_MIN_MS + Math.floor(deps.random() * (JITTER_MAX_MS - JITTER_MIN_MS + 1));
+  const jitter = () => JITTER_MIN_MS + Math.floor(deps.random() * (JITTER_MAX_MS - JITTER_MIN_MS + 1)); // eslint-disable-line
 
   // Recompute from what is already loaded (no network). Keeps snapshot identity when nothing changed.
   function publish() {
@@ -174,6 +178,23 @@ export function createMaintenanceStore(deps: StoreDeps): MaintenanceStore {
     }, jitter());
   }
 
+  // Reuse a recent answer saved by a previous page load, but never one that shows maintenance as active: a visitor on the
+  // maintenance page must always ask the server, so the end of a window (or an early disable) is seen at once.
+  function hydrate(): boolean {
+    const saved = deps.persist?.read() ?? null;
+    if (saved === null) return false;
+    const now = deps.now();
+    if (saved.at > now) return false; // clock went backwards: do not trust it
+    if (isMaintenanceActive(saved.config, now + saved.offsetMs)) return false;
+    offsetMs = saved.offsetMs;
+    config = saved.config;
+    status = "ready";
+    lastFetchAt = now;
+    lastAttemptAt = saved.at; // the max-age recheck is measured from the original fetch, not from this reload
+    lastFailed = false;
+    return true;
+  }
+
   function load(force: boolean): Promise<void> {
     if (inflight !== null && !force) return inflight;
     const gen = ++generation; // a newer request supersedes any older one still in flight
@@ -196,6 +217,7 @@ export function createMaintenanceStore(deps: StoreDeps): MaintenanceStore {
         status = "ready";
         publish();
         arm();
+        deps.persist?.write({ at: lastFetchAt, config: r.config, offsetMs: off });
       } catch {
         if (gen !== generation) return;
         lastFailed = true;
@@ -229,8 +251,9 @@ export function createMaintenanceStore(deps: StoreDeps): MaintenanceStore {
       if (wasEmpty) {
         unsubVisible = deps.onVisible(handleVisible);
         unsubOnline = deps.onOnline(handleOnline);
+        const hydrated = status === "idle" && hydrate();
         publish();
-        if (status === "idle" || isStale()) void load(false);
+        if (!hydrated && (status === "idle" || isStale())) void load(false);
         else arm();
       }
       return () => {
