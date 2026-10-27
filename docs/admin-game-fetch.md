@@ -2,12 +2,13 @@
 
 แทนหน้า `index.php` เดิมสำหรับ 3 อย่าง: `getranklist` (สถิติแรงก์), `getlatestadjustlist` (ประวัติปรับบาลานซ์) และสกิลของฮีโร่
 อยู่ในแท็บ **นำเข้าข้อมูล** ของหน้า Admin (เลือกชนิด: สถิติแรงก์ / ปรับสมดุล / สกิล) แต่ละชนิดมีการ์ด "ดึงจากเกมโดยตรง" หรือเลือกไฟล์ JSON แล้วเข้าขั้นตอน parse → ตรวจทาน → ยืนยัน
+- แท็บนี้ **เห็นเฉพาะ Super Admin** (แอดมินธรรมดาไม่เห็น) และ Edge Function `game-fetch` ตรวจ `is_super_admin` เองด้วย
 - สถิติแรงก์ / ปรับสมดุล: RPC `admin_import_rank_list` / `admin_import_balance_changes` เดิม
 - สกิล: บันทึกลง `hero_abilities` ตรง ๆ ด้วยสิทธิ์แอดมินเดิม (RLS `is_admin`) ไม่มี migration ใหม่ — จับคู่ฮีโร่ด้วย `heroes.hero_id`
 
 ```
 หน้า Admin ──JWT──► Edge Function game-fetch ──► kgth-api.mobagarena.com
-   │                 (is_admin + allowlist)
+   │                 (is_super_admin + allowlist)
    └─ JSON ดิบ ◄─────┘ → parseRankList / parseAdjustList เดิม → พรีวิว → RPC
 ```
 
@@ -49,7 +50,7 @@ Deploy: `supabase functions deploy game-fetch`
 
 ## ความปลอดภัย
 
-- เฉพาะแอดมิน (`is_admin` ด้วย JWT ผู้เรียก)
+- แท็บนำเข้าข้อมูลซ่อนไว้จากแอดมินธรรมดา (ฝั่งหน้า) และ Edge Function ตรวจ `is_super_admin` ด้วย JWT ผู้เรียก (ด่านจริง) — แต่ RPC `admin_import_*` และ RLS ของตารางสกิลยังใช้สิทธิ์แอดมินเดิม ถ้าต้องการจำกัดการบันทึกด้วย ต้องแก้ที่ DB แยกต่างหาก
 - client ส่งได้แค่ `kind` / `rank_key` / `hero_id` / EP (+ itop) — URL และ body ประกอบฝั่ง function
 - EP และ itop ส่งเป็น header เท่านั้น ไม่ log ไม่เก็บ และถูกตัดออกจากข้อความผิดพลาดที่ส่งกลับ
 - ฝั่งเบราว์เซอร์จำ EP/itop ไว้ใน localStorage (ค่าเต็ม) ใช้ปุ่ม "ล้าง EP ที่จำไว้" เมื่อใช้เครื่องที่ใช้ร่วมกัน
