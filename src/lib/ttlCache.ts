@@ -30,18 +30,25 @@ const PERSISTED_PREFIXES = [
   "guide", // "guides" (list), "guide-categories" and "guide:<slug>" (see services/guides.ts). The list carries every guide's full text, so it is the heaviest public payload to refetch on each reload
 ];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
+// The two heaviest public payloads (hero list ~39 KB, draft relations ~166 KB) change only when an admin imports stats or
+// edits relations, yet each visitor refetched them about 3 times a day. They stay in localStorage for 6 hours instead.
+// Admins bypass the cache, so their own edits still show at once; visitors see a change within 6 hours.
+// index.html (the early prefetch) hardcodes the same 6 h for "heroes:<rank>": keep the two in step.
+const LONG_PERSISTED_PREFIXES = ["heroes:", "draft-relations"];
+const LONG_PERSIST_TTL_MS = 6 * 60 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored
 // v2: "patch:latest" went from a code string to a { id, code, releasedAt } object
 const PERSIST_KEY = "rovlab:cache:v2:";
 
 const isPersisted = (key: string) => PERSISTED_PREFIXES.some((p) => key.startsWith(p));
+const persistTtl = (key: string) => (LONG_PERSISTED_PREFIXES.some((p) => key.startsWith(p)) ? LONG_PERSIST_TTL_MS : PERSIST_TTL_MS);
 
 function readPersisted<T>(key: string): { at: number; v: T } | undefined {
   try {
     const raw = localStorage.getItem(PERSIST_KEY + key);
     if (!raw) return undefined;
     const saved = JSON.parse(raw) as { at: number; v: T };
-    if (Date.now() - saved.at < PERSIST_TTL_MS) return saved;
+    if (Date.now() - saved.at < persistTtl(key)) return saved;
     localStorage.removeItem(PERSIST_KEY + key);
   } catch {
     // storage blocked or entry corrupt: behave as a cache miss
@@ -50,7 +57,7 @@ function readPersisted<T>(key: string): { at: number; v: T } | undefined {
 }
 
 function writePersisted(key: string, v: unknown): void {
-  if (v == null) return; // do not pin "not found" for 15 minutes
+  if (v == null) return; // do not pin "not found" in storage
   try {
     localStorage.setItem(PERSIST_KEY + key, JSON.stringify({ at: Date.now(), v }));
   } catch {
@@ -139,13 +146,17 @@ export function cached<T>(
 
 // Already-loaded value (memory or localStorage), or undefined. Never starts a load and never waits on one in flight,
 // so a caller can reuse another page's data when it is there and fall back to its own query when it is not.
+// For persisted keys the age limit is at least the key's persistence TTL, the same rule cached() applies, so Hero Detail
+// reuses a hero list or draft relations that cached() would still hand out instead of running its own queries.
 export function peek<T>(key: string, ttlMs: number): T | undefined {
   if (bypass) return undefined;
+  const persist = isPersisted(key);
+  const ttl = persist ? Math.max(ttlMs, persistTtl(key)) : ttlMs;
   const hit = store.get(key);
-  if (hit) return hit.settled && Date.now() - hit.at < ttlMs ? (hit.settled.v as T) : undefined;
-  if (!isPersisted(key)) return undefined;
+  if (hit) return hit.settled && Date.now() - hit.at < ttl ? (hit.settled.v as T) : undefined;
+  if (!persist) return undefined;
   const saved = readPersisted<T>(key);
-  if (!saved || Date.now() - saved.at >= ttlMs) return undefined;
+  if (!saved || Date.now() - saved.at >= ttl) return undefined;
   store.set(key, { at: saved.at, value: Promise.resolve(saved.v), settled: { v: saved.v } });
   return saved.v;
 }
