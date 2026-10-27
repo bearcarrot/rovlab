@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { countUnread, markAllNotificationsRead } from "@/services/community";
 
@@ -16,20 +16,24 @@ const NotificationsContext = createContext<NotificationsValue>({
 
 // Re-count while the tab is visible. Replaces a Supabase Realtime subscription, whose
 // always-on replication poller was consuming the project's Disk IO budget.
-const POLL_MS = 60_000;
+const POLL_MS = 180_000;
+// Coming back to the tab only re-counts if the last count is older than this (quick tab switches cost nothing).
+const VISIBLE_MIN_MS = 30_000;
 
 // One unread counter for the whole app (bell badge). Refreshes on mount, every POLL_MS while the
-// tab is visible, and when the tab becomes visible again.
+// tab is visible, and when the tab becomes visible again (if the last count is older than VISIBLE_MIN_MS).
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, isConfigured } = useAuth();
   const userId = user?.id;
   const [unread, setUnread] = useState(0);
+  const lastRefreshAt = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!userId || !isConfigured) {
       setUnread(0);
       return;
     }
+    lastRefreshAt.current = Date.now();
     try {
       setUnread(await countUnread(userId));
     } catch {
@@ -54,7 +58,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        void refresh();
+        if (Date.now() - lastRefreshAt.current >= VISIBLE_MIN_MS) void refresh();
         start();
       } else {
         stop();
