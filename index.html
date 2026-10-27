@@ -6,7 +6,7 @@
     <title>RoV LAB — วิเคราะห์เกม RoV เพื่อเก่งขึ้นจริง</title>
     <meta name="description" content="RoV LAB: วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV ด้วยข้อมูลจริง" />
     <meta name="google-site-verification" content="RGoVibiHdCllXJnqyJkDbrwHYDSxFjgYnFmNkE1vA-E" />
-    <link rel="canonical" href="https://rovlab.vercel.app/" />
+    <link rel="canonical" href="https://rovlab.app/" />
     <meta name="sb-url" content="%VITE_SUPABASE_URL%" />
     <meta name="sb-key" content="%VITE_SUPABASE_ANON_KEY%" />
     <meta name="theme-color" content="#0b1020" />
@@ -17,22 +17,22 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="RoV LAB" />
     <meta property="og:locale" content="th_TH" />
-    <meta property="og:url" content="https://rovlab.vercel.app/" />
+    <meta property="og:url" content="https://rovlab.app/" />
     <meta property="og:title" content="RoV LAB" />
     <meta property="og:description" content="วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV" />
-    <meta property="og:image" content="https://rovlab.vercel.app/v1/og-image.png" />
+    <meta property="og:image" content="https://rovlab.app/v1/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="RoV LAB" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="RoV LAB" />
     <meta name="twitter:description" content="วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV" />
-    <meta name="twitter:image" content="https://rovlab.vercel.app/v1/og-image.png" />
+    <meta name="twitter:image" content="https://rovlab.app/v1/og-image.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"WebSite","name":"RoV LAB","url":"https://rovlab.vercel.app/","inLanguage":"th"}
+      {"@context":"https://schema.org","@type":"WebSite","name":"RoV LAB","url":"https://rovlab.app/","inLanguage":"th"}
     </script>
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"Organization","name":"RoV LAB","url":"https://rovlab.vercel.app/","logo":"https://rovlab.vercel.app/v1/icon-512.png"}
+      {"@context":"https://schema.org","@type":"Organization","name":"RoV LAB","url":"https://rovlab.app/","logo":"https://rovlab.app/v1/icon-512.png"}
     </script>
     <!-- PSI: เปิดการเชื่อมต่อ (DNS+TLS) ไปยัง Supabase ล่วงหน้า ระหว่างที่ JS ยังโหลดอยู่ เพื่อลดเวลา request ข้อมูลชุดแรก (ต้องมี crossorigin เพราะ supabase-js ใช้ fetch แบบ CORS) -->
     <link rel="preconnect" href="https://mttcdaiwuasnkqlxbeqs.supabase.co" crossorigin />
@@ -103,15 +103,18 @@
           } catch (e) {}
           // ข้าม prefetch เมื่อผลจะถูกทิ้ง: ล็อกอินอยู่ (supabase-js ส่ง JWT ผู้ใช้ แต่ prefetch ใช้ anon key จึงใช้ซ้ำไม่ได้ แอปยิงใหม่เอง)
           try { if (localStorage.getItem("sb-" + base.replace(/^https?:\/\//, "").split(".")[0] + "-auth-token")) return; } catch (e) {}
-          // และเมื่อแคช localStorage ของ ttlCache ยังสด (แอปไม่ยิงชุดนี้เลย) — prefix/อายุต้องตรง PERSIST_KEY และ PERSIST_TTL_MS ใน src/lib/ttlCache.ts
-          function fresh(k) {
-            try { var c = JSON.parse(localStorage.getItem("rovlab:cache:v2:" + k)); return !!c && Date.now() - c.at < 900000; } catch (e) { return false; }
+          // และเมื่อแคช localStorage ของ ttlCache ยังสด (แอปไม่ยิงชุดนี้เลย) — prefix/อายุต้องตรง PERSIST_KEY และ PERSIST_TTL_MS / LONG_PERSIST_TTL_MS ใน src/lib/ttlCache.ts
+          // (heroes:<rank> = 6 ชม. = 21600000, balance:recent = 15 นาที = 900000)
+          function fresh(k, ttl) {
+            try { var c = JSON.parse(localStorage.getItem("rovlab:cache:v2:" + k)); return !!c && Date.now() - c.at < ttl; } catch (e) { return false; }
           }
           var store = (window.__earlyFetch = {});
           function get(table, params) {
-            var u = base + "/rest/v1/" + table + "?" + new URLSearchParams(params).toString();
-            var p = fetch(u, { headers: { apikey: key, Authorization: "Bearer " + key, Accept: "application/json" } }).then(function (r) {
-              if (!r.ok) throw new Error(String(r.status));
+            var qs = new URLSearchParams(params).toString();
+            var u = base + "/rest/v1/" + table + "?" + qs;
+            // ยิงผ่าน /api/sb (Vercel CDN แคชไว้ ลด egress ของ Supabase) แต่ยังใช้ URL ตรงของ Supabase เป็น key ให้ supabase.ts หยิบไปใช้
+            var p = fetch("/api/sb?t=" + table + "&q=" + encodeURIComponent(qs), { headers: { Accept: "application/json" } }).then(function (r) {
+              if (!r.ok || (r.headers.get("content-type") || "").indexOf("json") < 0) throw new Error(String(r.status));
               return r;
             });
             p.catch(function () {});
@@ -120,9 +123,9 @@
           }
           function json(p) { return p.then(function (r) { return r.clone().json(); }); }
           // heroes:<rank> (รายชื่อ + สถิติ + tier) สดอยู่ = แอปไม่ยิง heroes/patches/hero_stats/tier_lists เลย จึงไม่ prefetch ชุดนี้
-          var heroesFresh = fresh("heroes:" + rank);
+          var heroesFresh = fresh("heroes:" + rank, 21600000);
           if (!heroesFresh) get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url"], ["order", "name.asc"]]);
-          if (!fresh("balance:recent")) get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
+          if (!fresh("balance:recent", 900000)) get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
           if (heroesFresh) return;
           json(get("patches", [["select", "id,code,released_at"], ["order", "released_at.desc.nullslast"], ["limit", "1"]])).then(function (rows) {
             var id = rows && rows[0] && rows[0].id;

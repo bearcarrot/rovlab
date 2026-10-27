@@ -1,7 +1,7 @@
 // Metadata injection into the built index.html (the same template the SPA uses).
 // The HTML is identical for people and crawlers except for the <head> tags, so normal visitors still boot the React app.
 
-export const SITE = "https://rovlab.vercel.app";
+export const SITE = "https://rovlab.app";
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
 

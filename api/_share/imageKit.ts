@@ -169,7 +169,7 @@ export function footer(showThai: boolean, divider: boolean): El {
   return el("div", { display: "flex", flexDirection: "column" }, [
     divider ? el("div", { display: "flex", height: 2, background: BORDER, marginBottom: 8 }, " ") : null,
     el("div", { display: "flex", justifyContent: "space-between", alignItems: "center" }, [
-      el("div", { display: "flex", fontSize: 22 }, "RoV LAB  ·  rovlab.vercel.app"),
+      el("div", { display: "flex", fontSize: 22 }, `RoV LAB  ·  ${SITE.replace(/^https?:\/\//, "")}`),
       showThai ? el("div", { display: "flex", fontSize: 20, color: MUTED }, DISCLAIMER_TH) : null,
     ]),
   ]);

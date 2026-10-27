@@ -1,6 +1,7 @@
-import { createAnnouncementStore } from "./schedule";
+import { createAnnouncementStore, type PersistedAnnouncements } from "./schedule";
 import { createDismissalStore, type DismissalStore, type StorageLike } from "./dismissals";
 import { fetchActiveAnnouncements, fetchSchedule } from "@/services/announcements";
+import { readSiteCache, writeSiteCache } from "@/lib/sitePersist";
 
 // Thin glue (spec section 9): wires the pure schedule store and dismissal store to the services and the browser.
 // Nothing runs at import time except constructing the stores; fetching and listeners start on the first subscriber.
@@ -22,6 +23,11 @@ export const announcementStore = createAnnouncementStore({
   onOnline: (cb) => {
     window.addEventListener("online", cb);
     return () => window.removeEventListener("online", cb);
+  },
+  // Public rows only; skipped and wiped for admins (their RLS also returns drafts), see lib/sitePersist.ts.
+  persist: {
+    read: () => readSiteCache<PersistedAnnouncements>("announcements"),
+    write: (state) => writeSiteCache("announcements", state),
   },
 });
 
