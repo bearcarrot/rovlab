@@ -3,7 +3,7 @@ import { epError, itopError, parseEpList, type EpItem } from "./eplist.ts";
 
 // ดึงสถิติแรงก์ (getranklist) / ประวัติปรับบาลานซ์ (getlatestadjustlist) / สกิลของฮีโร่ (skills) จากเซิร์ฟเวอร์เกมแทนหน้า index.php เดิม
 // ไม่เขียน DB เอง — หน้า Admin นำผลไป parse/พรีวิว แล้วเรียก RPC admin_import_* ที่มีอยู่ (เหมือน pro-stats)
-// เฉพาะแอดมิน (is_admin ด้วย JWT ผู้เรียก) · client ส่งได้แค่ kind/rank_key/EP(+itop)/hero_id — URL และ body ประกอบฝั่งนี้เอง (กัน SSRF)
+// เฉพาะ Super Admin (is_super_admin ด้วย JWT ผู้เรียก — แอดมินธรรมดาใช้ไม่ได้) · client ส่งได้แค่ kind/rank_key/EP(+itop)/hero_id — URL และ body ประกอบฝั่งนี้เอง (กัน SSRF)
 // Encodeparam และ Msdk-Itopencodeparam คือ credential ของเซสชัน: ไม่ log ไม่เก็บ ไม่ใส่ query string และส่งเป็น header เท่านั้น
 // Msdk-Itopencodeparam ผูกเป็นคู่กับ EP แต่ละค่า (คนละเซสชันใช้ปนกันไม่ได้ เกมตอบ -5001) จึงส่งมาพร้อม EP (itop)
 //   ถ้าไม่มี itop ส่งมา จะใช้ค่าที่อยู่ใน GAME_API_HEADERS แทน (พฤติกรรมเดิม)
@@ -96,8 +96,9 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const { data: isAdmin } = await sb.rpc("is_admin");
-  if (isAdmin !== true) return json({ error: "ต้องเป็นแอดมินเท่านั้น" }, 403);
+  // ต้องเป็น Super Admin เท่านั้น (แอดมินธรรมดาไม่ผ่าน) — ฝั่งหน้าซ่อนแท็บให้ด้วย แต่นี่คือด่านจริง เพราะ function นี้ถือ credential ของเกม
+  const { data: isSuper } = await sb.rpc("is_super_admin");
+  if (isSuper !== true) return json({ error: "ต้องเป็น Super Admin เท่านั้น" }, 403);
 
   let body: Record<string, unknown>;
   try {
