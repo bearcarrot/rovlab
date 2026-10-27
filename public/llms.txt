@@ -1,25 +1,25 @@
 # RoV LAB
 
-> RoV LAB (https://rovlab.vercel.app) is a Thai-language site for analyzing Arena of Valor (RoV) heroes, counters, drafts and builds using real game data.
+> RoV LAB (https://rovlab.app) is a Thai-language site for analyzing Arena of Valor (RoV) heroes, counters, drafts and builds using real game data.
 
 ## Main tools
 
-- [Heroes](https://rovlab.vercel.app/heroes): Hero directory. Each hero has its own page at /heroes/{hero-slug}, for example https://rovlab.vercel.app/heroes/nakroth.
-- [Tier List](https://rovlab.vercel.app/tier-list): Hero tier list based on game statistics.
-- [Counter Pick](https://rovlab.vercel.app/counter-pick): Find heroes that counter a given hero.
-- [Matchup](https://rovlab.vercel.app/matchup): Compare two heroes head to head.
-- [Draft](https://rovlab.vercel.app/draft): Draft assistant for pick and ban decisions.
-- [Stats](https://rovlab.vercel.app/stats): Hero statistics overview.
-- [Learn](https://rovlab.vercel.app/learn): Learning resources and guides for improving at RoV.
+- [Heroes](https://rovlab.app/heroes): Hero directory. Each hero has its own page at /heroes/{hero-slug}, for example https://rovlab.app/heroes/nakroth.
+- [Tier List](https://rovlab.app/tier-list): Hero tier list based on game statistics.
+- [Counter Pick](https://rovlab.app/counter-pick): Find heroes that counter a given hero.
+- [Matchup](https://rovlab.app/matchup): Compare two heroes head to head.
+- [Draft](https://rovlab.app/draft): Draft assistant for pick and ban decisions.
+- [Stats](https://rovlab.app/stats): Hero statistics overview.
+- [Learn](https://rovlab.app/learn): Learning resources and guides for improving at RoV.
 
 ## Policies and data
 
-- [Data Sources](https://rovlab.vercel.app/data-sources): Where the site's game data comes from.
-- [Community Guidelines](https://rovlab.vercel.app/community-guidelines): Rules for community features.
-- [Disclaimer](https://rovlab.vercel.app/disclaimer): Usage disclaimer.
-- [Privacy Policy](https://rovlab.vercel.app/privacy): How user data is handled.
-- [Terms of Service](https://rovlab.vercel.app/terms): Terms of use.
+- [Data Sources](https://rovlab.app/data-sources): Where the site's game data comes from.
+- [Community Guidelines](https://rovlab.app/community-guidelines): Rules for community features.
+- [Disclaimer](https://rovlab.app/disclaimer): Usage disclaimer.
+- [Privacy Policy](https://rovlab.app/privacy): How user data is handled.
+- [Terms of Service](https://rovlab.app/terms): Terms of use.
 
 ## Optional
 
-- [Sitemap](https://rovlab.vercel.app/sitemap.xml): Full list of public pages, including every hero page.
+- [Sitemap](https://rovlab.app/sitemap.xml): Full list of public pages, including every hero page.
