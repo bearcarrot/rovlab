@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { cn } from "@/lib/utils";
+import { LOGO_64_URL } from "@/lib/siteConfig";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 
@@ -81,8 +82,8 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-bg-surface lg:flex lg:flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        {/* ไอคอน 64px (public/v1/logo-64.webp) ไม่ใหญ่เกินกว่าที่แสดง (PSI) — ชื่อแบรนด์อยู่ในข้อความข้างเคียง */}
-        <img src="/v1/logo-64.webp" alt="RoV LAB" width={36} height={36} className="h-9 w-9 shrink-0" />
+        {/* ไอคอน 64px (v1/logo-64.webp บน R2 ดู LOGO_64_URL) ไม่ใหญ่เกินกว่าที่แสดง (PSI) — ชื่อแบรนด์อยู่ในข้อความข้างเคียง */}
+        <img src={LOGO_64_URL} alt="RoV LAB" width={36} height={36} className="h-9 w-9 shrink-0" />
         <span className="font-display text-lg font-semibold tracking-tight">RoV LAB</span>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">

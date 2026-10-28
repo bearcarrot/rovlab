@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { SITE, LEGAL_LINKS, copyrightYears } from "@/lib/siteConfig";
+import { SITE, LEGAL_LINKS, LOGO_64_URL, copyrightYears } from "@/lib/siteConfig";
 import { SocialLinks } from "@/components/layout/SocialLinks";
 
 const linkCls =
@@ -17,7 +17,7 @@ export function Footer() {
         <div className="grid gap-6 lg:grid-cols-12">
           <section aria-labelledby="footer-about" className="space-y-2 lg:col-span-7">
             <div className="flex items-center gap-2.5">
-              <img src="/v1/logo-64.webp" alt="" width={28} height={28} loading="lazy" decoding="async" className="h-7 w-7 shrink-0" />
+              <img src={LOGO_64_URL} alt="" width={28} height={28} loading="lazy" decoding="async" className="h-7 w-7 shrink-0" />
               <div>
                 <h2 id="footer-about" className="font-display text-base font-semibold leading-tight">
                   {SITE.name}

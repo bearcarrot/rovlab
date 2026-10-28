@@ -20,14 +20,14 @@
     <meta property="og:url" content="https://rovlab.app/" />
     <meta property="og:title" content="RoV LAB" />
     <meta property="og:description" content="วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV" />
-    <meta property="og:image" content="https://rovlab.app/v1/og-image.png" />
+    <meta property="og:image" content="https://assets.rovlab.app/v1/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="RoV LAB" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="RoV LAB" />
     <meta name="twitter:description" content="วิเคราะห์ Hero, Counter, Draft และ Build ของ RoV" />
-    <meta name="twitter:image" content="https://rovlab.app/v1/og-image.png" />
+    <meta name="twitter:image" content="https://assets.rovlab.app/v1/og-image.png" />
     <script type="application/ld+json">
       {"@context":"https://schema.org","@type":"WebSite","name":"RoV LAB","url":"https://rovlab.app/","inLanguage":"th"}
     </script>
@@ -36,6 +36,8 @@
     </script>
     <!-- PSI: เปิดการเชื่อมต่อ (DNS+TLS) ไปยัง Supabase ล่วงหน้า ระหว่างที่ JS ยังโหลดอยู่ เพื่อลดเวลา request ข้อมูลชุดแรก (ต้องมี crossorigin เพราะ supabase-js ใช้ fetch แบบ CORS) -->
     <link rel="preconnect" href="https://mttcdaiwuasnkqlxbeqs.supabase.co" crossorigin />
+    <!-- โลโก้ใน Sidebar/Drawer/Footer มาจาก R2 (assets.rovlab.app) — โหลดผ่าน <img> ปกติ (no-cors) จึงไม่ใส่ crossorigin -->
+    <link rel="preconnect" href="https://assets.rovlab.app" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Fonts load without blocking first paint: the stylesheet is fetched as print-only, then switched to all media once loaded (by the inline script at the end of <body>, not an onload attribute, so CSP needs no 'unsafe-inline'). display=swap keeps text visible meanwhile. -->

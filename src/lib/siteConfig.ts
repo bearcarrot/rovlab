@@ -12,6 +12,11 @@ export const SITE = {
   contactEmail: "contact.rovlab@gmail.com" as string,
 } as const;
 
+// รูปแบรนด์โฮสต์บน Cloudflare R2 (custom domain) — path ต้องตรงกับ public/v1/ เดิม (v1/<ชื่อไฟล์>)
+// ไฟล์เดิมใน public/v1/ ยังอยู่เพื่อ rollback: เปลี่ยน ASSETS_BASE กลับเป็น "" ก็ใช้ same-origin ได้ทันที
+export const ASSETS_BASE = "https://assets.rovlab.app";
+export const LOGO_64_URL = `${ASSETS_BASE}/v1/logo-64.webp`;
+
 // Official Ko-fi page for voluntary donations (Home support block). Set to "" to hide the Ko-fi block.
 export const KOFI_URL = "https://ko-fi.com/rovlab" as string;
 

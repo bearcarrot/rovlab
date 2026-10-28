@@ -2,7 +2,7 @@
 // Every external dependency (font, hero icons) is optional: if it fails the card still renders.
 // Look & colours mirror the in-app share PNGs (src/lib/share-image/theme.ts = tailwind.config.ts).
 
-import { OG_HEIGHT, OG_WIDTH, SITE } from "./html";
+import { ASSETS_SITE, OG_HEIGHT, OG_WIDTH, SITE } from "./html";
 
 export const GOLD = "#E8A33D";
 export const BLUE = "#4C8DFF";
@@ -89,8 +89,8 @@ export async function iconDataUri(url: string | null): Promise<string | null> {
   return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(abs)}&w=128&h=128&fit=cover&output=png`);
 }
 
-// Full wordmark logo (640x362 PNG, 175 KB). Old square logo stays at /logo.png for rollback.
-export const loadLogo = (): Promise<string | null> => iconDataUri(`${SITE}/v1/logo-share.png`);
+// Full wordmark logo (640x362 PNG, 175 KB), served from R2 (same path as public/v1/logo-share.png, which stays for rollback).
+export const loadLogo = (): Promise<string | null> => iconDataUri(`${ASSETS_SITE}/v1/logo-share.png`);
 
 /** Square hero tile: icon when it could be loaded, otherwise the first two letters of the hero name. */
 export function heroTile(o: {
