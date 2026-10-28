@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { proxyUrlFor } from "@/lib/restProxy";
+import { isCacheBypassed } from "@/lib/ttlCache";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -10,13 +11,15 @@ const REST_BASE = `${url ?? ""}/rest/v1/`;
 
 // Public reads of a few shared tables (hero list, stats, tier lists, draft relations, balance changes) go through /api/sb, an edge
 // handler whose responses Vercel's CDN keeps for several minutes, so Supabase serves a cache miss instead of every visitor.
-// Only for logged-out visitors (Authorization = anon key: the data is the same for everyone) and only in production builds.
+// For logged-out visitors (Authorization = anon key) and for signed-in non-admins: every proxied table is `using (true)` for all roles,
+// so the rows are the same for everyone. Admins (cache bypass, see useIsAdmin) always go direct so they see their own edits. Production builds only.
 // Any problem with the proxy (not deployed, 4xx/5xx, not JSON, network error) falls back to the normal direct request.
 function fetchPublic(input: string, init?: RequestInit): Promise<Response> {
   try {
     if (import.meta.env.PROD && (!init?.method || init.method === "GET")) {
       const h = new Headers(init?.headers);
-      if (h.get("authorization") === `Bearer ${anonKey}`) {
+      const auth = h.get("authorization") ?? "";
+      if (auth === `Bearer ${anonKey}` || (auth.startsWith("Bearer ") && !isCacheBypassed())) {
         const proxy = proxyUrlFor(input, REST_BASE, h);
         if (proxy) {
           return fetch(proxy, { headers: { Accept: "application/json" }, signal: init?.signal ?? undefined }).then(

@@ -21,6 +21,7 @@ export const PROXY_TTL: Record<string, [number, number]> = {
   hero_balance_changes: [600, 3600],
   hero_counters: [1800, 86400],
   hero_synergies: [1800, 86400],
+  hero_abilities: [1800, 86400],
 };
 
 const MAX_QUERY = 2000;
