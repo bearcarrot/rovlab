@@ -29,8 +29,9 @@ export const FONT_BODY = '"IBM Plex Sans Thai", "Inter", sans-serif';
 
 export const SITE_LABEL = "RoV LAB";
 export const SITE_URL = "rovlab.app";
-// โลโก้เต็ม (แนวกว้าง) อยู่ใน public/v1/ (same-origin) จึงวาดลง Canvas แล้ว export ได้โดยไม่ติด CORS
-// ไฟล์เดิม /logo.png ยังอยู่ใน public/ เพื่อใช้ rollback
-export const LOGO_URL = "/v1/logo-share.png";
+// โลโก้เต็ม (แนวกว้าง) โฮสต์บน R2 (assets.rovlab.app/v1/) — วาดลง Canvas แล้ว export ได้เพราะ R2 ตั้ง CORS ให้ origin ของเว็บ
+// และ assets.ts โหลดด้วย crossOrigin="anonymous" ถ้าโหลดไม่ได้ drawLogo จะวาดข้อความ "RoV LAB" แทน
+// ไฟล์เดิม /v1/logo-share.png ยังอยู่ใน public/ เพื่อใช้ rollback
+export const LOGO_URL = "https://assets.rovlab.app/v1/logo-share.png";
 export const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
 export const CREDIT_TH = "ชื่อและไอคอนฮีโร่เป็นลิขสิทธิ์ของเจ้าของเกม · RoV LAB เป็นโปรเจกต์ชุมชนอิสระ";

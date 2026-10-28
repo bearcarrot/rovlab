@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { HeroHelmetIcon } from "@/components/HeroHelmetIcon";
 import { cn } from "@/lib/utils";
+import { LOGO_64_URL } from "@/lib/siteConfig";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 
@@ -73,7 +74,7 @@ export function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => 
       >
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <img src="/v1/logo-64.webp" alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
+            <img src={LOGO_64_URL} alt="RoV LAB" width={32} height={32} className="h-8 w-8 shrink-0" />
             <span className="font-display text-lg font-semibold">RoV LAB</span>
           </div>
           <button
