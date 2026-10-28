@@ -13,15 +13,15 @@ export const config = { runtime: "edge" };
 // table -> [s-maxage, stale-while-revalidate] in seconds. Keep the table names in step with PROXY_TABLES in src/lib/restProxy.ts
 // (tests/lib/restProxy.test.ts checks they match).
 export const PROXY_TTL: Record<string, [number, number]> = {
-  heroes: [600, 3600],
-  hero_stats: [600, 3600],
-  patches: [600, 3600],
-  tier_lists: [600, 3600],
-  tier_list_entries: [600, 3600],
-  hero_balance_changes: [600, 3600],
-  hero_counters: [1800, 86400],
-  hero_synergies: [1800, 86400],
-  hero_abilities: [1800, 86400],
+  heroes: [1800, 86400],
+  hero_stats: [1800, 86400],
+  patches: [1800, 86400],
+  tier_lists: [1800, 86400],
+  tier_list_entries: [1800, 86400],
+  hero_balance_changes: [1800, 86400],
+  hero_counters: [21600, 86400],
+  hero_synergies: [21600, 86400],
+  hero_abilities: [21600, 86400],
 };
 
 const MAX_QUERY = 2000;

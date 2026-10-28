@@ -9,6 +9,19 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 
 const REST_BASE = `${url ?? ""}/rest/v1/`;
 
+// Every other PostgREST call (user data, RPCs, writes) goes out through the same-origin `/sb-rest/*` rewrite in vercel.json, which Vercel
+// forwards to Supabase /rest/v1/*. Same origin means the browser sends no CORS preflight, and each preflight was its own API-gateway log
+// line (about 40% of all lines). Production builds only; auth/storage/functions/realtime are untouched. If the same-origin request itself
+// fails to connect, a GET/HEAD is retried straight against Supabase (never a write, which could already have been applied).
+function restFetch(input: string, init?: RequestInit): Promise<Response> {
+  if (!import.meta.env.PROD || !input.startsWith(REST_BASE)) return fetch(input, init);
+  const method = (init?.method ?? "GET").toUpperCase();
+  return fetch(`/sb-rest/${input.slice(REST_BASE.length)}`, init).catch((e) => {
+    if (method === "GET" || method === "HEAD") return fetch(input, init);
+    throw e;
+  });
+}
+
 // Public reads of a few shared tables (hero list, stats, tier lists, draft relations, balance changes) go through /api/sb, an edge
 // handler whose responses Vercel's CDN keeps for several minutes, so Supabase serves a cache miss instead of every visitor.
 // For logged-out visitors (Authorization = anon key) and for signed-in non-admins: every proxied table is `using (true)` for all roles,
@@ -23,8 +36,8 @@ function fetchPublic(input: string, init?: RequestInit): Promise<Response> {
         const proxy = proxyUrlFor(input, REST_BASE, h);
         if (proxy) {
           return fetch(proxy, { headers: { Accept: "application/json" }, signal: init?.signal ?? undefined }).then(
-            (res) => (res.ok && (res.headers.get("content-type") ?? "").includes("json") ? res : fetch(input, init)),
-            () => fetch(input, init),
+            (res) => (res.ok && (res.headers.get("content-type") ?? "").includes("json") ? res : restFetch(input, init)),
+            () => restFetch(input, init),
           );
         }
       }
@@ -32,7 +45,7 @@ function fetchPublic(input: string, init?: RequestInit): Promise<Response> {
   } catch {
     // fall through to a direct request
   }
-  return fetch(input, init);
+  return restFetch(input, init);
 }
 
 // คำขอข้อมูลอ้างอิงของหน้าแรกถูกยิงล่วงหน้าจากสคริปต์ใน index.html (window.__earlyFetch) ตั้งแต่ parse HTML
