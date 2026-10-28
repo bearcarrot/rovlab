@@ -1,3 +1,5 @@
+import { ASSETS_BASE } from "../siteConfig";
+
 // ค่าสีตรงกับ tailwind.config.ts (colors.*) — แก้ที่นั่นแล้วต้องแก้ที่นี่ด้วย เพราะ Canvas อ่านคลาส Tailwind ไม่ได้
 export const COLORS = {
   bg: "#0A0B0E",
@@ -29,9 +31,9 @@ export const FONT_BODY = '"IBM Plex Sans Thai", "Inter", sans-serif';
 
 export const SITE_LABEL = "RoV LAB";
 export const SITE_URL = "rovlab.app";
-// โลโก้เต็ม (แนวกว้าง) โฮสต์บน R2 (assets.rovlab.app/v1/) — วาดลง Canvas แล้ว export ได้เพราะ R2 ตั้ง CORS ให้ origin ของเว็บ
+// โลโก้เต็ม (แนวกว้าง) โฮสต์บน R2 (ASSETS_BASE/v1/) — วาดลง Canvas แล้ว export ได้เพราะ R2 ตั้ง CORS ให้ origin ของเว็บ
 // และ assets.ts โหลดด้วย crossOrigin="anonymous" ถ้าโหลดไม่ได้ drawLogo จะวาดข้อความ "RoV LAB" แทน
-// ไฟล์เดิม /v1/logo-share.png ยังอยู่ใน public/ เพื่อใช้ rollback
-export const LOGO_URL = "https://assets.rovlab.app/v1/logo-share.png";
+// ไฟล์เดิมใน public/v1/ ยังอยู่ เพื่อใช้ rollback (ตั้ง ASSETS_BASE เป็น "" ใน lib/siteConfig.ts)
+export const LOGO_URL = `${ASSETS_BASE}/v1/logo-share.png`;
 export const DISCLAIMER_TH = "ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของเกม";
 export const CREDIT_TH = "ชื่อและไอคอนฮีโร่เป็นลิขสิทธิ์ของเจ้าของเกม · RoV LAB เป็นโปรเจกต์ชุมชนอิสระ";

@@ -2,6 +2,8 @@
 // The HTML is identical for people and crawlers except for the <head> tags, so normal visitors still boot the React app.
 
 export const SITE = "https://rovlab.app";
+// Brand images on Cloudflare R2 (same path layout as public/v1/). Keep in sync with ASSETS_BASE in src/lib/siteConfig.ts.
+export const ASSETS_SITE = "https://assets.rovlab.app";
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
 

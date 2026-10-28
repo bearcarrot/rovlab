@@ -2,7 +2,7 @@
 // so this only runs for slugs with no static file: unknown slug -> real HTTP 404 + noindex (the SPA still shows its own
 // "ไม่พบฮีโร่นี้" state); a real hero missed by the last build -> 200 with correct head tags. Same pattern as api/share-meta.ts.
 
-import { injectMeta, markNoindex, SITE } from "./_share/html";
+import { ASSETS_SITE, injectMeta, markNoindex, SITE } from "./_share/html";
 import { restSelect } from "./_share/supabase";
 
 export const config = { runtime: "edge" };
@@ -46,7 +46,7 @@ export default async function handler(request: Request): Promise<Response> {
       title: `${hero.name} — รายละเอียดฮีโร่ RoV สถิติ สกิล คู่แพ้ทาง | RoV LAB`,
       description: `รายละเอียดฮีโร่ ${hero.name} ใน RoV: สถิติ Win/Pick/Ban Rate, สกิล, จุดแข็ง-จุดอ่อน และฮีโร่ที่ชนะทาง/แพ้ทาง`,
       url: `${SITE}/heroes/${hero.slug}`,
-      image: { url: `${SITE}/v1/og-image.png`, alt: "RoV LAB" },
+      image: { url: `${ASSETS_SITE}/v1/og-image.png`, alt: "RoV LAB" },
       type: "website",
       marker: `/heroes/${hero.slug}`,
     });
