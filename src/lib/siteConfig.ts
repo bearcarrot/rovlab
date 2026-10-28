@@ -12,6 +12,9 @@ export const SITE = {
   contactEmail: "contact.rovlab@gmail.com" as string,
 } as const;
 
+// Official Ko-fi page for voluntary donations (Home support block). Set to "" to hide the Ko-fi block.
+export const KOFI_URL = "https://ko-fi.com/rovlab" as string;
+
 // Date the legal pages were last revised (update when the text changes).
 export const LEGAL_UPDATED = "2026-10-23";
 

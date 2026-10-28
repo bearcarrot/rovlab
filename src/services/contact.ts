@@ -4,15 +4,22 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 // (validated + rate-limited on the server); the table itself is not readable from the client.
 // The admin calls at the bottom are SECURITY DEFINER RPCs that check is_admin() on the server.
 
-export type ContactTopic = "feedback" | "data_error" | "privacy" | "copyright" | "other";
+export type ContactTopic = "feedback" | "data_error" | "privacy" | "copyright" | "advertising" | "other";
 
+// Keep in step with the topic whitelist in supabase/migrations/20261028b_contact_topic_advertising.sql.
 export const CONTACT_TOPICS: { value: ContactTopic; label: string }[] = [
   { value: "feedback", label: "ติชม / เสนอแนะ" },
   { value: "data_error", label: "แจ้งข้อมูลผิดหรือล้าสมัย" },
   { value: "privacy", label: "ข้อมูลส่วนบุคคล / ขอลบบัญชี" },
   { value: "copyright", label: "ลิขสิทธิ์ / ขอให้นำเนื้อหาออก" },
+  { value: "advertising", label: "ลงโฆษณา / ผู้สนับสนุน" },
   { value: "other", label: "อื่น ๆ" },
 ];
+
+// /contact?topic=advertising preselects a topic; anything unknown falls back to the default.
+export function topicFromParam(v: string | null): ContactTopic {
+  return CONTACT_TOPICS.some((t) => t.value === v) ? (v as ContactTopic) : "feedback";
+}
 
 export const MAX_NAME = 80;
 export const MIN_MESSAGE = 10;

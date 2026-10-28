@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Mail, Send } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { validateEmail } from "@/features/auth/email";
@@ -12,6 +12,7 @@ import {
   MAX_NAME,
   MIN_MESSAGE,
   submitContactMessage,
+  topicFromParam,
   type ContactTopic,
 } from "@/services/contact";
 
@@ -21,10 +22,12 @@ const inlineLink = "underline underline-offset-4 hover:text-text";
 // หน้าติดต่อเรา: ฟอร์มส่งข้อความ (ผู้ใช้ทั่วไปส่งได้โดยไม่ต้องล็อกอิน) + อีเมลสำรอง
 export function Contact() {
   const { user, isConfigured } = useAuth();
+  const [params] = useSearchParams();
   const cooldown = useCooldown("contact", 60);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [topic, setTopic] = useState<ContactTopic>("feedback");
+  // ?topic=advertising (จากปุ่ม "สนใจลงโฆษณา" ในหน้าแรก) เลือกหัวข้อให้ล่วงหน้า
+  const [topic, setTopic] = useState<ContactTopic>(() => topicFromParam(params.get("topic")));
   const [message, setMessage] = useState("");
   // honeypot: คนจริงมองไม่เห็นและไม่กรอก บอทที่กรอกทุกช่องจะถูกข้ามแบบเงียบ ๆ
   const [website, setWebsite] = useState("");
@@ -149,6 +152,7 @@ export function Contact() {
               maxLength={MAX_MESSAGE}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              placeholder={topic === "advertising" ? "แนะนำแบรนด์ รูปแบบที่สนใจ และช่วงเวลาที่ต้องการ" : undefined}
               className={`${inputCls} min-h-[140px] resize-y`}
             />
             <span className="block text-right text-xs font-normal text-text-faint">
