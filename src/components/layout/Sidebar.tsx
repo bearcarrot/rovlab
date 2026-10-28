@@ -12,6 +12,7 @@ import {
   Heart,
   Hammer,
   Handshake,
+  Library,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -24,8 +25,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ลำดับเมนูใช้ชุดเดียวกับ MobileDrawer และการ์ดทางลัดในหน้า Home:
-// Draft Assistant → Tier List → Counter Pick → Combo → Matchup → ฮีโร่ทั้งหมด → Item Build → สถิติ → วิเคราะห์เกม → คู่มือ → รายการโปรด
-// (หน้า /game-data ยังอยู่ แต่ไม่แสดงในเมนู)
+// Draft Assistant → Tier List → Counter Pick → Combo → Matchup → ฮีโร่ทั้งหมด → Item Build → คลังข้อมูลเกม → สถิติ → วิเคราะห์เกม → คู่มือ → รายการโปรด
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "หลัก",
@@ -49,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "บิลด์ & ข้อมูลเกม",
     items: [
       { to: "/build", label: "Item Build", icon: Hammer },
+      { to: "/game-data", label: "คลังข้อมูลเกม", icon: Library },
     ],
   },
   {
