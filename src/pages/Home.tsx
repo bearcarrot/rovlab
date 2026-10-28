@@ -26,6 +26,8 @@ import { StatBarRow, type StatTone } from "@/features/stats/StatBarRow";
 import { HeroBalanceBadge } from "@/features/balance/HeroBalanceBadge";
 import { useAuth } from "@/features/auth/AuthContext";
 import { DraftPreviewSlot } from "@/features/draft/DraftPreviewSlot";
+import { AccountCountLine } from "@/features/home/AccountCountLine";
+import { SupportSection } from "@/features/home/SupportSection";
 import { Skeleton } from "@/components/layout/Skeleton";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -125,13 +127,17 @@ export function Home() {
 
   return (
     <div className="space-y-12 pb-4">
-      <Hero
-        metaLabel={metaLabel}
-        heroCount={data ? data.length : null}
-        topTierCount={topTierCount}
-        patch={meta.patch}
-        rankLabel={RANK_LABEL[rank]}
-      />
+      {/* Hero + บรรทัดจำนวนบัญชี (บรรทัดนี้ซ่อนตัวเองถ้าไม่มีค่าที่ใช้ได้) */}
+      <div className="space-y-4">
+        <Hero
+          metaLabel={metaLabel}
+          heroCount={data ? data.length : null}
+          topTierCount={topTierCount}
+          patch={meta.patch}
+          rankLabel={RANK_LABEL[rank]}
+        />
+        <AccountCountLine />
+      </div>
 
       {/* 2. Tools: Draft Assistant leads, the rest follow in the same order as the Sidebar */}
       <section aria-labelledby="tools-heading" className="space-y-4">
@@ -327,6 +333,9 @@ export function Home() {
           <MyMatchesCard />
         </Suspense>
       )}
+
+      {/* 8. สนับสนุนค่าเซิร์ฟเวอร์ (Ko-fi) และพื้นที่ผู้สนับสนุน: ส่วนรองล่างสุด ก่อน Footer */}
+      <SupportSection />
     </div>
   );
 }
