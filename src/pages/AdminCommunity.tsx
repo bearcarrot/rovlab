@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ExternalLink, ShieldCheck, Search, Trash2 } from "lucide-react";
+import { ExternalLink, ShieldCheck, Search, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import {
   deleteCommunityContent,
   listCommunityContent,
@@ -41,6 +41,8 @@ interface Row {
   title: string;
   sub: string;
   hidden: boolean;
+  /** แสดงเฉพาะเมื่อมีคนโหวตอย่างน้อย 1 ครั้ง (draft / tier list เท่านั้น) */
+  votes?: { likes: number; dislikes: number };
 }
 
 const KIND_DETAIL: Record<string, string> = { single: "เกมเดียว", bo3: "BO3", bo5: "BO5", bo7: "BO7" };
@@ -69,8 +71,9 @@ async function loadRows(tab: Tab, search: string): Promise<{ rows: Row[]; capped
     return {
       id: it.id,
       title: it.title,
-      sub: [`โดย ${author}`, detail, `👍 ${it.likes} · 👎 ${it.dislikes}`, `เผยแพร่ ${timeAgo(it.publishedAt)}`].filter(Boolean).join(" · "),
+      sub: [`โดย ${author}`, detail, `เผยแพร่ ${timeAgo(it.publishedAt)}`].filter(Boolean).join(" · "),
       hidden: it.hidden,
+      votes: it.likes + it.dislikes > 0 ? { likes: it.likes, dislikes: it.dislikes } : undefined,
     };
   });
   return { rows, capped: list.length >= MODERATION_LIMIT };
@@ -181,6 +184,18 @@ export function AdminCommunity() {
                     <div className="min-w-0 flex-1">
                       <p className="break-words font-medium">{r.title}</p>
                       <p className="mt-0.5 break-words text-xs text-text-muted">{r.sub}</p>
+                      {r.votes && (
+                        <p className="mt-1 flex items-center gap-3 text-xs text-text-muted">
+                          <span className="inline-flex items-center gap-1" aria-label={`ถูกใจ ${r.votes.likes}`}>
+                            <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                            {r.votes.likes}
+                          </span>
+                          <span className="inline-flex items-center gap-1" aria-label={`ไม่ถูกใจ ${r.votes.dislikes}`}>
+                            <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                            {r.votes.dislikes}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     {r.hidden && (
                       <span className="shrink-0 rounded-full border border-loss/40 px-2 py-0.5 text-[11px] text-loss">ซ่อนอยู่</span>
