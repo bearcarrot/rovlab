@@ -13,6 +13,13 @@ test("public list queries map to /api/sb with the exact query string", () => {
   assert.equal(proxyUrlFor(`${BASE}heroes?${qs}`, BASE, json()), `/api/sb?t=heroes&q=${encodeURIComponent(qs)}`);
 });
 
+test("hero_abilities per-hero reads are proxied; item_builds and announcements are not", () => {
+  const qs = "select=slot%2Cname&hero_id=eq.abc&order=sort_order.asc";
+  assert.equal(proxyUrlFor(`${BASE}hero_abilities?${qs}`, BASE, json()), `/api/sb?t=hero_abilities&q=${encodeURIComponent(qs)}`);
+  assert.equal(proxyUrlFor(`${BASE}item_builds?select=id`, BASE, json()), null);
+  assert.equal(proxyUrlFor(`${BASE}announcements?select=id`, BASE, json()), null);
+});
+
 test("other tables, other shapes and other hosts are never proxied", () => {
   assert.equal(proxyUrlFor(`${BASE}profiles?select=*`, BASE, json()), null);
   assert.equal(proxyUrlFor(`${BASE}rpc/list_comments`, BASE, json()), null);

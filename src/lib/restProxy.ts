@@ -10,6 +10,7 @@ export const PROXY_TABLES = [
   "tier_lists",
   "tier_list_entries",
   "hero_balance_changes",
+  "hero_abilities",
 ] as const;
 
 // `input` is the full PostgREST URL supabase-js is about to fetch, `restBase` is `<supabase url>/rest/v1/`.
