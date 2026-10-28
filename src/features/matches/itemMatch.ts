@@ -1,4 +1,5 @@
 import type { ItemSummary } from "@/types/item";
+import type { ImageSource } from "@/lib/share-image/types";
 
 // Reads which items the user bought from the item icons on the scoreboard screenshot ("ประวัติการเล่น" page).
 // Runs in the browser on the ORIGINAL file; nothing is uploaded and Gemini is not involved (no quota).
@@ -99,6 +100,11 @@ export function guessSlot(v: number[], templates: ItemTemplate[]): SlotGuess {
   return { slug, margin: second - best };
 }
 
+/** An <img> reports its size as natural*; an ImageBitmap (made by the loader's fetch fallback) only has width/height. */
+export function sourceSize(s: { naturalWidth?: number; naturalHeight?: number; width: number; height: number }): { w: number; h: number } {
+  return { w: s.naturalWidth || s.width, h: s.naturalHeight || s.height };
+}
+
 // ---- browser-only part (canvas) ----
 
 function makeCtx(): CanvasRenderingContext2D {
@@ -118,33 +124,32 @@ function iconVector(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sx: n
   return v;
 }
 
-const loadImage = (src: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous"; // the icon bucket is public with CORS, which getImageData needs
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("icon"));
-    img.src = src;
-  });
-
 let templatesPromise: Promise<ItemTemplate[]> | null = null;
 
 export function loadTemplates(items: ItemSummary[]): Promise<ItemTemplate[]> {
   templatesPromise ??= (async () => {
+    // The same loader as the share images: <img> with CORS, then a CORS fetch, then ONE fetch that skips the browser cache.
+    // That last step matters because a copy of an icon cached earlier by a plain <img> (no Access-Control-Allow-Origin) makes
+    // every CORS request fail until the user clears the cache. Imported here, not at the top, so the pure helpers above can
+    // still be imported by the node tests (the "@/" alias does not resolve there).
+    const { loadImages } = await import("@/lib/share-image/assets");
+    const withIcon = items.filter((i) => i.icon);
+    const images: Map<string, ImageSource | null> = await loadImages(withIcon.map((i) => i.icon));
     const ctx = makeCtx();
     const out: ItemTemplate[] = [];
-    await Promise.all(
-      items
-        .filter((i) => i.icon)
-        .map(async (it) => {
-          try {
-            const img = await loadImage(it.icon);
-            out.push({ slug: it.slug, u: unit(iconVector(ctx, img, 0, 0, img.naturalWidth, img.naturalHeight)) });
-          } catch {
-            /* one missing icon only makes that item unguessable */
-          }
-        }),
-    );
+    for (const it of withIcon) {
+      const img = images.get(it.icon);
+      if (!img) continue; // one missing icon only makes that item unguessable
+      try {
+        const { w, h } = sourceSize(img);
+        out.push({ slug: it.slug, u: unit(iconVector(ctx, img, 0, 0, w, h)) });
+      } catch {
+        /* same: this item only */
+      }
+    }
+    // A partial set is not kept for the whole session: the next scan builds it again and retries the icons that failed.
+    // Loaded icons stay in the loader's cache and failed ones are not requested again for a few minutes, so this is cheap.
+    if (out.length < withIcon.length) templatesPromise = null;
     return out;
   })().catch((e) => {
     templatesPromise = null; // allow retry
