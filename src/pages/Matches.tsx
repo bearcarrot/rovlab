@@ -15,6 +15,8 @@ import { MatchAnalytics } from "@/features/matches/MatchAnalytics";
 import { ScanReview } from "@/features/matches/ScanReview";
 import { MyItemsEditor, type ItemSlots } from "@/features/matches/MyItemsEditor";
 import { MatchCard } from "@/features/matches/MatchCard";
+import { MatchPager } from "@/features/matches/MatchPager";
+import { clampPage, pageSlice } from "@/features/matches/paginate";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/layout/Skeleton";
@@ -78,6 +80,9 @@ export function Matches() {
   const [showExisting, setShowExisting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MatchRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // The saved-matches list is shown 20 at a time; the analytics above it still use every loaded match.
+  const [page, setPage] = useState(1);
+  const listRef = useRef<HTMLElement>(null);
   // Opt-in to the anonymous community item statistics, asked per match and never pre-ticked.
   const [shareItems, setShareItems] = useState(false);
   // every blob: URL made for the review preview, so leaving the page frees them all
@@ -87,6 +92,8 @@ export function Matches() {
   const heroes = heroesQ.status === "success" ? heroesQ.data : NO_HEROES;
   const itemList = itemsQ.status === "success" ? itemsQ.data : NO_ITEMS;
   const matches = matchesQ.status === "success" ? matchesQ.data : NO_MATCHES;
+  const safePage = clampPage(page, matches.length); // a deletion or refetch can leave the stored page past the end
+  const pageMatches = pageSlice(matches, safePage);
   const iconById = useMemo(() => new Map(heroes.map((h) => [h.id, h.icon])), [heroes]);
   const itemBySlug = useMemo(() => new Map(itemList.map((it) => [it.slug, it])), [itemList]);
   const current = phase.kind === "review" ? phase.items[phase.index] : null;
@@ -175,6 +182,7 @@ export function Matches() {
     if (phase.kind !== "review" || phase.index + 1 >= phase.items.length) {
       if (historyStale.current) {
         historyStale.current = false;
+        setPage(1); // the newest saved match is at the top of page 1
         matchesQ.refetch();
       }
     }
@@ -257,6 +265,13 @@ export function Matches() {
       setDeleting(false);
       setPendingDelete(null);
     }
+  }
+
+  // The heading is above the cards, so it stays put while the page changes: scroll back to it, or the user is left at the bottom.
+  function goToPage(p: number) {
+    setPage(p);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    listRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }
 
   const scanning = phase.kind === "scanning";
@@ -454,10 +469,10 @@ export function Matches() {
       {matches.length > 0 && <MatchAnalytics matches={matches} iconById={iconById} loadLimit={MATCH_LOAD_LIMIT} />}
 
       {matches.length > 0 && (
-        <section aria-labelledby="list-heading" className="space-y-3">
+        <section ref={listRef} aria-labelledby="list-heading" className="scroll-mt-20 space-y-3">
           <h2 id="list-heading" className="font-display text-base font-semibold">แมตช์ที่บันทึก</h2>
           <ul className="space-y-2">
-            {matches.map((m, idx) => (
+            {pageMatches.map((m, idx) => (
               <MatchCard
                 key={m.id}
                 match={m}
@@ -465,10 +480,11 @@ export function Matches() {
                 itemBySlug={itemBySlug}
                 onDelete={requestDelete}
                 deleting={deleting && pendingDelete?.id === m.id}
-                defaultOpen={idx === 0}
+                defaultOpen={safePage === 1 && idx === 0}
               />
             ))}
           </ul>
+          <MatchPager page={safePage} total={matches.length} onPage={goToPage} />
         </section>
       )}
 
