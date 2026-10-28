@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CONFIDENT_MARGIN, guessSlot, isFlat, layoutFits, slotBox, unit } from "../../src/features/matches/itemMatch.ts";
+import { CONFIDENT_MARGIN, guessSlot, isFlat, layoutFits, slotBox, sourceSize, unit } from "../../src/features/matches/itemMatch.ts";
 
 // Run: node --experimental-strip-types --test tests/matches/itemMatch.test.ts  (the canvas part is browser-only and not covered)
 let seed = 7;
@@ -61,4 +61,9 @@ test("slot boxes: scaled by the height and centred horizontally", () => {
   // a wider picture only moves everything right by half of the extra width
   const narrow = slotBox(2576, 1191, 2, 1), wide = slotBox(2576 + 100, 1191, 2, 1);
   near(wide.cx - narrow.cx, 50, 0.01); near(wide.cy, narrow.cy, 0.01);
+});
+
+test("icon size: natural size of an <img>, or width/height of an ImageBitmap from the fetch fallback", () => {
+  assert.deepEqual(sourceSize({ naturalWidth: 64, naturalHeight: 48, width: 0, height: 0 }), { w: 64, h: 48 }); // <img>
+  assert.deepEqual(sourceSize({ width: 128, height: 96 }), { w: 128, h: 96 }); // ImageBitmap has no natural*
 });
