@@ -1,9 +1,10 @@
 // รายการ Encodeparam ฝั่งหน้า admin — สำเนาของ supabase/functions/game-fetch/eplist.ts (แก้สองที่ให้ตรงกัน)
-// รองรับ ["ค่า1","ค่า2"] | [{"label","value","at"?}] | {"A":"...","B":"..."} เหมือน index.php เดิม
+// รองรับ ["ค่า1","ค่า2"] | [{"label","value","at"?,"itop"?}] | {"A":"...","B":"..."} เหมือน index.php เดิม
+// itop = Msdk-Itopencodeparam ของเซสชันเดียวกับ EP นั้น (ไม่บังคับ)
 
-export type EpItem = { label: string; value: string; at: number | null };
+export type EpItem = { label: string; value: string; at: number | null; itop?: string };
 // ค่าที่เก็บในเบราว์เซอร์: at เสมอมีค่า (ถ้าไฟล์ไม่มี at จะใช้เวลานำเข้า และ est = true)
-export type StoredEp = { label: string; value: string; at: number; est?: true };
+export type StoredEp = { label: string; value: string; at: number; est?: true; itop?: string };
 
 export const EP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -22,7 +23,9 @@ export function parseEpList(input: unknown): EpItem[] {
       const o = v as Record<string, unknown>;
       if (typeof o.value === "string" && o.value.trim() !== "") {
         const at = typeof o.at === "number" && Number.isFinite(o.at) && o.at > 0 ? o.at : null;
-        out.push({ label: typeof o.label === "string" && o.label !== "" ? o.label : `EP ${n}`, value: o.value.trim(), at });
+        const item: EpItem = { label: typeof o.label === "string" && o.label !== "" ? o.label : `EP ${n}`, value: o.value.trim(), at };
+        if (typeof o.itop === "string" && o.itop.trim() !== "") item.itop = o.itop.trim();
+        out.push(item);
       }
     }
   }
@@ -39,7 +42,12 @@ export function parseEpText(text: string, now: number = Date.now()): StoredEp[] 
   }
   const items = parseEpList(json);
   if (items.length === 0) throw new Error("ไม่พบ Encodeparam ในไฟล์");
-  return items.map((it) => (it.at != null ? { label: it.label, value: it.value, at: it.at } : { label: it.label, value: it.value, at: now, est: true }));
+  return items.map((it) => {
+    const o: StoredEp = { label: it.label, value: it.value, at: it.at ?? now };
+    if (it.at == null) o.est = true;
+    if (it.itop) o.itop = it.itop;
+    return o;
+  });
 }
 
 // ท้ายค่า EP ไว้ระบุตัว (ไม่โชว์ค่าเต็ม)

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { epError, parseEpList as parseFn } from "../../supabase/functions/game-fetch/eplist.ts";
+import { epError, itopError, parseEpList as parseFn } from "../../supabase/functions/game-fetch/eplist.ts";
 import { epAge, epExpired, epTail, parseEpList, parseEpText } from "../../src/lib/epList.ts";
 
 // Run: node --experimental-strip-types --test tests/game-fetch/eplist.test.ts  (Node >= 22.6, no extra deps)
@@ -18,6 +18,18 @@ for (const [name, parse] of [["function", parseFn], ["web", parseEpList]] as con
     assert.deepEqual(r.map((e) => [e.label, e.at]), [["A", 1760000000000], ["B", null]]);
     assert.deepEqual(parse("not a list"), []);
     assert.deepEqual(parse(null), []);
+  });
+
+  test(`E7 [${name}] keeps "itop" only when it is a non-empty string (key omitted otherwise)`, () => {
+    const r = parse([
+      { label: "A", value: "x", itop: " ii " },
+      { label: "B", value: "y", itop: "  " },
+      { label: "C", value: "z" },
+      { label: "D", value: "w", itop: 5 },
+      "plain",
+    ]);
+    assert.equal(r[0].itop, "ii");
+    for (const e of r.slice(1)) assert.equal("itop" in e, false);
   });
 }
 
@@ -47,4 +59,18 @@ test("E6 epError rejects empty, oversized and control characters", () => {
   assert.ok(epError(undefined));
   assert.ok(epError("a".repeat(4097)));
   assert.ok(epError("abc\r\nX-Evil: 1"));
+});
+
+test("E8 parseEpText carries itop of each pair into the stored item", () => {
+  const r = parseEpText('[{"label":"A","value":"x","at":1,"itop":"ii"},{"label":"B","value":"y","at":2}]', 5);
+  assert.deepEqual(r, [{ label: "A", value: "x", at: 1, itop: "ii" }, { label: "B", value: "y", at: 2 }]);
+});
+
+test("E9 itopError is optional but rejects oversized and control characters", () => {
+  assert.equal(itopError(undefined), null);
+  assert.equal(itopError(""), null);
+  assert.equal(itopError("ABC123"), null);
+  assert.ok(itopError(5));
+  assert.ok(itopError("a".repeat(4097)));
+  assert.ok(itopError("abc\r\nX-Evil: 1"));
 });

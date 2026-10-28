@@ -12,10 +12,11 @@ const db: any = supabase;
 type Mode = "paste" | "file" | "url";
 type Meta = { via: string; status: number; ms: number };
 export type GameHero = { id: number; name: string }; // id = heroes.hero_id
-type UrlEp = { index: number; label: string; at: number | null; tail: string };
+type UrlEp = { index: number; label: string; at: number | null; tail: string; has_itop?: boolean };
 type RankKey = "all" | "high";
 
 const KEY_PASTE = "rov_encode_param"; // ชื่อคีย์เดียวกับตัวดึงเดิม index.php
+const KEY_ITOP = "rov_itop_param"; // Msdk-Itopencodeparam ที่คู่กับ EP ที่วางเอง
 const KEY_LIST = "rov_ep_list";
 const KEY_IDX = "rov_ep_idx";
 const KEY_USED = "rov_ep_used"; // { ท้ายค่า EP: เวลาที่ใช้ล่าสุด }
@@ -69,6 +70,7 @@ export function GameFetchCard({
   const [mode, setMode] = useState<Mode>("paste");
   const [rankKey, setRankKey] = useState<RankKey>("high");
   const [paste, setPaste] = useState("");
+  const [pasteItop, setPasteItop] = useState("");
   const [list, setList] = useState<StoredEp[]>([]);
   const [idx, setIdx] = useState(0);
   const [urlList, setUrlList] = useState<UrlEp[] | null>(null);
@@ -81,6 +83,7 @@ export function GameFetchCard({
 
   useEffect(() => {
     setPaste(lsGet(KEY_PASTE));
+    setPasteItop(lsGet(KEY_ITOP));
     const saved = lsJson<StoredEp[]>(KEY_LIST, []);
     setList(Array.isArray(saved) ? saved : []);
     const i = parseInt(lsGet(KEY_IDX) || "0", 10);
@@ -134,21 +137,33 @@ export function GameFetchCard({
     lsSet(KEY_USED, JSON.stringify(next));
   }
 
-  // เลือก EP ตามโหมดที่เปิดอยู่ → ส่วนของ body ที่ต้องแนบ (ไม่มี EP = เตือนด้วย toast แล้วคืน null)
+  // ล้าง EP/itop ที่จำไว้ในเบราว์เซอร์นี้ทั้งหมด (ค่าเต็มค้างใน localStorage จนกว่าจะล้าง)
+  function clearSaved() {
+    for (const k of [KEY_PASTE, KEY_ITOP, KEY_LIST, KEY_IDX, KEY_USED]) lsSet(k, "");
+    setPaste("");
+    setPasteItop("");
+    setList([]);
+    setIdx(0);
+    setUsed({});
+    toast.success("ล้าง EP ที่จำไว้ในเบราว์เซอร์นี้แล้ว");
+  }
+
+  // เลือก EP ตามโหมดที่เปิดอยู่ → ส่วนของ body ที่ต้องแนบ (EP + itop คู่กัน; ไม่มี EP = เตือนด้วย toast แล้วคืน null)
   function epPart(): { part: Record<string, unknown>; tail: string } | null {
     if (mode === "paste") {
       if (!paste.trim()) {
         toast.error("วาง Encodeparam ก่อน");
         return null;
       }
-      return { part: { ep: paste.trim() }, tail: epTail(paste) };
+      const itop = pasteItop.trim();
+      return { part: { ep: paste.trim(), ...(itop ? { itop } : {}) }, tail: epTail(paste) };
     }
     if (mode === "file") {
       if (!fileEp) {
         toast.error("ยังไม่ได้โหลดไฟล์ ep.json");
         return null;
       }
-      return { part: { ep: fileEp.value }, tail: epTail(fileEp.value) };
+      return { part: { ep: fileEp.value, ...(fileEp.itop ? { itop: fileEp.itop } : {}) }, tail: epTail(fileEp.value) };
     }
     if (!urlEp) {
       toast.error("โหลดรายการ EP จาก URL ก่อน");
@@ -213,9 +228,9 @@ export function GameFetchCard({
   // ข้อมูลของ EP ที่เลือกอยู่ (โหมดไฟล์/URL) สำหรับแถวตัวสลับ
   const cur =
     mode === "file" && fileEp
-      ? { label: `${list.indexOf(fileEp) + 1}/${list.length} · ${fileEp.label}`, tail: epTail(fileEp.value), at: fileEp.at, est: fileEp.est }
+      ? { label: `${list.indexOf(fileEp) + 1}/${list.length} · ${fileEp.label}`, tail: epTail(fileEp.value), at: fileEp.at, est: fileEp.est, itop: Boolean(fileEp.itop) }
       : mode === "url" && urlEp && urlList
-        ? { label: `${urlIdx + 1}/${urlList.length} · ${urlEp.label}`, tail: urlEp.tail, at: urlEp.at ?? 0, est: urlEp.at == null }
+        ? { label: `${urlIdx + 1}/${urlList.length} · ${urlEp.label}`, tail: urlEp.tail, at: urlEp.at ?? 0, est: urlEp.at == null, itop: Boolean(urlEp.has_itop) }
         : null;
   const lastUsed = cur ? used[cur.tail] : undefined;
 
@@ -223,7 +238,7 @@ export function GameFetchCard({
     <section className={card}>
       <h2 className="font-display text-base font-semibold">ดึงจากเกมโดยตรง (ทางเลือก)</h2>
       <p className="text-xs text-text-muted">
-        เซิร์ฟเวอร์เป็นคนยิงไปหาเกมให้ ผลที่ได้เข้าขั้นตอนพรีวิว/ยืนยันเดียวกับการเลือกไฟล์ · Encodeparam ส่งเป็น header เท่านั้น ไม่ถูกเก็บฝั่งเซิร์ฟเวอร์
+        เซิร์ฟเวอร์เป็นคนยิงไปหาเกมให้ ผลที่ได้เข้าขั้นตอนพรีวิว/ยืนยันเดียวกับการเลือกไฟล์ · Encodeparam และ Msdk-Itopencodeparam ส่งเป็น header เท่านั้น ไม่ถูกเก็บฝั่งเซิร์ฟเวอร์
       </p>
 
       {kind === "rank" && (
@@ -268,22 +283,41 @@ export function GameFetchCard({
       </div>
 
       {mode === "paste" && (
-        <div>
-          <label htmlFor="gf-ep" className="mb-1.5 block text-xs font-medium text-text-muted">
-            Encodeparam (จำไว้ในเบราว์เซอร์นี้)
-          </label>
-          <textarea
-            id="gf-ep"
-            rows={3}
-            spellCheck={false}
-            className={ctl}
-            value={paste}
-            onChange={(e) => {
-              setPaste(e.target.value);
-              lsSet(KEY_PASTE, e.target.value.trim());
-            }}
-            placeholder="วาง Encodeparam ที่นี่"
-          />
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="gf-ep" className="mb-1.5 block text-xs font-medium text-text-muted">
+              Encodeparam (จำไว้ในเบราว์เซอร์นี้)
+            </label>
+            <textarea
+              id="gf-ep"
+              rows={3}
+              spellCheck={false}
+              className={ctl}
+              value={paste}
+              onChange={(e) => {
+                setPaste(e.target.value);
+                lsSet(KEY_PASTE, e.target.value.trim());
+              }}
+              placeholder="วาง Encodeparam ที่นี่"
+            />
+          </div>
+          <div>
+            <label htmlFor="gf-itop" className="mb-1.5 block text-xs font-medium text-text-muted">
+              Msdk-Itopencodeparam (ไม่บังคับ · ต้องเป็นของเซสชันเดียวกับ EP · เว้นว่าง = ใช้ค่าใน secret)
+            </label>
+            <textarea
+              id="gf-itop"
+              rows={2}
+              spellCheck={false}
+              className={ctl}
+              value={pasteItop}
+              onChange={(e) => {
+                setPasteItop(e.target.value);
+                lsSet(KEY_ITOP, e.target.value.trim());
+              }}
+              placeholder="วาง Msdk-Itopencodeparam คู่กับ EP ข้างบน"
+            />
+          </div>
         </div>
       )}
 
@@ -319,6 +353,7 @@ export function GameFetchCard({
               {cur.at ? ` · อายุ ${epAge(cur.at)}${cur.est ? " (นับจากเวลาที่นำเข้า)" : ""}` : ""}
             </span>
             {cur.at > 0 && epExpired(cur.at) && <span className="block text-xs text-loss">เกิน 24 ชม. แล้ว อาจหมดอายุ</span>}
+            {!cur.itop && <span className="block text-xs text-loss">EP นี้ไม่มี itop คู่กัน — จะใช้ค่าใน secret (อาจไม่ตรงเซสชัน)</span>}
           </div>
           <button type="button" aria-label="ถัดไป" onClick={() => move(1)} className={`${btn} w-12 border border-border bg-bg-raised px-0`}>
             <ChevronRight className="h-4 w-4" />
@@ -356,6 +391,15 @@ export function GameFetchCard({
           <Download className="h-4 w-4" /> {busy ? "กำลังดึง..." : kind === "rank" ? `ดึงสถิติแรงก์ ${rankKey}` : "ดึงประวัติปรับบาลานซ์"}
         </button>
       )}
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={clearSaved}
+        className="block text-xs text-text-muted underline underline-offset-2 transition hover:text-text disabled:opacity-50"
+      >
+        ล้าง EP ที่จำไว้ในเบราว์เซอร์นี้
+      </button>
     </section>
   );
 }

@@ -1,15 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { epError, parseEpList, type EpItem } from "./eplist.ts";
+import { epError, itopError, parseEpList, type EpItem } from "./eplist.ts";
 
 // ดึงสถิติแรงก์ (getranklist) / ประวัติปรับบาลานซ์ (getlatestadjustlist) / สกิลของฮีโร่ (skills) จากเซิร์ฟเวอร์เกมแทนหน้า index.php เดิม
 // ไม่เขียน DB เอง — หน้า Admin นำผลไป parse/พรีวิว แล้วเรียก RPC admin_import_* ที่มีอยู่ (เหมือน pro-stats)
-// เฉพาะแอดมิน (is_admin ด้วย JWT ผู้เรียก) · client ส่งได้แค่ kind/rank_key/EP — URL และ body ประกอบฝั่งนี้เอง (กัน SSRF)
-// Encodeparam คือ credential ของเซสชัน: ไม่ log ไม่เก็บ ไม่ใส่ query string และส่งเป็น header เท่านั้น
+// เฉพาะ Super Admin (is_super_admin ด้วย JWT ผู้เรียก — แอดมินธรรมดาใช้ไม่ได้) · client ส่งได้แค่ kind/rank_key/EP(+itop)/hero_id — URL และ body ประกอบฝั่งนี้เอง (กัน SSRF)
+// Encodeparam และ Msdk-Itopencodeparam คือ credential ของเซสชัน: ไม่ log ไม่เก็บ ไม่ใส่ query string และส่งเป็น header เท่านั้น
+// Msdk-Itopencodeparam ผูกเป็นคู่กับ EP แต่ละค่า (คนละเซสชันใช้ปนกันไม่ได้ เกมตอบ -5001) จึงส่งมาพร้อม EP (itop)
+//   ถ้าไม่มี itop ส่งมา จะใช้ค่าที่อยู่ใน GAME_API_HEADERS แทน (พฤติกรรมเดิม)
 //
 // Supabase secrets (ตั้งด้วย `supabase secrets set`):
-//   GAME_API_HEADERS  (ไม่บังคับ) JSON ของ header เพิ่มเติม เช่น {"User-Agent":"..."} เท่ากับ api_headers ใน config.php เดิม
+//   GAME_API_HEADERS  (ไม่บังคับ) JSON ของ header คงที่เพิ่มเติม เช่น {"User-Agent":"..."} เท่ากับ api_headers ใน config.php เดิม
+//                     ไม่ควรใส่ Msdk-Itopencodeparam ที่นี่ ถ้าหมุน EP หลายค่า (ให้ไปกับ EP ใน ep.json แทน)
 //   GAME_SKILLS_URL  (ไม่บังคับ) URL https ของ API สกิล ค่าเริ่มต้น https://kgth-api.mobagarena.com/api/hero/getskilllist โฮสต์ต้องลงท้าย .mobagarena.com
 //   GAME_EP_HEADER    (ไม่บังคับ) ชื่อ header ของ Encodeparam, ค่าเริ่มต้น "Encodeparam"
+//   GAME_ITOP_HEADER  (ไม่บังคับ) ชื่อ header ของ itop, ค่าเริ่มต้น "Msdk-Itopencodeparam"
+//   GAME_HERO_HEADER  (ไม่บังคับ) ชื่อ header ที่ใช้ส่ง hero_id ให้ API สกิล, ค่าเริ่มต้น "hero_id"
 //   EP_LIST_URL       (ไม่บังคับ) URL https ของ ep.json บนโฮสต์ของเรา ใช้กับโหมด "URL"
 //   EP_LIST_KEY       (ไม่บังคับ) ส่งเป็น Authorization: Bearer ไปกับ EP_LIST_URL
 
@@ -91,8 +96,9 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const { data: isAdmin } = await sb.rpc("is_admin");
-  if (isAdmin !== true) return json({ error: "ต้องเป็นแอดมินเท่านั้น" }, 403);
+  // ต้องเป็น Super Admin เท่านั้น (แอดมินธรรมดาไม่ผ่าน) — ฝั่งหน้าซ่อนแท็บให้ด้วย แต่นี่คือด่านจริง เพราะ function นี้ถือ credential ของเกม
+  const { data: isSuper } = await sb.rpc("is_super_admin");
+  if (isSuper !== true) return json({ error: "ต้องเป็น Super Admin เท่านั้น" }, 403);
 
   let body: Record<string, unknown>;
   try {
@@ -101,33 +107,44 @@ Deno.serve(async (req) => {
     return json({ error: "คำขอไม่ใช่ JSON" }, 400);
   }
 
-  // รายการ EP จาก URL — คืนเฉพาะ label/อายุ/ท้ายค่า ไม่ส่งค่า EP กลับไปที่เบราว์เซอร์
+  // รายการ EP จาก URL — คืนเฉพาะ label/อายุ/ท้ายค่า/มี itop ไหม ไม่ส่งค่า EP หรือ itop กลับไปที่เบราว์เซอร์
   if (body.action === "list_eps") {
     const r = await loadEpList();
     if ("error" in r) return json({ error: r.error }, r.status);
-    return json({ items: r.items.map((it, index) => ({ index, label: it.label, at: it.at, tail: it.value.slice(-6) })) });
+    return json({
+      items: r.items.map((it, index) => ({ index, label: it.label, at: it.at, tail: it.value.slice(-6), has_itop: Boolean(it.itop) })),
+    });
   }
 
   const kind = body.kind;
   if (kind !== "rank" && kind !== "adjust" && kind !== "skills") return json({ error: "kind ต้องเป็น rank, adjust หรือ skills" }, 400);
 
-  // เลือก EP: ที่ส่งมาตรง ๆ (วางเอง/ไฟล์) หรือลำดับในรายการจาก URL
+  // เลือก EP (+ itop คู่กัน): ที่ส่งมาตรง ๆ (วางเอง/ไฟล์) หรือลำดับในรายการจาก URL
   let ep = "";
+  let itop = "";
   if (typeof body.ep === "string" && body.ep.trim() !== "") {
     ep = body.ep.trim();
+    if (typeof body.itop === "string") itop = body.itop.trim();
   } else if (Number.isInteger(body.ep_index)) {
     const r = await loadEpList();
     if ("error" in r) return json({ error: r.error }, r.status);
     const it = r.items[body.ep_index as number];
     if (!it) return json({ error: "ไม่มี EP ลำดับนี้ในรายการ" }, 400);
     ep = it.value;
+    itop = it.itop ?? "";
   }
   const bad = epError(ep);
   if (bad) return json({ error: bad }, 400);
+  const badItop = itopError(itop);
+  if (badItop) return json({ error: badItop }, 400);
+
+  // ตัดค่า EP/itop ออกจากข้อความที่จะส่งกลับ เผื่อเซิร์ฟเวอร์เกม echo header
+  const scrub = (s: string) => [ep, itop].filter(Boolean).reduce((acc, v) => acc.split(v).join("***"), s);
 
   let url: string;
   let payload: Record<string, unknown>;
   let listKey: "heroList" | "heroAdjustList" | "skillList";
+  let heroId: number | null = null;
   if (kind === "rank") {
     const rk = body.rank_key;
     if (rk !== "all" && rk !== "high") return json({ error: "rank_key ต้องเป็น all หรือ high" }, 400);
@@ -145,11 +162,16 @@ Deno.serve(async (req) => {
     if ("error" in u) return json({ error: u.error }, 500);
     url = u.url;
     payload = { hero_id: hid };
+    heroId = hid as number;
     listKey = "skillList";
   }
 
   const headers = extraHeaders();
   headers.set(Deno.env.get("GAME_EP_HEADER") || "Encodeparam", ep);
+  // itop ที่คู่กับ EP ทับค่าใน GAME_API_HEADERS ถ้าไม่มี คงค่าใน secret ไว้ (พฤติกรรมเดิม)
+  if (itop) headers.set(Deno.env.get("GAME_ITOP_HEADER") || "Msdk-Itopencodeparam", itop);
+  // API สกิลต้องการ hero_id ใน header ด้วย (นอกจาก body)
+  if (heroId !== null) headers.set(Deno.env.get("GAME_HERO_HEADER") || "hero_id", String(heroId));
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
 
@@ -166,8 +188,7 @@ Deno.serve(async (req) => {
   }
   const meta: Meta = { via: "direct", status, ms: Date.now() - t0 };
 
-  // ตัดค่า EP ออกจากข้อความที่จะส่งกลับ เผื่อเซิร์ฟเวอร์เกม echo header
-  const snippet = text.slice(0, 200).split(ep).join("***");
+  const snippet = scrub(text.slice(0, 200));
   if (text.length > MAX_BODY_CHARS) return json({ error: "ผลตอบกลับจากเกมใหญ่ผิดปกติ", meta }, 502);
   let parsed: any = null;
   try {
@@ -179,7 +200,7 @@ Deno.serve(async (req) => {
     return json({ error: `เกมตอบ HTTP ${status}${parsed === null ? " (ไม่ใช่ JSON)" : ""}: ${snippet}`, meta }, 502);
   }
   if (!Array.isArray(parsed?.data?.[listKey]) || parsed.data[listKey].length === 0) {
-    const msg = String(parsed?.msg ?? parsed?.message ?? "").slice(0, 120).split(ep).join("***");
+    const msg = scrub(String(parsed?.msg ?? parsed?.message ?? "").slice(0, 120));
     return json({ error: `ไม่พบ ${listKey} ในผลตอบกลับ (code=${parsed?.code ?? "?"}${msg ? ` ${msg}` : ""}) ลองตรวจ Encodeparam`, meta }, 422);
   }
   return json({ data: parsed, meta });
