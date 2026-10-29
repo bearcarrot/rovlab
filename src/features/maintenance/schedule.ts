@@ -13,8 +13,8 @@ export type MaintenanceConfig = {
 export type FetchResult = { config: MaintenanceConfig; serverNow: string };
 
 export const MAX_TIMER_MS = 2147483647; // setTimeout silently overflows beyond 2^31-1 ms
-export const STALE_MS = 5 * 60_000; // becoming visible again refetches only if the last fetch is older than this
-export const MAX_AGE_MS = 10 * 60_000; // upper bound on staleness for a tab that stays open and visible
+export const STALE_MS = 15 * 60_000; // becoming visible again refetches only if the last fetch is older than this
+export const MAX_AGE_MS = 30 * 60_000; // upper bound on staleness for a tab that stays open and visible
 export const JITTER_MIN_MS = 250;
 export const JITTER_MAX_MS = 3000;
 const EARLY_GUARD_MS = 5; // a timer must never run before the boundary
