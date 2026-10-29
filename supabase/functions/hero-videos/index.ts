@@ -17,7 +17,7 @@ const json = (body: unknown, status = 200) =>
 const DEFAULT_TTL_HOURS = 24;
 const COOLDOWN_MS = 30 * 60 * 1000; // หลัง quota เต็ม/key ใช้ไม่ได้ ไม่ยิงซ้ำถี่ๆ (ต่อ instance)
 let cooldownUntil = 0;
-const inflight = new Map<string, Promise<Result>>(); // ฮีโร่เดียวกันที่แคชหมดพร้อมกัน ยิง YouTube ครั้งเดียว
+const inflight = new Map<string, Promise<r>>(); // ฮีโร่เดียวกันที่แคชหมดพร้อมกัน ยิง YouTube ครั้งเดียว
 
 type Cached = { videos: HeroVideo[]; fetchedAt: string };
 type Result = { status: "ok"; videos: HeroVideo[]; fetchedAt: string; stale: boolean } | { status: "not_configured" | "unavailable" };
@@ -25,6 +25,19 @@ type Result = { status: "ok"; videos: HeroVideo[]; fetchedAt: string; stale: boo
 const ttlMs = () => {
   const h = Number(Deno.env.get("YOUTUBE_CACHE_TTL_HOURS"));
   return (h > 0 ? h : DEFAULT_TTL_HOURS) * 3600 * 1000;
+};
+
+// ลดคำขอ REST ต่อการเรียก (เดิมทุก POST อ่าน heroes + hero_video_cache เสมอ): จำแถวฮีโร่ (ข้อมูลสาธารณะ ไม่ค่อยเปลี่ยน)
+// และผลวิดีโอที่ยัง "สด" ไว้ในหน่วยความจำของ instance หายเมื่อ cold start ซึ่งปลอดภัย แค่กลับไปอ่านตารางตามเดิม
+// ไม่จำผลที่หมดอายุ เพื่อให้การตัดสินใจรีเฟรช (ยิง YouTube) ยังอิงแถวในตารางเสมอ
+const HERO_MEMO_MS = 6 * 3600 * 1000;
+const VIDEO_MEMO_MS = 30 * 60 * 1000;
+type HeroRow = { id: string; name: string; name_th: string | null };
+const heroMemo = new Map<string, { hero: HeroRow; exp: number }>();
+const videoMemo = new Map<string, { cached: Cached; exp: number }>();
+const rememberFresh = (heroId: string, cached: Cached) => {
+  const exp = Math.min(Date.now() + VIDEO_MEMO_MS, Date.parse(cached.fetchedAt) + ttlMs());
+  if (exp > Date.now()) videoMemo.set(heroId, { cached, exp });
 };
 
 Deno.serve(async (req) => {
@@ -39,29 +52,46 @@ Deno.serve(async (req) => {
   if (typeof slug !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)) return json({ error: "invalid slug" }, 400);
 
   const url = Deno.env.get("SUPABASE_URL")!;
-  // ใช้ anon + JWT ผู้เรียกอ่านฮีโร่ (ตามสิทธิ์ปกติ); รับเฉพาะ slug ที่มีจริง จึงยิง YouTube ได้ไม่เกินจำนวนฮีโร่ต่อรอบแคช
-  const sb = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
-  });
-  const { data: hero } = await sb.from("heroes").select("id, name, name_th").eq("slug", slug).maybeSingle();
-  if (!hero) return json({ error: "hero not found" }, 404);
+  let hero: HeroRow;
+  const hm = heroMemo.get(slug);
+  if (hm && hm.exp > Date.now()) {
+    hero = hm.hero;
+  } else {
+    // ใช้ anon + JWT ผู้เรียกอ่านฮีโร่ (ตามสิทธิ์ปกติ); รับเฉพาะ slug ที่มีจริง จึงยิง YouTube ได้ไม่เกินจำนวนฮีโร่ต่อรอบแคช
+    const sb = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    });
+    const { data } = await sb.from("heroes").select("id, name, name_th").eq("slug", slug).maybeSingle();
+    if (!data) return json({ error: "hero not found" }, 404); // ไม่จำผลว่าง: slug ที่ไม่มีจริงยังถูกเช็กกับตารางทุกครั้งเหมือนเดิม
+    hero = data as HeroRow;
+    heroMemo.set(slug, { hero, exp: Date.now() + HERO_MEMO_MS });
+  }
+
+  const vm = videoMemo.get(hero.id);
+  if (vm && vm.exp > Date.now()) return json({ status: "ok", ...vm.cached, stale: false });
 
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: row } = await admin.from("hero_video_cache").select("videos, fetched_at").eq("hero_id", hero.id).maybeSingle();
   const cached: Cached | null = row ? { videos: row.videos as HeroVideo[], fetchedAt: row.fetched_at as string } : null;
 
-  if (cached && Date.now() - Date.parse(cached.fetchedAt) < ttlMs()) return json({ status: "ok", ...cached, stale: false });
+  if (cached && Date.now() - Date.parse(cached.fetchedAt) < ttlMs()) {
+    rememberFresh(hero.id, cached);
+    return json({ status: "ok", ...cached, stale: false });
+  }
 
   // แคชหมดอายุ/ยังไม่มี: ถ้ายิง YouTube ไม่ได้ให้ใช้ของเก่า (stale) ดีกว่าหน้าว่าง
   const fallback = (status: "not_configured" | "unavailable"): Result =>
     cached ? { status: "ok", ...cached, stale: true } : { status };
 
-  let p = inflight.get(hero.id);
+  const heroId = hero.id;
+  let p = inflight.get(heroId);
   if (!p) {
-    p = refresh(hero, cached, admin, fallback).finally(() => inflight.delete(hero.id));
-    inflight.set(hero.id, p);
+    p = refresh(hero, cached, admin, fallback).finally(() => inflight.delete(heroId));
+    inflight.set(heroId, p);
   }
-  return json(await p);
+  const result: Result = await p;
+  if (result.status === "ok" && !result.stale) rememberFresh(heroId, { videos: result.videos, fetchedAt: result.fetchedAt });
+  return json(result);
 });
 
 async function refresh(
@@ -70,7 +100,7 @@ async function refresh(
   // deno-lint-ignore no-explicit-any
   admin: { from: (t: string) => any },
   fallback: (s: "not_configured" | "unavailable") => Result,
-): Promise<Result> {
+): Promise<r> {
   const key = Deno.env.get("YOUTUBE_API_KEY")?.trim();
   if (!key) return fallback("not_configured");
   if (Date.now() < cooldownUntil) return fallback("unavailable");
