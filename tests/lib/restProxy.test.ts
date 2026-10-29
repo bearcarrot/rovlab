@@ -13,6 +13,13 @@ test("public list queries map to /api/sb with the exact query string", () => {
   assert.equal(proxyUrlFor(`${BASE}heroes?${qs}`, BASE, json()), `/api/sb?t=heroes&q=${encodeURIComponent(qs)}`);
 });
 
+test("hero_abilities per-hero reads are proxied; item_builds and announcements are not", () => {
+  const qs = "select=slot%2Cname&hero_id=eq.abc&order=sort_order.asc";
+  assert.equal(proxyUrlFor(`${BASE}hero_abilities?${qs}`, BASE, json()), `/api/sb?t=hero_abilities&q=${encodeURIComponent(qs)}`);
+  assert.equal(proxyUrlFor(`${BASE}item_builds?select=id`, BASE, json()), null);
+  assert.equal(proxyUrlFor(`${BASE}announcements?select=id`, BASE, json()), null);
+});
+
 test("other tables, other shapes and other hosts are never proxied", () => {
   assert.equal(proxyUrlFor(`${BASE}profiles?select=*`, BASE, json()), null);
   assert.equal(proxyUrlFor(`${BASE}rpc/list_comments`, BASE, json()), null);
@@ -57,7 +64,7 @@ test("handler: caches a good answer on the CDN, forwards the query, uses only th
     const res = await handler(new Request(`https://rovlab.app/api/sb?t=heroes&q=${encodeURIComponent(qs)}`));
     assert.equal(res.status, 200);
     assert.equal(await res.text(), '[{"id":1}]');
-    assert.match(res.headers.get("cache-control") ?? "", /s-maxage=600/);
+    assert.match(res.headers.get("cache-control") ?? "", /s-maxage=1800/);
     assert.equal(seen?.url, `https://abc.supabase.co/rest/v1/heroes?${qs}`);
     assert.equal(seen?.headers.apikey, "anon-key");
   }));
@@ -66,7 +73,7 @@ test("handler: draft relations are kept longer than the hero list", () =>
   withEnv(async () => {
     globalThis.fetch = (async () => new Response("[]", { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
     const res = await handler(new Request("https://rovlab.app/api/sb?t=hero_counters&q=select%3Dhero_id"));
-    assert.match(res.headers.get("cache-control") ?? "", /s-maxage=1800/);
+    assert.match(res.headers.get("cache-control") ?? "", /s-maxage=21600/);
   }));
 
 test("handler: rejects other tables, other methods and bad queries; never caches an error", () =>

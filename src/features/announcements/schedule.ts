@@ -2,7 +2,7 @@ import type { Announcement } from "./types";
 
 // Schedule-driven client store (spec section 6). React-free and dependency-injected so it runs under node --experimental-strip-types.
 export const MAX_TIMER_MS = 2147483647; // setTimeout silently overflows beyond 2^31-1 ms
-export const STALE_MS = 60_000;
+export const STALE_MS = 5 * 60_000;
 export const JITTER_MIN_MS = 250;
 export const JITTER_MAX_MS = 3000;
 

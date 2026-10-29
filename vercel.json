@@ -4,6 +4,7 @@
     { "source": "/ai-catalog.json", "destination": "/.well-known/ai-catalog.json", "permanent": false }
   ],
   "rewrites": [
+    { "source": "/sb-rest/:path*", "destination": "https://mttcdaiwuasnkqlxbeqs.supabase.co/rest/v1/:path*" },
     { "source": "/draft/:shareId", "destination": "/api/share-meta?kind=draft&id=:shareId" },
     { "source": "/tier-list/:shareId", "destination": "/api/share-meta?kind=tier-list&id=:shareId" },
     { "source": "/heroes/:slug", "destination": "/api/hero-meta?slug=:slug" },

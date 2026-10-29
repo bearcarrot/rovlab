@@ -182,12 +182,10 @@ function byStrength(a: CounterEntry, b: CounterEntry) {
 async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetail | null> {
   if (!isSupabaseConfigured) return null;
 
-  const { data: row, error } = await supabase
-    .from("heroes")
-    .select(HERO_COLS)
-    .eq("slug", slug)
-    .maybeSingle();
+  // array shape (not .maybeSingle()) so the read can go through the CDN-cached /api/sb proxy; slug is unique
+  const { data: rows, error } = await supabase.from("heroes").select(HERO_COLS).eq("slug", slug).limit(1);
   if (error) throw new Error(error.message);
+  const row = rows?.[0];
   if (!row) return null;
 
   const heroRow = row as unknown as DbHeroRow;

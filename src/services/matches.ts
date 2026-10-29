@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { functionErrorMessage } from "@/lib/functionError";
+import { createMatchListCache } from "@/lib/matchListCache";
 import type { draftToRow } from "@/features/matches/scan";
 import type { MatchRecord, ScanBatchResponse, StoredPlayer } from "@/types/match";
 
@@ -62,8 +63,25 @@ const toRecord = (r: any): MatchRecord => ({
   createdAt: r.created_at,
 });
 
+// A list of up to 100 rows, each with the 10-player `players` JSON, was downloaded again on every visit to Home or Matches
+// and again after every save/delete. It is now kept in memory (see lib/matchListCache.ts); saves and deletes made on this
+// device patch it, so the refetch that follows them costs no request. findSameSlot below is never cached: the duplicate
+// check must see the database.
+const listCache = createMatchListCache();
+
+// The signed-in user's id from the local session (no request unless the token has to be refreshed); null when signed out.
+async function sessionUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
 /** Newest first by the time printed on the scoreboard. */
 export async function listMyMatches(limit = 100): Promise<MatchRecord[]> {
+  const userId = await sessionUserId();
+  if (!userId) listCache.clear();
+  const cached = userId ? listCache.get(userId, limit) : null;
+  if (cached) return cached;
+  const started = listCache.begin();
   const { data, error } = await supabase
     .from("match_results")
     .select(COLS)
@@ -73,7 +91,9 @@ export async function listMyMatches(limit = 100): Promise<MatchRecord[]> {
     console.error("listMyMatches", error);
     throw new Error("โหลดแมตช์ไม่สำเร็จ");
   }
-  return (data ?? []).map(toRecord);
+  const rows = (data ?? []).map(toRecord);
+  if (userId) listCache.put(userId, limit, rows, started);
+  return rows;
 }
 
 /**
@@ -101,11 +121,20 @@ export class DuplicateMatchError extends Error {
 }
 
 export async function saveMatch(row: MatchInsert): Promise<void> {
-  const { error } = await supabase.from("match_results").insert(row);
+  // select() returns the saved row (the same columns and the same own-rows policy as the list), so the cached list can take it.
+  const { data, error } = await supabase.from("match_results").insert(row).select(COLS).single();
   if (error) {
     if (error.code === "23505") throw new DuplicateMatchError();
     console.error("saveMatch", error);
     throw new Error("บันทึกแมตช์ไม่สำเร็จ");
+  }
+  // The insert has succeeded: nothing below may make this function throw (the user would retry and hit the duplicate guard).
+  try {
+    const userId = await sessionUserId();
+    if (userId && data) listCache.add(userId, toRecord(data));
+    else listCache.clear();
+  } catch {
+    listCache.clear();
   }
 }
 
@@ -114,5 +143,12 @@ export async function deleteMatch(id: string): Promise<void> {
   if (error) {
     console.error("deleteMatch", error);
     throw new Error("ลบแมตช์ไม่สำเร็จ");
+  }
+  try {
+    const userId = await sessionUserId();
+    if (userId) listCache.remove(userId, id);
+    else listCache.clear();
+  } catch {
+    listCache.clear();
   }
 }
