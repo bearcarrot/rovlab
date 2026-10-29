@@ -5,8 +5,10 @@ import {
   listCommunityContent,
   listPublishedBuilds,
   MODERATION_LIMIT,
+  RATIO_MIN_VOTES,
   setCommunityHidden,
   type ModerationKind,
+  type ModerationSort,
 } from "@/services/adminModeration";
 import { buildError, deleteBuild, setBuildHidden } from "@/services/userBuilds";
 import { useAsync } from "@/hooks/useAsync";
@@ -25,6 +27,11 @@ const TABS: [Tab, string][] = [
   ["draft", "Draft"],
   ["tier_list", "Tier List"],
   ["build", "Item Build"],
+];
+const SORTS: [ModerationSort, string][] = [
+  ["newest", "ล่าสุด"],
+  ["dislikes", "ไม่ถูกใจมากสุด"],
+  ["ratio", "สัดส่วนไม่ถูกใจสูงสุด"],
 ];
 const NOUN: Record<Tab, string> = { draft: "Draft", tier_list: "Tier List", build: "บิลด์" };
 const HREF: Record<Tab, string> = { draft: "/draft/", tier_list: "/tier-list/", build: "/build/view/" };
@@ -47,7 +54,7 @@ interface Row {
 
 const KIND_DETAIL: Record<string, string> = { single: "เกมเดียว", bo3: "BO3", bo5: "BO5", bo7: "BO7" };
 
-async function loadRows(tab: Tab, search: string): Promise<{ rows: Row[]; capped: boolean }> {
+async function loadRows(tab: Tab, search: string, sort: ModerationSort): Promise<{ rows: Row[]; capped: boolean }> {
   if (tab === "build") {
     const needle = search.trim().toLowerCase();
     const list = await listPublishedBuilds();
@@ -61,7 +68,7 @@ async function loadRows(tab: Tab, search: string): Promise<{ rows: Row[]; capped
       }));
     return { rows, capped: list.length >= 200 };
   }
-  const list = await listCommunityContent(tab, search);
+  const list = await listCommunityContent(tab, search, sort);
   const rows = list.map((it) => {
     const author = it.authorName || (it.handle ? `@${it.handle}` : "ผู้ใช้");
     const detail =
@@ -81,14 +88,18 @@ async function loadRows(tab: Tab, search: string): Promise<{ rows: Row[]; capped
 
 // แท็บ Community ในหน้าแอดมิน: ซ่อน / ลบถาวร Community Draft, Community Tier List และ Item Build ที่ผู้ใช้เผยแพร่
 // (Combo อยู่ที่แท็บ Combo) — สิทธิ์บังคับที่ DB: RPC ตรวจ is_admin() / RLS + trigger ของ user_builds
+// การเรียง (ล่าสุด / ไม่ถูกใจมากสุด / สัดส่วนไม่ถูกใจ) ทำที่ SQL เพราะลิสต์ถูกจำกัด 100 รายการ — ไม่ใช้ในแท็บ Item Build
 export function AdminCommunity() {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("draft");
   const [query, setQuery] = useState("");
   const search = useDebounced(query, 300);
+  const [sort, setSort] = useState<ModerationSort>("newest");
   const [onlyHidden, setOnlyHidden] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const q = useAsync(() => loadRows(tab, search), [tab, search]);
+  // แท็บ Item Build ไม่มีการเรียง — ใช้ "newest" เสมอ และไม่ให้ค่าเรียงของแท็บอื่นทำให้โหลดซ้ำ
+  const effectiveSort: ModerationSort = tab === "build" ? "newest" : sort;
+  const q = useAsync(() => loadRows(tab, search, effectiveSort), [tab, search, effectiveSort]);
 
   const shown = useMemo(() => {
     if (q.status !== "success") return [];
@@ -129,6 +140,14 @@ export function AdminCommunity() {
     }
   }
 
+  const emptyTitle = search.trim()
+    ? "ไม่พบรายการที่ตรงกับคำค้น"
+    : effectiveSort === "dislikes"
+      ? "ยังไม่มีรายการที่ถูกกดไม่ถูกใจ"
+      : effectiveSort === "ratio"
+        ? `ยังไม่มีรายการที่มีโหวตครบ ${RATIO_MIN_VOTES} ครั้งขึ้นไป`
+        : `ยังไม่มี ${NOUN[tab]} ที่เผยแพร่`;
+
   return (
     <div className="space-y-4 pb-4">
       <ConfirmHost />
@@ -159,6 +178,19 @@ export function AdminCommunity() {
         <Chip active={onlyHidden} onClick={() => setOnlyHidden((v) => !v)} label="ซ่อนอยู่" />
       </div>
 
+      {tab !== "build" && (
+        <div>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0" role="group" aria-label="เรียงตาม">
+            {SORTS.map(([k, label]) => (
+              <Chip key={k} active={sort === k} onClick={() => setSort(k)} label={label} />
+            ))}
+          </div>
+          {sort === "ratio" && (
+            <p className="mt-1.5 text-xs text-text-faint">นับเฉพาะรายการที่มีโหวตอย่างน้อย {RATIO_MIN_VOTES} ครั้ง</p>
+          )}
+        </div>
+      )}
+
       {q.status === "loading" && (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -170,11 +202,9 @@ export function AdminCommunity() {
         <>
           <p className="text-xs text-text-muted">
             {shown.length === q.data.rows.length ? q.data.rows.length : `${shown.length}/${q.data.rows.length}`} รายการ
-            {q.data.capped && " (แสดงรายการล่าสุดเท่านั้น ใช้ช่องค้นหาเพื่อหาเพิ่ม)"}
+            {q.data.capped && " (แสดงเฉพาะรายการแรก ใช้ช่องค้นหาเพื่อหาเพิ่ม)"}
           </p>
-          {q.data.rows.length === 0 && (
-            <EmptyState icon={ShieldCheck} title={search.trim() ? "ไม่พบรายการที่ตรงกับคำค้น" : `ยังไม่มี ${NOUN[tab]} ที่เผยแพร่`} />
-          )}
+          {q.data.rows.length === 0 && <EmptyState icon={ShieldCheck} title={emptyTitle} />}
           {q.data.rows.length > 0 && shown.length === 0 && <p className="text-sm text-text-faint">ไม่มีรายการที่ถูกซ่อน</p>}
           {shown.length > 0 && (
             <ul className="space-y-2">
