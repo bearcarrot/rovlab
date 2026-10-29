@@ -14,6 +14,10 @@ const db: any = supabase;
 
 export type ModerationKind = "draft" | "tier_list";
 
+/** newest = ล่าสุด · dislikes = ไม่ถูกใจมากสุด · ratio = สัดส่วนไม่ถูกใจสูงสุด (เฉพาะรายการที่มีโหวต ≥ 3) — เรียงที่ฝั่ง DB */
+export type ModerationSort = "newest" | "dislikes" | "ratio";
+export const RATIO_MIN_VOTES = 3;
+
 export interface ModerationItem {
   id: string;
   ownerId: string;
@@ -47,12 +51,13 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export async function listCommunityContent(kind: ModerationKind, q: string): Promise<ModerationItem[]> {
+export async function listCommunityContent(kind: ModerationKind, q: string, sort: ModerationSort = "newest"): Promise<ModerationItem[]> {
   const { data, error } = await rpc("admin_list_community_content", {
     p_kind: kind,
     p_q: q.trim() || null,
     p_limit: MODERATION_LIMIT,
     p_offset: 0,
+    p_sort: sort,
   });
   if (error) throw new Error(error.message || "โหลดรายการไม่สำเร็จ");
   return ((data ?? []) as any[]).map((r) => ({
