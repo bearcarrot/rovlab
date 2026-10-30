@@ -74,6 +74,34 @@ function toSummary(row: DbHeroListRow, statByHeroId: Map<string, HeroSummary["st
   };
 }
 
+type PhaseByHeroId = Map<string, NonNullable<HeroSummary["phase"]>>;
+
+// แต้มช่วงเกมต่อเลนที่แอดมินกรอก (hero_phase_points) ดึงทั้งตารางครั้งเดียว (แถวเล็กมาก สองสามร้อยแถว) และแคชคู่กับรายชื่อฮีโร่ ไม่ใช้ request แยกต่อหน้า
+// อ่านไม่ได้ / ยังไม่มีตาราง = ว่าง (แอปประเมินจาก Role เหมือนเดิม) ไม่ทำให้รายการฮีโร่ล้ม
+async function fetchPhasePoints(): Promise<PhaseByHeroId> {
+  const map: PhaseByHeroId = new Map();
+  const { data, error } = await supabase.from("hero_phase_points").select("hero_id, lane, early, mid, late");
+  if (error || !data) return map;
+  for (const r of data as any[]) {
+    const early = Number(r.early);
+    const mid = Number(r.mid);
+    const late = Number(r.late);
+    if (![early, mid, late].every(Number.isFinite)) continue;
+    const entry = map.get(r.hero_id as string) ?? {};
+    entry[r.lane as HeroLane] = { early, mid, late };
+    map.set(r.hero_id as string, entry);
+  }
+  return map;
+}
+
+function applyPhasePoints(list: HeroSummary[], phase: PhaseByHeroId): HeroSummary[] {
+  if (phase.size === 0) return list;
+  return list.map((h) => {
+    const p = phase.get(h.id);
+    return p ? { ...h, phase: p } : h;
+  });
+}
+
 // heroIds = null → every hero's stat row for the latest patch + rank (used by the hero list)
 // strict = true (หน้ารายละเอียดฮีโร่) → ถ้าหาแพตช์ล่าสุดไม่ได้หรือ query พลาด ให้ throw แทนการคืน N/A:
 // ไม่งั้นผลที่ไม่จริงถูกแคช (5 นาทีในหน่วยความจำ / 15 นาทีใน localStorage) และถ้าไม่มีแพตช์ query จะไม่กรอง patch_id แล้วได้สถิติปนหลายแพตช์
@@ -116,18 +144,20 @@ function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null):
   });
 }
 
-// withCurated = false → ไม่ query tier_lists / tier_list_entries; stat.tier เป็นค่าดิบจาก hero_stats (ใช้เฉพาะ getHeroesForStats)
+// withCurated = false → ไม่ query tier_lists / tier_list_entries / hero_phase_points; stat.tier เป็นค่าดิบจาก hero_stats (ใช้เฉพาะ getHeroesForStats)
 async function loadHeroes(rank: RankBucket, withCurated = true): Promise<HeroSummary[]> {
   if (!isSupabaseConfigured) return [];
-  const [heroesRes, statMap, curated] = await Promise.all([
+  const [heroesRes, statMap, curated, phaseMap] = await Promise.all([
     supabase.from("heroes").select(HERO_LIST_COLS).order("name", { ascending: true }),
     fetchStatsByHeroId(null, rank),
     withCurated ? getCuratedTierLists(rank) : null,
+    withCurated ? fetchPhasePoints() : null,
   ]);
   const { data, error } = heroesRes;
   if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
   const rows = data as unknown as DbHeroListRow[];
-  return applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
+  const list = applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
+  return phaseMap ? applyPhasePoints(list, phaseMap) : list;
 }
 
 // Minimal hero fields for places that only show a few icons (e.g. a public profile's favourite heroes).
