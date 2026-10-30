@@ -9,19 +9,21 @@ import { AdminDashboard } from "@/pages/AdminDashboard";
 import { AdminGameData } from "@/pages/AdminGameData";
 import { AdminImportData } from "@/pages/AdminImportData";
 import { AdminMaintenance } from "@/pages/AdminMaintenance";
+import { AdminSponsors } from "@/pages/AdminSponsors";
 import { AdminUsers } from "@/pages/AdminUsers";
 import { useIsAdmin } from "@/features/auth/useIsAdmin";
 import { useIsSuperAdmin } from "@/features/auth/useIsSuperAdmin";
 import { useAdminContactCount } from "@/features/auth/useAdminContactCount";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-type Mode = "dashboard" | "users" | "coach" | "contact" | "announce" | "maintenance" | "game" | "build" | "combo" | "community" | "edit" | "import";
+type Mode = "dashboard" | "users" | "coach" | "contact" | "announce" | "sponsors" | "maintenance" | "game" | "build" | "combo" | "community" | "edit" | "import";
 const MODES: [Mode, string][] = [
   ["dashboard", "Dashboard"],
   ["users", "ผู้ใช้"],
   ["coach", "รีวิว Coach Ai"],
   ["contact", "ข้อความติดต่อ"],
   ["announce", "ประกาศ"],
+  ["sponsors", "ผู้สนับสนุน"],
   ["maintenance", "บำรุงรักษา"],
   ["game", "ฐานข้อมูลเกม"],
   ["build", "บิลด์"],
@@ -31,7 +33,7 @@ const MODES: [Mode, string][] = [
   ["import", "นำเข้าข้อมูล"],
 ];
 
-// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ประกาศ" (สร้าง/กำหนดเวลา/เผยแพร่ประกาศที่แสดงบนหน้าเว็บ), "บำรุงรักษา" (ตั้งเวลาปิดเว็บทั้งหมดแบบช่วงเวลา พร้อมดูตัวอย่างหน้าปรับปรุง), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "Combo" (เพิ่ม Combo แนะนำ / ตั้ง Combo ของ Community เป็นแนะนำ / ซ่อน / แก้ / ลบ), "Community" (ซ่อน/ลบถาวร Community Draft, Community Tier List และ Item Build ที่ผู้ใช้เผยแพร่), "แก้ไขข้อมูล" (แท็บที่เหลือ) และ "นำเข้าข้อมูล" (สถิติแรงก์ / ปรับสมดุล / สกิล — ดึงจากเกมโดยตรงหรือเลือกไฟล์ JSON)
+// หน้า /admin: สลับระหว่าง "Dashboard" (ภาพรวมการใช้งาน), "ผู้ใช้" (จัดการผู้ใช้), "รีวิว Coach Ai" (รายงานคำตอบที่ผู้ใช้กดไม่ถูกใจ), "ข้อความติดต่อ" (กล่องจดหมายจากหน้า /contact พร้อม badge จำนวนข้อความใหม่), "ประกาศ" (สร้าง/กำหนดเวลา/เผยแพร่ประกาศที่แสดงบนหน้าเว็บ), "ผู้สนับสนุน" (เพิ่ม/กำหนดเวลา/เผยแพร่ผู้สนับสนุนที่แสดงท้ายหน้าแรก), "บำรุงรักษา" (ตั้งเวลาปิดเว็บทั้งหมดแบบช่วงเวลา พร้อมดูตัวอย่างหน้าปรับปรุง), "ฐานข้อมูลเกม" (ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝง พร้อมสถานะการยืนยัน), "บิลด์" (เลือกฮีโร่/บิลด์ครั้งเดียว แล้วแก้ข้อมูลบิลด์/ไอเทม/รูน/สกิลชาเลนเจอร์/พลังแฝงในหน้าเดียว), "Combo" (เพิ่ม Combo แนะนำ / ตั้ง Combo ของ Community เป็นแนะนำ / ซ่อน / แก้ / ลบ), "Community" (ซ่อน/ลบถาวร Community Draft, Community Tier List และ Item Build ที่ผู้ใช้เผยแพร่), "แก้ไขข้อมูล" (แท็บที่เหลือ) และ "นำเข้าข้อมูล" (สถิติแรงก์ / ปรับสมดุล / สกิล — ดึงจากเกมโดยตรงหรือเลือกไฟล์ JSON)
 // แท็บนำเข้าข้อมูลแสดงเฉพาะ Super Admin (แอดมินธรรมดาไม่เห็น) — ซ่อนแท็บฝั่งหน้าเท่านั้น การดึงจากเกมบังคับที่ Edge Function game-fetch
 // คนที่ไม่ใช่แอดมินจะเห็นข้อความไม่มีสิทธิ์จาก <Admin /> เหมือนเดิม
 // โหมดที่เปิดอยู่จำไว้ (sessionStorage) รีเฟรชแล้วกลับมาที่โหมดเดิม
@@ -103,6 +105,8 @@ export function AdminHub() {
         <AdminContact />
       ) : mode === "announce" ? (
         <AdminAnnouncements />
+      ) : mode === "sponsors" ? (
+        <AdminSponsors />
       ) : mode === "maintenance" ? (
         <AdminMaintenance />
       ) : mode === "game" ? (
