@@ -18,6 +18,13 @@ export interface HeroStatSnapshot {
   hasStats: boolean;
 }
 
+// แต้มความแข็งแกร่งช่วงเกม 1-10 (hero_phase_points) ที่ทีมงานกำหนด
+export interface PhasePoints {
+  early: number;
+  mid: number;
+  late: number;
+}
+
 export interface HeroSummary {
   id: string;
   slug: string;
@@ -32,6 +39,8 @@ export interface HeroSummary {
   difficulty: HeroDifficulty;
   icon: string;
   stat: HeroStatSnapshot;
+  // แต้มช่วงเกมต่อเลน (ไม่มี = ทีมงานยังไม่กรอก ให้ประเมินจาก Role) ใช้ heroPhasePoints() จาก features/draft/phasePoints
+  phase?: Partial<Record<HeroLane, PhasePoints>>;
 }
 
 export interface HeroAbility {
