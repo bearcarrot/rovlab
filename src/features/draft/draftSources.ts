@@ -3,15 +3,16 @@ import type { Combo } from "@/services/combos";
 import type { UserCounterPick } from "@/services/userCounterPicks";
 
 // Data source for the two relation sets Draft Assistant feeds into recommendPicks / describeDraft.
-// "recommended" = official data (hero_counters / hero_synergies via getDraftRelations), unchanged.
+// "recommended" = official data (hero_counters / hero_synergies via getDraftRelations), unchanged. This stays the default.
 // "mine" = the signed-in user's own data ONLY: there is deliberately no fallback to official data when it is empty.
 // "all" = official data + the user's own together (the same pair in both: the user's own row wins). Signed out = official only.
 export type DraftSource = "recommended" | "mine" | "all";
 
+// Dropdown order: ทั้งหมด / แนะนำ / ของฉัน (the default value, used by usePersistedState, is still "recommended")
 export const SOURCE_OPTIONS: { value: DraftSource; label: string }[] = [
+  { value: "all", label: "ทั้งหมด" },
   { value: "recommended", label: "แนะนำ" },
   { value: "mine", label: "ของฉัน" },
-  { value: "all", label: "ทั้งหมด" },
 ];
 
 export function parseSource(v: unknown): DraftSource {

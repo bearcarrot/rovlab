@@ -1,7 +1,6 @@
 import type { HeroSummary, Tier } from "@/types/hero";
 import type { CounterStrength, DraftRelations } from "@/services/draft";
 import { ROLE_TAGS } from "./heroTags";
-import { heroPhasePoints } from "./phasePoints";
 import { damageSplit, heroCc, type KitsByHero } from "./skillTags";
 
 export interface TeamAnalysis {
@@ -15,7 +14,7 @@ export interface TeamAnalysis {
   // ช่วงกลางเกม (optional เพื่อไม่ให้โค้ดที่สร้าง TeamAnalysis เองแตก)
   midGame?: number;
   lateGame: number;
-  // จำนวนฮีโร่ในทีมที่ใช้แต้มช่วงเกมที่ทีมงานกรอก (ที่เหลือประเมินจาก Role)
+  // จำนวนฮีโร่ในทีมที่ใช้ช่วงเกมที่ทีมงานกำหนด (heroes.phase) ที่เหลือประเมินจาก Role
   phaseHeroes?: number;
   // จำนวนฮีโร่ในทีมที่สกิลมีฮีลหรือโล่ (จากแท็กสกิลในเกม; 0 = ไม่มี หรือยังไม่มีข้อมูลแท็ก)
   healShield: number;
@@ -24,12 +23,9 @@ export interface TeamAnalysis {
 
 const filled = (team: (HeroSummary | null)[]) => team.filter((h): h is HeroSummary => h !== null);
 
-// ทีมมี 5 ฮีโร่ × แต้มเต็ม 10 = เต็มสเกลมิเตอร์ (MAX = 10 ใน TeamMeters) จึงหาแต้มรายตัวด้วย 5
-const PHASE_TEAM_SIZE = 5;
-
 // ตัวเลขส่วนใหญ่เป็นคะแนนสัมพัทธ์จาก heuristic ของ ROLE_TAGS ไม่ใช่ข้อมูลที่วัดได้จริง — UI ต้องแสดงเป็นค่าประเมินคร่าวๆ
 // ยกเว้น ดาเมจกายภาพ/เวท, CC และ healShield ที่อ่านจากแท็กสกิลในเกมเมื่อส่ง kits มาและฮีโร่นั้นมีแท็ก
-// ช่วงต้น/กลาง/ปลายเกม: ถ้าฮีโร่มีแต้มที่ทีมงานกรอก (h.phase) ใช้แต้ม 1-10 นั้น ไม่มีค่อยประเมินจาก Role เหมือนเดิม
+// ช่วงต้น/กลาง/ปลายเกม: ถ้าทีมงานกำหนดช่วงเกมของฮีโร่ไว้ (h.phase) ให้คะแนน +2 ใส่ช่วงนั้น (สเกลเดียวกับ heuristic) ไม่มีค่อยประเมินจาก Role เหมือนเดิม
 export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): TeamAnalysis {
   const picked = filled(heroes);
   const result: TeamAnalysis = {
@@ -56,11 +52,10 @@ export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): 
     result.cc += heroCc(h.role, kit);
     result.mobility += tag.mobility;
     result.sustain += tag.sustain;
-    const phase = heroPhasePoints(h);
-    if (phase) {
-      result.earlyGame += phase.early / PHASE_TEAM_SIZE;
-      result.midGame = (result.midGame ?? 0) + phase.mid / PHASE_TEAM_SIZE;
-      result.lateGame += phase.late / PHASE_TEAM_SIZE;
+    if (h.phase) {
+      if (h.phase === "early") result.earlyGame += 2;
+      if (h.phase === "mid") result.midGame = (result.midGame ?? 0) + 2;
+      if (h.phase === "late") result.lateGame += 2;
       result.phaseHeroes = (result.phaseHeroes ?? 0) + 1;
     } else {
       if (tag.scaling === "early") result.earlyGame += 2;
