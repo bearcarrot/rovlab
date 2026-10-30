@@ -1,6 +1,7 @@
 import type { HeroSummary, Tier } from "@/types/hero";
 import type { CounterStrength, DraftRelations } from "@/services/draft";
 import { ROLE_TAGS } from "./heroTags";
+import { heroPhasePoints } from "./phasePoints";
 import { damageSplit, heroCc, type KitsByHero } from "./skillTags";
 
 export interface TeamAnalysis {
@@ -11,7 +12,11 @@ export interface TeamAnalysis {
   mobility: number;
   sustain: number;
   earlyGame: number;
+  // ช่วงกลางเกม (optional เพื่อไม่ให้โค้ดที่สร้าง TeamAnalysis เองแตก)
+  midGame?: number;
   lateGame: number;
+  // จำนวนฮีโร่ในทีมที่ใช้แต้มช่วงเกมที่ทีมงานกรอก (ที่เหลือประเมินจาก Role)
+  phaseHeroes?: number;
   // จำนวนฮีโร่ในทีมที่สกิลมีฮีลหรือโล่ (จากแท็กสกิลในเกม; 0 = ไม่มี หรือยังไม่มีข้อมูลแท็ก)
   healShield: number;
   filledSlots: number;
@@ -19,8 +24,12 @@ export interface TeamAnalysis {
 
 const filled = (team: (HeroSummary | null)[]) => team.filter((h): h is HeroSummary => h !== null);
 
+// ทีมมี 5 ฮีโร่ × แต้มเต็ม 10 = เต็มสเกลมิเตอร์ (MAX = 10 ใน TeamMeters) จึงหาแต้มรายตัวด้วย 5
+const PHASE_TEAM_SIZE = 5;
+
 // ตัวเลขส่วนใหญ่เป็นคะแนนสัมพัทธ์จาก heuristic ของ ROLE_TAGS ไม่ใช่ข้อมูลที่วัดได้จริง — UI ต้องแสดงเป็นค่าประเมินคร่าวๆ
 // ยกเว้น ดาเมจกายภาพ/เวท, CC และ healShield ที่อ่านจากแท็กสกิลในเกมเมื่อส่ง kits มาและฮีโร่นั้นมีแท็ก
+// ช่วงต้น/กลาง/ปลายเกม: ถ้าฮีโร่มีแต้มที่ทีมงานกรอก (h.phase) ใช้แต้ม 1-10 นั้น ไม่มีค่อยประเมินจาก Role เหมือนเดิม
 export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): TeamAnalysis {
   const picked = filled(heroes);
   const result: TeamAnalysis = {
@@ -31,7 +40,9 @@ export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): 
     mobility: 0,
     sustain: 0,
     earlyGame: 0,
+    midGame: 0,
     lateGame: 0,
+    phaseHeroes: 0,
     healShield: 0,
     filledSlots: picked.length,
   };
@@ -45,8 +56,17 @@ export function analyzeTeam(heroes: (HeroSummary | null)[], kits?: KitsByHero): 
     result.cc += heroCc(h.role, kit);
     result.mobility += tag.mobility;
     result.sustain += tag.sustain;
-    if (tag.scaling === "early") result.earlyGame += 2;
-    if (tag.scaling === "late") result.lateGame += 2;
+    const phase = heroPhasePoints(h);
+    if (phase) {
+      result.earlyGame += phase.early / PHASE_TEAM_SIZE;
+      result.midGame = (result.midGame ?? 0) + phase.mid / PHASE_TEAM_SIZE;
+      result.lateGame += phase.late / PHASE_TEAM_SIZE;
+      result.phaseHeroes = (result.phaseHeroes ?? 0) + 1;
+    } else {
+      if (tag.scaling === "early") result.earlyGame += 2;
+      if (tag.scaling === "flat") result.midGame = (result.midGame ?? 0) + 2;
+      if (tag.scaling === "late") result.lateGame += 2;
+    }
     if (kit && (kit.heal || kit.shield)) result.healShield += 1;
   }
   return result;
@@ -91,7 +111,7 @@ export interface ComboDetail {
 }
 export interface CounterDetail {
   enemy: string;
-  direction: "wins" | "loses"; // wins = ฮีโร่นี้ชนะทางศัตรูตัวนี้, loses = ศัตรูตัวนี้ชนะทางฮีโร่นี้
+  direction: "wins" | "loses"; // wins = ฮีโร่นี้ชนะทางศัตรูตัวนี้, loses = ศัตรูตัวนี้ชนะทางฮีโร่
   strength: CounterStrength; // ระดับดาวชนะทาง 3/2/1 (best/good/situational) ใช้ตรงกับ MATCHUP_STARS
   level: string;
   reason: string;
@@ -178,7 +198,7 @@ export function recommendPicks(
   // ทีมเรายังว่างแต่เห็นศัตรูแล้ว: ลดน้ำหนักการเติมจุดที่ขาด ให้ตัวชนะทางเด่นกว่า
   const compScale = mine.length === 0 ? 0.5 : 1;
   // ฮีล/โล่มาจากแท็กสกิลเท่านั้น: จะบอกว่า "ทีมยังไม่มี" ได้ก็ต่อเมื่อทุกตัวในทีมมีแท็กแล้ว
-  // (ไม่งั้น 0 หมายถึง "ยังไม่รู้" ไม่ใช่ "ไม่มี") — เกณฑ์เดียวกับแผงจุดที่ทีมขาด
+  // (ไม่งั้น 0 หมายถึง "ยังไม่รู้" ไม่ใช่ "ไม่มี") — เกณฑ์เดียวกับแผงจุดทีมขาด
   const teamKitsComplete = mine.length > 0 && mine.every((t) => !!ctx.kits?.[t.id]);
   const dmgGap = damageGap(analysis);
 
@@ -253,7 +273,7 @@ export function recommendPicks(
           reasons.push(`ทีมยังไม่มีฮีล/โล่ สกิลของฮีโร่นี้มี${what}`);
           score += HEAL_SHIELD_POINTS * compScale;
         }
-        // ดาเมจทีมเอนเอียง — ใช้เกณฑ์เดียวกับแผงจุดที่ทีมขาด (damageGap) ทั้งกรณีไม่มีเลยและมีน้อยมาก
+        // ดาเมจทีมเอนเอียง — ใช้เกณฑ์เดียวกับแผงจุดทีมขาด (damageGap) ทั้งกรณีไม่มีเลยและมีน้อยมาก
         if (dmgGap) {
           const fills = dmgGap.lacking === "magic" ? dmgH.magic : dmgH.physical;
           if (fills >= 1) {
