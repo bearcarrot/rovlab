@@ -66,7 +66,7 @@ export function TeamMeters({ analysis, enemy }: { analysis: TeamAnalysis; enemy?
       <p className="pt-1 text-[11px] text-text-faint">
         * ค่าประเมินจาก Role ของฮีโร่ (Heuristic) ยังไม่ใช่ข้อมูลจริงระดับสกิล
         {phaseHeroes > 0 &&
-          ` · ช่วงต้น/กลาง/ปลายเกมใช้แต้มที่ทีมงานกำหนดให้ ${phaseHeroes} จาก ${analysis.filledSlots} ตัว (ที่เหลือประเมินจาก Role)`}
+          ` · ช่วงต้น/กลาง/ปลายเกมใช้ช่วงเกมที่ทีมงานกำหนดให้ ${phaseHeroes} จาก ${analysis.filledSlots} ตัว (ที่เหลือประเมินจาก Role)`}
       </p>
     </div>
   );
