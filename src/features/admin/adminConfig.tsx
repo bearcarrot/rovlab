@@ -389,7 +389,7 @@ export const CFG: Record<string, Cfg> = {
     order: "released_at",
     asc: false,
     add: true,
-    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes", type: "array" === "x" ? "text" : "area" }],
+    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes", type: "area" }],
   },
   guides: {
     label: "คู่มือ",
