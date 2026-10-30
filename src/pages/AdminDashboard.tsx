@@ -126,17 +126,16 @@ function TrendChart({ daily }: { daily: DailyPoint[] }) {
   const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   const peak = daily.reduce((best, p) => (p[metric] > best[metric] ? p : best), daily[0]);
   const label = metric === "activities" ? "กิจกรรม" : "Active Users";
+  const METRICS: ["activities" | "users", string][] = [
+    ["activities", "กิจกรรม"],
+    ["users", "Active Users"],
+  ];
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-base font-semibold">แนวโน้ม 14 วัน</h2>
         <div className="flex gap-1">
-          {(
-            [
-              ["activities", "กิจกรรม"],
-              ["users", "Active Users"],
-            ] as const
-          ).map(([k, l]) => (
+          {METRICS.map(([k, l]) => (
             <button
               key={k}
               type="button"
@@ -154,7 +153,7 @@ function TrendChart({ daily }: { daily: DailyPoint[] }) {
       <div className="rounded-card border border-border bg-bg-surface p-4">
         <div
           role="img"
-          aria-label={`${label} 14 วันล่าสุด เฉลี่ย ${avg} ต่อวัน สูงสุด ${max} เมื่อ ${fmtDay(peak.day)}`}
+          aria-label={`${label} 14 วันล่าสุด เฉลี่ย ${avg} ต่อวัน สูงสุด ${peak[metric]} เมื่อ ${fmtDay(peak.day)}`}
           className="flex h-28 items-end gap-1"
         >
           {daily.map((p) => (
@@ -175,7 +174,7 @@ function TrendChart({ daily }: { daily: DailyPoint[] }) {
           <span>{fmtDay(daily[daily.length - 1].day)}</span>
         </div>
         <p className="mt-2 text-[11px] text-text-faint">
-          เฉลี่ย {avg.toLocaleString()} ต่อวัน · สูงสุด {max.toLocaleString()} ({fmtDay(peak.day)})
+          เฉลี่ย {avg.toLocaleString()} ต่อวัน · สูงสุด {peak[metric].toLocaleString()} ({fmtDay(peak.day)})
         </p>
       </div>
     </section>
@@ -209,18 +208,20 @@ type Item = { label: string; hint?: string; n: number; to: DashboardTarget };
 
 function ModerationSection({ m, onOpen }: { m: DashboardExtras["moderation"]; onOpen?: (t: DashboardTarget) => void }) {
   const DISLIKE_HINT = "ดิสไลค์ตั้งแต่ 5 และมากกว่าไลค์";
-  const review: Item[] = [
+  const reviewAll: Item[] = [
     { label: "คอมเมนต์ที่ถูกรายงาน (ยังแสดงอยู่)", hint: "ใช้ตัวกรอง “ถูกรายงาน” ในแท็บผู้ใช้", n: m.reportedVisible, to: "users" },
     { label: "Community Draft ที่ถูกดิสไลค์", hint: DISLIKE_HINT, n: m.dislikedDrafts, to: "community" },
     { label: "Community Tier List ที่ถูกดิสไลค์", hint: DISLIKE_HINT, n: m.dislikedTierLists, to: "community" },
-  ].filter((r) => r.n > 0);
-  const hidden: Item[] = [
+  ];
+  const hiddenAll: Item[] = [
     { label: "คอมเมนต์ที่ถูกซ่อน (มีรายงาน)", n: m.reportedHidden, to: "users" },
     { label: "Community Draft ที่ซ่อนอยู่", n: m.hiddenDrafts, to: "community" },
     { label: "Community Tier List ที่ซ่อนอยู่", n: m.hiddenTierLists, to: "community" },
     { label: "Combo ที่ซ่อนอยู่", n: m.hiddenCombos, to: "combo" },
     { label: "Item Build ที่ซ่อนอยู่", n: m.hiddenBuilds, to: "community" },
-  ].filter((r) => r.n > 0);
+  ];
+  const review = reviewAll.filter((r) => r.n > 0);
+  const hidden = hiddenAll.filter((r) => r.n > 0);
 
   return (
     <section className="space-y-2">
@@ -291,9 +292,9 @@ function FeatureUsage({ summary, extras }: { summary: ActivitySummary; extras: D
   if (extras) {
     const pick = (c: CreatedUsage): [number, number] =>
       range === "today" ? [c.today, c.usersToday] : range === "d7" ? [c.d7, c.usersD7] : [c.d30, c.usersD30];
-    const [cn, cu] = pick(extras.created.combo);
-    const [bn, bu] = pick(extras.created.build);
-    rows.push({ name: "Combo (สร้างใหม่)", n: cn, users: cu }, { name: "Item Build (สร้างใหม่)", n: bn, users: bu });
+    const [comboN, comboU] = pick(extras.created.combo);
+    const [buildN, buildU] = pick(extras.created.build);
+    rows.push({ name: "Combo (สร้างใหม่)", n: comboN, users: comboU }, { name: "Item Build (สร้างใหม่)", n: buildN, users: buildU });
   }
   const shown = rows.filter((r) => r.n > 0).sort((a, b) => b.n - a.n);
   const max = shown.length > 0 ? shown[0].n : 0;
