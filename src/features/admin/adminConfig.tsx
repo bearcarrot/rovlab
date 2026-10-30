@@ -160,6 +160,8 @@ export const CFG: Record<string, Cfg> = {
       { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "carry", "support", "tank"] },
       { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
+      // ช่วงเกมที่ฮีโร่แข็งที่สุด: early = ต้นเกม, mid = กลางเกม, late = เลทเกม (ว่าง = ยังไม่กำหนด ให้ Draft Assistant ประเมินจาก Role)
+      { k: "phase", label: "ช่วงเกม (early = ต้นเกม · mid = กลางเกม · late = เลทเกม)", type: "sel", opts: ["", "early", "mid", "late"] },
       { k: "icon_url", label: "ไอคอน", type: "img" },
       { k: "description", type: "area" },
       { k: "strengths", type: "arr" },
@@ -368,20 +370,6 @@ export const CFG: Record<string, Cfg> = {
         `${r.patches?.code ?? "?"} · ${r.lane ? (labels?.lane(r.lane) ?? r.lane) : "ทุกเลน"}`,
       tierList: { ranks: RANK_CHIPS },
     },
-  },
-  // แต้มช่วงเกม (ต้น/กลาง/เลท 1-10) ต่อฮีโร่ต่อเลน — Draft Assistant ใช้คำนวณมิเตอร์ช่วงเกมของทีม
-  // ฮีโร่/เลนที่ไม่มีแถว = แอปประเมินจาก Role (หน้าเว็บคนทั่วไปจะเห็นค่าใหม่หลังแคชสูงสุด 5 นาที)
-  phase: {
-    label: "ช่วงเกม",
-    table: "hero_phase_points",
-    add: true,
-    filter: heroFilter("hero_id"),
-    cols: [
-      { k: "lane", label: "เลน", type: "sel", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
-      { k: "early", label: "ต้นเกม (1-10)", type: "num" },
-      { k: "mid", label: "กลางเกม (1-10)", type: "num" },
-      { k: "late", label: "เลทเกม (1-10)", type: "num" },
-    ],
   },
   patches: {
     label: "แพตช์",
