@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, RefreshCw, Search, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAsync } from "@/hooks/useAsync";
 import { Chip } from "@/features/heroes/HeroFilters";
@@ -22,8 +22,11 @@ import {
   setVerification,
   type AccountStatus,
   type AdminUserDetail,
+  type AdminUserRow,
+  type ContentKind,
   type ModerateAction,
   type UserFilter,
+  type UserSort,
   type VerifiedFilter,
 } from "@/services/adminUsers";
 
@@ -32,6 +35,13 @@ const FILTERS: [UserFilter, string][] = [
   ["all", "ทั้งหมด"],
   ["new7", "ใหม่ 7 วัน"],
   ["reported", "ถูกรายงาน"],
+];
+
+const SORTS: [UserSort, string][] = [
+  ["newest", "เรียง: สมัครล่าสุด"],
+  ["oldest", "เรียง: สมัครเก่าสุด"],
+  ["sign_in", "เรียง: ล็อกอินล่าสุด"],
+  ["reported", "เรียง: ถูกรายงานมากสุด"],
 ];
 
 const AUDIT_LABEL: Record<string, string> = {
@@ -62,6 +72,15 @@ const EVENT_LABEL: Record<string, string> = {
   stats_viewed: "ดูสถิติ",
   matchup_viewed: "Matchup",
   counter_pick_used: "Counter Pick",
+  match_analysis_attempted: "ส่งรูปวิเคราะห์แมตช์",
+  match_saved: "บันทึกแมตช์",
+};
+
+const CONTENT_LABEL: Record<ContentKind, string> = {
+  combo: "Combo",
+  build: "Item Build",
+  draft: "Community Draft",
+  tier_list: "Community Tier List",
 };
 
 const fmt = (iso?: string | null) =>
@@ -91,6 +110,41 @@ const TEXTAREA = `${CTL} min-h-[88px] resize-y py-2.5`;
 
 const nameOf = (u: { displayName: string | null; handle: string | null }) => u.displayName || u.handle || "ผู้ใช้";
 
+// ---------- ส่งออก CSV: เฉพาะแถวที่โหลดอยู่ในหน้านี้ (ไม่ยิง DB เพิ่ม ไม่ดึงผู้ใช้ทั้งระบบ) ----------
+// ข้อความที่ขึ้นต้นด้วย = + - @ ถูกนำหน้าด้วย ' กัน formula injection เมื่อเปิดใน Excel / Sheets
+function csvCell(v: string | number | null | undefined): string {
+  let s = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function exportUsersCsv(rows: AdminUserRow[]) {
+  const head = [
+    "id", "display_name", "handle", "email", "role", "verified", "status", "created_at", "last_sign_in_at",
+    "drafts", "tier_lists", "combos", "builds", "comments", "reports",
+  ];
+  const lines = [head.join(",")].concat(
+    rows.map((u) =>
+      [
+        u.id, u.displayName, u.handle, u.email, u.role, u.verifiedCategory ?? "", u.accountStatus, u.createdAt,
+        u.lastSignInAt ?? "", u.draftCount, u.tierListCount, u.comboCount, u.buildCount, u.commentCount, u.reportCount,
+      ]
+        .map(csvCell)
+        .join(",")
+    )
+  );
+  // BOM ให้ Excel อ่านภาษาไทยถูกต้อง
+  const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rovlab-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function RoleBadge({ role }: { role: SystemRole }) {
   if (role === "member") return null;
   return (
@@ -116,15 +170,17 @@ function StatsStrip() {
           ["Verified Creator", q.data.verified],
           ["Moderator", q.data.moderators],
           ["ผู้ดูแล (Admin+)", q.data.admins],
+          ["ถูกระงับ", q.data.suspended],
         ]
       : [
           ["ผู้ใช้ทั้งหมด", null],
           ["Verified Creator", null],
           ["Moderator", null],
           ["ผู้ดูแล (Admin+)", null],
+          ["ถูกระงับ", null],
         ];
   return (
-    <section aria-label="สรุปผู้ใช้" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <section aria-label="สรุปผู้ใช้" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
       {cells.map(([label, n]) => (
         <div key={label} className="rounded-card border border-border bg-bg-surface p-3">
           <p className="text-xs text-text-faint">{label}</p>
@@ -142,6 +198,7 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
   const [role, setRole] = useState<SystemRole | "">("");
   const [verified, setVerified] = useState<VerifiedFilter>("");
   const [status, setStatus] = useState<AccountStatus | "">("");
+  const [sort, setSort] = useState<UserSort>("newest");
   const [page, setPage] = useState(0);
 
   // ค้นหาหลังหยุดพิมพ์ 350 ms เพื่อไม่ยิง DB ทุกตัวอักษร
@@ -154,8 +211,8 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
   }, [input]);
 
   const listQ = useAsync(
-    () => listUsers({ q, filter, role, verified, status, offset: page * PAGE, limit: PAGE }),
-    [q, filter, role, verified, status, page]
+    () => listUsers({ q, filter, role, verified, status, sort, offset: page * PAGE, limit: PAGE }),
+    [q, filter, role, verified, status, sort, page]
   );
   const total = listQ.status === "success" ? listQ.data.total : 0;
   const pages = Math.max(1, Math.ceil(total / PAGE));
@@ -168,9 +225,21 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
           <h1 className="font-display text-xl font-semibold">ผู้ใช้</h1>
           <p className="mt-1 text-xs text-text-faint">แอดมินเห็นอีเมลเต็ม · ทุกการจัดการถูกบันทึกประวัติ</p>
         </div>
-        <button type="button" onClick={listQ.refetch} aria-label="รีเฟรช" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted hover:text-text">
-          <RefreshCw className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => listQ.status === "success" && exportUsersCsv(listQ.data.rows)}
+            disabled={listQ.status !== "success" || listQ.data.rows.length === 0}
+            aria-label="ส่งออกรายชื่อในหน้านี้เป็น CSV"
+            title="ส่งออกเฉพาะรายชื่อในหน้านี้ (CSV)"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted hover:text-text disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={listQ.refetch} aria-label="รีเฟรช" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted hover:text-text">
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <StatsStrip />
@@ -201,7 +270,7 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
         ))}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <select
           aria-label="กรองตามบทบาท"
           className={INPUT}
@@ -244,6 +313,21 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
           <option value="active">ใช้งานปกติ</option>
           <option value="suspended">ถูกระงับ</option>
         </select>
+        <select
+          aria-label="เรียงลำดับ"
+          className={INPUT}
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as UserSort);
+            reset();
+          }}
+        >
+          {SORTS.map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {listQ.status === "loading" && (
@@ -285,7 +369,7 @@ function UserList({ onOpen }: { onOpen: (id: string) => void }) {
                       สมัคร {fmt(u.createdAt)} · ใช้งานล่าสุด {fmt(u.lastActiveAt)}
                     </span>
                     <span className="mt-0.5 block text-[11px] text-text-faint">
-                      Draft {u.draftCount} · Tier List {u.tierListCount} · คอมเมนต์ {u.commentCount}
+                      Draft {u.draftCount} · Tier List {u.tierListCount} · Combo {u.comboCount} · Build {u.buildCount} · คอมเมนต์ {u.commentCount}
                     </span>
                   </span>
                 </button>
@@ -515,7 +599,7 @@ function StatusPanel({ d, self, busy, ask }: { d: AdminUserDetail; self: boolean
         {suspended ? "คืนสถานะบัญชี" : "ระงับบัญชี"}
       </button>
       <p className="text-[11px] text-text-faint">
-        ตอนนี้สถานะ "ระงับ" เป็นเครื่องหมายและบันทึกประวัติเท่านั้น ยังไม่ได้บล็อกการคอมเมนต์หรือสร้างเนื้อหา
+        บัญชีที่ถูกระงับจะคอมเมนต์/แก้คอมเมนต์ เผยแพร่ Draft และ Tier List และสร้างหรือแก้ Combo / Item Build ไม่ได้ (ฐานข้อมูลบังคับ) · ไม่ได้บล็อกการล็อกอิน
       </p>
     </Panel>
   );
@@ -571,6 +655,7 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
         const self = user?.id === d.id;
         const acts = moderationActions(d);
         const activity = Object.entries(d.activity).sort((a, b) => b[1] - a[1]);
+        const hiddenContent = d.counts.hiddenDrafts + d.counts.hiddenTierLists + d.counts.hiddenCombos + d.counts.hiddenBuilds;
         return (
           <>
             <section className="flex items-start gap-3 rounded-card border border-border bg-bg-surface p-4">
@@ -650,8 +735,12 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 [
                   ["Draft", `${d.counts.drafts} (เผยแพร่ ${d.counts.publicDrafts})`],
                   ["Tier List", `${d.counts.tierLists} (เผยแพร่ ${d.counts.publicTierLists})`],
+                  ["Combo", `${d.counts.combos} (เผยแพร่ ${d.counts.publicCombos})`],
+                  ["Item Build", `${d.counts.builds} (เผยแพร่ ${d.counts.publicBuilds})`],
                   ["คอมเมนต์", `${d.counts.comments} (ซ่อน ${d.counts.hiddenComments})`],
+                  ["แมตช์ที่บันทึก", String(d.counts.matches)],
                   ["ถูกรายงาน", String(d.counts.reportsReceived)],
+                  ["เนื้อหาที่ถูกซ่อน", String(hiddenContent)],
                 ] as [string, string][]
               ).map(([label, v]) => (
                 <div key={label} className="rounded-card border border-border bg-bg-surface p-3">
@@ -692,9 +781,35 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
               {acts.length === 0 && <p className="text-xs text-text-faint">ไม่มีเนื้อหาให้จัดการ (รูป แนะนำตัว ชื่อในเกม ช่องทางติดต่อ คอมเมนต์)</p>}
               <p className="text-[11px] text-text-faint">
-                ลบรูปโปรไฟล์จะล้างลิงก์รูปในโปรไฟล์เท่านั้น ไฟล์รูปใน Storage ยังอยู่ · ทุกการกระทำถูกบันทึกในประวัติ
+                ลบรูปโปรไฟล์จะล้างลิงก์รูปในโปรไฟล์เท่านั้น ไฟล์รูปใน Storage ยังอยู่ · ทุกการกระทำถูกบันทึกในประวัติ · ซ่อน/ลบ Draft, Tier List, Combo และ Item Build ทำที่แท็บ Community / Combo
               </p>
             </Panel>
+
+            <section className="space-y-2">
+              <h2 className="font-display text-base font-semibold">เนื้อหาล่าสุด</h2>
+              {d.recentContent.length === 0 ? (
+                <p className="text-sm text-text-faint">ยังไม่มี Combo, Item Build, Draft หรือ Tier List</p>
+              ) : (
+                <ul className="divide-y divide-border rounded-card border border-border bg-bg-surface">
+                  {d.recentContent.map((c) => (
+                    <li key={`${c.kind}-${c.id}`} className="flex items-start gap-3 px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm">{c.title || "(ไม่มีชื่อ)"}</p>
+                        <p className="text-[11px] text-text-faint">
+                          {CONTENT_LABEL[c.kind]} · {fmt(c.createdAt)}
+                        </p>
+                      </div>
+                      {c.hidden ? (
+                        <span className="shrink-0 rounded-full border border-loss/40 px-1.5 py-0.5 text-[11px] text-loss">ถูกซ่อน</span>
+                      ) : !c.isPublic ? (
+                        <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[11px] text-text-faint">ส่วนตัว</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[11px] text-text-faint">แสดงสูงสุด 5 รายการต่อชนิด · Draft / Tier List แสดงเฉพาะที่เผยแพร่ใน Community</p>
+            </section>
 
             <section className="space-y-2">
               <h2 className="font-display text-base font-semibold">คอมเมนต์ล่าสุด</h2>
@@ -728,6 +843,7 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
                     </li>
                   ))}
                 </ul>
+                <p className="text-[11px] text-text-faint">รายงานมีเฉพาะคอมเมนต์ (Draft / Tier List / Combo / Build ยังไม่มีระบบรายงาน)</p>
               </section>
             )}
           </>

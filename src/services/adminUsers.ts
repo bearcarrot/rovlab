@@ -13,6 +13,8 @@ const rpc = (fn: string, args?: Record<string, unknown>) =>
 export type UserFilter = "all" | "admin" | "new7" | "reported";
 export type VerifiedFilter = "yes" | "no" | "";
 export type AccountStatus = "active" | "suspended";
+// ไม่มี "ใช้งานล่าสุด": ต้องสแกน user_activity_events ของทุกโปรไฟล์ จึงใช้ "ล็อกอินล่าสุด" (sign_in) แทน
+export type UserSort = "newest" | "oldest" | "sign_in" | "reported";
 
 export type ModerateAction =
   | "remove_avatar"
@@ -37,6 +39,8 @@ export interface AdminUserRow {
   lastActiveAt: string | null;
   draftCount: number;
   tierListCount: number;
+  comboCount: number;
+  buildCount: number;
   commentCount: number;
   reportCount: number;
 }
@@ -63,6 +67,17 @@ export interface VerificationInfo {
   approvedByName: string | null;
   revokedAt: string | null;
   revokeReason: string | null;
+}
+
+export type ContentKind = "combo" | "build" | "draft" | "tier_list";
+
+export interface RecentContent {
+  kind: ContentKind;
+  id: string;
+  title: string;
+  isPublic: boolean;
+  hidden: boolean;
+  createdAt: string | null;
 }
 
 export interface AdminUserDetail {
@@ -92,9 +107,19 @@ export interface AdminUserDetail {
     comments: number;
     hiddenComments: number;
     reportsReceived: number;
+    combos: number;
+    publicCombos: number;
+    hiddenCombos: number;
+    builds: number;
+    publicBuilds: number;
+    hiddenBuilds: number;
+    hiddenDrafts: number; // community snapshots hidden by an admin
+    hiddenTierLists: number;
+    matches: number;
   };
   activity: Record<string, number>;
   recentComments: { id: string; body: string; heroSlug: string | null; hidden: boolean; createdAt: string }[];
+  recentContent: RecentContent[];
   reports: { commentId: string; reason: string; detail: string; createdAt: string }[];
 }
 
@@ -119,6 +144,8 @@ const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? 
 const role = (v: unknown): SystemRole =>
   v === "moderator" || v === "admin" || v === "super_admin" ? v : "member";
 const status = (v: unknown): AccountStatus => (v === "suspended" ? "suspended" : "active");
+const kind = (v: unknown): ContentKind | null =>
+  v === "combo" || v === "build" || v === "draft" || v === "tier_list" ? v : null;
 
 const toRow = (r: any): AdminUserRow => ({
   id: r.id,
@@ -135,6 +162,8 @@ const toRow = (r: any): AdminUserRow => ({
   lastActiveAt: r.last_active_at ?? null,
   draftCount: num(r.draft_count),
   tierListCount: num(r.tier_list_count),
+  comboCount: num(r.combo_count),
+  buildCount: num(r.build_count),
   commentCount: num(r.comment_count),
   reportCount: num(r.report_count),
 });
@@ -147,6 +176,7 @@ export async function listUsers(args: {
   role?: SystemRole | "";
   verified?: VerifiedFilter;
   status?: AccountStatus | "";
+  sort?: UserSort;
 }): Promise<AdminUserPage> {
   const { data, error } = await rpc("admin_list_users", {
     p_q: args.q || null,
@@ -156,6 +186,7 @@ export async function listUsers(args: {
     p_role: args.role || null,
     p_verified: args.verified || null,
     p_status: args.status || null,
+    p_sort: args.sort ?? "newest",
   });
   if (error) throw new Error(error.message || "โหลดรายชื่อผู้ใช้ไม่สำเร็จ");
   const rows = (data ?? []) as any[];
@@ -230,6 +261,15 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail> {
       comments: num(c.comments),
       hiddenComments: num(c.hidden_comments),
       reportsReceived: num(c.reports_received),
+      combos: num(c.combos),
+      publicCombos: num(c.public_combos),
+      hiddenCombos: num(c.hidden_combos),
+      builds: num(c.builds),
+      publicBuilds: num(c.public_builds),
+      hiddenBuilds: num(c.hidden_builds),
+      hiddenDrafts: num(c.hidden_drafts),
+      hiddenTierLists: num(c.hidden_tier_lists),
+      matches: num(c.matches),
     },
     activity: Object.fromEntries(Object.entries(d.activity_30d ?? {}).map(([k, x]) => [k, num(x)])),
     recentComments: ((d.recent_comments ?? []) as any[]).map((x) => ({
@@ -239,6 +279,20 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail> {
       hidden: x.hidden === true,
       createdAt: x.created_at,
     })),
+    recentContent: ((d.recent_content ?? []) as any[]).flatMap((x): RecentContent[] => {
+      const k = kind(x.kind);
+      if (!k) return [];
+      return [
+        {
+          kind: k,
+          id: String(x.id),
+          title: typeof x.title === "string" ? x.title : "",
+          isPublic: x.public === true,
+          hidden: x.hidden === true,
+          createdAt: str(x.created_at),
+        },
+      ];
+    }),
     reports: ((d.reports ?? []) as any[]).map((x) => ({
       commentId: x.comment_id,
       reason: x.reason ?? "",
