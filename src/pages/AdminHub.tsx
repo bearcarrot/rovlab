@@ -96,7 +96,7 @@ export function AdminHub() {
         </div>
       </div>
       {mode === "dashboard" ? (
-        <AdminDashboard />
+        <AdminDashboard onOpen={setMode} />
       ) : mode === "users" ? (
         <AdminUsers />
       ) : mode === "coach" ? (
