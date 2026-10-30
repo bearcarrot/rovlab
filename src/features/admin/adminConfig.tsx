@@ -369,13 +369,27 @@ export const CFG: Record<string, Cfg> = {
       tierList: { ranks: RANK_CHIPS },
     },
   },
+  // แต้มช่วงเกม (ต้น/กลาง/เลท 1-10) ต่อฮีโร่ต่อเลน — Draft Assistant ใช้คำนวณมิเตอร์ช่วงเกมของทีม
+  // ฮีโร่/เลนที่ไม่มีแถว = แอปประเมินจาก Role (หน้าเว็บคนทั่วไปจะเห็นค่าใหม่หลังแคชสูงสุด 5 นาที)
+  phase: {
+    label: "ช่วงเกม",
+    table: "hero_phase_points",
+    add: true,
+    filter: heroFilter("hero_id"),
+    cols: [
+      { k: "lane", label: "เลน", type: "sel", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
+      { k: "early", label: "ต้นเกม (1-10)", type: "num" },
+      { k: "mid", label: "กลางเกม (1-10)", type: "num" },
+      { k: "late", label: "เลทเกม (1-10)", type: "num" },
+    ],
+  },
   patches: {
     label: "แพตช์",
     table: "patches",
     order: "released_at",
     asc: false,
     add: true,
-    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes", type: "area" }],
+    cols: [{ k: "code" }, { k: "released_at", type: "date" }, { k: "notes", type: "array" === "x" ? "text" : "area" }],
   },
   guides: {
     label: "คู่มือ",
