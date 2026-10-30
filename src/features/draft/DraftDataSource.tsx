@@ -24,7 +24,7 @@ interface Mine<T> {
   retry: () => void;
 }
 
-// Loads the signed-in user's own rows only while the source is "mine". The request is tagged with the user id it was made for and
+// Loads the signed-in user's own rows only while the source is "mine" or "all". The request is tagged with the user id it was made for and
 // ignored unless that is still the current user, so switching accounts or logging out can never show the previous account's rows.
 function useMine<T>(selected: boolean, load: (userId: string) => Promise<T[]>): Mine<T> {
   const { user, loading: authLoading } = useAuth();
@@ -53,36 +53,45 @@ export function useDraftDataSources(): DraftDataSources {
   const [comboRaw, setComboRaw] = usePersistedState<string>(COMBO_KEY, "recommended");
   const counterSource = parseSource(counterRaw);
   const comboSource = parseSource(comboRaw);
-  const counters = useMine<UserCounterPick>(counterSource === "mine", () => listMyCounterPicks());
-  const combos = useMine<Combo>(comboSource === "mine", (id) => listMyCombos(id));
+  // "ทั้งหมด" ต้องใช้ข้อมูลของฉันด้วย จึงโหลดเหมือน "ของฉัน" (เฉพาะตอนล็อกอิน และไม่ยิงซ้ำ: แต่ละชุดโหลดครั้งเดียวต่อบัญชี)
+  const counters = useMine<UserCounterPick>(counterSource !== "recommended", () => listMyCounterPicks());
+  const combos = useMine<Combo>(comboSource !== "recommended", (id) => listMyCombos(id));
   return { counterSource, comboSource, setCounterSource: setCounterRaw, setComboSource: setComboRaw, counters, combos };
 }
 
-function RadioGroup({ label, value, onChange }: { label: string; value: DraftSource; onChange: (v: DraftSource) => void }) {
+function SourceSelect({ label, value, onChange }: { label: string; value: DraftSource; onChange: (v: DraftSource) => void }) {
   return (
-    <fieldset className="min-w-0">
-      <legend className="mb-1 text-sm text-text-muted">{label}</legend>
-      <div className="flex gap-2">
+    <label className="flex min-w-0 items-center gap-2 text-sm">
+      <span className="text-text-muted">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(parseSource(e.target.value))}
+        className="min-h-10 rounded-lg border border-border bg-bg px-3 py-2 text-base sm:text-sm"
+      >
         {SOURCE_OPTIONS.map((o) => (
-          <label
-            key={o.value}
-            className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/10"
-          >
-            <input type="radio" name={label} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} className="accent-accent" />
+          <option key={o.value} value={o.value}>
             {o.label}
-          </label>
+          </option>
         ))}
-      </div>
-    </fieldset>
+      </select>
+    </label>
   );
 }
 
-// Placed under the Tier List dropdown. Compact: the two groups sit side by side from sm up and stack on phones.
+// Placed under the Tier List dropdown. Compact: the two dropdowns sit side by side from sm up and wrap on phones.
 export function DraftDataSourcePicker({ src }: { src: DraftDataSources }) {
+  const anyAll = src.counterSource === "all" || src.comboSource === "all";
   return (
-    <div className="flex flex-wrap gap-x-6 gap-y-2">
-      <RadioGroup label="ข้อมูล Counter" value={src.counterSource} onChange={src.setCounterSource} />
-      <RadioGroup label="ข้อมูล Combo" value={src.comboSource} onChange={src.setComboSource} />
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <SourceSelect label="ข้อมูล Counter" value={src.counterSource} onChange={src.setCounterSource} />
+        <SourceSelect label="ข้อมูล Combo" value={src.comboSource} onChange={src.setComboSource} />
+      </div>
+      {anyAll && (
+        <p className="text-xs text-text-faint">
+          ทั้งหมด = ข้อมูลแนะนำของระบบรวมกับของคุณ (คู่เดียวกันใช้ของคุณ) · ถ้าไม่ได้ล็อกอินจะใช้เฉพาะข้อมูลของระบบ
+        </p>
+      )}
     </div>
   );
 }
