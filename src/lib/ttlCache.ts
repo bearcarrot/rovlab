@@ -28,13 +28,15 @@ const PERSISTED_PREFIXES = [
   "balance:recent",
   "catalog:", // items / runes / spells / enchantments (public game data; see services/gameCatalog.ts)
   "guide", // "guides" (list), "guide-categories" and "guide:<slug>" (see services/guides.ts). The list carries every guide's full text, so it is the heaviest public payload to refetch on each reload
+  "snap:data:", // R2 data snapshots, keyed by content hash so an entry can never be stale (see lib/snapshots.ts). The manifest key is deliberately NOT here
 ];
 const PERSIST_TTL_MS = 15 * 60 * 1000;
 // The two heaviest public payloads (hero list ~39 KB, draft relations ~166 KB) change only when an admin imports stats or
 // edits relations, yet each visitor refetched them about 3 times a day. They stay in localStorage for 6 hours instead.
 // Admins bypass the cache, so their own edits still show at once; visitors see a change within 6 hours.
 // index.html (the early prefetch) hardcodes the same 6 h for "heroes:<rank>": keep the two in step.
-const LONG_PERSISTED_PREFIXES = ["heroes:", "draft-relations"];
+// "snap:data:" entries are immutable (the key is the content hash), so 6 h is only an eviction time, not a freshness limit.
+const LONG_PERSISTED_PREFIXES = ["heroes:", "draft-relations", "snap:data:"];
 const LONG_PERSIST_TTL_MS = 6 * 60 * 60 * 1000;
 // bump when the shape of a persisted value changes, so old entries from a previous deploy are ignored
 // v2: "patch:latest" went from a code string to a { id, code, releasedAt } object
