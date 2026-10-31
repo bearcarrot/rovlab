@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnnouncementPopup } from "@/features/announcements/AnnouncementPopup";
 import { CoachChatProvider } from "@/features/coach/CoachChatContext";
 import { CoachFabLoader } from "@/features/coach/CoachFabLoader";
+import { SeasonalEffects } from "@/features/seasonal/SeasonalEffects";
 import { useRank } from "@/lib/rank";
 
 // App shell: persistent sidebar on desktop, header + bottom nav + slide-out
@@ -52,6 +53,8 @@ export function AppShell() {
         {/* ประกาศจากแอดมิน: popup ตอนเปิดเว็บ (เปิดครั้งเดียวต่อการเปิดหน้าเว็บ ไม่เด้งซ้ำตอนเปลี่ยนหน้า/สลับ all/high)
             ไม่มีประกาศ/กำลังโหลด/โหลดพลาด = ไม่แสดงอะไรเลย และ error ใน popup ไม่ล้มทั้งหน้า (มี boundary เงียบในตัว) */}
         <AnnouncementPopup />
+        {/* Halloween 2026: เอฟเฟกต์ชั่วคราว เปิดเองเฉพาะ 31 ต.ค. 2026 (ลบทิ้งหลังจบแคมเปญ: บรรทัดนี้ + import ด้านบน + โฟลเดอร์ features/seasonal) */}
+        <SeasonalEffects />
       </div>
     </CoachChatProvider>
   );
