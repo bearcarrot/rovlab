@@ -1,0 +1,83 @@
+/* Halloween 2026 — ทุกคลาสขึ้นต้นด้วย hw- (กันชนกับ CSS เดิม)
+   animate เฉพาะ transform/opacity; ไม่มี layout property; overlay เป็น fixed จึงไม่ทำให้เกิด layout shift/overflow
+   z-index 20 = ต่ำกว่า Header (z-30), drawer และ popup ของแอป */
+
+.hw-root {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* แสงส้มจางๆ นิ่ง (ไม่ animate) */
+.hw-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 40% at 100% 100%, rgba(240, 120, 30, 0.09), transparent 70%),
+    radial-gradient(50% 35% at 0% 0%, rgba(232, 163, 61, 0.07), transparent 70%);
+}
+
+/* หยากไย่ห้อยใต้ Header (ไม่ทับปุ่มเมนู/โปรไฟล์) ซ้ายบนเลื่อนพ้น Sidebar บนจอใหญ่ */
+.hw-web {
+  position: absolute;
+  top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  width: 5.5rem;
+  height: 5.5rem;
+  color: #f2f3f5;
+  opacity: 0.28;
+}
+.hw-web-l { left: 0; }
+.hw-web-r { right: 0; transform: scaleX(-1); }
+
+/* ลูกไฟลอยขึ้น */
+.hw-ember {
+  position: absolute;
+  bottom: -12px;
+  left: var(--x);
+  width: var(--s, 4px);
+  height: var(--s, 4px);
+  border-radius: 50%;
+  background: #f3c168;
+  box-shadow: 0 0 8px 1px rgba(232, 163, 61, 0.7);
+  opacity: 0;
+  animation: hw-rise var(--d, 20s) linear var(--w, 0s) infinite;
+}
+@keyframes hw-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 0.8; }
+  85% { opacity: 0.4; }
+  100% { transform: translate3d(var(--dx, 0px), -105vh, 0); opacity: 0; }
+}
+
+/* ค้างคาว 1 ตัว: บินผ่านจอ ~14 วินาที แล้วหายไปจนครบรอบ 45 วินาที */
+.hw-bat {
+  position: absolute;
+  left: 0;
+  top: 22%;
+  opacity: 0;
+  animation: hw-fly 45s linear 6s infinite;
+}
+@keyframes hw-fly {
+  0% { transform: translate3d(-60px, 0, 0); opacity: 0; }
+  2% { opacity: 0.75; }
+  30% { transform: translate3d(calc(100vw + 60px), -40px, 0); opacity: 0.75; }
+  32%, 100% { transform: translate3d(calc(100vw + 60px), -40px, 0); opacity: 0; }
+}
+
+@media (min-width: 1024px) {
+  .hw-web { top: 4rem; width: 7.5rem; height: 7.5rem; }
+  .hw-web-l { left: 15rem; } /* พ้น Sidebar (w-60) */
+}
+
+/* มือถือ/แท็บเล็ต: ลดเหลือแสง + หยากไย่ + ลูกไฟ 2 ดวง ไม่มีค้างคาว */
+@media (max-width: 1023px) {
+  .hw-ember:nth-child(n + 3) { display: none; }
+  .hw-bat { display: none; }
+}
+
+/* ลดการเคลื่อนไหว: ปิดทุก animation เหลือแสงกับหยากไย่นิ่ง */
+@media (prefers-reduced-motion: reduce) {
+  .hw-embers, .hw-bat { display: none; }
+}
