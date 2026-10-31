@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
 import { parseEffectTags } from "@/lib/effectTags";
 import { cached, peek } from "@/lib/ttlCache";
+import { loadSnapshotRows } from "@/lib/snapshots";
 import { relationsForHero } from "@/lib/heroRelations";
 import { peekDraftRelations } from "@/services/draft";
 import { getLatestPatch } from "@/services/meta";
@@ -28,6 +29,10 @@ import { ALL_LANES, getCuratedTierLists, type CuratedTierLists } from "@/service
 //
 // Performance: the independent queries run in parallel, and results are cached in memory
 // for CACHE_TTL_MS (see lib/ttlCache). Admins bypass the cache so their edits show up at once.
+//
+// R2 snapshots (optional, off unless VITE_R2_SNAPSHOTS=1): the hero list rows and the hero text (description/strengths/weaknesses)
+// are read from a JSON snapshot on assets.rovlab.app when an admin has published one (docs/r2-data-snapshots.md). Anything missing
+// or unexpected falls back to the same Supabase query as before, so the rows (and everything built from them) are identical.
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -35,6 +40,7 @@ const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, ban
 
 // รายการฮีโร่ (HeroSummary) ไม่ใช้ description/strengths/weaknesses (~43 KB ต่อการโหลดหน้า) จึงไม่ดึงมา
 // ต้องคงให้ตรงกับ select ของ get("heroes", …) ใน index.html ทุกตัวอักษร ไม่งั้นผล prefetch ถูกทิ้งและยิงซ้ำ
+// ต้องตรงกับคอลัมน์ของ dataset "heroes" ใน api/_publish/core.ts ด้วย (มีเทสต์เช็คลำดับ)
 const HERO_LIST_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url, phase";
 // หน้ารายละเอียดฮีโร่ (1 แถว) ต้องใช้ข้อความเต็ม
 const HERO_COLS = `${HERO_LIST_COLS}, description, strengths, weaknesses`;
@@ -57,6 +63,7 @@ type DbHeroRow = {
 };
 
 type DbHeroListRow = Omit<DbHeroRow, "description" | "strengths" | "weaknesses">;
+type DbHeroTextRow = Pick<DbHeroRow, "id" | "slug" | "description" | "strengths" | "weaknesses">;
 
 function toSummary(row: DbHeroListRow, statByHeroId: Map<string, HeroSummary["stat"]>): HeroSummary {
   return {
@@ -118,17 +125,38 @@ function applyCuratedTiers(list: HeroSummary[], lists: CuratedTierLists | null):
   });
 }
 
+// แถวรายการฮีโร่ (ลำดับ name ก่อน-หลังเหมือน query เดิม): ใช้ snapshot บน R2 ถ้ามี ไม่งั้น query Supabase เหมือนเดิมทุกอย่าง
+async function loadHeroListRows(): Promise<DbHeroListRow[]> {
+  const snap = await loadSnapshotRows<DbHeroListRow>("heroes");
+  if (snap) return snap;
+  const { data, error } = await supabase.from("heroes").select(HERO_LIST_COLS).order("name", { ascending: true });
+  if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
+  return data as unknown as DbHeroListRow[];
+}
+
+// แถวฮีโร่ 1 ตัวพร้อมข้อความเต็ม: ประกอบจาก snapshot "heroes" + "hero-text" เมื่อมีครบและ id ตรงกัน
+// ไม่พบ slug ใน snapshot (เช่นฮีโร่ใหม่ที่ยังไม่ได้ publish) ต้อง query Supabase ต่อ ห้ามตอบว่าไม่พบ
+async function loadHeroDetailRow(slug: string): Promise<DbHeroRow | null> {
+  const [list, text] = await Promise.all([loadSnapshotRows<DbHeroListRow>("heroes"), loadSnapshotRows<DbHeroTextRow>("hero-text")]);
+  const base = list?.find((h) => h.slug === slug);
+  const t = text?.find((h) => h.slug === slug);
+  if (base && t && t.id === base.id) {
+    return { ...base, description: t.description ?? null, strengths: t.strengths ?? null, weaknesses: t.weaknesses ?? null };
+  }
+  // array shape (not .maybeSingle()) so the read can go through the CDN-cached /api/sb proxy; slug is unique
+  const { data: rows, error } = await supabase.from("heroes").select(HERO_COLS).eq("slug", slug).limit(1);
+  if (error) throw new Error(error.message);
+  return (rows?.[0] as unknown as DbHeroRow | undefined) ?? null;
+}
+
 // withCurated = false → ไม่ query tier_lists / tier_list_entries; stat.tier เป็นค่าดิบจาก hero_stats (ใช้เฉพาะ getHeroesForStats)
 async function loadHeroes(rank: RankBucket, withCurated = true): Promise<HeroSummary[]> {
   if (!isSupabaseConfigured) return [];
-  const [heroesRes, statMap, curated] = await Promise.all([
-    supabase.from("heroes").select(HERO_LIST_COLS).order("name", { ascending: true }),
+  const [rows, statMap, curated] = await Promise.all([
+    loadHeroListRows(),
     fetchStatsByHeroId(null, rank),
     withCurated ? getCuratedTierLists(rank) : null,
   ]);
-  const { data, error } = heroesRes;
-  if (error || !data) throw new Error(error?.message ?? "โหลดรายชื่อฮีโร่ไม่สำเร็จ");
-  const rows = data as unknown as DbHeroListRow[];
   return applyCuratedTiers(rows.map((row) => toSummary(row, statMap)), curated);
 }
 
@@ -184,13 +212,8 @@ function byStrength(a: CounterEntry, b: CounterEntry) {
 async function loadHeroBySlug(slug: string, rank: RankBucket): Promise<HeroDetail | null> {
   if (!isSupabaseConfigured) return null;
 
-  // array shape (not .maybeSingle()) so the read can go through the CDN-cached /api/sb proxy; slug is unique
-  const { data: rows, error } = await supabase.from("heroes").select(HERO_COLS).eq("slug", slug).limit(1);
-  if (error) throw new Error(error.message);
-  const row = rows?.[0];
-  if (!row) return null;
-
-  const heroRow = row as unknown as DbHeroRow;
+  const heroRow = await loadHeroDetailRow(slug);
+  if (!heroRow) return null;
 
   // Reuse what other pages already cached (no extra request): the hero list carries this hero's stat + curated tier,
   // and draft-relations carries every counter/synergy row. Anything missing falls back to the per-hero queries.
