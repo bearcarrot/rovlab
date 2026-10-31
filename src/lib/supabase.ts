@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { proxyUrlFor } from "@/lib/restProxy";
+import { proxyUrlFor, acceptsPlainJson } from "@/lib/restProxy";
 import { isCacheBypassed } from "@/lib/ttlCache";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -63,7 +63,7 @@ const earlyAwareFetch: typeof fetch = (input, init) => {
       if (hit) {
         delete store[input];
         const h = new Headers(init?.headers);
-        if (Date.now() - hit.t < EARLY_MAX_AGE_MS && h.get("accept") === "application/json" && h.get("authorization") === `Bearer ${anonKey}`) {
+        if (Date.now() - hit.t < EARLY_MAX_AGE_MS && acceptsPlainJson(h) && h.get("authorization") === `Bearer ${anonKey}`) {
           return hit.p.catch(() => fetchPublic(input, init));
         }
       }
