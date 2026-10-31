@@ -1,5 +1,5 @@
-// Minimal AWS SigV4 PUT/DELETE for Cloudflare R2 (S3 API) using only WebCrypto, so no npm dependency / lockfile change is needed.
-// Shared by api/upload.ts (Vercel edge) and supabase/functions/avatar (Deno). No imports on purpose: both runtimes can load it.
+// Minimal AWS SigV4 GET/PUT/DELETE for Cloudflare R2 (S3 API) using only WebCrypto, so no npm dependency / lockfile change is needed.
+// Shared by api/upload.ts + api/publish-data.ts (Vercel edge) and supabase/functions/avatar (Deno). No imports on purpose: both runtimes can load it.
 export type R2Config = { accountId: string; accessKeyId: string; secretAccessKey: string; bucket: string };
 
 const te = new TextEncoder();
@@ -31,8 +31,9 @@ export async function sigv4(o: {
 const encodeKey = (key: string) =>
   key.split("/").map((s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)).join("/");
 
-// PUT or DELETE one object. Returns the raw Response so callers can log status.
-export async function r2Fetch(cfg: R2Config, method: "PUT" | "DELETE", key: string, init: { body?: Uint8Array; headers?: Record<string, string> } = {}): Promise<Response> {
+// GET, PUT or DELETE one object (GET was added for api/publish-data.ts to read its manifest; a GET has no body, so the signed payload
+// is the empty-body hash, same as DELETE). Returns the raw Response so callers can log status.
+export async function r2Fetch(cfg: R2Config, method: "GET" | "PUT" | "DELETE", key: string, init: { body?: Uint8Array; headers?: Record<string, string> } = {}): Promise<Response> {
   const host = `${cfg.accountId}.r2.cloudflarestorage.com`;
   const path = `/${cfg.bucket}/${encodeKey(key)}`;
   const body = init.body ?? new Uint8Array(0);
