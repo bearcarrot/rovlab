@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw, UploadCloud } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
@@ -32,6 +32,8 @@ async function call(body: Record<string, unknown>): Promise<Reply & { status: nu
 
 export function PublishDataCard() {
   const toast = useToast();
+  const toastRef = useRef(toast); // keep the latest toast without making refresh() change identity on every render
+  toastRef.current = toast;
   const [manifest, setManifest] = useState<Manifest | null | undefined>(undefined); // undefined = not loaded yet
   const [busy, setBusy] = useState(false);
   const [rollbackTo, setRollbackTo] = useState("");
@@ -39,8 +41,8 @@ export function PublishDataCard() {
   const refresh = useCallback(async () => {
     const r = await call({ action: "status" });
     if (r.status === 200) setManifest(r.manifest ?? null);
-    else toast.error(r.message ?? "อ่านสถานะไม่สำเร็จ");
-  }, [toast]);
+    else toastRef.current.error(r.message ?? "อ่านสถานะไม่สำเร็จ");
+  }, []);
 
   useEffect(() => {
     void refresh();
