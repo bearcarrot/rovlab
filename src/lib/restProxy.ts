@@ -13,6 +13,14 @@ export const PROXY_TABLES = [
   "hero_abilities",
 ] as const;
 
+// True when the request wants a plain JSON array. supabase-js sends no Accept header for an ordinary GET read, so the browser's fetch
+// adds "*/*" (production Supabase logs, 2026-10-31: nearly every public read arrived as "*/*" and bypassed the proxy). Only
+// .single()/.maybeSingle() ask for another type ("application/vnd.pgrst.object+json") and must stay direct.
+export function acceptsPlainJson(headers: Headers): boolean {
+  const accept = (headers.get("accept") ?? "").trim().toLowerCase();
+  return accept === "" || accept === "*/*" || accept === "application/json";
+}
+
 // `input` is the full PostgREST URL supabase-js is about to fetch, `restBase` is `<supabase url>/rest/v1/`.
 // Returns the same-origin /api/sb URL, or null when the request must go straight to Supabase: another table, a response shape
 // other than a plain JSON array (.single()/.maybeSingle() send another Accept), or count/range requests.
@@ -23,7 +31,7 @@ export function proxyUrlFor(input: string, restBase: string, headers: Headers): 
   if (q < 1) return null;
   const table = rest.slice(0, q);
   if (!(PROXY_TABLES as readonly string[]).includes(table)) return null;
-  if (headers.get("accept") !== "application/json") return null;
+  if (!acceptsPlainJson(headers)) return null;
   if (headers.has("prefer") || headers.has("range")) return null;
   return `/api/sb?t=${table}&q=${encodeURIComponent(rest.slice(q + 1))}`;
 }
