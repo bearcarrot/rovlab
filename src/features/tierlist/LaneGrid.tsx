@@ -138,9 +138,10 @@ export function LaneGrid({
           ))}
         </div>
       )}
-      <div className="overflow-x-auto pb-1">
+      {/* isolate = z-index ภายในตาราง (ป้ายบัฟ/เนิฟ z-10, ป้าย Tier ที่ตรึงซ้าย z-20) ไม่รั่วไปชนส่วนอื่นของหน้า; ป้าย Tier ต้องอยู่เหนือป้ายบัฟ/เนิฟของฮีโร่ที่เลื่อนมาอยู่ใต้ */}
+      <div className="isolate overflow-x-auto pb-1">
         <div className="grid gap-1.5" style={style}>
-          <div className="sticky left-0 z-10 bg-bg" />
+          <div className="sticky left-0 z-20 bg-bg" />
           {shown.map((c) => (
             <div key={c.code} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2 py-1.5 text-xs font-medium">
               {c.code !== OTHER_LANE && <LaneIcon icon={c.icon} label={c.label} />}
@@ -150,7 +151,7 @@ export function LaneGrid({
           {grid.rows.map((r) => (
             <Fragment key={r.id}>
               {/* the grid cell is as tall as the row; the flex child stretches to it (no fixed height, so wrapped rows never clip) */}
-              <div className="sticky left-0 z-10 flex bg-bg">
+              <div className="sticky left-0 z-20 flex bg-bg">
                 <TierLabel
                   row={{ label: r.label, color: r.color ?? OFFICIAL_TIER_COLOR.get(r.label) ?? NEUTRAL_TIER_COLOR }}
                   className="min-h-[2.5rem] w-full"
