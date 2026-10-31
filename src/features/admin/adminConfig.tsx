@@ -160,6 +160,8 @@ export const CFG: Record<string, Cfg> = {
       { k: "roles", label: "ตำแหน่ง (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["assassin", "fighter", "mage", "carry", "support", "tank"] },
       { k: "lanes", label: "เลน (เลือกได้หลายตัว · ★ = ตัวหลัก)", type: "multi", opts: ["slayer", "jungle", "mid", "abyssal", "roaming"] },
       { k: "difficulty", type: "sel", opts: ["easy", "medium", "hard"] },
+      // ช่วงเกมที่ฮีโร่แข็งที่สุด: early = ต้นเกม, mid = กลางเกม, late = เลทเกม (ว่าง = ยังไม่กำหนด ให้ Draft Assistant ประเมินจาก Role)
+      { k: "phase", label: "ช่วงเกม (early = ต้นเกม · mid = กลางเกม · late = เลทเกม)", type: "sel", opts: ["", "early", "mid", "late"] },
       { k: "icon_url", label: "ไอคอน", type: "img" },
       { k: "description", type: "area" },
       { k: "strengths", type: "arr" },

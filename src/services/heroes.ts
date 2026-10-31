@@ -1,4 +1,4 @@
-import type { HeroAbility, HeroDetail, HeroLane, HeroRole, HeroSummary, Tier, CounterEntry, SynergyEntry } from "@/types/hero";
+import type { HeroAbility, HeroDetail, HeroLane, HeroPhase, HeroRole, HeroSummary, Tier, CounterEntry, SynergyEntry } from "@/types/hero";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getRank, type RankBucket } from "@/lib/rank";
 import { parseEffectTags } from "@/lib/effectTags";
@@ -35,7 +35,7 @@ const EMPTY_STAT = { patch: "N/A", rankTier: "N/A", winRate: 0, pickRate: 0, ban
 
 // รายการฮีโร่ (HeroSummary) ไม่ใช้ description/strengths/weaknesses (~43 KB ต่อการโหลดหน้า) จึงไม่ดึงมา
 // ต้องคงให้ตรงกับ select ของ get("heroes", …) ใน index.html ทุกตัวอักษร ไม่งั้นผล prefetch ถูกทิ้งและยิงซ้ำ
-const HERO_LIST_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url";
+const HERO_LIST_COLS = "id, slug, name, name_th, role, lane, roles, lanes, difficulty, icon_url, phase";
 // หน้ารายละเอียดฮีโร่ (1 แถว) ต้องใช้ข้อความเต็ม
 const HERO_COLS = `${HERO_LIST_COLS}, description, strengths, weaknesses`;
 
@@ -50,6 +50,7 @@ type DbHeroRow = {
   lanes: HeroLane[] | null;
   difficulty: "easy" | "medium" | "hard";
   icon_url: string | null;
+  phase: HeroPhase | null;
   description: string | null;
   strengths: string[] | null;
   weaknesses: string[] | null;
@@ -69,6 +70,7 @@ function toSummary(row: DbHeroListRow, statByHeroId: Map<string, HeroSummary["st
     roles: row.roles && row.roles.length > 0 ? row.roles : [row.role],
     lanes: row.lanes && row.lanes.length > 0 ? row.lanes : [row.lane],
     difficulty: row.difficulty,
+    phase: row.phase ?? undefined,
     icon: row.icon_url ?? "",
     stat: statByHeroId.get(row.id) ?? EMPTY_STAT,
   };

@@ -3,6 +3,8 @@ import type { EffectTag } from "@/lib/effectTags";
 export type HeroRole = "assassin" | "fighter" | "mage" | "carry" | "support" | "tank";
 export type HeroLane = "slayer" | "jungle" | "mid" | "abyssal" | "roaming";
 export type HeroDifficulty = "easy" | "medium" | "hard";
+// ช่วงเกมที่ฮีโร่แข็งที่สุด: ต้นเกม / กลางเกม / เลทเกม (heroes.phase แอดมินเลือกเอง)
+export type HeroPhase = "early" | "mid" | "late";
 export type Tier = "S+" | "S" | "A" | "B" | "C";
 
 export interface HeroStatSnapshot {
@@ -30,6 +32,8 @@ export interface HeroSummary {
   roles?: HeroRole[]; // ทุกตำแหน่งที่ฮีโร่ไปได้ ใช้ heroRoles() จาก @/lib/heroPositions
   lanes?: HeroLane[]; // ทุกเลนที่ฮีโร่ไปได้ ใช้ heroLanes()
   difficulty: HeroDifficulty;
+  // ช่วงเกมที่แข็งที่สุด (ไม่มี = ทีมงานยังไม่กำหนด ให้ประเมินจาก Role)
+  phase?: HeroPhase;
   icon: string;
   stat: HeroStatSnapshot;
 }

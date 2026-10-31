@@ -9,8 +9,9 @@ import { analyzeTeam } from "@/features/draft/analyzeTeam";
 import { findTeamGaps } from "@/features/draft/teamGaps";
 import { buildKits, type KitsByHero } from "@/features/draft/skillTags";
 import { DraftPreviewPanel } from "@/features/draft/DraftPreviewPanel";
+import { TeamGaps } from "@/features/draft/TeamGaps";
+import { TeamMeters } from "@/features/draft/TeamMeters";
 import { HeroIcon } from "@/components/HeroIcon";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HeroSummary } from "@/types/hero";
 
@@ -18,15 +19,6 @@ const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
 const FORMAT_LABEL: Record<SeriesFormat, string> = { single: "เกมเดียว", bo3: "BO3", bo5: "BO5", bo7: "BO7" };
-
-// 3 มิติเดียวกับกราฟตัวอย่างเดิมบน Home (ไม่ใช้ครบ 6 แถวเหมือนหน้า Draft เพื่อไม่ให้การ์ดยาว)
-// gap = key ของ findTeamGaps ที่ชี้ว่ามิตินั้น "ขาด" (ความคล่องตัวไม่มีเกณฑ์ขาด)
-const METERS = [
-  { key: "frontline", label: "แนวหน้า", gap: "frontline" },
-  { key: "cc", label: "Crowd Control", gap: "cc" },
-  { key: "mobility", label: "ความคล่องตัว", gap: null },
-] as const;
-const METER_MAX = 10; // เพดานสเกลแถบเท่ากับ TeamMeters บนหน้า Draft
 
 interface TopDraft {
   id: string;
@@ -148,9 +140,9 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
     };
   }, [bySlug]);
 
-  // สถิติของทีมฝั่งผู้สร้าง (เกมที่ 1) ใช้ analyzeTeam/findTeamGaps + kits เหมือนหน้า Draft
-  // ถ้าฮีโร่บางตัวไม่มีแท็กสกิล analyzeTeam จะ fallback ไปใช้ Role เฉพาะตัวนั้นเอง
-  // ถ้าหาฮีโร่บางตัวไม่เจอในรายชื่อ จะไม่แสดงแถบสถิติ (แทนที่จะคำนวณผิด)
+  // ภาพรวมทีมของทีมฝั่งผู้สร้าง (เกมที่ 1) ใช้ analyzeTeam/findTeamGaps + kits เหมือนหน้า Draft และแสดงผ่าน TeamGaps + TeamMeters ตัวเดียวกัน
+  // (แต้มช่วงเกมมาจาก h.phase ที่ฝังอยู่ในรายชื่อฮีโร่แล้ว ไม่มี request เพิ่ม)
+  // ถ้าหาฮีโร่บางตัวไม่เจอในรายชื่อ จะไม่แสดงสถิติ (แทนที่จะคำนวณผิด)
   const teamStats = useMemo(() => {
     if (!top) return null;
     const picked = top.mine.map((s) => bySlug.get(s));
@@ -159,10 +151,8 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
     const analysis = analyzeTeam(mineHeroes, kits ?? undefined);
     // ระบุว่า "ขาด" เฉพาะทีมครบ 5 ตัว ทีมที่ยังไม่ครบจะขาดอยู่แล้วโดยธรรมชาติ
     const full = mineHeroes.length >= TEAM_SIZE;
-    const gaps = full ? new Set(findTeamGaps(analysis, mineHeroes, kits ?? undefined).map((g) => g.key)) : new Set<string>();
-    // ทุกตัวมีแท็กสกิล = คำนวณจากสกิลครบ; ไม่ครบ = ผสม Role บางตัว
-    const fromKits = kits !== null && mineHeroes.every((h) => kits[h.id] !== undefined);
-    return { analysis, gaps, fromKits };
+    const gaps = full ? findTeamGaps(analysis, mineHeroes, kits ?? undefined) : [];
+    return { analysis, gaps, full };
   }, [top, kits, bySlug]);
 
   // ยังโหลดอยู่ / ไม่มีดราฟต์ที่มียอดถูกใจ / error → ภาพประกอบเดิม (ไม่โชว์เลข 0 หรือกล่องว่าง)
@@ -194,24 +184,10 @@ export default function CommunityDraftSpotlight({ heroes }: { heroes: HeroSummar
         {top.enemy.length > 0 && <TeamRow label="ทีมศัตรู" slugs={top.enemy} bySlug={bySlug} />}
       </div>
       {teamStats && (
-        <div className="space-y-2 border-t border-border pt-3">
-          {METERS.map((m) => {
-            const isGap = m.gap !== null && teamStats.gaps.has(m.gap);
-            return (
-              <div key={m.key}>
-                <div className="mb-1 flex justify-between text-xs">
-                  <span className="text-text-muted">{m.label}</span>
-                  {isGap && <span className="font-medium text-loss">ขาด</span>}
-                </div>
-                <Progress value={(teamStats.analysis[m.key] / METER_MAX) * 100} barClassName={isGap ? "bg-loss" : undefined} />
-              </div>
-            );
-          })}
-          <p className="pt-0.5 text-[11px] text-text-faint">
-            {teamStats.fromKits
-              ? "* ประเมินจากแท็กสกิลของทีมเรา (บางมิติยังเป็น Heuristic จาก Role)"
-              : "* ประเมินจาก Role ของทีมเรา (Heuristic) ยังไม่ใช่ข้อมูลระดับสกิล"}
-          </p>
+        <div className="border-t border-border pt-3">
+          <p className="mb-2 text-xs font-medium text-text-muted">ภาพรวมทีม</p>
+          {teamStats.full && <TeamGaps gaps={teamStats.gaps} filledSlots={teamStats.analysis.filledSlots} />}
+          <TeamMeters analysis={teamStats.analysis} />
         </div>
       )}
     </Link>

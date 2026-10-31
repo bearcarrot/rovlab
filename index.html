@@ -124,7 +124,7 @@
           function json(p) { return p.then(function (r) { return r.clone().json(); }); }
           // heroes:<rank> (รายชื่อ + สถิติ + tier) สดอยู่ = แอปไม่ยิง heroes/patches/hero_stats/tier_lists เลย จึงไม่ prefetch ชุดนี้
           var heroesFresh = fresh("heroes:" + rank, 21600000);
-          if (!heroesFresh) get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url"], ["order", "name.asc"]]);
+          if (!heroesFresh) get("heroes", [["select", "id,slug,name,name_th,role,lane,roles,lanes,difficulty,icon_url,phase"], ["order", "name.asc"]]);
           if (!fresh("balance:recent", 900000)) get("hero_balance_changes", [["select", "hero_id,kind,changed_at"], ["changed_at", "gte." + new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)], ["order", "changed_at.desc"]]);
           if (heroesFresh) return;
           json(get("patches", [["select", "id,code,released_at"], ["order", "released_at.desc.nullslast"], ["limit", "1"]])).then(function (rows) {

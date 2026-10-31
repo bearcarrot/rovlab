@@ -204,7 +204,7 @@ export function AdminCommunity() {
             {shown.length === q.data.rows.length ? q.data.rows.length : `${shown.length}/${q.data.rows.length}`} รายการ
             {q.data.capped && " (แสดงเฉพาะรายการแรก ใช้ช่องค้นหาเพื่อหาเพิ่ม)"}
           </p>
-          {q.data.rows.length === 0 && <EmptyState icon={ShieldCheck} title={emptyTitle} />}
+          {q.data.rows.length === 0 && <EmptyState icon={ShieldCheck} title={emptyTitle} description="รายการที่ผู้ใช้เผยแพร่จะแสดงที่นี่" />}
           {q.data.rows.length > 0 && shown.length === 0 && <p className="text-sm text-text-faint">ไม่มีรายการที่ถูกซ่อน</p>}
           {shown.length > 0 && (
             <ul className="space-y-2">

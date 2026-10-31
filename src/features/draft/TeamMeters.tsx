@@ -9,6 +9,7 @@ const ROWS: { key: keyof TeamAnalysis; label: string }[] = [
   { key: "mobility", label: "ความคล่องตัว" },
   { key: "sustain", label: "การคงทน" },
   { key: "earlyGame", label: "ความแข็งแกร่งช่วงต้นเกม" },
+  { key: "midGame", label: "ความแข็งแกร่งช่วงกลางเกม" },
   { key: "lateGame", label: "ความแข็งแกร่งช่วงปลายเกม" },
 ];
 
@@ -28,6 +29,7 @@ function DamageBar({ a, tag }: { a: TeamAnalysis; tag?: string }) {
 
 // enemy = ผลวิเคราะห์ทีมศัตรู (ส่งมาเมื่อเลือกศัตรูมากพอแล้วเท่านั้น); ไม่ส่ง = แสดงเฉพาะทีมเรา
 export function TeamMeters({ analysis, enemy }: { analysis: TeamAnalysis; enemy?: TeamAnalysis }) {
+  const phaseHeroes = analysis.phaseHeroes ?? 0;
   return (
     <div className="space-y-3">
       <div>
@@ -57,12 +59,14 @@ export function TeamMeters({ analysis, enemy }: { analysis: TeamAnalysis; enemy?
           <div className="mb-1 flex justify-between text-xs text-text-muted">
             <span>{r.label}</span>
           </div>
-          <Progress value={(Number(analysis[r.key]) / MAX) * 100} />
-          {enemy && <Progress className="mt-1" barClassName="bg-text-faint" value={(Number(enemy[r.key]) / MAX) * 100} />}
+          <Progress value={(Number(analysis[r.key] ?? 0) / MAX) * 100} />
+          {enemy && <Progress className="mt-1" barClassName="bg-text-faint" value={(Number(enemy[r.key] ?? 0) / MAX) * 100} />}
         </div>
       ))}
       <p className="pt-1 text-[11px] text-text-faint">
         * ค่าประเมินจาก Role ของฮีโร่ (Heuristic) ยังไม่ใช่ข้อมูลจริงระดับสกิล
+        {phaseHeroes > 0 &&
+          ` · ช่วงต้น/กลาง/ปลายเกมใช้ช่วงเกมที่ทีมงานกำหนดให้ ${phaseHeroes} จาก ${analysis.filledSlots} ตัว (ที่เหลือประเมินจาก Role)`}
       </p>
     </div>
   );
