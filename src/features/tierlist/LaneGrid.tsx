@@ -148,7 +148,7 @@ export function LaneGrid({
                         className="relative h-10 w-10 shrink-0 rounded-lg bg-bg-raised hover:ring-2 hover:ring-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       >
                         <HeroIcon icon={h.icon} name={h.nameTh} fallback={h.name.slice(0, 2).toUpperCase()} className="h-full w-full rounded-lg text-base" />
-                        {balanceBadge && <HeroBalanceBadge heroId={h.id} size="md" inside />}
+                        {balanceBadge && <HeroBalanceBadge heroId={h.id} size="xs" inside />}
                       </Link>
                     ))}
                   </div>
