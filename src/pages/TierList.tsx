@@ -290,7 +290,7 @@ export function TierList() {
               description={isCurated || heroes.data.some((h) => h.stat.hasStats) ? "ลองเปลี่ยนตัวกรอง Tier, Role หรือ Lane" : "ยังไม่มีสถิติสำหรับช่วงแรงก์ที่เลือก"}
             />
           )}
-          {!loading && grouped && totalShown > 0 && <LaneGrid grid={grid} columns={columns} balanceBadge />}
+          {!loading && grouped && totalShown > 0 && <LaneGrid grid={grid} columns={columns} balanceBadge showDifficulty />}
         </>
       )}
       {tour.open && <DraftOnboarding steps={TIER_TOUR_STEPS} onClose={tour.close} />}
